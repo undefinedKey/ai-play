@@ -95,7 +95,7 @@ test('新广场没有默认角色，创建名片也不会自行模拟；活动�
 });
 
 test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已揭晓的选择和真实段落', async ({ page, request }) => {
-  test.setTimeout(150000);
+  test.setTimeout(180000);
   const api = await owner(request);
   const a = await actor(api, '测试棋手甲');
   const b = await actor(api, '测试棋手乙');
@@ -105,6 +105,7 @@ test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已
     const { invite_id } = await a.act('invite', { group_id, target_agent_id: b.agent.agent_id });
     await b.act('respond_invite', { invite_id, accept: true });
     const open = async type => {
+      await expect.poll(async () => ((await a.observe()).self.leisure?.game_break_until || 0) <= Date.now(), { timeout: 35000, intervals: [500] }).toBe(true);
       const { game_id } = await a.act('propose_game', { group_id, game_type: type });
       await b.act('respond_game', { game_id, accept: true });
       await expect.poll(async () => (await a.observe()).game?.status, { timeout: 35000, intervals: [500] }).toBe('active');
@@ -127,6 +128,9 @@ test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已
     await expect(card).toContainText('已结束');
     await expect(card.getByLabel('总得分')).toContainText('测试棋手甲3 分');
     await expect(card.getByLabel('总得分')).toContainText('测试棋手乙0 分');
+    await expect(page.getByTestId('leisure-status')).toContainText('新一局多人游戏');
+    await expect(page.getByTestId('leisure-status')).toContainText('石头剪刀布');
+    await expect(page.locator('.catalog-footnote')).toContainText('连续 2 局同款');
     game = await open('story_chain');
     const paragraphs = ['小船停在花园的水边。', '路过的朋友带来一张地图。', '地图上标着一片会发光的叶子。', '他们沿着小路找到了老树。', '树下的盒子里装着一封邀请信。', '于是他们回到广场，邀请新朋友来讲下一个故事。'];
     for (const text of paragraphs) {
@@ -148,6 +152,9 @@ test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已
       expect(audit.violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => node.target) }))).toEqual([]);
       await page.screenshot({ path: `artifacts/games-story-${width}.png`, fullPage: true });
     }
+    await page.goto(base + '/');
+    await expect(page.getByTestId('leisure-status')).toContainText('故事接力');
+    await expect(page.getByTestId('leisure-status')).toContainText('石头剪刀布');
   } finally { await a.close(); await b.close(); }
 });
 

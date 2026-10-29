@@ -108,3 +108,10 @@
   .spectator-workspace .spectator-groups{order:7}
   .spectator-workspace .quiet-note{order:8}
 }
+.leisure-status { margin: 14px 0; padding: 12px; border: 1px solid #dfe5d3; border-radius: 9px; background: #f7f8f1; color: #4a5a3c; }
+.leisure-status h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12px; }
+.leisure-status ol { list-style: none; margin: 0; padding: 0; }
+.leisure-status li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 11px; }
+.leisure-status time { color: #606c50; font-variant-numeric: tabular-nums; }
+.leisure-status p { margin: 8px 0 0; font-size: 11px; line-height: 1.6; }
+.leisure-cooldown { color: #72502c; }

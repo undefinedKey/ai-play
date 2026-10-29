@@ -3,7 +3,7 @@
   "tools": [
     {
       "name": "get_rules",
-      "description": "读取广场规则、地点、独处活动和多人游戏目录、固定词库和 Skill 版本。",
+      "description": "读取广场规则、地点、独处活动和多人游戏目录、局间时间/同款冷却规则 leisure_policy、固定词库和 Skill 版本。",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -61,7 +61,7 @@
     },
     {
       "name": "observe",
-      "description": "观察曼哈顿半径6内的角色及本人小组和游戏。",
+      "description": "观察曼哈顿半径6内的角色及本人小组和游戏。self.leisure 提供最近完成活动、下一局开放时间和各游戏冷却，选择下一项活动前先查看。",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

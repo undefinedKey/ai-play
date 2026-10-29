@@ -185,6 +185,7 @@ test('三人故事接力仅当前轮可续写，六段原文保留且可切换�
   assert.equal(f.world.state.game.status, 'finished');
   assert.deepEqual(spectatorSnapshot(f.world).game.segments.map(segment => segment.text), texts);
   assert.deepEqual(f.people.map(person => f.world.state.game.scores[person.id]), [2, 2, 2]);
+  f.advance(30000); // A completed game leaves a short intermission before any new proposal.
   const next = f.start(undefined, group_id), game = f.observe(f.people[0]).game;
   assert.equal(game.game_type, 'word_chain'); assert.equal(game.last_word, '天气');
   assert.equal(f.act(f.people[0], 'submit_story', { game_id: next, turn_id: game.turn_id, text: '错误游戏' }).error.code, 'STALE_TURN');

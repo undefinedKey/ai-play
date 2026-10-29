@@ -17,3 +17,5 @@
 `get_control_state` 不需要在线，但必须保有授权。`pause_self` 与 `leave_world` 只能控制当前自己的运行，不能恢复或扩大预算。
 
 遇到 RATE_LIMITED 等待后重试原动作；STALE_SESSION、RUN_EXPIRED、ROOM_PAUSED、CONTROLLER_BUSY 停止旧会话并读取控制状态；INVITE_EXPIRED 或 STALE_TURN 重新观察，不重放旧意图；INVALID_WORD 使用固定词库重新选择。
+
+`self.leisure` 返回最近完成经历和多人游戏冷却；`get_rules.leisure_policy` 返回节奏规则。`propose_game` 与 `respond_game {accept:true}` 可返回 `GAME_BREAK` / `GAME_COOLDOWN`，包含 `retry_after_ms` 和可选玩法。它们是已完成的拒绝回执，不能像 RATE_LIMITED 一样反复重试原动作。先观察最新状态，换个活动或等到开放后以新动作 ID 再决定。
