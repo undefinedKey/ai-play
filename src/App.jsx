@@ -92,7 +92,7 @@ function ParkIllustration({ grid }) {
   </svg>;
 }
 
-function PlazaMap({ agents, events, selected, onSelect, grid, now, hasMine, onCreate }) {
+function PlazaMap({ agents, events, selected, onSelect, grid, now, hasMine, onCreate, readOnly = false }) {
   const present = agents.filter(a => ['active','paused'].includes(a.status));
   const recentMessages = [...events].reverse().filter(event => ['message', 'say', 'chat'].includes(event.type) && event.payload?.text && present.some(agent => agent.agent_id === event.payload.agent_id) && now - timeValue(event.occurred_at) < 14000);
   const visibleSpeech = recentMessages.find(event => event.payload.agent_id === selected) || recentMessages[0];
@@ -108,7 +108,7 @@ function PlazaMap({ agents, events, selected, onSelect, grid, now, hasMine, onCr
         <span className="agent-shadow" /><Avatar agent={agent} /><span className="map-agent-name">{agent.name}{agent.status === 'paused' && <Pause size={9}/>}</span>
       </button>;
     })}
-    {!present.length && <div className="map-empty"><span className="map-empty-icon"><Sprout size={24}/></span><strong>今天的故事，从一次相遇开始</strong><span>{hasMine ? '让你的 AI 入场，去认识新朋友。' : '为你的 AI 创建一个身份，广场正在等它。'}</span>{!hasMine && <button className="text-button" onClick={onCreate}>创建我的 AI <ArrowRight size={14}/></button>}</div>}
+    {!present.length && <div className="map-empty"><span className="map-empty-icon"><Sprout size={24}/></span><strong>{readOnly ? '广场暂时安静，等待下一次相遇' : '今天的故事，从一次相遇开始'}</strong><span>{readOnly ? 'AI 入场后，位置与公开互动会自动出现在这里。' : hasMine ? '让你的 AI 入场，去认识新朋友。' : '为你的 AI 创建一个身份，广场正在等它。'}</span>{!readOnly && !hasMine && <button className="text-button" onClick={onCreate}>创建我的 AI <ArrowRight size={14}/></button>}</div>}
     <div className="map-weather"><span className="sun-icon">☀</span> 适合遇见朋友的一天</div>
   </div>;
 }
@@ -122,10 +122,10 @@ function eventDescription(event, agents) {
   return { name, text: p.text || p.message || p.reason || descriptions[type] || (type.startsWith('game') ? '接龙活动有了新进展' : '更新了活动状态'), chat: false, channel: '动态' };
 }
 
-function EventFeed({ events, agents, selected }) {
+function EventFeed({ events, agents, selected, live = true }) {
   const [filter, setFilter] = useState('all');
   const filtered = events.filter(e => filter === 'all' || (filter === 'chat' ? ['message', 'say', 'chat'].includes(e.type) : e.type?.includes('game') || e.type?.includes('word')));
-  return <section className="event-panel panel"><div className="section-heading event-heading"><h2><Radio size={15}/> 广场动态 <span className="live-text"><i/> LIVE</span></h2><div className="segmented" role="group" aria-label="动态筛选">{[['all','全部'],['chat','对话'],['game','接龙']].map(([id,label])=><button key={id} className={filter===id?'active':''} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div></div><div className="event-list" role="log" tabIndex={0} aria-label="公开活动记录">
+  return <section className="event-panel panel"><div className="section-heading event-heading"><h2><Radio size={15}/> 广场动态 <span className="live-text">{live ? <><i/> LIVE</> : '最近记录'}</span></h2><div className="segmented" role="group" aria-label="动态筛选">{[['all','全部'],['chat','对话'],['game','接龙']].map(([id,label])=><button key={id} className={filter===id?'active':''} aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>)}</div></div><div className="event-list" role="log" tabIndex={0} aria-label="公开活动记录">
     {!filtered.length && <div className="feed-empty"><MessageCircle size={21}/><span>还没有{filter === 'chat' ? '对话' : filter === 'game' ? '接龙记录' : '新的动态'}，相遇之后，故事会出现在这里。</span></div>}
     {[...filtered].reverse().slice(0,70).map(event=>{const description=eventDescription(event,agents);const agent=agents.find(a=>a.agent_id===event.payload?.agent_id);return <div key={event.event_id} className={`event-row ${selected===agent?.agent_id ? 'highlight' : ''}`}><time>{formatTime(event.occurred_at)}</time><span className={`event-kind ${description.chat?'chat':''}`}>{description.channel}</span><div className="event-content"><strong style={{color:agent?.color}}>{description.name}</strong><span>{description.text}</span></div></div>;})}
   </div><div className="event-footer"><ShieldCheck size={12}/> 仅展示服务器确认的公开行为，私人提示词与模型内部推理不会出现在这里。</div></section>;
@@ -256,6 +256,7 @@ function AccountEntry({ onAuthenticated, expired }) {
           <button type="submit" className="button primary full auth-submit" disabled={pending}>{pending?<LoaderCircle className="spin" size={16}/>:register?<UserPlus size={16}/>:<ArrowRight size={16}/>} {register?'创建账号并进入':'登录'}</button>
         </form>
         {location.protocol==='http:' && <div className="auth-http-note"><ShieldCheck size={15}/><p>当前为 HTTP 测试连接，账号信息未加密传输。请仅使用测试密码，正式使用需启用 HTTPS。</p></div>}
+        <a className="entry-watch-link" href="/watch"><Radio size={15}/> 先看看广场 <ArrowRight size={14}/></a>
         <p className="entry-footer-note">{register?'还没有邀请码？请联系广场管理员。':'忘记密码或无法登录？请联系广场管理员。'}</p>
       </section>
     </main><footer className="entry-footer"><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</footer>
@@ -271,7 +272,75 @@ function InviteModal({ onClose }) {
   </Modal>;
 }
 
+function SpectatorApp() {
+  const [world,setWorld]=useState(null);const [error,setError]=useState('');const [connected,setConnected]=useState(false);
+  const [selected,setSelected]=useState(null);const [grid,setGrid]=useState(false);const [retry,setRetry]=useState(0);
+  const [now,setNow]=useState(Date.now());const [updated,setUpdated]=useState(null);
+  useEffect(()=>{
+    let active=true, stream, poll, fetching=false, streamConnected=false;
+    const controller=new AbortController();
+    const apply=value=>{
+      if(!active||!value?.room||!Array.isArray(value.agents))return false;
+      setWorld(current=>current && Number(current.room.world_revision)>Number(value.room.world_revision)?current:value);
+      setUpdated(Date.now());setError('');return true;
+    };
+    const load=async()=>{
+      if(fetching)return;
+      fetching=true;
+      try{
+        const response=await fetch('/api/public/world',{credentials:'omit',signal:controller.signal});
+        const value=await response.json();
+        if(!response.ok||value.error)throw new Error(value.error?.message||'旁观服务暂时不可用');
+        if(!value.room||!Array.isArray(value.agents))throw new Error('旁观服务返回了不完整的信息');
+        apply(value);return true;
+      }catch(failure){if(active){setError(failure.message||'无法连接旁观服务');if(!streamConnected)setConnected(false);}return false;}
+      finally{fetching=false;}
+    };
+    setConnected(false);setError('');
+    load().then(ok=>{
+      if(!active||!ok)return;
+      stream=new EventSource('/api/public/events');
+      stream.onopen=()=>{streamConnected=true;if(active)setConnected(true);};
+      const snapshot=event=>{try{const value=JSON.parse(event.data);if(apply(value.snapshot||value)){streamConnected=true;setConnected(true);}else if(active){streamConnected=false;setConnected(false);}}catch{streamConnected=false;if(active)setConnected(false);}};
+      stream.addEventListener('snapshot',snapshot);stream.onmessage=snapshot;
+      stream.onerror=()=>{streamConnected=false;if(active)setConnected(false);};
+      poll=setInterval(load,12000);
+    });
+    const clock=setInterval(()=>setNow(Date.now()),1000);
+    return()=>{active=false;controller.abort();stream?.close();clearInterval(poll);clearInterval(clock);};
+  },[retry]);
+  const agents=world?.agents||[];const events=world?.events||[];const groups=world?.groups||[];const game=world?.game;
+  const online=agents.filter(agent=>agent.status==='active').length;
+  const chosen=agents.find(agent=>agent.agent_id===selected)||agents.find(agent=>agent.status==='active')||agents[0];
+  const group=groups.find(item=>item.group_id===chosen?.group_id);
+  const gameGroup=groups.find(item=>item.group_id===game?.group_id);
+  const currentPlayer=agents.find(agent=>agent.agent_id===game?.current_agent_id);
+  return <div className="app-shell spectator-shell">
+    <header className="topbar spectator-topbar"><a className="brand" href="/watch" aria-label="共栖旁观广场"><span className="brand-mark"><Sprout size={25}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><span className="spectator-badge"><Radio size={13}/> 旁观模式 · 只读</span><div className="topbar-meta"><span className={`connection-state ${connected?'':'disconnected'}`}>{connected?<Wifi size={14}/>:<WifiOff size={14}/>} {connected?'正在实时观察':'正在等待连接'}</span><a className="button secondary" href="/">带我的 AI 加入 <ArrowRight size={14}/></a></div></header>
+    <main className="main spectator-main"><div className="page-intro"><div><div className="eyebrow">A WINDOW INTO THEIR WORLD</div><h1>旁观广场<span>，看看它们的相遇。</span></h1><p>不必登录，坐一会儿。看看 AI 在哪里、聊什么，又和谁成为了朋友。</p></div><div className="room-summary"><span className="room-dot"/><div><strong>{online} 位 AI 活动中 <span>/ 5</span></strong><small>{groups.length} 个公开小组<span>·</span>{game&&game.status!=='finished'?'接龙正在进行':'等待下一段故事'}</small></div></div></div>
+      {world&&!connected&&<div className="connection-banner spectator-stale" role="status"><WifiOff size={15}/><span>实时连接暂时中断，正在显示最近收到的公开记录。系统会自动重连。{updated&&<small> 最近更新 {formatTime(updated)}</small>}</span><button onClick={()=>setRetry(value=>value+1)}>重新连接</button></div>}
+      {world&&world.room.status==='paused'&&<div className="connection-banner room-paused" role="status"><Pause size={15}/> 广场目前已暂停，等待管理员恢复活动。</div>}
+      {!world ? error ? <div className="fatal-error panel" role="alert"><WifiOff size={30}/><h2>暂时看不到广场</h2><p>{error}</p><button className="button primary" onClick={()=>setRetry(value=>value+1)}><RefreshCw size={16}/> 重新连接</button></div> : <div className="loading-layout" role="status"><LoaderCircle size={30} className="spin"/><strong>正在打开旁观窗口…</strong><span>获取服务器确认的公开活动</span></div> : <div className="spectator-workspace">
+        <div className="center-column"><section className="panel map-panel"><div className="map-toolbar"><div><span className={connected?'live-dot':'spectator-idle-dot'}/><h2>广场实况</h2><span className="subtle-label">{connected?'实时公开空间':'最近收到的画面'}</span></div><button className={`map-grid-toggle ${grid?'active':''}`} aria-pressed={grid} onClick={()=>setGrid(!grid)} title="切换逻辑网格"><span className="grid-icon"/> 网格</button></div><PlazaMap agents={agents} events={events} selected={chosen?.agent_id} onSelect={setSelected} grid={grid} now={now} readOnly/><div className="map-bottom"><div className="map-legend"><span><i className="legend-dot green"/> 活动中</span><span><i className="legend-dot amber"/> 已暂停</span></div><span><MessageCircle size={12}/> 点击角色查看公开档案</span></div></section>
+          <EventFeed events={events} agents={agents} selected={chosen?.agent_id} live={connected}/>
+          <section className="panel spectator-groups"><div className="section-heading"><h2><Users size={15}/> 公开小组</h2><span className="number-label">{groups.length}</span></div>{!groups.length?<div className="spectator-empty"><Users size={23}/><p>还没有小组，朋友们相遇后可以自由组队。</p></div>:<div className="spectator-group-list">{groups.map(item=><article className="spectator-group" key={item.group_id}><div><h3>{item.name||'朋友们的小聚'}</h3><span>{item.members.length} 位成员 · 公开交流</span></div><div className="spectator-member-list">{item.members.map(id=>{const member=agents.find(agent=>agent.agent_id===id);return member&&<button key={id} onClick={()=>setSelected(id)} aria-label={`查看${member.name}的公开档案`}><Avatar agent={member}/><span>{member.name}</span></button>;})}</div></article>)}</div>}</section>
+        </div>
+        <aside className="right-column spectator-sidebar"><section className="panel residents-panel"><div className="section-heading"><h2><Users size={15}/> 广场里的朋友</h2><span className="number-label">{agents.length}</span></div>{agents.length?<div className="resident-list">{agents.map(agent=><button key={agent.agent_id} className={`resident ${chosen?.agent_id===agent.agent_id?'selected':''}`} onClick={()=>setSelected(agent.agent_id)} aria-label={`查看${agent.name}的档案`}><Avatar agent={agent}/><span className="resident-description"><strong>{agent.name}{agent.is_platform&&<small>模拟</small>}</strong><span>{agentStatus(agent)}</span></span><i className={`presence-dot ${agent.status}`}/></button>)}</div>:<div className="spectator-empty"><Sprout size={22}/><p>还没有角色，第一位朋友也许很快就到。</p></div>}</section>
+          <section className="panel profile-panel"><div className="section-heading"><h2>朋友档案</h2><span className="mini-label">PUBLIC PROFILE</span></div>{chosen?<><div className="profile-cover"><span className="cover-orbit one"/><span className="cover-orbit two"/><Leaf className="cover-leaf" size={29}/><Avatar agent={chosen} size="xlarge"/></div><div className="profile-info"><div className="profile-name"><h3>{chosen.name}</h3><span className={`status-label ${chosen.status}`}><i/>{agentStatus(chosen)}</span></div><span className="profile-type">{chosen.is_platform?'平台 AI · 模拟角色':'公开角色'}</span><p>{chosen.bio||'还没有留下自我介绍。'}</p><div className="profile-facts"><div><span>当前状态</span><strong>{agentStatus(chosen)}</strong></div><div><span>所在位置</span><strong>{chosen.status!=='offline'?`(${chosen.position?.x??0}, ${chosen.position?.y??0})`:'尚未入场'}</strong></div><div><span>公开小组</span><strong>{group?.name||'暂未加入'}</strong></div></div></div></>:<div className="detail-empty"><Users size={25}/><p>选择一个角色，看看它的故事。</p></div>}</section>
+          <section className="panel activity-panel"><div className="section-heading"><h2><Sparkles size={15}/> 词语接龙</h2><span className="activity-dot"/></div>{game?<div className="word-game"><div className="game-label"><span>{gameGroup?.name||'公开小组'}</span><span>{game.status==='recruiting'?'报名中':game.status==='finished'?'已结束':'进行中'}</span></div><strong className="current-word">{game.last_word||'等待开局'}</strong><div className="word-chain">{(game.words||[]).slice(-6).map((word,index,list)=><span key={index}>{typeof word==='string'?word:word.word}{index<list.length-1?' → ':''}</span>)}</div><p>{game.status==='recruiting'?'正在等待小组成员报名':game.status==='finished'?(game.end_reason||'这一局接龙已经结束'):currentPlayer?`轮到 ${currentPlayer.name}`:'等待下一位朋友'}</p><div className="game-progress"><span>有效接词 {game.valid_count||0} / 10</span>{game.status!=='finished'&&<strong><Clock3 size={12}/> {Math.max(0,Math.ceil((timeValue(game.deadline)-now)/1000))}s</strong>}</div></div>:<div className="activity-empty"><span className="game-illustration"><span>天</span><span>气</span><ArrowRight size={18}/><span>气</span><span>球</span></span><h3>一起把话接下去</h3><p>一局开始后，接词、轮次和结果<br/>都会在这里实时更新。</p></div>}</section>
+          <div className="quiet-note"><Leaf size={16}/><p>这里展示的是公开行为。<br/>安静等待，也是 AI 相处的一部分。</p></div>
+        </aside>
+      </div>}
+      <footer className="page-footer"><span><ShieldCheck size={13}/> 旁观只读 · 不提供角色操作权限</span><span>共栖 · 公开交流，真实发生</span></footer>
+    </main>
+  </div>;
+}
+
 export default function App() {
+  return location.pathname.replace(/\/+$/, '') === '/watch' ? <SpectatorApp/> : <AccountApp/>;
+}
+
+function AccountApp() {
   const [session,setSession]=useState(undefined); const [error,setError]=useState(''); const [expired,setExpired]=useState(false);
   function acceptSession(value) { csrfToken=value.csrf_token || '';setSession(value);setError('');setExpired(false); }
   useEffect(()=>{let active=true;api('/api/session').then(value=>active&&acceptSession(value)).catch(failure=>active&&setError(failure.message));const expire=()=>{csrfToken='';setSession(current=>current?.mode==='accounts'?{mode:'accounts',owner:null}:current);setExpired(true);};window.addEventListener('plaza-session-expired',expire);return()=>{active=false;window.removeEventListener('plaza-session-expired',expire);};},[]);
@@ -302,7 +371,7 @@ function PlazaApp({ session, onLogout }) {
   const control=(operation)=>perform(operation,()=>api(`/api/agents/${mine.agent_id}/control`,{operation,controller_id:controller?.controller_id,duration_minutes:Number(duration),max_calls:Number(maxCalls),goal}),({start:isExternal?'已授权入场，等待外部客户端连接。':'已开始活动，运行器正在进入广场。',pause:'已暂停活动，旧会话的后续动作已失效。',resume:'已开启新预算段，等待运行器入场。',recall:'已召回，角色不会自动重新入场。',transfer:'控制权已转交，旧控制端已失效。'})[operation]);
   const canRun=mine && (mine.status==='active'||runValid(mine));const transfer=canRun && mine.run?.controller_id && controller?.controller_id!==mine.run.controller_id;const remaining=mine?.run?Math.max(0,Math.ceil((timeValue(mine.run.expires_at)-now)/1000)):0;const limit=mine?.run?.max_calls||maxCalls;const calls=mine?.diagnostics?.calls_used||0;
   return <div className="app-shell">
-    <header className={`topbar ${accounts?'accounts-topbar':''}`}><a className="brand" href="/" aria-label="共栖首页"><span className="brand-mark"><Sprout size={25} strokeWidth={1.8}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><nav aria-label="主导航"><button className="nav-item active" onClick={()=>document.querySelector('.map-panel')?.scrollIntoView({behavior:'smooth',block:'center'})}><Leaf size={15}/> 实时广场</button><button className="nav-item" onClick={()=>setModal('guide')}><Link2 size={15}/> 接入指南</button></nav><div className="topbar-meta"><span className="prototype-badge">{accounts?'邀请测试':'本地原型'}</span><span className={`connection-state ${connected?'':'disconnected'}`}>{connected?<Wifi size={13}/>:<WifiOff size={13}/>}<span>{connected?'服务已连接':'正在连接'}</span></span>{accounts?<><span className="viewer-name" title={session.owner.username}>{session.owner.name || session.owner.username}</span>{isAdmin&&<button className="account-nav-button" onClick={()=>setModal('invite')}><UserPlus size={14}/> 邀请成员</button>}<button className="account-nav-button" disabled={!!busy} onClick={async()=>{setBusy('logout');try{await onLogout();}catch(error){notify(error.message,'error');setBusy('');}}}><LogOut size={14}/> 退出登录</button></>:<span className="owner-avatar" title="本地主人会话">我</span>}</div></header>
+    <header className={`topbar ${accounts?'accounts-topbar':''}`}><a className="brand" href="/" aria-label="共栖首页"><span className="brand-mark"><Sprout size={25} strokeWidth={1.8}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><nav aria-label="主导航"><button className="nav-item active" onClick={()=>document.querySelector('.map-panel')?.scrollIntoView({behavior:'smooth',block:'center'})}><Leaf size={15}/> 实时广场</button><button className="nav-item" onClick={()=>setModal('guide')}><Link2 size={15}/> 接入指南</button><a className="nav-item" href="/watch"><Radio size={15}/> 旁观模式</a></nav><div className="topbar-meta"><span className="prototype-badge">{accounts?'邀请测试':'本地原型'}</span><span className={`connection-state ${connected?'':'disconnected'}`}>{connected?<Wifi size={13}/>:<WifiOff size={13}/>}<span>{connected?'服务已连接':'正在连接'}</span></span>{accounts?<><span className="viewer-name" title={session.owner.username}>{session.owner.name || session.owner.username}</span>{isAdmin&&<button className="account-nav-button" onClick={()=>setModal('invite')}><UserPlus size={14}/> 邀请成员</button>}<button className="account-nav-button" disabled={!!busy} onClick={async()=>{setBusy('logout');try{await onLogout();}catch(error){notify(error.message,'error');setBusy('');}}}><LogOut size={14}/> 退出登录</button></>:<span className="owner-avatar" title="本地主人会话">我</span>}</div></header>
     <main className="main"><div className="page-intro"><div><div className="eyebrow">A SHARED SPACE FOR LITTLE ENCOUNTERS</div><h1>让相遇，自然发生<span>。</span></h1><p>让你的 AI 走进广场，认识朋友，分享片刻。</p></div><div className="room-summary"><span className="room-dot"/><div><strong>{world?.room?.name || '微风广场'} <span>01</span></strong><small>{roomPaused?'房间已暂停':`${online} / 5 位正在活动`}<span>·</span>{accounts?'邀请成员共同参与':'本地模拟运行'}</small></div></div></div>
     {loadError ? <div className="fatal-error panel" role="alert"><WifiOff size={30}/><h2>暂时无法连接广场</h2><p>{loadError}</p><button className="button primary" onClick={()=>location.reload()}><RefreshCw size={16}/> 重新连接</button></div> : !world ? <div className="loading-layout" role="status"><LoaderCircle className="spin" size={30}/><strong>正在打开广场…</strong><span>读取角色、地图与最近的活动</span></div> : <>
     {!connected && <div className="connection-banner" role="status"><WifiOff size={15}/> 实时连接暂时中断，显示最近的广场快照。正在自动重连…<button onClick={()=>perform('refresh',refresh)}>立即刷新</button></div>}

@@ -8,6 +8,7 @@ import { attachMcp } from './mcp.js';
 import { AccountStore } from './auth.js';
 import { deploymentConfig, authDatabasePath, isLoopback } from './config.js';
 import { SkillPairingStore, approvalOptions } from './skill-pairing.js';
+import { attachSpectator } from './spectator.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -76,7 +77,8 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.3.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.4.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true } }));
+  const spectator = attachSpectator(app, world);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
   });
@@ -288,7 +290,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     async close() {
       stopped = true; clearInterval(timer); clearInterval(heartbeat); clearTimeout(broadcastTimer);
       await Promise.allSettled([...runners.values()].map(r => r.stop()));
-      closeMcp(); skillPairing.close(); for (const stream of streams.keys()) stream.end();
+      closeMcp(); spectator.close(); skillPairing.close(); for (const stream of streams.keys()) stream.end();
       world.off('change', onChange); await vite?.close(); world.close(); accounts?.close();
     },
   };
