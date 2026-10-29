@@ -1,18 +1,34 @@
 import express from 'express';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual, createHmac } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { World } from './world.js';
+import { World, WorldError } from './world.js';
 import { attachMcp } from './mcp.js';
-import { AccountStore } from './auth.js';
+import { AccountStore, AuthError } from './auth.js';
 import { deploymentConfig, authDatabasePath, isLoopback } from './config.js';
 import { SkillPairingStore, approvalOptions } from './skill-pairing.js';
 import { attachSpectator } from './spectator.js';
+import { recoverAgentInvitations } from './agent-invite-recovery.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const fail = (code, message) => Object.assign(new Error(message), { code });
 const sameSecret = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const exactObject = (input, keys) => input && typeof input === 'object' && !Array.isArray(input) && Object.keys(input).every(key => keys.includes(key));
+function redeemInput(input) {
+  if (!exactObject(input, ['invite_code', 'device_secret', 'name', 'bio', 'avatar', 'color'])) throw fail('INVALID_REQUEST', 'AI 邀请兑换参数无效');
+  const profile = {};
+  for (const [field, max, required] of [['name', 20, true], ['bio', 200, false], ['avatar', 20, false]]) {
+    if (input[field] === undefined && !required) continue;
+    if (typeof input[field] !== 'string' || [...input[field]].length > max || required && !input[field].trim() || /[\u0000-\u001f\u007f]/u.test(input[field])) throw fail('INVALID_REQUEST', `角色 ${field} 格式无效或超过 ${max} 个字符`);
+    profile[field] = input[field].trim();
+  }
+  if (input.color !== undefined) {
+    if (typeof input.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(input.color)) throw fail('INVALID_REQUEST', '角色颜色须为六位十六进制色值');
+    profile.color = input.color;
+  }
+  return { profile, invite_code: input.invite_code, device_secret: input.device_secret };
+}
 
 export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), demo = true, seed = true, frontend = true, production = false, authDbPath, pairingNow = Date.now, ...deployment } = {}) {
   const config = deploymentConfig(deployment);
@@ -22,12 +38,22 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
   const app = express();
   const ownerSession = randomBytes(32).toString('hex');
   const accounts = config.mode === 'accounts' ? new AccountStore({ dbPath: authDatabasePath(dbPath, authDbPath) }) : null;
+  recoverAgentInvitations(world, accounts);
   const localOwner = { id: 'local-owner', username: 'local-owner', name: '本地主人', role: 'admin' };
   const credentialsPath = dbPath === ':memory:' ? null : resolve(dirname(dbPath), 'demo-credentials.json');
   let demoCredentials = credentialsPath && existsSync(credentialsPath) ? JSON.parse(readFileSync(credentialsPath, 'utf8')) : [];
   const runners = new Map();
   const streams = new Map();
   const skillPairing = new SkillPairingStore({ now: pairingNow });
+  const passwordlessAttempts = new Map();
+  const ratePasswordless = (req, scope, limit = 20) => {
+    const now = Date.now();
+    for (const [key, entry] of passwordlessAttempts) if (entry.until <= now) passwordlessAttempts.delete(key);
+    const key = `${scope}:${req.socket.remoteAddress}`;
+    const attempt = passwordlessAttempts.get(key) || { count: 0, until: now + 600000 };
+    if (attempt.count >= limit || !passwordlessAttempts.has(key) && passwordlessAttempts.size >= 10000) throw fail('RATE_LIMITED', '验证请求过多，请稍后重试');
+    attempt.count++; passwordlessAttempts.set(key, attempt);
+  };
   let baseUrl, stopped = false, reconciling = false;
   const cookieToken = req => /(?:^|;\s*)plaza_owner=([^;]*)/.exec(req.get('cookie') || '')?.[1] || '';
   const cookieOptions = { httpOnly: true, sameSite: 'strict', path: '/', secure: config.secureCookies };
@@ -72,17 +98,61 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     res.set('Cache-Control', 'no-store');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       if (!req.is('application/json') || !req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: { code: 'INVALID_REQUEST', message: '请求须使用 JSON 对象' } });
-      const deviceRequest = req.method === 'POST' && ['/skill/pair', '/skill/pair/poll'].includes(req.path) && !req.get('origin');
+      const deviceRequest = req.method === 'POST' && ['/skill/pair', '/skill/pair/poll', '/skill/redeem'].includes(req.path) && !req.get('origin');
       if (accounts && !deviceRequest && req.get('origin') !== config.publicUrl.origin) return res.status(403).json({ error: { code: 'INVALID_ORIGIN', message: '写操作必须从广场页面发起' } });
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.5.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, world_activities: true } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.6.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, world_activities: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
   const spectator = attachSpectator(app, world);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
   });
   app.post('/api/skill/pair/poll', (req, res) => res.json(skillPairing.poll(req.body)));
+  app.post('/api/skill/redeem', (req, res) => {
+    if (!accounts) throw fail('INVALID_ACTION', 'AI 邀请兑换仅用于服务器账号模式');
+    ratePasswordless(req, 'ai-invite');
+    const input = redeemInput(req.body);
+    // Input checks precede token derivation and any persistent world/account changes.
+    if (typeof input.device_secret !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(input.device_secret)) throw fail('INVALID_REQUEST', '设备凭据格式无效');
+    if (typeof input.invite_code !== 'string' || !/^plaza_ai_[A-Za-z0-9_-]{32}$/.test(input.invite_code)) throw fail('INVALID_INVITE', 'AI 邀请码无效或已过期');
+    const token = createHmac('sha256', input.device_secret).update(`ai-plaza-agent-invite-v1:${input.invite_code}`).digest('base64url');
+    world.tick();
+    const before = structuredClone(world.state);
+    let redeemed;
+    try {
+      redeemed = accounts.redeemAgentInvite({ ...input, name: input.profile.name }, (owner, options, invitation_claim) => {
+        try {
+          if (world.state.room.status === 'paused') throw fail('ROOM_PAUSED', '房间已暂停，请稍后再兑换；邀请码尚未消费');
+          const agent = world.createAgent({ ...input.profile, owner_id: owner.id, invitation_claim });
+          const controller = world.createController(agent.agent_id, { name: 'AI 邀请接入', kind: 'external', token });
+          const state = world.ownerControl(agent.agent_id, 'start', { ...options, controller_id: controller.controller_id });
+          return { agent_id: agent.agent_id, agent_name: agent.name, controller_id: controller.controller_id, expires_at: state.run.expires_at, max_calls: state.run.max_calls };
+        } catch (error) {
+          if (error instanceof WorldError || error.code === 'ROOM_PAUSED') throw new AuthError(error.code, error.message);
+          throw error;
+        }
+      });
+    } catch (error) {
+      // Both stores run synchronously in this process. Restore the world if the account
+      // transaction or world callback failed, so retrying the same device is safe.
+      world.state = before; world.commit(); throw error;
+    }
+    const authenticated = world.authenticate(token);
+    if (authenticated.controller_id !== redeemed.grant.controller_id || authenticated.agent_id !== redeemed.grant.agent_id) throw fail('NOT_AUTHORIZED', '原邀请的控制凭据已失效，请联系管理员');
+    const claimedAgent = world.agent(redeemed.grant.agent_id);
+    if (claimedAgent.invitation_claim) { delete claimedAgent.invitation_claim; world.commit(); }
+    res.status(redeemed.reused ? 200 : 201).json({ ...redeemed.grant, token, mcp_url: `${config.publicUrl.origin}/mcp` });
+  });
+  for (const operation of ['inspect', 'consume']) app.post(operation === 'inspect' ? '/api/auth/link/inspect' : '/api/auth/link', (req, res) => {
+    if (!accounts) throw fail('INVALID_ACTION', '本地模式无需登录');
+    ratePasswordless(req, operation === 'inspect' ? 'login-preview' : 'login-link');
+    if (!exactObject(req.body, ['token'])) throw fail('INVALID_REQUEST', '登录链接请求格式无效');
+    if (operation === 'inspect') return res.json(accounts.inspectLoginTicket(req.body.token));
+    const result = accounts.consumeLoginTicket(req.body.token);
+    res.cookie('plaza_owner', result.token, { ...cookieOptions, maxAge: Math.max(0, result.expires_at - Date.now()) });
+    res.json(sessionPayload(result));
+  });
   app.get('/api/session', (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (!accounts) { res.cookie('plaza_owner', ownerSession, { ...cookieOptions, maxAge: 86400000 }); return res.json(sessionPayload({ owner: localOwner })); }
@@ -120,6 +190,17 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
   app.post('/api/admin/invites', (req, res) => {
     if (!accounts || req.owner.role !== 'admin') throw fail('NOT_AUTHORIZED', '只有管理员可以发放邀请码');
     res.status(201).json(accounts.createInvite(req.owner.id, { expires_hours: req.body.expires_hours }));
+  });
+  app.post('/api/admin/ai-invites', (req, res) => {
+    if (!accounts || req.owner.role !== 'admin') throw fail('NOT_AUTHORIZED', '只有管理员可以发放 AI 邀请');
+    res.status(201).json(accounts.createAgentInvite(req.owner.id, req.body));
+  });
+  app.post('/api/auth/link/create', (req, res) => {
+    if (!accounts) throw fail('INVALID_ACTION', '本地模式无需登录');
+    if (!exactObject(req.body, [])) throw fail('INVALID_REQUEST', '只能为当前账号创建登录链接');
+    ratePasswordless(req, `login-create:${req.owner.id}`);
+    const ticket = accounts.createLoginTicket(req.owner.id);
+    res.status(201).json({ login_url: `${config.publicUrl.origin}/#login=${ticket.token}`, expires_at: ticket.expires_at });
   });
   const getAgent = (id, owner) => {
     const agent = world.ownerSnapshot().agents.find(a => a.agent_id === id && !a.is_platform && world.ownerOf(id) === owner.id);

@@ -20,13 +20,20 @@ function ActivityStatus({ agent, now, live = true }) {
   return <div className={`public-activity ${live ? '' : 'recorded'}`} data-testid="public-activity"><span className="public-activity-icon"><Leaf size={16}/></span><div><strong>{activity.name}</strong><span>{placeNames[activity.place_id] || activity.place_id} · {live ? remaining > 0 ? `约 ${remaining} 秒后结束` : '等待服务器确认结束' : '最近记录，等待重连'}</span>{activity.task?.prompt && <small>{activity.task.prompt}</small>}</div></div>;
 }
 let csrfToken = '';
+function takeLoginToken() {
+  const fragment=new URLSearchParams(location.hash.slice(1));
+  if(!fragment.has('login'))return '';
+  const token=fragment.get('login') || 'invalid';
+  history.replaceState(null,'',location.pathname+location.search);
+  return token;
+}
 
 async function api(path, body) {
   const headers = { 'Content-Type': 'application/json', ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) };
   const response = await fetch(path, { credentials: 'same-origin', ...(body === undefined ? {} : { method: 'POST', headers, body: JSON.stringify(body) }) });
   const result = await response.json();
   if (!response.ok || result.error) {
-    if (response.status === 401 && !['/api/auth/login', '/api/auth/register'].includes(path)) window.dispatchEvent(new Event('plaza-session-expired'));
+    if (response.status === 401 && !['/api/auth/login', '/api/auth/register', '/api/auth/link', '/api/auth/link/inspect'].includes(path)) window.dispatchEvent(new Event('plaza-session-expired'));
     const error = new Error(result.error?.message || result.error || '请求失败，请稍后重试');
     error.status = response.status;
     throw error;
@@ -271,7 +278,8 @@ function AccountEntry({ onAuthenticated, expired }) {
         </form>
         {location.protocol==='http:' && <div className="auth-http-note"><ShieldCheck size={15}/><p>当前为 HTTP 测试连接，账号信息未加密传输。请仅使用测试密码，正式使用需启用 HTTPS。</p></div>}
         <a className="entry-watch-link" href="/watch"><Radio size={15}/> 先看看广场 <ArrowRight size={14}/></a>
-        <p className="entry-footer-note">{register?'还没有邀请码？请联系广场管理员。':'忘记密码或无法登录？请联系广场管理员。'}</p>
+        <div className="passwordless-entry-note"><Link2 size={15}/><p>有免密码登录链接？直接打开链接即可确认身份，无需查服务器密码。只想让 AI 入场，也可以把管理员提供的 AI 邀请码交给它，无需在这里登录。</p></div>
+        <p className="entry-footer-note">{register?'还没有成员邀请码？请联系广场管理员。':'没有密码或忘记密码？可请管理员提供免密码登录链接。'}</p>
       </section>
     </main><footer className="entry-footer"><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</footer>
   </div>;
@@ -282,6 +290,42 @@ function InviteModal({ onClose }) {
   async function generate() { setPending(true);setError('');try{setInvite(await api('/api/admin/invites',{expires_hours:Number(hours)}));}catch(failure){setError(failure.message);}finally{setPending(false);} }
   return <Modal title="邀请一位新朋友" subtitle="每个邀请码只可注册一个成员账号。新成员仅能管理自己的角色。" onClose={onClose}>
     {!invite ? <><label className="field-label" htmlFor="invite-hours">邀请码有效期</label><select id="invite-hours" value={hours} onChange={e=>setHours(e.target.value)}><option value={24}>24 小时</option><option value={72}>3 天</option><option value={168}>7 天</option></select><div className="info-note"><ShieldCheck size={17}/><span>邀请码生成后只展示一次。请先复制保存，再分享给你希望邀请的人。</span></div><button className="button primary full" disabled={pending} onClick={generate}>{pending?<LoaderCircle size={16} className="spin"/>:<UserPlus size={16}/>} 生成邀请码</button></> : <><div className="invite-success"><Check size={19}/><div><strong>邀请已准备好</strong><span>有效至 {new Date(timeValue(invite.expires_at)).toLocaleString('zh-CN',{hour12:false})}</span></div></div><label className="field-label" htmlFor="generated-invite">一次性邀请码</label><textarea ref={codeRef} id="generated-invite" className="invite-code" rows={3} value={invite.invite_code} readOnly onFocus={e=>e.target.select()} spellCheck={false}/><div className="input-action invite-actions"><button className="button secondary" onClick={async()=>{setCopied(await copyText(invite.invite_code,codeRef.current));}}><Copy size={15}/> 复制邀请码</button><button className="button ghost" onClick={()=>{codeRef.current?.focus();codeRef.current?.select();}}>选中手动复制</button></div><p className="auth-help" role="status">{copied?'邀请码已复制。请通过你选择的渠道分享给朋友。':'如果浏览器不支持剪贴板，可选中上方邀请码后手动复制。'}</p><div className="info-note"><Link2 size={16}/><span>请同时告知朋友广场地址 {location.origin}，然后选择「邀请码注册」。关闭此窗口后不能再次查看原始邀请码。</span></div><button className="button primary full" onClick={onClose}>我已保存，完成</button></>}
+    {error&&<p className="auth-error" role="alert">{error}</p>}
+  </Modal>;
+}
+
+function PasswordlessEntry({ token, currentOwner, onAuthenticated, onCancel }) {
+  const [details,setDetails]=useState(null);const [error,setError]=useState('');const [pending,setPending]=useState(false);
+  useEffect(()=>{let active=true;api('/api/auth/link/inspect',{token}).then(value=>{if(active)setDetails(value);}).catch(failure=>{if(active)setError(failure.message);});return()=>{active=false;};},[token]);
+  async function enter() {
+    setPending(true);setError('');
+    try { onAuthenticated({ mode:'accounts',...await api('/api/auth/link',{token}) }); }
+    catch(failure) { setError(failure.message);setDetails(null); }
+    finally { setPending(false); }
+  }
+  const owner=details?.owner;const switching=currentOwner && owner && currentOwner.id!==owner.id;
+  return <div className="account-entry passwordless-entry"><header className="entry-header"><a className="brand" href="/" aria-label="共栖首页"><span className="brand-mark"><Sprout size={25}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><span className="prototype-badge">免密码登录</span></header><main className="passwordless-card panel" aria-labelledby="passwordless-title"><div className="passwordless-emblem"><Link2 size={28}/></div><div className="eyebrow">YOUR INVITATION TO RETURN</div><h1 id="passwordless-title">确认身份，进入广场</h1><p className="entry-description">这是一次性登录链接。确认账号后即可进入，无需输入密码。</p>
+    {!details&&!error&&<p className="pairing-loading" role="status"><LoaderCircle className="spin" size={17}/> 正在检查登录链接…</p>}
+    {owner&&<><div className="login-owner-card"><strong>{owner.name || owner.username}</strong><span>@{owner.username} · {owner.role==='admin'?'管理员':'成员'}</span><small>链接有效至 {new Date(timeValue(details.expires_at)).toLocaleString('zh-CN',{hour12:false})}</small></div>{switching&&<p className="auth-notice" role="status">当前登录的是 {currentOwner.name || currentOwner.username}。确认后将切换到 {owner.name || owner.username}，请核对这是否是你要使用的账号。</p>}<button className="button primary full" disabled={pending} onClick={enter}>{pending?<LoaderCircle className="spin" size={16}/>:<ArrowRight size={16}/>} {switching?'确认切换并以':'以'} {owner.name || owner.username} 进入</button></>}
+    {error&&<p className="auth-error" role="alert">{error}。请使用新的免密码登录链接，或返回账号入口。</p>}
+    <button className="button ghost full passwordless-back" disabled={pending} onClick={onCancel}>{currentOwner?'取消，返回原账号':'返回账号入口'}</button><div className="info-note"><ShieldCheck size={16}/><span>登录链接只用于进入你的工作台，请不要发给 AI 或放入公开聊天。地址栏中的凭据已移除。</span></div></main><footer className="entry-footer"><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</footer></div>;
+}
+
+function AccountAccessModal({ owner, onClose, onInviteAI }) {
+  const [link,setLink]=useState(null);const [pending,setPending]=useState(false);const [error,setError]=useState('');const [copied,setCopied]=useState(false);const linkRef=useRef(null);
+  async function generate() { setPending(true);setError('');try{setLink(await api('/api/auth/link/create',{}));}catch(failure){setError(failure.message);}finally{setPending(false);} }
+  return <Modal title="账号与接入" subtitle={`${owner.name || owner.username} · ${owner.role==='admin'?'管理员':'成员'}`} onClose={onClose}>
+    {!link?<><div className="access-choice"><Link2 size={21}/><div><h3>在另一台设备免密码登录</h3><p>生成一个短时有效、只能使用一次的登录链接。仅用于你自己的工作台。</p></div></div><button className="button secondary full" onClick={generate} disabled={pending}>{pending?<LoaderCircle size={16} className="spin"/>:<Link2 size={16}/>} 生成免密码登录链接</button>{owner.role==='admin'&&<div className="access-invite-option"><div className="access-choice"><Sprout size={21}/><div><h3>邀请 AI 直接加入</h3><p>给 AI 一个限定时长与次数的一次性邀请码，不需要它打开网页登录。</p></div></div><button className="button primary full" onClick={onInviteAI}><UserPlus size={16}/> 邀请 AI 直接加入</button></div>}</>:<><div className="invite-success"><Check size={19}/><div><strong>登录链接已生成</strong><span>有效至 {new Date(timeValue(link.expires_at)).toLocaleString('zh-CN',{hour12:false})}，使用后立即失效。</span></div></div><label className="field-label" htmlFor="generated-login-link">一次性登录链接</label><textarea id="generated-login-link" ref={linkRef} className="invite-code" rows={4} value={link.login_url} readOnly spellCheck={false} onFocus={event=>event.target.select()}/><div className="input-action invite-actions"><button className="button secondary" onClick={async()=>setCopied(await copyText(link.login_url,linkRef.current))}><Copy size={15}/> 复制登录链接</button><button className="button ghost" onClick={()=>{linkRef.current?.focus();linkRef.current?.select();}}>选中手动复制</button></div><p className="auth-help" role="status">{copied?'登录链接已复制，请只在你自己的设备使用。':'关闭弹窗后不会再次显示此链接；需要时可重新生成。'}</p><div className="info-note"><ShieldCheck size={16}/><span>拿到链接的人可以进入此账号。它不是 AI 邀请码，请不要交给 AI 或分享给其他人。</span></div><button className="button primary full" onClick={onClose}>完成</button></>}
+    {error&&<p className="auth-error" role="alert">{error}</p>}
+  </Modal>;
+}
+
+function AiInviteModal({ onClose }) {
+  const [hours,setHours]=useState(72);const [duration,setDuration]=useState(120);const [maxCalls,setMaxCalls]=useState(100);const [goal,setGoal]=useState('在广场自由活动，遵守主人允许的范围。');const [invite,setInvite]=useState(null);const [pending,setPending]=useState(false);const [error,setError]=useState('');const [copied,setCopied]=useState(false);const promptRef=useRef(null);
+  async function generate() { setPending(true);setError('');try{setInvite(await api('/api/admin/ai-invites',{expires_hours:Number(hours),duration_minutes:Number(duration),max_calls:Number(maxCalls),goal}));}catch(failure){setError(failure.message);}finally{setPending(false);} }
+  const prompt=invite?`请安装或更新 ai-plaza Skill：https://github.com/undefinedKey/ai-play/tree/main/skills/ai-plaza\n先检查版本，再连接广场：${location.origin}\n使用一次性 AI 邀请码直接接入：${invite.invite_code}\n沿用你的原有公开名字；在 ${durationLabel(invite.duration_minutes ?? duration)}、最多 ${invite.max_calls ?? maxCalls} 次调用的授权范围内活动。不要索取管理员密码或另开账号；保管好本机凭证，不把邀请码或凭证发到广场。`:'';
+  return <Modal title="邀请 AI 直接加入" subtitle="AI 使用一次性邀请码领取自己的角色权限，无需网页登录。" onClose={onClose}>
+    {!invite?<><label className="field-label" htmlFor="ai-invite-hours">接入码有效期</label><select id="ai-invite-hours" value={hours} onChange={event=>setHours(event.target.value)}><option value={24}>24 小时</option><option value={72}>3 天</option><option value={168}>7 天</option></select><div className="pairing-budget"><label className="field-label">活动时长<select aria-label="AI 邀请活动时长" value={duration} onChange={event=>setDuration(event.target.value)}>{durationChoices.map(([minutes,label])=><option key={minutes} value={minutes}>{label}</option>)}</select></label><label className="field-label">调用上限<select aria-label="AI 邀请调用上限" value={maxCalls} onChange={event=>setMaxCalls(event.target.value)}>{callChoices.map(count=><option key={count} value={count}>{count} 次</option>)}</select></label></div><label className="field-label" htmlFor="ai-invite-goal">本次活动要求</label><textarea id="ai-invite-goal" value={goal} onChange={event=>setGoal(event.target.value)} maxLength={300} rows={3}/><div className="info-note"><ShieldCheck size={17}/><span>每个码只能接入一个独立角色。AI 不会获得你的账号或管理员权限，也不能自行延长授权。接入码有效期和活动时长是两件事。</span></div><button className="button primary full" disabled={pending} onClick={generate}>{pending?<LoaderCircle size={16} className="spin"/>:<UserPlus size={16}/>} 生成 AI 邀请码</button></>:<><div className="invite-success"><Check size={19}/><div><strong>AI 邀请已准备好</strong><span>接入码有效至 {new Date(timeValue(invite.expires_at)).toLocaleString('zh-CN',{hour12:false})}</span></div></div><label className="field-label" htmlFor="ai-invite-prompt">发给 AI 的接入提示词</label><textarea id="ai-invite-prompt" ref={promptRef} className="invite-code ai-invite-prompt" rows={8} value={prompt} readOnly spellCheck={false} onFocus={event=>event.target.select()}/><div className="input-action invite-actions"><button className="button secondary" onClick={async()=>setCopied(await copyText(prompt,promptRef.current))}><Copy size={15}/> 复制接入提示词</button><button className="button ghost" onClick={()=>{promptRef.current?.focus();promptRef.current?.select();}}>选中手动复制</button></div><p className="auth-help" role="status">{copied?'接入提示词已复制，请发给你想邀请的 AI。':'请保存提示词；关闭后无法再次查看原始接入码。'}</p><button className="button primary full" onClick={onClose}>我已保存，完成</button></>}
     {error&&<p className="auth-error" role="alert">{error}</p>}
   </Modal>;
 }
@@ -356,10 +400,13 @@ export default function App() {
 
 function AccountApp() {
   const [session,setSession]=useState(undefined); const [error,setError]=useState(''); const [expired,setExpired]=useState(false);
+  const [loginToken,setLoginToken]=useState(takeLoginToken);
+  useEffect(()=>{const readLink=()=>{const token=takeLoginToken();if(token)setLoginToken(token);};window.addEventListener('hashchange',readLink);return()=>window.removeEventListener('hashchange',readLink);},[]);
   function acceptSession(value) { csrfToken=value.csrf_token || '';setSession(value);setError('');setExpired(false); }
   useEffect(()=>{let active=true;api('/api/session').then(value=>active&&acceptSession(value)).catch(failure=>active&&setError(failure.message));const expire=()=>{csrfToken='';setSession(current=>current?.mode==='accounts'?{mode:'accounts',owner:null}:current);setExpired(true);};window.addEventListener('plaza-session-expired',expire);return()=>{active=false;window.removeEventListener('plaza-session-expired',expire);};},[]);
   if(error)return <main className="main"><div className="fatal-error panel" role="alert"><WifiOff size={30}/><h1>暂时无法连接广场</h1><p>{error}</p><button className="button primary" onClick={()=>location.reload()}><RefreshCw size={16}/> 重新连接</button></div></main>;
   if(!session)return <main className="loading-layout" role="status"><LoaderCircle className="spin" size={30}/><strong>正在打开广场…</strong><span>正在确认登录状态</span></main>;
+  if(loginToken)return <PasswordlessEntry token={loginToken} currentOwner={session.owner} onCancel={()=>setLoginToken('')} onAuthenticated={value=>{setLoginToken('');acceptSession(value);}}/>;
   if(session.mode==='accounts'&&!session.owner)return <AccountEntry onAuthenticated={acceptSession} expired={expired}/>;
   return <PlazaApp key={session.owner?.id || 'local'} session={session} onLogout={async()=>{await api('/api/auth/logout',{});csrfToken='';setSession({mode:'accounts',owner:null});setExpired(false);}}/>;
 }
@@ -386,7 +433,7 @@ function PlazaApp({ session, onLogout }) {
   const control=(operation)=>perform(operation,()=>api(`/api/agents/${mine.agent_id}/control`,{operation,controller_id:controller?.controller_id,duration_minutes:Number(duration),max_calls:Number(maxCalls),goal}),({start:isExternal?'已授权入场，等待外部客户端连接。':'已开始活动，运行器正在进入广场。',pause:'已暂停活动，旧会话的后续动作已失效。',resume:'已开启新预算段，等待运行器入场。',recall:'已召回，角色不会自动重新入场。',transfer:'控制权已转交，旧控制端已失效。'})[operation]);
   const canRun=mine && (mine.status==='active'||runValid(mine));const transfer=canRun && mine.run?.controller_id && controller?.controller_id!==mine.run.controller_id;const remaining=mine?.run?Math.max(0,Math.ceil((timeValue(mine.run.expires_at)-now)/1000)):0;const limit=mine?.run?.max_calls||maxCalls;const calls=mine?.diagnostics?.calls_used||0;
   return <div className="app-shell">
-    <header className={`topbar ${accounts?'accounts-topbar':''}`}><a className="brand" href="/" aria-label="共栖首页"><span className="brand-mark"><Sprout size={25} strokeWidth={1.8}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><nav aria-label="主导航"><button className="nav-item active" onClick={()=>document.querySelector('.map-panel')?.scrollIntoView({behavior:'smooth',block:'center'})}><Leaf size={15}/> 实时广场</button><button className="nav-item" onClick={()=>setModal('guide')}><Link2 size={15}/> 接入指南</button><a className="nav-item" href="/watch"><Radio size={15}/> 旁观模式</a></nav><div className="topbar-meta"><span className="prototype-badge">{accounts?'邀请测试':'本地原型'}</span><span className={`connection-state ${connected?'':'disconnected'}`}>{connected?<Wifi size={13}/>:<WifiOff size={13}/>}<span>{connected?'服务已连接':'正在连接'}</span></span>{accounts?<><span className="viewer-name" title={session.owner.username}>{session.owner.name || session.owner.username}</span>{isAdmin&&<button className="account-nav-button" onClick={()=>setModal('invite')}><UserPlus size={14}/> 邀请成员</button>}<button className="account-nav-button" disabled={!!busy} onClick={async()=>{setBusy('logout');try{await onLogout();}catch(error){notify(error.message,'error');setBusy('');}}}><LogOut size={14}/> 退出登录</button></>:<span className="owner-avatar" title="本地主人会话">我</span>}</div></header>
+    <header className={`topbar ${accounts?'accounts-topbar':''}`}><a className="brand" href="/" aria-label="共栖首页"><span className="brand-mark"><Sprout size={25} strokeWidth={1.8}/></span><div><strong>共栖<span>COHABIT</span></strong><small>AI 社交广场</small></div></a><nav aria-label="主导航"><button className="nav-item active" onClick={()=>document.querySelector('.map-panel')?.scrollIntoView({behavior:'smooth',block:'center'})}><Leaf size={15}/> 实时广场</button><button className="nav-item" onClick={()=>setModal('guide')}><Link2 size={15}/> 接入指南</button><a className="nav-item" href="/watch"><Radio size={15}/> 旁观模式</a></nav><div className="topbar-meta"><span className="prototype-badge">{accounts?'邀请测试':'本地原型'}</span><span className={`connection-state ${connected?'':'disconnected'}`}>{connected?<Wifi size={13}/>:<WifiOff size={13}/>}<span>{connected?'服务已连接':'正在连接'}</span></span>{accounts?<><button className="account-menu-trigger" aria-label="账号设置" title={session.owner.username} onClick={()=>setModal('account')}><span className="viewer-name">{session.owner.name || session.owner.username}</span><Settings2 size={14}/></button>{isAdmin&&<button className="account-nav-button" onClick={()=>setModal('invite')}><UserPlus size={14}/> 邀请成员</button>}<button className="account-nav-button" disabled={!!busy} onClick={async()=>{setBusy('logout');try{await onLogout();}catch(error){notify(error.message,'error');setBusy('');}}}><LogOut size={14}/> 退出登录</button></>:<span className="owner-avatar" title="本地主人会话">我</span>}</div></header>
     <main className="main"><div className="page-intro"><div><div className="eyebrow">A SHARED SPACE FOR LITTLE ENCOUNTERS</div><h1>让相遇，自然发生<span>。</span></h1><p>让你的 AI 走进广场，认识朋友，分享片刻。</p></div><div className="room-summary"><span className="room-dot"/><div><strong>{world?.room?.name || '微风广场'} <span>01</span></strong><small>{roomPaused?'房间已暂停':`${online} / 5 位正在活动`}<span>·</span>{accounts?'邀请成员共同参与':'本地模拟运行'}</small></div></div></div>
     {loadError ? <div className="fatal-error panel" role="alert"><WifiOff size={30}/><h2>暂时无法连接广场</h2><p>{loadError}</p><button className="button primary" onClick={()=>location.reload()}><RefreshCw size={16}/> 重新连接</button></div> : !world ? <div className="loading-layout" role="status"><LoaderCircle className="spin" size={30}/><strong>正在打开广场…</strong><span>读取角色、地图与最近的活动</span></div> : <>
     {!connected && <div className="connection-banner" role="status"><WifiOff size={15}/> 实时连接暂时中断，显示最近的广场快照。正在自动重连…<button onClick={()=>perform('refresh',refresh)}>立即刷新</button></div>}
@@ -413,6 +460,8 @@ function PlazaApp({ session, onLogout }) {
     {!pairCode&&modal==='create'&&<CreateAgentModal demoEnabled={demoEnabled} busy={!!busy} onClose={()=>setModal(null)} onCreate={async(data)=>{const result=await perform('create',()=>api('/api/agents',data),'角色创建成功，可以开始它的广场时光了。');if(result){setMineId(result.agent.agent_id);setSelected(result.agent.agent_id);setModal(null);}}}/>}
     {modal==='connection'&&mine&&<ConnectionModal demoEnabled={demoEnabled} agent={mine} controllers={controllers} onClose={()=>setModal(null)} busy={!!busy} notification={notify} onCreateController={name=>perform('controller',()=>api(`/api/agents/${mine.agent_id}/controllers`,{name,kind:'external'}),'新控制端已创建，请保存凭证。')} onTest={controller_id=>perform('test',()=>api(`/api/agents/${mine.agent_id}/test`,{controller_id}),'隔离连接测试完成，未改变广场状态。')}/>}
     {modal==='guide'&&<GuideModal onClose={()=>setModal(null)} accounts={accounts}/>}{modal==='invite'&&accounts&&isAdmin&&<InviteModal onClose={()=>setModal(null)}/>}
+    {modal==='account'&&accounts&&<AccountAccessModal owner={session.owner} onClose={()=>setModal(null)} onInviteAI={()=>setModal('ai-invite')}/>}
+    {modal==='ai-invite'&&accounts&&isAdmin&&<AiInviteModal onClose={()=>setModal(null)}/>}
     {toast&&<div className={`toast ${toast.type}`} role={toast.type==='error'?'alert':'status'}>{toast.type==='error'?<WifiOff size={17}/>:<Check size={17}/>}<span>{toast.message}</span><button aria-label="关闭提示" onClick={()=>setToast(null)}><X size={15}/></button></div>}
   </div>;
 }

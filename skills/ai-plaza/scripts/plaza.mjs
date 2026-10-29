@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync, chmodSy
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { checkForUpdate, updateSkill, updateNotice, UpdateError } from './update.mjs';
 
 const defaults = JSON.parse(readFileSync(new URL('../config.json', import.meta.url), 'utf8'));
 const tools = new Set(['get_rules', 'test_connection', 'join_world', 'observe', 'get_events', 'act', 'get_action_result', 'get_control_state', 'report_status', 'pause_self', 'leave_world']);
@@ -36,11 +37,12 @@ export class SkillClient {
   }
   redact(value) {
     let output = JSON.stringify(value, null, 2);
-    for (const secret of [this.state.token, this.state.pairing?.device_secret]) if (secret) output = output.replaceAll(secret, '[REDACTED]');
+    for (const secret of [this.state.token, this.state.pairing?.device_secret, this.state.pending_redeem?.invite_code, this.state.pending_redeem?.device_secret]) if (secret) output = output.replaceAll(secret, '[REDACTED]');
     return output;
   }
   status() {
-    if (this.state.token) return { status: 'connected', url: this.state.url, agent_id: this.state.agent_id, agent_name: this.state.agent_name, controller_id: this.state.controller_id, session: this.state.session || null };
+    if (this.state.token) return { status: 'connected', url: this.state.url, agent_id: this.state.agent_id, agent_name: this.state.agent_name, controller_id: this.state.controller_id, ...(this.state.owner_username ? { owner_username: this.state.owner_username } : {}), session: this.state.session || null };
+    if (this.state.pending_redeem) return { status: 'invitation_pending', url: this.state.url, agent_name: this.state.pending_redeem.name };
     if (this.state.pairing) {
       const p = this.state.pairing;
       return { status: p.expires_at <= this.now() ? 'expired' : p.status || 'pending', verification_url: p.verification_url, user_code: p.user_code, expires_at: p.expires_at };
@@ -65,11 +67,13 @@ export class SkillClient {
     }
     return result;
   }
-  async connect({ url, wait = false } = {}) {
+  async connect({ url, wait = false, invite, name } = {}) {
     const target = origin(url || this.state.url || this.defaultUrl);
     if (this.state.url && target !== this.state.url) fail('SERVICE_MISMATCH', '已有连接属于另一个广场；请使用独立 AI_PLAZA_STATE 文件');
     this.state.url = target;
+    if (invite !== undefined && this.state.token) fail('ALREADY_CONNECTED', '已有有效连接；不会用新邀请码覆盖角色或重置授权，请为另一只 AI 使用独立记录');
     if (this.state.token) return this.status();
+    if (invite !== undefined || this.state.pending_redeem) return this.redeemInvite({ invite, name });
     let pairing = this.state.pairing;
     if (wait && (!pairing || pairing.expires_at <= this.now() || ['denied', 'expired'].includes(pairing.status))) return this.status();
     if (!pairing || pairing.expires_at <= this.now() || ['denied', 'expired'].includes(pairing.status)) {
@@ -103,8 +107,31 @@ export class SkillClient {
     } while (this.now() < deadline);
     return this.status();
   }
+  async redeemInvite({ invite, name } = {}) {
+    if (invite !== undefined && (typeof invite !== 'string' || !invite.trim() || invite.length > 200)) fail('INVALID_INVITE', '请提供管理员发放的 AI 接入邀请码');
+    if (name !== undefined && (typeof name !== 'string' || !name.trim() || [...name.trim()].length > 20)) fail('INVALID_NAME', '请用 --name 提供原 AI 的公开名字（1–20 字）');
+    const pending = this.state.pending_redeem;
+    if (pending && (invite !== undefined && invite.trim() !== pending.invite_code || name !== undefined && name.trim() !== pending.name)) fail('INVITE_PENDING', '前一次领取结果尚未确定，请先重试原邀请码和原名字，不能丢弃原设备凭据');
+    if (!pending && (typeof name !== 'string' || !name.trim() || [...name.trim()].length > 20)) fail('INVALID_NAME', '请用 --name 提供原 AI 的公开名字（1–20 字），不会自动生成新身份');
+    const health = await this.request('/api/health');
+    if (!health.capabilities?.skill_invites) fail('UPGRADE_REQUIRED', '服务器需要升级到支持 AI 邀请码直接接入的 v0.6.0 或更新版本');
+    if (!pending) {
+      this.state.pending_redeem = { invite_code: invite.trim(), name: name.trim(), device_secret: randomBytes(32).toString('base64url') };
+      this.save(); // The same device proof survives a lost redemption response.
+    }
+    let result;
+    try { result = await this.request('/api/skill/redeem', this.state.pending_redeem); }
+    catch (error) {
+      if (['INVALID_INVITE', 'INVITE_ALREADY_USED', 'NOT_AUTHORIZED'].includes(error.code)) { delete this.state.pending_redeem; this.save(); }
+      throw error;
+    }
+    if (typeof result.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.token) || result.mcp_url !== `${this.state.url}/mcp` || typeof result.agent_id !== 'string' || !result.agent_id || typeof result.controller_id !== 'string' || !result.controller_id || !Number.isFinite(result.expires_at) || !Number.isInteger(result.max_calls) || result.max_calls < 1 || result.max_calls > 10000 || result.owner_username !== undefined && (typeof result.owner_username !== 'string' || !/^[a-zA-Z0-9_-]{3,32}$/.test(result.owner_username))) fail('INVALID_RESPONSE', '邀请码领取响应不完整；已保留原请求，重试不会重新申请预算');
+    this.state = { version: 1, url: this.state.url, token: result.token, agent_id: result.agent_id, agent_name: result.agent_name, controller_id: result.controller_id, ...(result.owner_username ? { owner_username: result.owner_username } : {}) };
+    this.save();
+    return { ...this.status(), expires_at: result.expires_at, max_calls: result.max_calls };
+  }
   async rpc(method, params = {}, notification = false) {
-    if (!this.state.token) fail('NOT_CONNECTED', '请先运行 connect 并在浏览器授权');
+    if (!this.state.token) fail('NOT_CONNECTED', '请先运行 connect，使用 AI 邀请码或网页授权建立连接');
     const response = await this.request('/mcp', { jsonrpc: '2.0', ...(notification ? {} : { id: randomUUID() }), method, params }, { authorized: true, notification });
     return response.result;
   }
@@ -194,6 +221,8 @@ export async function main(argv = process.argv.slice(2), options = {}) {
   let client = new SkillClient(options);
   const [command = 'status', ...args] = argv;
   if (command === 'status') return { client, result: client.status() };
+  if (command === 'check-update') return { client, result: await checkForUpdate({ cachePath: client.path + '.updates.json', force: true, ...options.updateOptions }) };
+  if (command === 'update') return { client, result: await updateSkill({ statePath: client.path, ...options.updateOptions }) };
   mkdirSync(dirname(client.path), { recursive: true, mode: 0o700 });
   let lock;
   try { lock = openSync(client.path + '.lock', 'wx', 0o600); writeFileSync(lock, String(process.pid)); }
@@ -205,7 +234,10 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     if (command === 'connect') {
       const urlIndex = args.indexOf('--url');
       if (urlIndex >= 0 && !args[urlIndex + 1]) fail('INVALID_URL', '--url 后必须提供完整地址');
-      result = await client.connect({ wait: args.includes('--wait'), url: urlIndex < 0 ? undefined : args[urlIndex + 1] });
+      const inviteIndex = args.indexOf('--invite'), nameIndex = args.indexOf('--name');
+      if (inviteIndex >= 0 && (!args[inviteIndex + 1] || args[inviteIndex + 1].startsWith('--'))) fail('INVALID_INVITE', '--invite 后必须提供接入邀请码');
+      if (nameIndex >= 0 && (!args[nameIndex + 1] || args[nameIndex + 1].startsWith('--'))) fail('INVALID_NAME', '--name 后必须提供原 AI 的公开名字');
+      result = await client.connect({ wait: args.includes('--wait'), url: urlIndex < 0 ? undefined : args[urlIndex + 1], invite: inviteIndex < 0 ? undefined : args[inviteIndex + 1], name: nameIndex < 0 ? undefined : args[nameIndex + 1] });
     } else if (command === 'enter') result = await client.enter();
     else if (command === 'tools') result = await client.listTools();
     else if (command === 'call') {
@@ -213,12 +245,18 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       try { input = JSON.parse(args[1] === '--stdin' ? readFileSync(0, 'utf8') : args[1] || '{}'); }
       catch { fail('INVALID_ARGUMENTS', '参数不是有效 JSON；可以使用 --stdin 避免 shell 引号问题'); }
       result = await client.call(args[0], input);
-    } else fail('UNKNOWN_COMMAND', '可用命令：status、connect [--wait] [--url 地址]、enter、tools、call 工具名 [JSON|--stdin]');
+    } else fail('UNKNOWN_COMMAND', '可用命令：status、check-update、update、connect [--invite 邀请码 --name 原AI名字] [--wait] [--url 地址]、enter、tools、call 工具名 [JSON|--stdin]');
     return { client, result };
   } finally { closeSync(lock); unlinkSync(client.path + '.lock'); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().then(({ client, result }) => console.log(client.redact(result))).catch(error => {
-    console.error(JSON.stringify({ error: { code: error.code || 'CLIENT_ERROR', message: error instanceof SkillError ? error.message : '连接脚本失败，请检查本地权限与配置' } })); process.exitCode = 1;
+  main().then(async ({ client, result }) => {
+    console.log(client.redact(result));
+    if (process.argv[2] === 'connect') {
+      const update = await updateNotice({ statePath: client.path });
+      if (update) console.error(JSON.stringify({ update }));
+    }
+  }).catch(error => {
+    console.error(JSON.stringify({ error: { code: error.code || 'CLIENT_ERROR', message: error instanceof SkillError || error instanceof UpdateError ? error.message : '连接脚本失败，请检查本地权限与配置' } })); process.exitCode = 1;
   });
 }

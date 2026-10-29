@@ -98,12 +98,19 @@ export class World extends EventEmitter {
       position: { x: 9 + (Object.keys(this.state.agents).length % 3), y: 7 + (Object.keys(this.state.agents).length % 2) },
       status: 'offline', session_epoch: 0, group_id: null, activity: null, run: null, goal: '', diagnostics: { state: 'waiting', calls_used: 0, last_error: null },
       pause_reason: null, next_action_id: null, last_contact_at: null, last_action_at: null, reserved_until: null };
+    if (input.invitation_claim !== undefined) {
+      const claim = input.invitation_claim;
+      if (!claim || typeof claim.invite_id !== 'string' || !/^ai_invite_[0-9a-f-]{36}$/i.test(claim.invite_id) || typeof claim.device_hash !== 'string' || !/^[0-9a-f]{64}$/i.test(claim.device_hash)) fail('INVALID_ACTION', '邀请恢复标记无效');
+      a.invitation_claim = { invite_id: claim.invite_id, device_hash: claim.device_hash };
+    }
     this.state.agents[a.agent_id] = a; this.commit(); return this.publicAgent(a);
   }
-  createController(agentId, { name = '参考运行器', kind = 'external' } = {}) {
+  createController(agentId, { name = '参考运行器', kind = 'external', token: suppliedToken } = {}) {
     this.agent(agentId);
     if (!['demo', 'external'].includes(kind)) fail('INVALID_ACTION', '控制端类型无效');
-    const token = randomBytes(32).toString('base64url');
+    if (suppliedToken !== undefined && (typeof suppliedToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(suppliedToken))) fail('INVALID_ACTION', '控制端令牌格式无效');
+    const token = suppliedToken ?? randomBytes(32).toString('base64url');
+    if (Object.values(this.state.controllers).some(c => c.token_hash === hash(token))) fail('TOKEN_CONFLICT', '控制端凭据已被使用');
     const c = { controller_id: uid('controller'), agent_id: agentId, name: textField(name, 40, '控制端名称'), kind, token_hash: hash(token), revoked: false };
     this.state.controllers[c.controller_id] = c; this.commit();
     return { controller_id: c.controller_id, agent_id: agentId, name: c.name, kind, token };

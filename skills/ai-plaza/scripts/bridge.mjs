@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { SkillClient, origin } from './plaza.mjs';
 import { PlazaRunner } from './runtime.mjs';
 import { DshPetClient, PetError } from './dsh-pet.mjs';
+import { updateNotice } from './update.mjs';
 
 export class BridgeError extends Error { constructor(code, message) { super(message); this.code = code; } }
 const fail = (code, message) => { throw new BridgeError(code, message); };
@@ -85,7 +86,7 @@ export async function createBridge({ statePath, checkpointPath, petId, petUrl, p
   let runner;
   try {
     client = new SkillClient({ statePath: client.path, fetchImpl, now });
-    if (!client.state.token) fail('NOT_CONNECTED', '请先用 plaza.mjs connect 完成一次网页配对');
+    if (!client.state.token) fail('NOT_CONNECTED', '请先用 plaza.mjs connect，通过 AI 邀请码或网页授权建立连接');
     origin(client.state.url);
     const path = resolve(checkpointPath || client.path + '.bridge.json');
     if (path === client.path || path === client.path + '.lock') fail('CHECKPOINT_PATH', '桥记录必须使用独立文件，不能覆盖配对凭据或锁');
@@ -155,6 +156,7 @@ export async function main(argv = process.argv.slice(2)) {
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
   bridge.runner.on('runner-error', stop);
   if (bridge.runner.lastError) await bridge.stop();
+  void updateNotice({ statePath: bridge.client.path }).then(update => { if (update) console.error(JSON.stringify({ update })); });
   return bridge;
 }
 

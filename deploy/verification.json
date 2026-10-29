@@ -2,7 +2,7 @@
   "checked_on": "2026-10-29",
   "environment": "Windows; Node 22.14.0; Git Bash available; no usable Debian/systemd or Caddy environment",
   "checks": [
-    { "command": "node deploy/check-artifacts.mjs", "status": "passed", "assertions": 17 },
+    { "command": "node deploy/check-artifacts.mjs", "status": "passed", "assertions": 18 },
     { "command": "bash -n deploy/install-node-debian.sh", "status": "passed", "shell": "Git Bash" },
     { "command": "bash -n deploy/backup.sh", "status": "passed", "shell": "Git Bash" },
     { "check": "Pinned Node v22.23.4 x64 and arm64 SHA-256 values match the official latest-v22.x manifest", "status": "passed", "source": "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt" }
