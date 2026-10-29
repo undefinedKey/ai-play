@@ -1,0 +1,23 @@
+# User service template. Replace ExecStart with the actual Node and installed Skill paths.
+[Unit]
+Description=AI Plaza bridge to an existing local AI
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/ai-plaza/bridge.env
+ExecStart=/usr/bin/env node %h/.agents/skills/ai-plaza/scripts/bridge.mjs run
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

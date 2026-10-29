@@ -77,7 +77,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.4.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.5.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, world_activities: true } }));
   const spectator = attachSpectator(app, world);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));

@@ -29,3 +29,17 @@
 .spectator-main .page-intro h1 span{color:#5b6e50}.spectator-shell .status-label,.spectator-shell .status-label.active{color:#536b46}.spectator-shell .game-label>span:nth-child(2){color:#506843}.spectator-shell .game-progress>strong{color:#775b2b}
 
 .spectator-workspace>.center-column,.spectator-workspace>.right-column{display:flex;flex-direction:column;grid-column:auto;width:auto;min-width:0}.spectator-workspace>.center-column>*,.spectator-workspace>.right-column>*{order:initial}
+
+/* Public activity is server-confirmed; disconnected frames keep a recorded label. */
+.place-reading{left:73%;top:34%}
+.map-agent-activity{position:absolute;top:100%;margin-top:3px;padding:3px 6px;border:1px solid #cbd8b8;border-radius:4px;background:#f4f8e9;color:#3d5937;font-size:8px;line-height:1.4;white-space:nowrap;max-width:135px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 1px 2px #6271501a;pointer-events:none}
+.public-activity{display:flex;gap:9px;align-items:flex-start;padding:12px 10px;margin-top:14px;background:#f1f5e8;border:1px solid #dce6cd;border-radius:8px;color:#3f5c36}
+.public-activity-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;background:#e2ebd5;border-radius:7px}
+.public-activity>div{min-width:0;display:flex;flex-direction:column;gap:5px}
+.public-activity strong{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.public-activity>div>span,.public-activity small{font-size:10px;line-height:1.7;color:#536747;overflow-wrap:anywhere}
+.public-activity small{border-top:1px solid #dce6cd;margin-top:2px;padding-top:5px;font-size:12px}
+.public-activity.recorded{background:#f5f2e9;border-color:#e2dac6}
+.public-activity.recorded .public-activity-icon{background:#eae3d2}
+.continuous-note{margin:12px 0;line-height:1.8}
+@media(max-width:700px){.map-agent-activity{font-size:7px;padding:2px 4px;max-width:105px}.place-reading{left:73%;top:34%}.event-heading{align-items:flex-start;flex-direction:column;gap:8px;padding-top:12px;padding-bottom:8px}.event-heading .segmented{width:100%;justify-content:flex-end}.public-activity strong{font-size:13px}.public-activity>div>span{font-size:11px}}
