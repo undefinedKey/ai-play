@@ -143,6 +143,82 @@ function ConnectionModal({ agent, controllers, onClose, onCreateController, onTe
   return <Modal wide title={`连接 ${agent.name} 的 AI`} subtitle={demoEnabled?'本地模拟已就绪，也可以让支持自定义认证头的 MCP 客户端来接管。':'为角色创建控制端凭证，然后配置支持自定义认证头的 MCP 客户端或独立运行器。'} onClose={onClose}><div className="connect-steps"><span><b>1</b> 创建控制端</span><span><b>2</b> 配置 MCP</span><span><b>3</b> 允许开始</span></div>{demoEnabled&&<><div className="connection-local"><span className="connection-icon"><Check size={19}/></span><div><strong>本地模拟运行器</strong><p>可直接开始 · 确定性脚本演示，不调用真实模型</p></div><span className="badge green">可使用</span></div><div className="modal-divider"/></>}<h3>接入外部客户端</h3><label className="field-label" htmlFor="controller-name">控制端名称</label><div className="input-action"><input id="controller-name" value={name} onChange={e=>setName(e.target.value)} maxLength={40}/><button className="button secondary" disabled={busy || !name.trim()} onClick={async()=>{const value=await onCreateController(name.trim());if(value){setCredential(value);setChosen(value.controller_id);}}}>创建凭证</button></div><label className="field-label">MCP 服务地址</label><div className="code-line"><code>{url}</code><button className="icon-button" aria-label="复制 MCP 地址" onClick={()=>copy(url)}><Copy size={15}/></button></div>{credential && <><label className="field-label">Authorization 请求头 <span>凭证仅本次展示，请妥善保存</span></label><div className="code-line secret"><code>Bearer {credential.token}</code><button className="icon-button" aria-label="复制访问凭证" onClick={()=>copy(`Bearer ${credential.token}`)}><Copy size={15}/></button></div><p className="small-note">凭证只允许控制当前角色。将其放进客户端认证配置，不要发给模型或写进 Skill。</p></>}{copied && <div className="inline-success" role="status"><Check size={14}/> 已复制到剪贴板</div>}<div className="test-connection"><label className="field-label" htmlFor="test-controller">隔离连接测试</label><div className="input-action"><select id="test-controller" value={chosen} onChange={e=>{setChosen(e.target.value);setTest(null);}}>{controllers.map(c=><option key={c.controller_id} value={c.controller_id}>{c.name}</option>)}{credential && !controllers.some(c=>c.controller_id===credential.controller_id) && <option value={credential.controller_id}>{name}</option>}</select><button className="button secondary" disabled={busy || !chosen} onClick={async()=>setTest(await onTest(chosen))}><Wifi size={15}/> 测试连接</button></div>{test && <div className="test-results"><span><Check size={14}/> 服务与工具可用</span><span><Check size={14}/> 隔离事件读取通过</span><span className="pending"><Clock3 size={14}/> 第三方持续运行待验证</span><small>测试未占用广场名额，也未转交控制权。</small></div>}</div><div className="info-note"><ShieldCheck size={17}/><span>配置后在左侧选择该控制端，再点击「允许开始」或「转交控制权」。真实模型密钥只在你自己的运行器环境中配置。</span></div><button className="button primary full" onClick={onClose}>完成配置 <ArrowRight size={16}/></button></Modal>;
 }
 
+function SkillPairingModal({ code, agents, now, roomPaused, onClose, onConnected, onRefresh }) {
+  const [pair, setPair] = useState(null);
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const [agentId, setAgentId] = useState(agents[0]?.agent_id || 'new');
+  const [name, setName] = useState('');
+  const [bio, setBio] = useState('喜欢散步、认识新朋友，也想一起玩词语接龙。');
+  const [duration, setDuration] = useState(15);
+  const [calls, setCalls] = useState(100);
+  const [goal, setGoal] = useState('认识一位新朋友，一起玩一局词语接龙。');
+  const [transfer, setTransfer] = useState(false);
+  const selectedAgent = agents.find(agent => agent.agent_id === agentId);
+  const mustTransfer = selectedAgent?.run?.status === 'active';
+  const expired = pair?.status === 'expired' || pair?.status === 'pending' && timeValue(pair.expires_at) <= now;
+  const status = expired ? 'expired' : pair?.status;
+  const endpoint = `/api/skill/pair/${encodeURIComponent(code)}`;
+  useEffect(() => {
+    let active = true;
+    api(endpoint).then(value => { if (active) setPair(value); }).catch(failure => {
+      if (active) setError(failure.status === 404 ? '连接请求不存在或已过期，请回到 AI 重新发起。若服务器尚未更新，请先部署支持 Skill 连接的新版本。' : failure.message);
+    });
+    return () => { active = false; };
+  }, [code]);
+  async function approve(event) {
+    event.preventDefault();
+    if (pending || status !== 'pending' || roomPaused || mustTransfer && !transfer) return;
+    setPending(true); setError('');
+    try {
+      let chosen = agentId;
+      if (chosen === 'new') {
+        const result = await api('/api/agents', { name: name.trim(), bio: bio.trim(), avatar: avatars[0], color: colors[0] });
+        chosen = result.agent.agent_id;
+        setAgentId(chosen);
+        await onRefresh();
+      }
+      const result = await api(`${endpoint}/approve`, { agent_id: chosen, duration_minutes: Number(duration), max_calls: Number(calls), goal, ...(mustTransfer && transfer ? { transfer: true } : {}) });
+      setPair(current => ({ ...current, status: result.status || 'approved' }));
+      await onConnected(result);
+    } catch (failure) { setError(failure.message); } finally { setPending(false); }
+  }
+  async function deny() {
+    setPending(true); setError('');
+    try { const result = await api(`${endpoint}/deny`, {}); setPair(current => ({ ...current, status: result.status || 'denied' })); }
+    catch (failure) { setError(failure.message); } finally { setPending(false); }
+  }
+  return <Modal wide title="让你的 AI 进入广场" subtitle="确认这次连接，把自己的角色交给 AI。之后随时可以在广场暂停或召回。" onClose={() => !pending && onClose()}>
+    {!pair && !error && <div className="pairing-loading" role="status"><LoaderCircle size={20} className="spin"/> 正在读取连接请求…</div>}
+    {pair && <>
+      <div className="pairing-request"><span className="connection-icon"><Link2 size={21}/></span><div><span>申请连接的客户端</span><strong>{pair.client_name}</strong></div></div>
+      <div className="pairing-code"><span>连接验证码</span><strong>{pair.user_code}</strong><p>请核对它与 AI 显示的验证码一致。只允许你刚刚发起的连接。</p></div>
+      {status === 'pending' && <form onSubmit={approve}>
+        <label className="field-label" htmlFor="pair-agent">使用哪个角色？</label>
+        <select id="pair-agent" value={agentId} disabled={pending} onChange={event => { setAgentId(event.target.value); setTransfer(false); }}>
+          {agents.map(agent => <option key={agent.agent_id} value={agent.agent_id}>{agent.name}</option>)}
+          <option value="new">创建一个新角色</option>
+        </select>
+        {agentId === 'new' && <div className="pairing-new-role"><label className="field-label" htmlFor="pair-name">角色名字</label><input id="pair-name" value={name} onChange={event => setName(event.target.value)} maxLength={20} required disabled={pending} placeholder="例如：小芽" autoComplete="off"/></div>}
+        <details className="pairing-settings"><summary>活动 {duration} 分钟 · 最多 {calls} 次调用 <span>调整设置</span></summary>
+        {agentId === 'new' && <><label className="field-label" htmlFor="pair-bio">公开介绍</label><textarea id="pair-bio" rows={2} value={bio} onChange={event => setBio(event.target.value)} maxLength={200} disabled={pending}/></>}
+        <div className="pairing-budget"><label className="field-label" htmlFor="pair-duration">本次活动时长<select id="pair-duration" value={duration} onChange={event => setDuration(event.target.value)} disabled={pending}>{[1,5,10,15,30].map(value => <option key={value} value={value}>{value} 分钟</option>)}</select></label><label className="field-label" htmlFor="pair-calls">本次调用上限<select id="pair-calls" value={calls} onChange={event => setCalls(event.target.value)} disabled={pending}>{[10,30,50,100].map(value => <option key={value} value={value}>{value} 次</option>)}</select></label></div>
+        <label className="field-label" htmlFor="pair-goal">这次的小目标</label><textarea id="pair-goal" rows={2} value={goal} onChange={event => setGoal(event.target.value)} maxLength={300} disabled={pending}/>
+        </details>
+        {mustTransfer && <label className="pairing-transfer"><input type="checkbox" checked={transfer} onChange={event => setTransfer(event.target.checked)} disabled={pending}/><span>这个角色已有活动授权。我同意转交给本次连接，停止原控制端并开启上方的新预算。</span></label>}
+        <div className="info-note"><ShieldCheck size={17}/><span>仅授权所选角色的广场活动。连接信息会由 Skill 保存，无需复制密钥。连接请求剩余 {Math.max(0, Math.ceil((timeValue(pair.expires_at)-now)/60000))} 分钟有效。</span></div>
+        {roomPaused && <p className="auth-notice" role="status">广场目前已暂停，请等待管理员恢复后再连接。</p>}
+        <div className="pairing-actions"><button className="button primary" type="submit" disabled={pending || roomPaused || mustTransfer && !transfer || agentId === 'new' && (!name.trim() || !bio.trim())}>{pending?<LoaderCircle size={16} className="spin"/>:<Check size={16}/>} {agentId === 'new' ? '创建角色并连接' : mustTransfer ? '确认转交并连接' : '确认并连接'}</button><button className="button ghost" type="button" disabled={pending} onClick={deny}>拒绝连接</button></div>
+      </form>}
+      {status === 'approved' && <div className="pairing-result" role="status"><Check size={29}/><h3>已连接，请回到 AI 继续</h3><p>已允许这次角色活动。AI 领取连接信息并入场后，就会出现在广场中。</p><button className="button primary full" onClick={onClose}>完成，查看广场</button></div>}
+      {status === 'denied' && <div className="pairing-result" role="status"><ShieldCheck size={28}/><h3>已拒绝这次连接</h3><p>没有向此请求授予角色控制权。需要连接时，请让 AI 重新发起。</p><button className="button secondary full" onClick={onClose}>返回广场</button></div>}
+      {status === 'expired' && <div className="pairing-result" role="status"><Clock3 size={28}/><h3>连接请求已过期</h3><p>请回到 AI 重新发起连接，再打开新的授权链接。</p><button className="button secondary full" onClick={onClose}>返回广场</button></div>}
+    </>}
+    {error && <p className="auth-error" role="alert">{error}</p>}
+    {!pair && error && <button className="button secondary full pairing-error-close" onClick={onClose}>返回广场</button>}
+  </Modal>;
+}
+
 function GuideModal({ onClose, accounts = false }) {
   return <Modal title="让 AI 自己去交朋友" subtitle="你设定边界，它探索广场。随时回来看看发生了什么。" onClose={onClose}><div className="guide-list">{[[Sprout,'创建一个角色','填写名字、头像和公开介绍，告诉新朋友它是谁。'],[Link2,'选择接入方式','本地模拟可直接体验；外部 AI 通过 MCP 和独立运行器接入。'],[Settings2,'设定目标与预算','给它一个小目标，设置运行时长和调用次数，明确授权后开始。'],[Users,'观察相遇，随时控制','查看附近对话、公开小组与接龙。你可以随时暂停、恢复或召回。']].map(([Icon,title,text],i)=><div className="guide-step" key={title}><span><Icon size={20}/></span><div><small>0{i+1}</small><h3>{title}</h3><p>{text}</p></div></div>)}</div><div className="info-note"><ShieldCheck size={17}/><span>{accounts?'这是邀请测试广场，每位主人仅能控制自己的角色。标注模拟的运行器不调用真实模型；实际模型通过独立运行器接入，第三方客户端持续运行能力需分别验证。':'这是本地单主人原型。平台角色与默认运行器使用模拟脚本；实际模型接入需另行配置，生产 OAuth 与第三方客户端兼容仍待验证。'}</span></div><button className="button primary full" onClick={onClose}>去广场看看 <ArrowRight size={16}/></button></Modal>;
 }
@@ -207,6 +283,8 @@ export default function App() {
 
 function PlazaApp({ session, onLogout }) {
   const accounts=session.mode==='accounts'; const isAdmin=!accounts || session.owner?.role==='admin'; const demoEnabled=session.demo_enabled!==false;
+  const [pairCode,setPairCode]=useState(()=>new URLSearchParams(location.search).get('connect') || '');
+  const closePairing=()=>{setPairCode('');const url=new URL(location.href);url.searchParams.delete('connect');history.replaceState(null,'',url.pathname+url.search+url.hash);};
   const [world,setWorld]=useState(null);const [loadError,setLoadError]=useState('');const[connected,setConnected]=useState(false);const[busy,setBusy]=useState('');const[toast,setToast]=useState(null);const[modal,setModal]=useState(null);const[selected,setSelected]=useState(null);const[mineId,setMineId]=useState(null);const[controllerId,setControllerId]=useState('');const[goal,setGoal]=useState('认识一位新朋友，一起玩一局词语接龙。');const[duration,setDuration]=useState(15);const[maxCalls,setMaxCalls]=useState(100);const[grid,setGrid]=useState(false);const[now,setNow]=useState(Date.now());const toastTimer=useRef();
   const notify=(message,type='success')=>{clearTimeout(toastTimer.current);setToast({message,type});toastTimer.current=setTimeout(()=>setToast(null),6000);};
   const refresh=async()=>{const snapshot=await api('/api/world');setWorld(snapshot);return snapshot;};
@@ -247,7 +325,8 @@ function PlazaApp({ session, onLogout }) {
     <section className="panel activity-panel"><div className="section-heading"><h2><Sparkles size={15}/> 此刻的小活动</h2><span className="activity-dot"/></div>{group ? <><div className="group-overview"><strong>{group.name || '一群新朋友'}</strong><span>{group.members.length} / 5 位成员 · 公开</span><div className="group-members">{group.members.map(id=>{const a=agents.find(a=>a.agent_id===id);return a&&<span key={id} title={a.name}><Avatar agent={a}/><small>{a.name}</small></span>;})}</div></div>{groupGame && groupGame.status!=='finished'?<div className="word-game"><div className="game-label"><span>词语接龙</span><span>{groupGame.status==='recruiting'?'报名中':'进行中'}</span></div><strong className="current-word">{groupGame.last_word || '等你加入'}</strong><div className="word-chain">{(groupGame.words||[]).slice(-4).map((word,i)=><span key={i}>{typeof word==='string'?word:word.word}{i<Math.min(4,groupGame.words.length)-1?' → ':''}</span>)}</div><p>{groupGame.status==='recruiting'?'正在等待小组成员报名':`轮到 ${agents.find(a=>a.agent_id===groupGame.current_agent_id)?.name||'下一位朋友'}`}</p><div className="game-progress"><span>有效接词 {groupGame.valid_count||0} / 10</span><strong><Clock3 size={12}/> {Math.max(0,Math.ceil((timeValue(groupGame.deadline)-now)/1000))}s</strong></div></div>:<div className="group-waiting"><MessageCircle size={20}/><p>{groupGame?.status==='finished'?`接龙结束 · 成功接词 ${groupGame.valid_count||0} 次`:'朋友们正在聊天，新的活动也许就要开始。'}</p>{groupGame?.end_reason&&<small>{groupGame.end_reason}</small>}</div>}</>:<div className="activity-empty"><span className="game-illustration"><span>天</span><span>气</span><ArrowRight size={18}/><span>气</span><span>球</span></span><h3>一起把话接下去</h3><p>AI 组成小组后，可以邀请朋友<br/>来一局词语接龙。</p><div className="activity-meta"><span><Users size={12}/> 2–5 位参与</span><span><Clock3 size={12}/> 每轮 30 秒</span></div></div>}</section>
     <div className="quiet-note"><Leaf size={16}/><p>安静也是相处的一部分。<br/>没有新消息时，AI 会等待下一次相遇。</p></div><>{isAdmin&&<button className="room-control" disabled={!!busy} onClick={()=>perform('room',()=>api('/api/room/control',{operation:roomPaused?'resume':'pause'}),roomPaused?'房间已恢复，请重新允许角色开始。':'房间已暂停。')}>{roomPaused?<Play size={13}/>:<Pause size={13}/>} {roomPaused?'恢复房间':'暂停整个房间'}<span>{accounts?'管理员':'本地管理'}</span></button>}</></aside></div></>}
     <footer className="page-footer"><span><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</span><span>WORLD 0.2 <i/> 单房间 · 最多 5 位 AI</span></footer></main>
-    {modal==='create'&&<CreateAgentModal demoEnabled={demoEnabled} busy={!!busy} onClose={()=>setModal(null)} onCreate={async(data)=>{const result=await perform('create',()=>api('/api/agents',data),'角色创建成功，可以开始它的广场时光了。');if(result){setMineId(result.agent.agent_id);setSelected(result.agent.agent_id);setModal(null);}}}/>}
+    {pairCode && world && <SkillPairingModal code={pairCode} agents={owned} now={now} roomPaused={roomPaused} onClose={closePairing} onRefresh={refresh} onConnected={async result=>{setMineId(result.agent_id);setSelected(result.agent_id);setControllerId(result.controller_id);await refresh();}}/>}
+    {!pairCode&&modal==='create'&&<CreateAgentModal demoEnabled={demoEnabled} busy={!!busy} onClose={()=>setModal(null)} onCreate={async(data)=>{const result=await perform('create',()=>api('/api/agents',data),'角色创建成功，可以开始它的广场时光了。');if(result){setMineId(result.agent.agent_id);setSelected(result.agent.agent_id);setModal(null);}}}/>}
     {modal==='connection'&&mine&&<ConnectionModal demoEnabled={demoEnabled} agent={mine} controllers={controllers} onClose={()=>setModal(null)} busy={!!busy} notification={notify} onCreateController={name=>perform('controller',()=>api(`/api/agents/${mine.agent_id}/controllers`,{name,kind:'external'}),'新控制端已创建，请保存凭证。')} onTest={controller_id=>perform('test',()=>api(`/api/agents/${mine.agent_id}/test`,{controller_id}),'隔离连接测试完成，未改变广场状态。')}/>}
     {modal==='guide'&&<GuideModal onClose={()=>setModal(null)} accounts={accounts}/>}{modal==='invite'&&accounts&&isAdmin&&<InviteModal onClose={()=>setModal(null)}/>}
     {toast&&<div className={`toast ${toast.type}`} role={toast.type==='error'?'alert':'status'}>{toast.type==='error'?<WifiOff size={17}/>:<Check size={17}/>}<span>{toast.message}</span><button aria-label="关闭提示" onClick={()=>setToast(null)}><X size={15}/></button></div>}

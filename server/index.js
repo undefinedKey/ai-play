@@ -7,12 +7,13 @@ import { World } from './world.js';
 import { attachMcp } from './mcp.js';
 import { AccountStore } from './auth.js';
 import { deploymentConfig, authDatabasePath, isLoopback } from './config.js';
+import { SkillPairingStore, approvalOptions } from './skill-pairing.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const fail = (code, message) => Object.assign(new Error(message), { code });
 const sameSecret = (a, b) => Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), demo = true, seed = true, frontend = true, production = false, authDbPath, ...deployment } = {}) {
+export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), demo = true, seed = true, frontend = true, production = false, authDbPath, pairingNow = Date.now, ...deployment } = {}) {
   const config = deploymentConfig(deployment);
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
   const world = new World({ dbPath });
@@ -25,6 +26,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
   let demoCredentials = credentialsPath && existsSync(credentialsPath) ? JSON.parse(readFileSync(credentialsPath, 'utf8')) : [];
   const runners = new Map();
   const streams = new Map();
+  const skillPairing = new SkillPairingStore({ now: pairingNow });
   let baseUrl, stopped = false, reconciling = false;
   const cookieToken = req => /(?:^|;\s*)plaza_owner=([^;]*)/.exec(req.get('cookie') || '')?.[1] || '';
   const cookieOptions = { httpOnly: true, sameSite: 'strict', path: '/', secure: config.secureCookies };
@@ -69,11 +71,16 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     res.set('Cache-Control', 'no-store');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       if (!req.is('application/json') || !req.body || typeof req.body !== 'object' || Array.isArray(req.body)) return res.status(400).json({ error: { code: 'INVALID_REQUEST', message: '请求须使用 JSON 对象' } });
-      if (accounts && req.get('origin') !== config.publicUrl.origin) return res.status(403).json({ error: { code: 'INVALID_ORIGIN', message: '写操作必须从广场页面发起' } });
+      const deviceRequest = req.method === 'POST' && ['/skill/pair', '/skill/pair/poll'].includes(req.path) && !req.get('origin');
+      if (accounts && !deviceRequest && req.get('origin') !== config.publicUrl.origin) return res.status(403).json({ error: { code: 'INVALID_ORIGIN', message: '写操作必须从广场页面发起' } });
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.2.0', mode: accounts ? 'accounts' : 'local-prototype' }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.3.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true } }));
+  app.post('/api/skill/pair', (req, res) => {
+    res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
+  });
+  app.post('/api/skill/pair/poll', (req, res) => res.json(skillPairing.poll(req.body)));
   app.get('/api/session', (req, res) => {
     res.set('Cache-Control', 'no-store');
     if (!accounts) { res.cookie('plaza_owner', ownerSession, { ...cookieOptions, maxAge: 86400000 }); return res.json(sessionPayload({ owner: localOwner })); }
@@ -117,6 +124,29 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     if (!agent) throw fail('NOT_AUTHORIZED', '只能控制自己的角色');
     return agent;
   };
+  app.get('/api/skill/pair/:code', (req, res) => res.json(skillPairing.describe(req.params.code)));
+  app.post('/api/skill/pair/:code/approve', (req, res) => {
+    const options = approvalOptions(req.body);
+    getAgent(options.agent_id, req.owner);
+    const result = skillPairing.approve(req.params.code, req.owner.id, options.agent_id, clientName => {
+      world.tick();
+      const agent = getAgent(options.agent_id, req.owner);
+      const snapshot = world.ownerSnapshot();
+      if (snapshot.room.status === 'paused') throw fail('ROOM_PAUSED', '房间已暂停，请先恢复房间');
+      if (agent.run?.status === 'active' && !options.transfer) throw fail('CONTROLLER_BUSY', '当前角色已有活动授权，请明确确认转交控制权');
+      if (snapshot.controllers.filter(c => c.agent_id === options.agent_id).length >= 10) throw fail('LIMIT_REACHED', '每个角色最多10个控制端');
+      const controller = world.createController(options.agent_id, { name: clientName, kind: 'external' });
+      try {
+        world.ownerControl(options.agent_id, agent.run?.status === 'active' ? 'transfer' : 'start', { ...options, controller_id: controller.controller_id });
+      } catch (error) {
+        // Avoid leaving an unused credential if a precondition or persistence step fails.
+        delete world.state.controllers[controller.controller_id]; world.commit(); throw error;
+      }
+      return { token: controller.token, mcp_url: `${config.publicUrl?.origin || baseUrl}/mcp`, agent_id: options.agent_id, controller_id: controller.controller_id, agent_name: agent.name };
+    });
+    res.json(result);
+  });
+  app.post('/api/skill/pair/:code/deny', (req, res) => res.json(skillPairing.deny(req.params.code, req.owner.id)));
   app.get('/api/world', (req, res) => res.json(snapshotFor(req.owner)));
   app.get('/api/rules', (_req, res) => res.json(world.getRules()));
   app.get('/api/events', (req, res) => {
@@ -240,11 +270,11 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
       }
     } finally { reconciling = false; }
   }
-  const timer = setInterval(() => { world.tick(); void reconcile().catch(e => console.error('运行器:', e.message)); }, 500);
+  const timer = setInterval(() => { world.tick(); skillPairing.sweep(); void reconcile().catch(e => console.error('运行器:', e.message)); }, 500);
   const heartbeat = setInterval(() => { for (const [stream, info] of streams) { if (!authenticated(info.token)) { stream.end(); streams.delete(stream); } else stream.write(': heartbeat\n\n'); } }, 15000);
   timer.unref(); heartbeat.unref();
   return {
-    app, world, accounts, config,
+    app, world, accounts, config, skillPairing,
     async start(port = 3000) {
       if (accounts) {
         const admin = accounts.firstAdmin();
@@ -258,7 +288,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     async close() {
       stopped = true; clearInterval(timer); clearInterval(heartbeat); clearTimeout(broadcastTimer);
       await Promise.allSettled([...runners.values()].map(r => r.stop()));
-      closeMcp(); for (const stream of streams.keys()) stream.end();
+      closeMcp(); skillPairing.close(); for (const stream of streams.keys()) stream.end();
       world.off('change', onChange); await vite?.close(); world.close(); accounts?.close();
     },
   };

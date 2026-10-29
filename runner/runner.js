@@ -6,7 +6,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'leave_game', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
-const SKILL = readFileSync(new URL('../skills/ai-plaza/SKILL.md', import.meta.url), 'utf8');
+const SKILL = readFileSync(new URL('../skills/ai-plaza/references/play.md', import.meta.url), 'utf8');
 const delay = (ms, signal) => new Promise(resolve => {
   if (signal?.aborted) return resolve();
   const done = () => { clearTimeout(timer); signal?.removeEventListener('abort', done); resolve(); };

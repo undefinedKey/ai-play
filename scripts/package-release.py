@@ -8,7 +8,7 @@ OUTPUT = ROOT / 'artifacts' / 'ai-plaza-source.tar.gz'
 ROOT_FILES = ['package.json', 'package-lock.json', 'README.md', 'index.html',
               'vite.config.js', 'playwright.config.js', '.gitignore', '.gitattributes']
 DIRECTORIES = ['server', 'src', 'runner', 'skills', 'tests', 'deploy', 'docs', 'scripts']
-EXTENSIONS = {'.js', '.jsx', '.css', '.md', '.html', '.json', '.sh', '.mjs', '.py', '.service'}
+EXTENSIONS = {'.js', '.jsx', '.css', '.md', '.html', '.json', '.sh', '.mjs', '.py', '.service', '.yaml'}
 
 def normalize(info):
     if not info.isfile():
