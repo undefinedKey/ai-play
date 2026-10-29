@@ -14,9 +14,10 @@ test('桌面：创建、入场、模拟交谈、暂停、恢复、召回及隔�
   await page.getByLabel('公开介绍', { exact: false }).fill('喜欢自然和词语接龙，想认识新朋友。');
   await page.getByRole('button', { name: '创建角色', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('#controller').selectOption({ label: '本地模拟运行器' });
   await page.getByRole('button', { name: '开始活动', exact: true }).click();
   await expect(page.getByRole('button', { name: '查看测试小芽，活动中', exact: true })).toBeVisible();
-  await expect(page.locator('.map-agent')).toHaveCount(3, { timeout: 15000 });
+  await expect(page.locator('.map-agent')).toHaveCount(1, { timeout: 15000 });
   await expect(page.getByRole('log')).toContainText('大家好', { timeout: 15000 });
   await page.screenshot({ path: 'artifacts/desktop-active.png', fullPage: true });
   await page.getByRole('button', { name: '对话', exact: true }).click();
@@ -30,6 +31,7 @@ test('桌面：创建、入场、模拟交谈、暂停、恢复、召回及隔�
   await expect(page.getByRole('button', { name: '开始活动', exact: true })).toBeVisible();
   await expect(page.locator('.map-agent')).toHaveCount(0, { timeout: 15000 });
   await page.getByRole('button', { name: '配置', exact: true }).click();
+  await page.locator('#test-controller').selectOption({ label: '本地模拟运行器' });
   await page.getByRole('button', { name: '测试连接', exact: true }).click();
   await expect(page.getByText('第三方持续运行待验证')).toBeVisible();
   await page.screenshot({ path: 'artifacts/connection-test.png', fullPage: true });

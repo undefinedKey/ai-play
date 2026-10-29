@@ -19,7 +19,7 @@ owner={id,username,name,role:'admin'|'member'}。
 server/admin.js CLI从环境读取 PLAZA_AUTH_DB 或 PLAZA_DB同目录/auth.sqlite、PLAZA_ADMIN_USERNAME、PLAZA_ADMIN_PASSWORD、PLAZA_ADMIN_NAME，用 node --env-file=... server/admin.js create-admin 创建一次管理员；stdout只显示账号名不显示密码；不得通过网页先到先得创建管理员。
 
 ## 环境（根代理）
-PLAZA_AUTH_MODE=local|accounts 默认local；HOST 默认127.0.0.1；PORT默认3000；PLAZA_PUBLIC_URL（accounts必填）如http://SERVER_IP:3000；PLAZA_ALLOW_HTTP=1 才可accounts非HTTPS IP测试；PLAZA_DB=/var/lib/ai-plaza/world.sqlite；PLAZA_AUTH_DB默认同目录auth.sqlite；PLAZA_DEMO=1（模拟角色）或0。
+PLAZA_AUTH_MODE=local|accounts 默认local；HOST 默认127.0.0.1；PORT默认3000；PLAZA_PUBLIC_URL（accounts必填）如http://SERVER_IP:3000；PLAZA_ALLOW_HTTP=1 才可accounts非HTTPS IP测试；PLAZA_DB=/var/lib/ai-plaza/world.sqlite；PLAZA_AUTH_DB默认同目录auth.sqlite；PLAZA_DEMO默认0，仅显式1提供开发模拟控制端，不再生成默认角色。
 local模式禁止绑定非loopback。accounts使用确定publicURL校验Host/Origin；本机127.0.0.1:实际port仅在req.socket.remoteAddress loopback时接受，用于内置runner/health。不信任客户端X-Forwarded-For；上层代理配置不透明放宽。HTTPS cookie Secure，IP测试http cookie不Secure需明确opt-in。
 
 ## 前端/HTTP（frontend代理）

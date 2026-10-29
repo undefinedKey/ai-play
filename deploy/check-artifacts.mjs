@@ -16,6 +16,7 @@ check('single production process uses the dedicated Node runtime', /^ExecStart=\
 check('code is read-only and state directory is persistent', /^ProtectSystem=strict$/m.test(service) && /^ReadWritePaths=\/var\/lib\/ai-plaza$/m.test(service));
 check('service reads the documented environment file', /^EnvironmentFile=\/etc\/ai-plaza\/server.env$/m.test(service));
 check('remote server template enables account authentication', /^PLAZA_AUTH_MODE=accounts$/m.test(serverEnv));
+check('server template disables optional deterministic test controllers', /^PLAZA_DEMO=0$/m.test(serverEnv));
 check('HTTP invitation test requires explicit opt-in and a replaced public URL', /^PLAZA_ALLOW_HTTP=1$/m.test(serverEnv) && /^PLAZA_PUBLIC_URL=http:\/\/REPLACE_WITH_SERVER_IP:3000$/m.test(serverEnv));
 check('world and account databases share the backed-up directory', /^PLAZA_DB=\/var\/lib\/ai-plaza\/world.sqlite$/m.test(serverEnv) && /^PLAZA_AUTH_DB=\/var\/lib\/ai-plaza\/auth.sqlite$/m.test(serverEnv));
 check('admin credentials are only in a separate placeholder template', !/PLAZA_ADMIN_PASSWORD=/m.test(serverEnv) && /^PLAZA_ADMIN_PASSWORD="REPLACE_WITH_A_UNIQUE_ADMIN_PASSWORD"$/m.test(adminEnv));

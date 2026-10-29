@@ -1,18 +1,82 @@
 {
-  "checked_on": "2026-10-29",
-  "environment": "Windows; Node 22.14.0; Git Bash available; no usable Debian/systemd or Caddy environment",
+  "status": "pass",
+  "scope": "Static artifact checks only; not a Linux deployment test.",
   "checks": [
-    { "command": "node deploy/check-artifacts.mjs", "status": "passed", "assertions": 18 },
-    { "command": "bash -n deploy/install-node-debian.sh", "status": "passed", "shell": "Git Bash" },
-    { "command": "bash -n deploy/backup.sh", "status": "passed", "shell": "Git Bash" },
-    { "check": "Pinned Node v22.23.4 x64 and arm64 SHA-256 values match the official latest-v22.x manifest", "status": "passed", "source": "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt" }
-  ],
-  "not_executed": [
-    "Node installation on Debian",
-    "systemd-analyze verify on Debian",
-    "systemd service startup and reboot recovery",
-    "Remote server deployment, firewall changes, public-IP login",
-    "Caddy validation, TLS certificate issuance, DNS changes",
-    "Backup and rollback against a real deployed database"
+    {
+      "name": "systemd uses a dedicated unprivileged user",
+      "status": "pass"
+    },
+    {
+      "name": "single production process uses the dedicated Node runtime",
+      "status": "pass"
+    },
+    {
+      "name": "code is read-only and state directory is persistent",
+      "status": "pass"
+    },
+    {
+      "name": "service reads the documented environment file",
+      "status": "pass"
+    },
+    {
+      "name": "remote server template enables account authentication",
+      "status": "pass"
+    },
+    {
+      "name": "server template disables optional deterministic test controllers",
+      "status": "pass"
+    },
+    {
+      "name": "HTTP invitation test requires explicit opt-in and a replaced public URL",
+      "status": "pass"
+    },
+    {
+      "name": "world and account databases share the backed-up directory",
+      "status": "pass"
+    },
+    {
+      "name": "admin credentials are only in a separate placeholder template",
+      "status": "pass"
+    },
+    {
+      "name": "passwordless bootstrap has no password and reuses server configuration",
+      "status": "pass"
+    },
+    {
+      "name": "future TLS proxy targets loopback and supports streaming",
+      "status": "pass"
+    },
+    {
+      "name": "Node installer pins both supported architectures with SHA-256",
+      "status": "pass"
+    },
+    {
+      "name": "backup stops the service and restores its previous running state",
+      "status": "pass"
+    },
+    {
+      "name": "referenced artifact exists: server/index.js",
+      "status": "pass"
+    },
+    {
+      "name": "referenced artifact exists: package-lock.json",
+      "status": "pass"
+    },
+    {
+      "name": "referenced artifact exists: docs/服务器部署.md",
+      "status": "pass"
+    },
+    {
+      "name": "Linux configuration has LF line endings: deploy/ai-plaza.service",
+      "status": "pass"
+    },
+    {
+      "name": "Linux configuration has LF line endings: deploy/install-node-debian.sh",
+      "status": "pass"
+    },
+    {
+      "name": "Linux configuration has LF line endings: deploy/backup.sh",
+      "status": "pass"
+    }
   ]
 }

@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from '
 import { dirname } from 'node:path';
 import { DshPetClient } from './dsh-pet.mjs';
 
-const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'leave_game', 'start_activity', 'finish_activity', 'wait']);
+const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
 const SKILL = readFileSync(new URL('../references/play.md', import.meta.url), 'utf8');
 const delay = (ms, signal) => new Promise(resolve => {
@@ -41,10 +41,13 @@ export function parseModelAction(content) {
     say: { channel: v => ['nearby', 'group'].includes(v), text: v => typeof v === 'string' && v.trim() && [...v].length <= 200, 'group_id?': id },
     create_group: {}, invite: { group_id: id, target_agent_id: id },
     respond_invite: { invite_id: id, accept: v => typeof v === 'boolean' }, leave_group: { group_id: id },
-    propose_game: { group_id: id, 'game_type?': v => v === 'word_chain' },
+    propose_game: { group_id: id, 'game_type?': v => ['word_chain', 'rock_paper_scissors', 'story_chain'].includes(v) },
     respond_game: { game_id: id, accept: v => typeof v === 'boolean' },
-    submit_word: { game_id: id, turn_id: v => id(v) || integer(v), word: id }, leave_game: { game_id: id },
-    start_activity: { activity_id: id }, finish_activity: { 'answer?': integer }, wait: {},
+    submit_word: { game_id: id, turn_id: v => id(v) || integer(v), word: id },
+    submit_move: { game_id: id, turn_id: v => id(v) || integer(v), choice: v => ['rock', 'paper', 'scissors'].includes(v) },
+    submit_story: { game_id: id, turn_id: v => id(v) || integer(v), text: v => typeof v === 'string' && v.trim() && [...v].length <= 200 },
+    leave_game: { game_id: id },
+    start_activity: { activity_id: id }, finish_activity: { 'answer?': v => integer(v) || typeof v === 'string' && v.trim().length > 0 && [...v].length <= 100 }, wait: {},
   };
   const schema = schemas[action.type];
   const keys = Object.keys(schema).map(key => key.replace(/\?$/, ''));
@@ -67,6 +70,7 @@ export function enqueueEvents(checkpoint, events, selfId) {
     seen.add(event.event_id);
     const type = event.type || '';
     if (event.payload?.agent_id === selfId && /say|message|chat|action/.test(type)) continue;
+    if (event.payload?.agent_id === selfId && ['word_submitted', 'story_submitted', 'treasure_collected'].includes(type)) continue;
     if (type === 'activity_started' || type === 'activity_finished' && event.payload?.agent_id !== selfId) continue;
     if (/move|position|status|diagnostic|receipt/.test(type)) continue;
     queue.push(event);
@@ -285,12 +289,26 @@ export class PlazaRunner extends EventEmitter {
   }
 
   decisionDue() {
-    if (this.now() - this.lastDecisionAt < this.decisionIntervalMs) return false;
+    const elapsed = this.now() - this.lastDecisionAt;
+    if (elapsed < this.decisionIntervalMs) return false;
     if (this.checkpoint.pending_action || this.mode === 'demo') return true;
+    if (this.checkpoint.queue.length) return true;
+    const game = this.observation?.game;
+    const selfId = this.observation?.self?.agent_id;
+    if (game?.status === 'recruiting' && game.responses?.[selfId] === undefined && elapsed >= 10000) return true;
+    if (game?.status === 'active') {
+      const needsTurn = game.game_type === 'rock_paper_scissors'
+        ? game.participants?.includes(selfId) && !game.submitted_agent_ids?.includes(selfId)
+        : game.current_agent_id === selfId;
+      // Even an intentional wait gets another opportunity before a 30-second turn expires.
+      if (needsTurn && elapsed >= Math.min(this.idleMs, 10000)) return true;
+    }
     const activity = this.observation?.self?.activity;
-    if (activity && ['read', 'solo_game'].includes(activity.activity_id) && this.checkpoint.activity_seen !== `${activity.activity_id}:${activity.started_at}`) return true;
-    if (activity && timestamp(activity.ends_at) > this.now() && !this.checkpoint.queue.length) return false;
-    return !!this.checkpoint.queue.length || !this.lastDecisionAt || this.now() - this.lastDecisionAt >= this.idleMs || !!activity && timestamp(activity.ends_at) <= this.now();
+    if (activity?.task?.kind === 'treasure_hunt') return true; // Each map step and collection needs the original AI.
+    if (activity && (activity.activity_id === 'read' || activity.task) && this.checkpoint.activity_seen !== `${activity.activity_id}:${activity.started_at}`) return true;
+    if (activity?.task && elapsed >= 10000) return true;
+    if (activity && timestamp(activity.ends_at) > this.now()) return false;
+    return !this.lastDecisionAt || elapsed >= this.idleMs || !!activity && timestamp(activity.ends_at) <= this.now();
   }
 
   async decide() {

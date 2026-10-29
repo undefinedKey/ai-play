@@ -46,3 +46,65 @@
 @media(max-width:700px){.passwordless-card{margin:16px 18px 0;padding:27px 23px}.passwordless-card h1{font-size:23px}.passwordless-card .entry-description{font-size:12px}.passwordless-card .info-note{font-size:11px}.account-menu-trigger{gap:4px;padding:3px}.accounts-topbar .topbar-meta{flex-wrap:wrap}.passwordless-entry-note p{font-size:11px}.login-owner-card small{font-size:10px}.access-choice p{font-size:12px}}
 @media(max-width:700px){.map-agent-activity{font-size:7px;padding:2px 4px;max-width:105px}.place-reading{left:73%;top:34%}.event-heading{align-items:flex-start;flex-direction:column;gap:8px;padding-top:12px;padding-bottom:8px}.event-heading .segmented{width:100%;justify-content:flex-end}.public-activity strong{font-size:13px}.public-activity>div>span{font-size:11px}}
 .passwordless-card .button.ghost{color:#526747}
+.detail-empty p{color:#5b6e50}
+
+/* Activities are a shared menu; only connected agents create live progress. */
+.activity-catalog .section-heading{flex-wrap:wrap;padding-top:12px;padding-bottom:12px;min-height:53px}
+.catalog-intro,.catalog-footnote{padding:13px 17px 0;color:#536747;font-size:11px;line-height:1.8}
+.catalog-footnote{padding:0 17px 15px;color:#65745b;font-size:10px}
+.catalog-section{padding:15px 17px}
+.catalog-section+.catalog-section{padding-top:0}
+.catalog-section>h3{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#405c36;margin-bottom:10px;flex-wrap:wrap}
+.catalog-section>h3>span{font-size:10px;font-weight:400;margin-left:auto;color:#627356}
+.catalog-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.catalog-card{min-width:0;padding:11px;border:1px solid #dfe6d4;border-radius:7px;background:#f7f8f0;display:flex;flex-direction:column;gap:7px}
+.catalog-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.catalog-card-top strong{font-size:11px;font-weight:600;color:#3f5d34;line-height:1.5}
+.catalog-card-top>span{font-size:9px;color:#536747;background:#e9efde;border-radius:4px;padding:2px 5px;white-space:nowrap}
+.catalog-card p{font-size:10px;line-height:1.8;color:#56664b;overflow-wrap:anywhere}
+.catalog-card small{font-size:9px;color:#617350;display:flex;align-items:center;gap:4px;margin-top:auto;line-height:1.6;flex-wrap:wrap}
+.spectator-workspace .catalog-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+.game-symbols{display:block;font-size:24px;letter-spacing:5px;margin:0 0 20px;color:#3f5d34}
+.game-round-title{font-size:18px;line-height:1.6;font-weight:550;margin:15px 0;color:#405c36}
+.sealed-choices{display:flex;align-items:center;gap:9px;border:1px dashed #c4d0b4;border-radius:7px;padding:10px;background:#f3f6e9;color:#4e6440;font-size:11px;line-height:1.9}
+.sealed-choices strong{font-weight:500}
+.round-results{display:flex;flex-direction:column;gap:10px;margin-top:13px}
+.round-results article{border:1px solid #e2e7d9;border-radius:7px;padding:10px}
+.round-results h3{font-size:10px;font-weight:600;color:#526846;margin-bottom:7px}
+.round-results article p{display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.8;color:#4b5e40;margin:4px 0}
+.round-results article p>span{min-width:0;overflow-wrap:anywhere;margin-right:auto}
+.round-results article p>strong,.round-results article p>small{flex-shrink:0;font-size:10px}
+.round-results article p>small{color:#69764f}
+.game-state{color:#526747!important;line-height:1.9!important;overflow-wrap:anywhere}
+.game-scoreboard{display:flex;flex-direction:column;gap:8px;border-top:1px solid #dde5cf;padding-top:12px;margin-top:14px}
+.game-scoreboard>span{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#435d38;overflow-wrap:anywhere}
+.game-scoreboard strong{flex-shrink:0}
+.story-segments{list-style:none;display:flex;flex-direction:column;gap:14px;padding:0;margin:15px 0}
+.story-segments li{border-left:2px solid #ccd9bb;padding-left:10px;min-width:0}
+.story-segments li>span{display:flex;align-items:center;gap:7px;font-size:10px;color:#62764f}
+.story-segments li>span>strong{font-size:11px;font-weight:550;overflow-wrap:anywhere;color:#48653a}
+.story-segments li>p{font-size:12px;line-height:1.9;color:#3f5035;margin:7px 0 0;overflow-wrap:anywhere;white-space:pre-wrap}
+.story-blank{font-size:11px;line-height:1.9;color:#617451;padding:12px 0}
+.map-treasure{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;transform:translate(-50%,-50%);pointer-events:none;color:#6d542a;z-index:2}
+.map-treasure>svg{width:29px;height:29px;padding:5px;background:#fff4ce;border:1px dashed #a98843;border-radius:50%;box-shadow:0 0 0 5px #fff4ce66}
+.map-treasure>span{font-size:8px;white-space:nowrap;padding:2px 4px;border-radius:4px;background:#fff4d8;color:#69502d}
+.treasure-progress{display:flex;flex-direction:column;gap:6px;border-top:1px solid #d4dec6;padding-top:8px}
+.treasure-progress>span{font-size:11px;color:#4d643d;line-height:1.8}
+.treasure-progress strong{font-size:10px;font-weight:550}
+.treasure-progress progress{width:100%;height:5px;accent-color:#5b7a46}
+@media(min-width:1350px){.workspace .catalog-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1000px){.spectator-workspace .catalog-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.catalog-section{padding:14px}.catalog-intro{padding:12px 14px 0}.catalog-footnote{padding:0 14px 14px}.catalog-cards,.spectator-workspace .catalog-cards{grid-template-columns:1fr 1fr;gap:8px}.catalog-card{padding:10px}.catalog-card-top strong{font-size:12px}.catalog-card p{font-size:11px}.catalog-card small{font-size:10px}.catalog-section>h3>span{font-size:9px}.game-round-title{font-size:20px}.story-segments li>p{font-size:13px}.map-treasure>span{font-size:7px}.map-treasure>svg{width:23px;height:23px;padding:4px}}
+@media(prefers-reduced-motion:reduce){.map-agent{transition:none}}
+@media(max-width:760px){
+  .spectator-workspace{display:flex;flex-direction:column;align-items:stretch}
+  .spectator-workspace>.center-column,.spectator-workspace>.right-column{display:contents}
+  .spectator-workspace .map-panel{order:1}
+  .spectator-workspace .activity-panel{order:2}
+  .spectator-workspace .event-panel{order:3}
+  .spectator-workspace .profile-panel{order:4}
+  .spectator-workspace .residents-panel{order:5}
+  .spectator-workspace .activity-catalog{order:6}
+  .spectator-workspace .spectator-groups{order:7}
+  .spectator-workspace .quiet-note{order:8}
+}

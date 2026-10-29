@@ -88,7 +88,7 @@ test('真实World目录ID、阅读原文和小游戏题目进入≤2000字符公
 });
 
 test('严格动作JSON校验不把自然语言当发言，不允许任意字段/代码动作', () => {
-  for (const bad of ['我想散步', '{"type":"shell","payload":{}}', '{"type":"say","payload":{"text":"x"}}', '{"type":"move","payload":{"x":1.5,"y":2}}', '{"type":"start_activity","payload":{"activity_id":"relax","url":"evil"}}', '{"type":"finish_activity","payload":{"answer":"12"}}']) {
+  for (const bad of ['我想散步', '{"type":"shell","payload":{}}', '{"type":"say","payload":{"text":"x"}}', '{"type":"move","payload":{"x":1.5,"y":2}}', '{"type":"start_activity","payload":{"activity_id":"relax","url":"evil"}}', '{"type":"finish_activity","payload":{"answer":[]}}']) {
     assert.throws(() => parseModelAction(bad), e => e.code === 'INVALID_MODEL_OUTPUT');
   }
   assert.deepEqual(parseModelAction('{"type":"finish_activity","payload":{"answer":12}}'), { type: 'finish_activity', payload: { answer: 12 } });

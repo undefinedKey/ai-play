@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { WORDS, WORD_VERSION } from './words.js';
+import { GAMES, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -19,7 +20,7 @@ const textField = (v, max, name, fallback = '') => {
   if (typeof v !== 'string' || [...v].length > max) fail('INVALID_ACTION', `${name}最多 ${max} 个字符`);
   return v.trim();
 };
-const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'leave_game', 'start_activity', 'finish_activity', 'wait'];
+const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'wait'];
 const PLACES = [
   { id: 'pond', name: '薄荷小池', x: 4, y: 4, radius: 3 },
   { id: 'garden', name: '中央花园', x: 11, y: 8, radius: 3 },
@@ -33,10 +34,15 @@ const ACTIVITIES = [
     content: { title: '一张空椅子', source: '广场原创', text: '雨停后，园丁把池边的椅子擦干，留下一张纸条：“这里可以坐。”午后，一个旅人坐下来修补背包。傍晚，他离开时把椅子挪回树荫下，又在纸条背面画了一片叶子。第二天，园丁没有问是谁画的，只在叶子旁边添了一滴水。' } },
   { id: 'solo_game', name: '心算小挑战', place_id: 'play', duration_seconds: 60, description: '开始后获得一道加法题，在限时内用 finish_activity 的 answer 提交整数答案；答对得 1 分，答错或未答得 0 分。',
     task: { kind: 'addition', answer_type: 'integer' } },
+  { id: 'riddle', name: '猜谜小屋', place_id: 'reading', duration_seconds: 90, description: '开始后获得一道谜语，用 finish_activity 的字符串 answer 提交答案；答对得 1 分。', task: { kind: 'riddle', answer_type: 'string' } },
+  { id: 'sequence', name: '数列挑战', place_id: 'play', duration_seconds: 90, description: '寻找等差数列规律，用 finish_activity 的整数 answer 填出下一项；答对得 1 分。', task: { kind: 'sequence', answer_type: 'integer' } },
+  { id: 'treasure_hunt', name: '地图寻宝', place_id: 'garden', duration_seconds: 240, description: '依次走到 3 个随机目标格，再用 finish_activity 空参数收集；移动不会取消寻宝，限时内每找到一个得 1 分。', task: { kind: 'treasure_hunt', answer_type: 'none' } },
 ];
 const publicActivity = activity => activity ? {
   activity_id: activity.activity_id, name: activity.name, place_id: activity.place_id, started_at: activity.started_at, ends_at: activity.ends_at,
   ...(activity.task ? { task: { kind: activity.task.kind, prompt: activity.task.prompt, answer_type: activity.task.answer_type } } : {}),
+  ...(activity.target ? { target: { x: activity.target.x, y: activity.target.y } } : {}),
+  ...(activity.progress ? { progress: { collected: activity.progress.collected, total: activity.progress.total } } : {}),
 } : null;
 
 export class World extends EventEmitter {
@@ -180,8 +186,8 @@ export class World extends EventEmitter {
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
   publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), session_epoch: a.session_epoch }); }
   publicSnapshot() {
-    return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: this.state.game,
-      places: PLACES, activities: ACTIVITIES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
+    return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
+      places: PLACES, activities: ACTIVITIES, games: GAMES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
   }
   ownerSnapshot() {
     const snap = this.publicSnapshot();
@@ -190,8 +196,8 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.5-activities', room: { capacity: 5, width: 24, height: 16 },
-      places: clone(PLACES), activities: clone(ACTIVITIES), max_duration_minutes: 10080,
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.7-games', room: { capacity: 5, width: 24, height: 16 },
+      places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), max_duration_minutes: 10080,
       visible_radius: 6, speech_radius: 4, max_move: 3, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
       game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: 30, turn_seconds: 30, max_valid_words: 10 },
@@ -209,9 +215,9 @@ export class World extends EventEmitter {
     const group = a.group_id ? this.state.groups[a.group_id] : null;
     return clone({ world_api_version: '0.2', run_id: a.run.run_id, session_epoch: a.session_epoch, expires_at: a.run.expires_at,
       self: this.publicAgent(a), nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && distance(a.position, b.position) <= 6).map(b => this.publicAgent(b)),
-      group, game: group && this.state.game?.group_id === group.group_id ? this.state.game : null,
+      group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
-      places: PLACES, activities: ACTIVITIES, server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
+      places: PLACES, activities: ACTIVITIES, games: GAMES, server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
   }
   join(a, c, args) {
     if (this.state.room.status !== 'active') fail('ROOM_PAUSED', '房间暂停中');
@@ -303,9 +309,12 @@ export class World extends EventEmitter {
     const activity = publicActivity(a.activity);
     let result;
     if (!cancelled) {
-      if (activity.activity_id === 'solo_game') {
-        const score = Number.isSafeInteger(answer) && answer === a.activity_answer ? 1 : 0;
-        result = { summary: answer === undefined ? '心算挑战结束，未提交答案：0 / 1 分。' : `心算挑战${score ? '答对了' : '答错了'}：${score} / 1 分。`, score, max_score: 1 };
+      if (['solo_game', 'riddle', 'sequence'].includes(activity.activity_id)) {
+        const score = activity.activity_id === 'riddle' ? (typeof answer === 'string' && a.activity_answer?.includes(answer.trim().replace(/[。！!？?\s]/gu, '')) ? 1 : 0) : (Number.isSafeInteger(answer) && answer === a.activity_answer ? 1 : 0);
+        result = { summary: answer === undefined ? `${activity.name}结束，未提交答案：0 / 1 分。` : `${activity.name}${score ? '答对了' : '答错了'}：${score} / 1 分。`, score, max_score: 1 };
+      } else if (activity.activity_id === 'treasure_hunt') {
+        const score = activity.progress.collected;
+        result = { summary: `寻宝结束，找到 ${score} / 3 件宝物。`, score, max_score: 3 };
       } else result = { summary: activity.activity_id === 'read' ? '本次阅读时段已结束。' : `${activity.name}时段已结束。` };
     }
     a.activity = null; delete a.activity_answer;
@@ -316,6 +325,11 @@ export class World extends EventEmitter {
     this.activeIds().filter(id => id === a.agent_id || distance(this.agent(id).position, a.position) <= 6));
     return { activity: null, outcome, ...(result ? { result } : {}) };
   }
+  nextTreasure(a) {
+    let target;
+    do { target = { x: randomInt(0, 24), y: randomInt(0, 16) }; } while (distance(a.position, target) === 0);
+    a.activity.target = target;
+  }
   perform(a, type, p) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
     if (type === 'wait') return {};
@@ -325,7 +339,7 @@ export class World extends EventEmitter {
       if (!activity) fail('INVALID_ACTION', '请选择活动目录中的活动');
       if (a.activity) fail('ACTIVITY_BUSY', '已有进行中的活动，请先结束或离开');
       const game = this.state.game;
-      if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '参加接龙期间不能开始独处活动');
+      if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '参加多人游戏期间不能开始独处活动');
       const place = PLACES.find(item => item.id === activity.place_id);
       if (distance(a.position, place) > place.radius) fail('INVALID_ACTION', `请先走到${place.name}附近 ${place.radius} 格内`);
       a.activity = { activity_id: activity.id, name: activity.name, place_id: activity.place_id, started_at: this.now(), ends_at: this.now() + activity.duration_seconds * 1000 };
@@ -333,6 +347,15 @@ export class World extends EventEmitter {
         const left = randomInt(1, 21), right = randomInt(1, 21);
         a.activity.task = { kind: 'addition', prompt: `${left} + ${right} = ?`, answer_type: 'integer' };
         a.activity_answer = left + right;
+      } else if (activity.id === 'riddle') {
+        const riddle = RIDDLES[randomInt(RIDDLES.length)];
+        a.activity.task = { kind: 'riddle', prompt: riddle.prompt, answer_type: 'string' }; a.activity_answer = [...riddle.answers];
+      } else if (activity.id === 'sequence') {
+        const first = randomInt(1, 20), step = randomInt(2, 10);
+        a.activity.task = { kind: 'sequence', prompt: `等差数列：${Array.from({ length: 4 }, (_, index) => first + index * step).join('，')}，下一项是？`, answer_type: 'integer' }; a.activity_answer = first + step * 4;
+      } else if (activity.id === 'treasure_hunt') {
+        a.activity.task = { kind: 'treasure_hunt', prompt: '走到 target 的准确坐标，再提交 finish_activity 空参数收集。收集后观察下一个目标，共 3 件宝物。', answer_type: 'none' };
+        a.activity.progress = { collected: 0, total: 3 }; this.nextTreasure(a);
       }
       this.event('activity_started', { agent_id: a.agent_id, name: a.name, activity_id: activity.id, activity_name: activity.name, place_id: activity.place_id,
         started_at: a.activity.started_at, ends_at: a.activity.ends_at, text: `${a.name}开始了「${activity.name}」` },
@@ -340,14 +363,23 @@ export class World extends EventEmitter {
       return { activity: publicActivity(a.activity), ...(activity.content ? { content: clone(activity.content) } : {}) };
     }
     if (type === 'finish_activity') {
-      if (Object.keys(p).some(key => key !== 'answer') || p.answer !== undefined && !Number.isSafeInteger(p.answer)) fail('INVALID_ACTION', '结束活动只接受可选的整数 answer');
+      if (Object.keys(p).some(key => key !== 'answer') || p.answer !== undefined && !Number.isSafeInteger(p.answer) && (typeof p.answer !== 'string' || [...p.answer].length > 100)) fail('INVALID_ACTION', '结束活动只接受可选的整数或 100 字以内字符串 answer');
       if (!a.activity) fail('INVALID_ACTION', '没有进行中的独处活动');
-      if (p.answer !== undefined && a.activity.activity_id !== 'solo_game') fail('INVALID_ACTION', '只有心算挑战接受 answer');
+      if (a.activity.activity_id === 'treasure_hunt') {
+        if (p.answer !== undefined) fail('INVALID_ACTION', '寻宝收集不接受 answer');
+        if (distance(a.position, a.activity.target) !== 0) fail('INVALID_ACTION', '请先走到目标坐标再收集宝物');
+        a.activity.progress.collected++;
+        this.event('treasure_collected', { agent_id: a.agent_id, name: a.name, collected: a.activity.progress.collected, total: 3, text: `${a.name}找到了第 ${a.activity.progress.collected} 件宝物` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6));
+        if (a.activity.progress.collected === 3) return this.finishActivity(a);
+        this.nextTreasure(a); return { activity: publicActivity(a.activity) };
+      }
+      if (p.answer !== undefined && !['solo_game', 'riddle', 'sequence'].includes(a.activity.activity_id)) fail('INVALID_ACTION', '此活动不接受 answer');
+      if (p.answer !== undefined && (a.activity.task?.answer_type === 'integer' ? !Number.isSafeInteger(p.answer) : typeof p.answer !== 'string')) fail('INVALID_ACTION', 'answer 类型必须符合活动的 answer_type');
       return this.finishActivity(a, { cancelled: p.answer === undefined, answer: p.answer });
     }
     if (type === 'move') {
       if (!Number.isInteger(p.x) || !Number.isInteger(p.y) || p.x < 0 || p.x >= 24 || p.y < 0 || p.y >= 16 || distance(a.position, p) > 3) fail('INVALID_ACTION', '目标须在 24×16 地图内，每次最多移动 3 格');
-      this.finishActivity(a, { cancelled: true });
+      if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       a.position = { x: p.x, y: p.y };
       this.event('agent_moved', { agent_id: a.agent_id, position: a.position, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6)); return { position: a.position };
     }
@@ -389,11 +421,14 @@ export class World extends EventEmitter {
     }
     if (type === 'propose_game') {
       const group = this.groupOf(a, p.group_id);
-      if (p.game_type && p.game_type !== 'word_chain') fail('INVALID_ACTION', '首版只支持 word_chain 词语接龙');
+      const gameType = p.game_type ?? 'word_chain';
+      if (Object.keys(p).some(key => !['group_id', 'game_type'].includes(key)) || !GAMES.some(game => game.id === gameType)) fail('INVALID_ACTION', '请选择多人游戏目录中的 game_type');
       if (this.state.game && this.state.game.status !== 'finished') fail('GAME_BUSY', '房间同时只能进行一局游戏');
-      this.state.game = { game_id: uid('game'), group_id: group.group_id, status: 'recruiting', participants: [a.agent_id], responses: { [a.agent_id]: true }, current_agent_id: null,
+      this.state.game = { game_id: uid('game'), game_type: gameType, group_id: group.group_id, status: 'recruiting', participants: [a.agent_id], responses: { [a.agent_id]: true }, current_agent_id: null,
         turn_id: null, deadline: this.now() + 30000, last_word: null, words: [], scores: {}, end_reason: null, valid_count: 0, timeouts: {}, consecutive_skips: 0, word_version: WORD_VERSION };
-      this.event('game_proposed', { agent_id: a.agent_id, game_id: this.state.game.game_id, group_id: group.group_id, text: `${a.name}发起词语接龙，30 秒内可报名` }, group.members); return { game_id: this.state.game.game_id };
+      if (gameType === 'rock_paper_scissors') Object.assign(this.state.game, { round: 1, max_rounds: 3, submitted_agent_ids: [], rounds: [], private_choices: {} });
+      if (gameType === 'story_chain') Object.assign(this.state.game, { segments: [], max_segments: 6 });
+      this.event('game_proposed', { agent_id: a.agent_id, game_id: this.state.game.game_id, group_id: group.group_id, game_type: gameType, text: `${a.name}发起${gameName(gameType)}，30 秒内可报名` }, group.members); return { game_id: this.state.game.game_id };
     }
     if (type === 'respond_game') {
       const game = this.state.game;
@@ -402,17 +437,37 @@ export class World extends EventEmitter {
       if (typeof p.accept !== 'boolean') fail('INVALID_ACTION', 'accept 必须为布尔值');
       game.responses[a.agent_id] = p.accept;
       game.participants = game.participants.filter(id => id !== a.agent_id); if (p.accept) game.participants.push(a.agent_id);
-      this.event('game_registered', { agent_id: a.agent_id, game_id: game.game_id, text: `${a.name}${p.accept ? '报名参加' : '选择围观'}词语接龙` }, this.state.groups[game.group_id].members); return { participants: game.participants };
+      this.event('game_registered', { agent_id: a.agent_id, game_id: game.game_id, text: `${a.name}${p.accept ? '报名参加' : '选择围观'}${gameName(game.game_type)}` }, this.state.groups[game.group_id].members); return { participants: game.participants };
     }
     if (type === 'submit_word') {
       const game = this.state.game;
-      if (!game || game.game_id !== p.game_id || game.status !== 'active' || game.turn_id !== p.turn_id || game.current_agent_id !== a.agent_id || game.deadline <= this.now()) fail('STALE_TURN', '不是你的有效回合，请重新观察');
+      if (!game || (game.game_type || 'word_chain') !== 'word_chain' || game.game_id !== p.game_id || game.status !== 'active' || game.turn_id !== p.turn_id || game.current_agent_id !== a.agent_id || game.deadline <= this.now()) fail('STALE_TURN', '不是你的有效回合，请重新观察');
       if (!WORDS.includes(p.word) || p.word[0] !== game.last_word.at(-1) || game.words.includes(p.word)) fail('INVALID_WORD', '答案须在词库中、首尾相接且本局未使用');
       game.words.push(p.word); game.last_word = p.word; game.valid_count++; game.scores[a.agent_id] = (game.scores[a.agent_id] || 0) + 1; game.timeouts[a.agent_id] = 0; game.consecutive_skips = 0;
       this.event('word_submitted', { agent_id: a.agent_id, game_id: game.game_id, word: p.word, text: `${a.name}接上「${p.word}」`, valid_count: game.valid_count }, this.state.groups[game.group_id]?.members || game.participants);
       if (game.valid_count >= 10) this.finishGame('完成 10 次有效接词');
       else if (!WORDS.some(w => w[0] === p.word.at(-1) && !game.words.includes(w))) this.finishGame('词库没有未使用的后继词');
-      else this.nextTurn(); return { game: clone(game) };
+      else this.nextTurn(); return { game: publicGame(game) };
+    }
+    if (type === 'submit_move') {
+      if (Object.keys(p).some(key => !['game_id', 'turn_id', 'choice'].includes(key)) || !['rock', 'paper', 'scissors'].includes(p.choice)) fail('INVALID_ACTION', '出拳只接受 game_id、turn_id 和 rock/paper/scissors choice');
+      const game = this.actionGame(a, p, 'rock_paper_scissors');
+      if (Object.hasOwn(game.private_choices, a.agent_id)) fail('ALREADY_SUBMITTED', '本轮已出拳，等待其他参与者');
+      game.private_choices[a.agent_id] = p.choice; game.submitted_agent_ids.push(a.agent_id);
+      this.event('move_submitted', { agent_id: a.agent_id, game_id: game.game_id, text: `${a.name}已出拳，等待本轮揭晓` }, this.state.groups[game.group_id]?.members || game.participants);
+      if (game.participants.every(id => Object.hasOwn(game.private_choices, id))) this.revealRound();
+      return { game: publicGame(game) };
+    }
+    if (type === 'submit_story') {
+      if (Object.keys(p).some(key => !['game_id', 'turn_id', 'text'].includes(key))) fail('INVALID_ACTION', '故事只接受 game_id、turn_id 和 text');
+      const game = this.actionGame(a, p, 'story_chain');
+      if (game.current_agent_id !== a.agent_id) fail('STALE_TURN', '不是你的续写回合');
+      const text = textField(p.text, 200, '故事内容'); if (!text) fail('INVALID_ACTION', '故事内容不能为空');
+      game.segments.push({ agent_id: a.agent_id, text }); game.scores[a.agent_id] = (game.scores[a.agent_id] || 0) + 1;
+      game.timeouts[a.agent_id] = 0; game.consecutive_skips = 0;
+      this.event('story_submitted', { agent_id: a.agent_id, game_id: game.game_id, text, segment_count: game.segments.length }, this.state.groups[game.group_id]?.members || game.participants);
+      if (game.segments.length >= game.max_segments) this.finishGame('完成 6 段故事'); else this.nextTurn();
+      return { game: publicGame(game) };
     }
     if (type === 'leave_game') {
       const game = this.state.game; if (!game || game.game_id !== p.game_id || !game.participants.includes(a.agent_id)) fail('INVALID_ACTION', '你没有参加此游戏');
@@ -420,16 +475,35 @@ export class World extends EventEmitter {
     }
     fail('INVALID_ACTION', '动作类型不支持');
   }
+  actionGame(a, p, gameType) {
+    const game = this.state.game;
+    if (!game || game.game_type !== gameType || game.game_id !== p.game_id || game.status !== 'active' || game.turn_id !== p.turn_id || !game.participants.includes(a.agent_id) || game.deadline <= this.now()) fail('STALE_TURN', '不是你的有效游戏回合，请重新观察');
+    this.groupOf(a, game.group_id); return game;
+  }
+  revealRound() {
+    const game = this.state.game, beats = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+    const choices = game.participants.map(agent_id => ({ agent_id, choice: game.private_choices[agent_id] }));
+    const scores = Object.fromEntries(choices.map(own => [own.agent_id, choices.filter(other => other.agent_id !== own.agent_id && beats[own.choice] === other.choice).length]));
+    for (const [id, score] of Object.entries(scores)) game.scores[id] = (game.scores[id] || 0) + score;
+    game.rounds.push({ round: game.round, choices, scores });
+    game.private_choices = {}; game.submitted_agent_ids = [];
+    this.event('round_revealed', { game_id: game.game_id, round: game.round, choices, scores, text: `石头剪刀布第 ${game.round} 轮揭晓` }, this.state.groups[game.group_id]?.members || game.participants);
+    if (game.round >= game.max_rounds) this.finishGame('完成 3 轮石头剪刀布');
+    else { game.round++; game.turn_id = uid('turn'); game.deadline = this.now() + 30000; this.turnEvent(); }
+  }
   startGame() {
     const game = this.state.game;
     game.participants = game.participants.filter(id => this.state.agents[id]?.status === 'active' && this.state.agents[id].group_id === game.group_id);
     if (game.participants.length < 2) { this.finishGame('报名人数不足 2 人'); return; }
     for (const id of game.participants) this.finishActivity(this.agent(id), { cancelled: true });
-    game.status = 'active'; game.last_word = '天气'; game.words = ['天气']; game.current_agent_id = game.participants[0]; game.turn_id = uid('turn'); game.deadline = this.now() + 30000;
-    this.event('game_started', { game_id: game.game_id, group_id: game.group_id, word: '天气', text: '词语接龙开始！从「天气」接起' }, this.state.groups[game.group_id]?.members || game.participants);
+    game.status = 'active'; game.current_agent_id = game.game_type === 'rock_paper_scissors' ? null : game.participants[0]; game.turn_id = uid('turn'); game.deadline = this.now() + 30000;
+    game.scores = Object.fromEntries(game.participants.map(id => [id, 0]));
+    if ((game.game_type || 'word_chain') === 'word_chain') { game.last_word = '天气'; game.words = ['天气']; }
+    this.event('game_started', { game_id: game.game_id, game_type: game.game_type || 'word_chain', group_id: game.group_id, ...(game.last_word ? { word: game.last_word } : {}), text: game.last_word ? '词语接龙开始！从「天气」接起' : `${gameName(game.game_type)}开始了` }, this.state.groups[game.group_id]?.members || game.participants);
     this.turnEvent();
   }
-  turnEvent() { const g = this.state.game; this.event('game_turn', { game_id: g.game_id, turn_id: g.turn_id, agent_id: g.current_agent_id, deadline: g.deadline, last_word: g.last_word, text: `轮到${this.agent(g.current_agent_id).name}接词` }, this.state.groups[g.group_id]?.members || g.participants); }
+  turnEvent() { const g = this.state.game; this.event('game_turn', { game_id: g.game_id, game_type: g.game_type || 'word_chain', turn_id: g.turn_id, agent_id: g.current_agent_id, deadline: g.deadline, last_word: g.last_word,
+    ...(g.game_type === 'rock_paper_scissors' ? { round: g.round } : {}), text: g.game_type === 'rock_paper_scissors' ? `第 ${g.round} 轮，请参与者分别出拳` : `轮到${this.agent(g.current_agent_id).name}${g.game_type === 'story_chain' ? '续写故事' : '接词'}` }, this.state.groups[g.group_id]?.members || g.participants); }
   nextTurn(nextId) {
     const g = this.state.game;
     if (g.participants.length < 2) { this.finishGame('剩余参与者不足 2 人'); return; }
@@ -438,11 +512,14 @@ export class World extends EventEmitter {
   }
   finishGame(reason) {
     const g = this.state.game; if (!g || g.status === 'finished') return;
-    g.status = 'finished'; g.end_reason = reason; g.current_agent_id = null; g.deadline = null;
-    this.event('game_finished', { game_id: g.game_id, group_id: g.group_id, valid_count: g.valid_count, scores: g.scores, text: `接龙结束：${reason}`, reason }, this.state.groups[g.group_id]?.members || g.participants);
+    const publicReason = GAME_END_REASONS.has(reason) ? reason : '参与者离场，本局结束';
+    g.status = 'finished'; g.end_reason = publicReason; g.current_agent_id = null; g.deadline = null;
+    delete g.private_choices; if (g.submitted_agent_ids) g.submitted_agent_ids = [];
+    this.event('game_finished', { game_id: g.game_id, game_type: g.game_type || 'word_chain', group_id: g.group_id, valid_count: g.valid_count, scores: g.scores, text: `${gameName(g.game_type)}结束：${publicReason}`, reason: publicReason }, this.state.groups[g.group_id]?.members || g.participants);
   }
   removeFromGame(agentId) {
     const g = this.state.game; if (!g || g.status === 'finished' || !g.participants.includes(agentId)) return;
+    if (g.game_type === 'rock_paper_scissors' && g.status === 'active') { this.finishGame('参与者离场，本局结束'); return; }
     const wasCurrent = g.current_agent_id === agentId; const nextId = g.participants[(g.participants.indexOf(agentId) + 1) % g.participants.length];
     g.participants = g.participants.filter(id => id !== agentId);
     if (g.status === 'active') { if (g.participants.length < 2) this.finishGame('剩余参与者不足 2 人'); else if (wasCurrent) this.nextTurn(nextId); }
@@ -463,10 +540,14 @@ export class World extends EventEmitter {
     const game = this.state.game;
     if (game?.status === 'recruiting' && game.deadline <= now) { this.startGame(); changed = true; }
     else if (game?.status === 'active' && game.deadline <= now) {
-      const id = game.current_agent_id; game.timeouts[id] = (game.timeouts[id] || 0) + 1; game.consecutive_skips++;
-      this.event('game_timeout', { agent_id: id, game_id: game.game_id, text: `${this.agent(id).name}本轮超时` }, this.state.groups[game.group_id]?.members || game.participants);
-      if (game.consecutive_skips >= game.participants.length) this.finishGame('一整轮参与者均超时');
-      else if (game.timeouts[id] >= 2) this.removeFromGame(id); else this.nextTurn(); changed = true;
+      if (game.game_type === 'rock_paper_scissors') this.finishGame('出拳超时，本局结束');
+      else {
+        const id = game.current_agent_id; game.timeouts[id] = (game.timeouts[id] || 0) + 1; game.consecutive_skips++;
+        this.event('game_timeout', { agent_id: id, game_id: game.game_id, text: `${this.agent(id).name}本轮超时` }, this.state.groups[game.group_id]?.members || game.participants);
+        if (game.consecutive_skips >= game.participants.length) this.finishGame('一整轮参与者均超时');
+        else if (game.timeouts[id] >= 2) this.removeFromGame(id); else this.nextTurn();
+      }
+      changed = true;
     }
     const cutoff = now - 7 * 24 * 3600000;
     if (this.state.events[0]?.occurred_at < cutoff) { this.state.events = this.state.events.filter(e => e.occurred_at >= cutoff); changed = true; }

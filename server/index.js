@@ -10,6 +10,7 @@ import { deploymentConfig, authDatabasePath, isLoopback } from './config.js';
 import { SkillPairingStore, approvalOptions } from './skill-pairing.js';
 import { attachSpectator } from './spectator.js';
 import { recoverAgentInvitations } from './agent-invite-recovery.js';
+import { removePlatformAgents } from './remove-platform-agents.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -30,10 +31,11 @@ function redeemInput(input) {
   return { profile, invite_code: input.invite_code, device_secret: input.device_secret };
 }
 
-export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), demo = true, seed = true, frontend = true, production = false, authDbPath, pairingNow = Date.now, ...deployment } = {}) {
+export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), demo = false, frontend = true, production = false, authDbPath, pairingNow = Date.now, ...deployment } = {}) {
   const config = deploymentConfig(deployment);
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
   const world = new World({ dbPath });
+  const removedPlatformIds = new Set(removePlatformAgents(world));
   world.setMaxListeners(100);
   const app = express();
   const ownerSession = randomBytes(32).toString('hex');
@@ -65,17 +67,14 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
   };
   const authenticated = token => accounts ? accounts.session(token) : sameSecret(token, ownerSession) ? { owner: localOwner } : null;
   const persistCredentials = () => { if (credentialsPath) writeFileSync(credentialsPath, JSON.stringify(demoCredentials, null, 2), { mode: 0o600 }); };
+  const oldCredentialCount = demoCredentials.length;
+  demoCredentials = demoCredentials.filter(controller => !removedPlatformIds.has(controller.agent_id) && world.state.controllers[controller.controller_id]);
+  if (demoCredentials.length !== oldCredentialCount) persistCredentials();
   function addDemoController(agent) {
     const controller = world.createController(agent.agent_id, { name: '本地模拟运行器', kind: 'demo' });
     demoCredentials.push({ agent_id: agent.agent_id, ...controller });
     persistCredentials();
     return { controller_id: controller.controller_id, name: '本地模拟运行器', kind: 'demo' };
-  }
-  if (seed && world.ownerSnapshot().agents.length === 0) {
-    for (const profile of [
-      { name: '小禾', bio: '喜欢散步和认识新朋友。欢迎来到共栖！', avatar: '🌱', color: '#477755' },
-      { name: '阿橘', bio: '接龙爱好者，总能找到话题的下一站。', avatar: '🍊', color: '#cf773d' },
-    ]) addDemoController(world.createAgent({ ...profile, is_platform: true }));
   }
   app.disable('x-powered-by');
   app.use((req, res, next) => {
@@ -103,7 +102,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.6.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, world_activities: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.7.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, world_activities: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
   const spectator = attachSpectator(app, world);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
@@ -256,7 +255,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     if (world.ownerSnapshot().agents.filter(a => !a.is_platform && world.ownerOf(a.agent_id) === req.owner.id).length >= 12) throw fail('LIMIT_REACHED', '每个账号最多保存12个角色');
     const { name, bio, avatar, color } = req.body;
     const agent = world.createAgent({ name, bio, avatar, color, owner_id: req.owner.id });
-    res.status(201).json({ agent, controller: addDemoController(agent) });
+    res.status(201).json({ agent, controller: demo ? addDemoController(agent) : null });
   });
   app.post('/api/agents/:id/controllers', (req, res) => {
     getAgent(req.params.id, req.owner);
@@ -275,12 +274,6 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
       if (!controller) throw fail('NOT_AUTHORIZED', '请选择有效控制端');
       if (controller.kind === 'demo' && !demo) throw fail('INVALID_ACTION', '服务器已关闭模拟运行器，请创建并选择外部控制端');
       options.controller_id = controller.controller_id;
-      // An idle platform character gives its slot to a real user.
-      const snapshot = world.ownerSnapshot();
-      if (snapshot.agents.filter(a => a.status !== 'offline').length >= 5 && agent.status === 'offline') {
-        const idle = snapshot.agents.find(a => a.is_platform && a.status !== 'offline' && (snapshot.game?.status === 'finished' || !snapshot.game?.participants?.includes(a.agent_id)));
-        if (idle) world.ownerControl(idle.agent_id, 'recall');
-      }
     }
     const state = world.ownerControl(agent.agent_id, operation, options);
     res.json({ ok: true, state });
@@ -320,21 +313,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     reconciling = true;
     try {
       const { PlazaRunner } = await import('../runner/runner.js');
-      let snapshot = world.ownerSnapshot();
-      const hasUser = snapshot.agents.some(a => !a.is_platform && a.status === 'active');
-      const platformLimit = Math.max(0, 5 - snapshot.agents.filter(a => !a.is_platform && a.run?.status === 'active').length);
-      for (const agent of snapshot.agents.filter(a => a.is_platform)) {
-        const credentials = demoCredentials.find(c => c.agent_id === agent.agent_id);
-        const activePlatforms = snapshot.agents.filter(a => a.is_platform && a.run?.status === 'active').length;
-        if (hasUser && snapshot.room.status !== 'paused' && agent.status === 'offline' && agent.run?.status !== 'active' && activePlatforms < platformLimit && snapshot.agents.filter(a => a.status !== 'offline').length < 5 && credentials) {
-          world.ownerControl(agent.agent_id, 'start', { controller_id: credentials.controller_id, duration_minutes: 15, max_calls: 100, goal: '欢迎新朋友，邀请大家一起玩词语接龙。' });
-          snapshot = world.ownerSnapshot();
-        } else if ((!hasUser || activePlatforms > platformLimit) && agent.run?.status === 'active' && (!snapshot.game || snapshot.game.status === 'finished' || !snapshot.game.participants.includes(agent.agent_id))) {
-          world.ownerControl(agent.agent_id, 'recall');
-          snapshot = world.ownerSnapshot();
-        }
-      }
-      snapshot = world.ownerSnapshot();
+      const snapshot = world.ownerSnapshot();
       for (const credentials of demoCredentials) {
         const agent = snapshot.agents.find(a => a.agent_id === credentials.agent_id);
         const shouldRun = agent && agent.run?.controller_id === credentials.controller_id && agent.run.status === 'active';
@@ -378,9 +357,9 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const application = await createApp({ production: process.argv.includes('--production'), demo: process.env.PLAZA_DEMO !== '0', dbPath: process.env.PLAZA_DB || resolve(ROOT, 'data/world.sqlite') });
+  const application = await createApp({ production: process.argv.includes('--production'), demo: process.env.PLAZA_DEMO === '1', dbPath: process.env.PLAZA_DB || resolve(ROOT, 'data/world.sqlite') });
   const { server, publicUrl } = await application.start(Number(process.env.PORT || 3000));
-  console.log(`\n共栖 · AI 社交广场\n浏览器: ${publicUrl}\nMCP: ${publicUrl}/mcp\n模式: ${application.config.mode === 'accounts' ? '邀请测试' : '本地原型'}；模拟角色不调用模型。\n`);
+  console.log(`\n共栖 · AI 社交广场\n浏览器: ${publicUrl}\nMCP: ${publicUrl}/mcp\n模式: ${application.config.mode === 'accounts' ? '邀请测试' : '本地原型'}；等待用户 AI 接入。\n`);
   let closing = false;
   for (const signal of ['SIGINT','SIGTERM']) process.on(signal, async () => { if (closing) return; closing = true; await application.close(); server.close(() => process.exit(0)); server.closeAllConnections(); });
 }
