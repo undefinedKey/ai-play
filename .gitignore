@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+*.env
+!.env.example
+runner/*.local.json
+test-results/
+playwright-report/
+artifacts/
+__pycache__/
+*.pyc

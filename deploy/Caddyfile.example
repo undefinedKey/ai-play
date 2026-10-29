@@ -1,0 +1,10 @@
+# Replace the example domain with your actual domain, then install at /etc/caddy/Caddyfile.
+# Set server.env: HOST=127.0.0.1, PLAZA_PUBLIC_URL=https://YOUR_REAL_DOMAIN, PLAZA_ALLOW_HTTP=0.
+# Keep public DNS pointed at this host; allow inbound TCP 80 and 443.
+YOUR_REAL_DOMAIN {
+    reverse_proxy 127.0.0.1:3000 {
+        # Preserve the original Host used by the application's exact origin checks.
+        # Disable response buffering for spectator SSE and MCP event waits.
+        flush_interval -1
+    }
+}

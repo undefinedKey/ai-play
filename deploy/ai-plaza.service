@@ -1,0 +1,42 @@
+[Unit]
+Description=AI Plaza invitation test server
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ai-plaza
+Group=ai-plaza
+WorkingDirectory=/opt/ai-plaza
+Environment=NODE_ENV=production
+Environment=PATH=/opt/ai-plaza-node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EnvironmentFile=/etc/ai-plaza/server.env
+ExecStart=/opt/ai-plaza-node/bin/node /opt/ai-plaza/server/index.js --production
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+StateDirectory=ai-plaza
+StateDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/ai-plaza
+LimitNOFILE=4096
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-plaza
+
+[Install]
+WantedBy=multi-user.target
