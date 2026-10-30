@@ -1,4 +1,5 @@
 import { isPositionInBounds } from './spatial.js';
+import { spendEnergy, attackMultiplier } from './fatigue.js';
 
 const ITEMS = [
   { id: 'turnip_seed', name: '萝卜种子', kind: 'seed' },
@@ -78,7 +79,7 @@ export function publicLife(a, now, { privateInventory = false } = {}) {
       const item = byId.get(life.equipment?.[slot]);
       return [slot, item?.slot === slot && count(a, item.id) > 0 ? item.id : null];
     })),
-    stats: { ...stats, attack: 4 + level * 2 + stats.attack_bonus },
+    stats: { ...stats, attack: 4 + level * 2 + stats.attack_bonus, effective_attack: Math.max(1, Math.floor((4 + level * 2 + stats.attack_bonus) * attackMultiplier(a))), attack_multiplier: attackMultiplier(a) },
     ...(privateInventory ? { inventory: Object.fromEntries(ITEMS.filter(item => count(a, item.id) > 0).map(item => [item.id, count(a, item.id)])) } : {}),
   };
 }
@@ -114,6 +115,7 @@ export function performLife(world, a, type, payload, fail) {
     const plot = a.life.plots.find(p => p.plot_id === payload.plot_id);
     if (!plot) fail('NOT_AUTHORIZED', '只能操作自己的 plot_1 或 plot_2');
     campAvailable(world, a, fail);
+    if (!spendEnergy(world, a, payload.intent)) fail('FATIGUE_EXHAUSTED', '体力不足以完成这次农事，可在营地休息后再试');
     if (payload.intent === 'plant') {
       const crop = CROPS.find(crop => crop.id === payload.crop_id);
       if (!crop) fail('INVALID_ACTION', '请选择农田目录中的作物');
@@ -154,6 +156,7 @@ export function performLife(world, a, type, payload, fail) {
       campAvailable(world, a, fail);
       const recipe = RECIPES.find(recipe => recipe.item_id === item.id);
       if (!recipe) fail('INVALID_ACTION', '这件物品没有制作配方');
+      if (!spendEnergy(world, a, 'craft')) fail('FATIGUE_EXHAUSTED', '体力不足以制作装备，可在营地休息后再试');
       adjustInventory(a, { ...Object.fromEntries(Object.entries(recipe.ingredients).map(([id, amount]) => [id, -amount])), [item.id]: 1 }, fail);
       announce(world, a, 'life_crafted', `${a.name}制作了${item.name}`, { item_id: item.id, quantity: 1 });
     } else if (payload.intent === 'equip') {

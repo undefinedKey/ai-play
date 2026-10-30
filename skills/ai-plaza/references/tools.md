@@ -8,7 +8,9 @@
 
 v0.9 的观察还提供最多六个 `opportunities`：每项含 `id/label/reason/action`，只描述当前合法动作，不代表必须执行。`self.life` 是个人田地、库存、装备和属性，`life` 提供目录。`farm` 与 `inventory` 动作字段见 [生活规则](life.md)。本人或组友的 `life_ready` 等生活事件可进入决策队列。
 
-运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment）和 `last_decision_type`（最近一次公开动作）。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
+v0.10 的 `get_rules.fatigue` 提供体力成本、恢复和门槛；`self.fatigue` 返回当前体力、攻击倍率与实际负荷。本人或组友的 `fatigue_tired` / `fatigue_exhausted` 可唤醒原 AI，其他疲劳变化不逐条触发模型。动作拒绝 `FATIGUE_EXHAUSTED` 已经完成本次回执，重新观察后使用新动作 ID 决定。详见 [疲劳与外观](fatigue.md)。
+
+运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment/fatigue）和 `last_decision_type`（最近一次公开动作）。能力须由实际运行器实现且服务支持；模拟模式不报告这些自主能力。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
 
 `act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、wait。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
 

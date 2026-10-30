@@ -66,13 +66,11 @@ chmod -R u=rwX,go=rX /opt/ai-plaza
 systemctl start ai-plaza.service
 healthy=0
 for attempt in {1..15}; do
-  if curl -fsS http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||!h.capabilities.monster_patrol||!h.capabilities.movement_candidates||!h.capabilities.farming||!h.capabilities.inventory||!h.capabilities.equipment||!h.capabilities.opportunities||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
+  if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||!h.capabilities.monster_patrol||!h.capabilities.movement_candidates||!h.capabilities.farming||!h.capabilities.inventory||!h.capabilities.equipment||!h.capabilities.opportunities||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
   sleep 1
 done
 [[ "$healthy" == 1 ]]
-curl -fsS http://127.0.0.1:3000/api/public/world | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const w=JSON.parse(text);if(w.life?.plots_per_agent!==2||w.life?.crops?.length!==2||w.agents.some(a=>a.life?.plots?.length!==2||a.life?.inventory!==undefined||!a.life?.stats?.attack)||w.adventure?.map?.width!==w.room?.width||w.adventure?.map?.height!==w.room?.height||w.adventure?.zones?.length!==3||w.adventure?.monsters?.length!==3||w.adventure.monsters.some(m=>!m.home_position||!m.behavior||m.aggro_radius!==3||m.patrol_radius!==2||m.patrol_interval_ms!==2000))process.exit(1);console.log(JSON.stringify({agents:w.agents.length,active:w.agents.filter(a=>a.status==="active").length,adventure:true,monster_ai:true,monster_patrol:true,farming:true,equipment:true,map:w.adventure.map}))'
-curl -fsS 'http://127.0.0.1:3000/watch?view=adventure' -o /dev/null
-[[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/world)" == 401 ]]
+node deploy/check-live.mjs "$version"
 systemctl is-active --quiet ai-plaza.service
 committed=1
 printf 'RELEASE_OK commit=%s version=%s previous=%s backup=%s\n' "$revision" "$version" "$previous" "$backup"

@@ -1,8 +1,9 @@
 // The original AI chooses a finite plan; this module only executes public game rules.
 import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward } from './spatial.js';
 import { equipmentStats, grantMonsterLoot } from './life.js';
+import { FATIGUE_RULES, publicFatigue, spendEnergy, attackMultiplier, announceExhausted } from './fatigue.js';
 export const ADVENTURE_ZONES = [
-  { id: 'camp', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。休息恢复生命，可以聊天并邀请同伴。' },
+  { id: 'camp', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。主动休息恢复生命与体力，可以聊天并邀请同伴。' },
   { id: 'forest', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
   { id: 'ruins', name: '风蚀遗迹', x: 19, y: 7, radius: 3, danger: 'high', description: '守卫攻击较强，是否挑战、组队或撤退由你决定。' },
 ];
@@ -14,7 +15,7 @@ const MONSTERS = [
 export const ADVENTURE_RULES = {
   map: { ...WORLD_MAP }, zones: ADVENTURE_ZONES, tick_ms: 1000, plan_seconds: 90, respawn_seconds: 60,
   monster_ai: { aggro_radius: 3, leash_radius: 6, decision_seconds: 30, camp_safe_radius: 2, patrol_radius: 2, patrol_interval_ms: 2000 },
-  description: 'AI 自己选择冒险计划；服务器每秒最多执行一步，不代替 AI 选择下一个计划。探索抵达即结束；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命；撤退回营地后结束；stop 只停止计划，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒一步；每秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
+  description: 'AI 自己选择冒险计划；服务器每秒最多执行一步，不代替 AI 选择下一个计划。探索抵达即结束；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命和体力；撤退回营地后结束，不自动开始休息；stop 只停止计划，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒一步；每秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
   actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], zone_id: ['camp', 'forest', 'ruins'], monster_id: MONSTERS.map(m => m.monster_id) } },
   party: '使用 create_group / invite / respond_invite 自主组队；每位成员需自己选择 hunt 同一个 monster_id。同组或临时协力者只有实际参与战斗、结算时仍在目标附近且继续该计划，才按实际伤害分享总经验和金币。加入小组本身不授权战斗或跟随。',
   combat: '普通攻击为 4 + 等级×2 + 武器加成，射程1格；护甲降低怪物伤害但每次至少受到1点。怪物每秒最多移动一步或攻击一次，不叠加反击。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
@@ -98,6 +99,7 @@ export function startAdventure(world, a, payload, fail) {
     zone = 'camp';
   }
   if (intent === 'hunt') {
+    if (publicFatigue(a).energy < FATIGUE_RULES.hunt_min_energy) fail('FATIGUE_EXHAUSTED', '重新狩猎至少需要12点体力；可先返回营地休息，也始终可以走路或撤退');
     if (!zone && !monster_id) fail('INVALID_ACTION', 'hunt 需要 zone_id 或 monster_id');
     target = monster_id ? world.state.adventure.monsters.find(m => m.monster_id === monster_id) : world.state.adventure.monsters.filter(m => m.zone_id === zone && m.status === 'alive').sort((x, y) => distance(a.position, x.position) - distance(a.position, y.position))[0];
     if (!target || target.status !== 'alive' || target.hp <= 0) fail('TARGET_UNAVAILABLE', '目标已被击败或该区域暂无可挑战的怪物，请重新观察');
@@ -113,8 +115,10 @@ export function startAdventure(world, a, payload, fail) {
   announce(world, 'adventure_started', a, `${a.name}决定${({ explore: '探索', hunt: '挑战', rest: '休息于', retreat: '撤回' })[intent]}${destination}`, { intent, zone_id: zone, monster_id: target?.monster_id });
   return { adventure: publicFighter(a) };
 }
-function moveToward(a, target) {
-  a.position = stepToward(a.position, target);
+function moveToward(a, target, world) {
+  const next = stepToward(a.position, target);
+  if (world) spendEnergy(world, a, 'move', distance(a.position, next));
+  a.position = next;
 }
 function allowedMonsterStep(m, position, radius) {
   return isPositionInBounds(position) && !safeCamp(position) && distance(position, m.home_position) <= radius;
@@ -231,17 +235,19 @@ export function tickAdventure(world) {
       if (p.expires_at <= now) { stopAdventure(world, a, 'expired', '本次冒险计划已到时，请重新决定下一步'); durable = true; }
       else if (p.intent === 'hunt') {
         const m = state.monsters.find(m => m.monster_id === p.monster_id);
-        if (!m || m.status !== 'alive') { stopAdventure(world, a, 'target_unavailable', '目标已被击败，请重新决定下一步'); durable = true; }
-        else if (distance(a.position, m.position) > 1 || safeCamp(a.position)) moveToward(a, m.position);
+        if (publicFatigue(a).energy < FATIGUE_RULES.costs.attack) {
+          stopAdventure(world, a, 'exhausted', '体力不足以继续攻击，请自主决定撤退、休息或其他活动'); announceExhausted(world, a); durable = true;
+        } else if (!m || m.status !== 'alive') { stopAdventure(world, a, 'target_unavailable', '目标已被击败，请重新决定下一步'); durable = true; }
+        else if (distance(a.position, m.position) > 1 || safeCamp(a.position)) moveToward(a, m.position, world);
         else { if (!attackers.has(m.monster_id)) attackers.set(m.monster_id, []); attackers.get(m.monster_id).push(a); }
       } else {
         const target = ADVENTURE_ZONES.find(z => z.id === p.zone_id);
-        if (distance(a.position, target) > 0) moveToward(a, target);
+        if (distance(a.position, target) > 0) moveToward(a, target, world);
         else {
           if (p.intent === 'rest') f.hp = Math.min(f.max_hp, f.hp + 5);
-          if (p.intent !== 'rest' || f.hp === f.max_hp) {
-            announce(world, 'adventure_arrived', a, `${a.name}${p.intent === 'rest' ? '在营地恢复了生命' : `抵达${target.name}`}`, { zone_id: target.id });
-            stopAdventure(world, a, 'completed', p.intent === 'rest' ? '休息完毕，生命已恢复' : `已抵达${target.name}，请自主决定下一步`); durable = true;
+          if (p.intent !== 'rest' || f.hp === f.max_hp && publicFatigue(a).energy === 100) {
+            announce(world, 'adventure_arrived', a, `${a.name}${p.intent === 'rest' ? '在营地恢复了生命与体力' : `抵达${target.name}`}`, { zone_id: target.id });
+            stopAdventure(world, a, 'completed', p.intent === 'rest' ? '休息完毕，生命与体力已恢复' : `已抵达${target.name}，请自主决定下一步`); durable = true;
           }
         }
       }
@@ -255,7 +261,8 @@ export function tickAdventure(world) {
     const m = state.monsters.find(m => m.monster_id === id);
     for (const a of party) {
       if (m.hp <= 0) break;
-      const damage = Math.min(m.hp, 4 + a.adventure.level * 2 + equipmentStats(a).attack_bonus); m.hp -= damage;
+      if (!spendEnergy(world, a, 'attack')) continue;
+      const damage = Math.min(m.hp, Math.max(1, Math.floor((4 + a.adventure.level * 2 + equipmentStats(a).attack_bonus) * attackMultiplier(a)))); m.hp -= damage;
       m.contributions[a.agent_id] = (m.contributions[a.agent_id] || 0) + damage;
       announce(world, 'adventure_combat', a, `${a.name}攻击${m.name}，造成 ${damage} 点伤害`, { monster_id: id, attacker: 'agent', damage, hp: m.hp });
     }

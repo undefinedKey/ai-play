@@ -39,7 +39,8 @@ try {
       if (a.adventure.plan || now - (a.last_action_at || 0) < 2000) continue;
       const observation = world.callTool(person.auth, 'observe', person.session);
       const monsters = observation.adventure.monsters.filter(m => m.status === 'alive');
-      const payload = a.adventure.hp < a.adventure.max_hp / 2 ? { intent: 'rest' } : monsters.length ? { intent: 'hunt', monster_id: monsters[index % monsters.length].monster_id } : { intent: 'explore', zone_id: index % 2 ? 'forest' : 'ruins' };
+      // This probe's scripted controller observes the same limits as a real AI.
+      const payload = a.adventure.hp < a.adventure.max_hp / 2 || observation.self.fatigue.energy < 25 ? { intent: 'rest' } : monsters.length ? { intent: 'hunt', monster_id: monsters[index % monsters.length].monster_id } : { intent: 'explore', zone_id: index % 2 ? 'forest' : 'ruins' };
       const result = world.callTool(person.auth, 'act', { ...person.session, action_id: observation.next_action_id, type: 'adventure_plan', payload });
       assert.equal(result.status, 'applied', JSON.stringify(result)); decisions++;
     }

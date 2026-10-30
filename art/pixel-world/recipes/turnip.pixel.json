@@ -1,0 +1,247 @@
+{
+  "version": 1,
+  "name": "turnip",
+  "width": 32,
+  "height": 32,
+  "palette": {
+    "A": "#594e37",
+    "B": "#86633f",
+    "C": "#b38b51",
+    "D": "#684d35",
+    "E": "#82a35a",
+    "F": "#b3c67b",
+    "G": "#a9c67c",
+    "H": "#668e4a",
+    "I": "#b1bc7c",
+    "J": "#d2c18f",
+    "K": "#f0e4b9"
+  },
+  "frames": [
+    {
+      "name": "empty",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABDDDDDDDDDDDDDDDDDDDDDDDDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABDDDDDDDDDDDDDDDDDDDDDDDDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABDDDDDDDDDDDDDDDDDDDDDDDDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "................................"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "seeded",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABDDDDDDDDDDDDDDDDDDDDDDDDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBEBBBBBBBBEBBBBBBBBEBBBBBA",
+            "ABBBBBFEBBBBBBBFEBBBBBBBFEBBBBBA",
+            "ABBBBBBEBBBBBBBBEBBBBBBBBEBBBBBA",
+            "ABDDDDDEDDDDDDDDEDDDDDDDDEDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "ABDDDDDDDDDDDDDDDDDDDDDDDDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "................................"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "growing",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCGCCCHCCCCGCCCHCCCCGCCCHBA",
+            "ABBHBBBGBBHHHBBBGBBHHHBBBGBBHHBA",
+            "ABHHHBBGBHHHHHBBGBHHHHHBBGBHHHHA",
+            "AHHHHHBGBHHHHHHBGBHHHHHHBGBHHHHA",
+            "ABHHHHHGHHHHHHHHGHHHHHHHHGHHHHBA",
+            "ABBHHHHGHHHBHHHHGHHHBHHHHGHHHBBA",
+            "ABBBHHHGHHBBBHHHGHHBBBHHHGHHBBBA",
+            "ABBBBHHGHBBBBBHHGHBBBBBHHGHBBBBA",
+            "ABBBBBHGBBBBBBBHGBBBBBBBHGBBBBBA",
+            "ABBBBIIGIBBBBBIIGIBBBBBIIGIBBBBA",
+            "ABDDIIIIIIDDDIIIIIIDDDIIIIIIDDBA",
+            "ABBIIIIIIIIBIIIIIIIIBIIIIIIIIBBA",
+            "ABBIIIIJIIIBIIIIJIIIBIIIIJIIIBBA",
+            "ABBBIIIJIIBBBIIIJIIBBBIIIJIIBBBA",
+            "ABBBBIIJIBBBBBIIJIBBBBBIIJIBBBBA",
+            "ABBBBBJBBBBBBBBJBBBBBBBBJBBBBBBA",
+            "ABDDDDJDDDDDDDDJDDDDDDDDJDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "................................"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ready",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCCCCCCCCCCCCCCCCCCCCCCCCBA",
+            "ABCCCCCGCCCHCCCCGCCCHCCCCGCCCHBA",
+            "ABBHBBBGBBHHHBBBGBBHHHBBBGBBHHBA",
+            "ABHHHBBGBHHHHHBBGBHHHHHBBGBHHHHA",
+            "AHHHHHBGBHHHHHHBGBHHHHHHBGBHHHHA",
+            "ABHHHHHGHHHHHHHHGHHHHHHHHGHHHHBA",
+            "ABBHHHHGHHHBHHHHGHHHBHHHHGHHHBBA",
+            "ABBBHHHGHHBBBHHHGHHBBBHHHGHHBBBA",
+            "ABBBKHHGHKBBBKHHGHKBBBKHHGHKBBBA",
+            "ABBKKKHGKKKBKKKHGKKKBKKKHGKKKBBA",
+            "ABBKKKKGKKKBKKKKGKKKBKKKKGKKKBBA",
+            "ABDKKKKKKKKDKKKKKKKKDKKKKKKKKDBA",
+            "ABBKKKKKKKKBKKKKKKKKBKKKKKKKKBBA",
+            "ABBBKKKJKKBBBKKKJKKBBBKKKJKKBBBA",
+            "ABBBKKKJKKBBBKKKJKKBBBKKKJKKBBBA",
+            "ABBBBKKJKBBBBBKKJKBBBBBKKJKBBBBA",
+            "ABBBBBJBBBBBBBBJBBBBBBBBJBBBBBBA",
+            "ABDDDDJDDDDDDDDJDDDDDDDDJDDDDDBA",
+            "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "empty": {
+      "frames": [
+        "empty"
+      ],
+      "loop": true
+    },
+    "seeded": {
+      "frames": [
+        "seeded"
+      ],
+      "loop": true
+    },
+    "growing": {
+      "frames": [
+        "growing"
+      ],
+      "loop": true
+    },
+    "ready": {
+      "frames": [
+        "ready"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 4,
+    "padding": 0
+  }
+}

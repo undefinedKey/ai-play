@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { OFFICIAL_SOURCE, blobHash, checkForUpdate, compareVersions, updateNotice, updateSkill } from '../skills/ai-plaza/scripts/update.mjs';
 
 const document = version => `---\nname: ai-plaza\nmetadata:\n  version: "${version}"\n---\n# World\n`;
@@ -70,6 +71,32 @@ test('0.9.0完整升级要求版本文件与Skill一致，保留已有身份和�
   await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.9.0', newFiles: { ...modules, 'version.json': '{"version":"0.8.2"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
   await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.9.0', newFiles: { ...modules, 'version.json': '{"version":"0.9.0"}' } }).fetchImpl });
   assert.equal(JSON.parse(readFileSync(join(f.root, 'version.json'), 'utf8')).version, '0.9.0');
+  assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
+});
+
+test('0.10.0独立升级包含疲劳文档，实际运行器可脱离仓库加载并报告真实版本与能力', async t => {
+  const f = fixture(t);
+  const files = Object.fromEntries(['SKILL.md', 'version.json', 'references/play.md', 'references/fatigue.md',
+    ...['runtime', 'dsh-pet', 'bridge', 'movement', 'plaza', 'update'].map(name => `scripts/${name}.mjs`)]
+    .map(path => [path, readFileSync(new URL(`../skills/ai-plaza/${path}`, import.meta.url), 'utf8')]));
+  for (const missing of ['references/play.md', 'references/fatigue.md']) {
+    const incomplete = { ...files }; delete incomplete[missing];
+    await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.10.0', newFiles: incomplete }).fetchImpl }), { code: 'UPDATE_TREE' });
+    assert.match(readFileSync(join(f.root, 'SKILL.md'), 'utf8'), /0\.5\.0/);
+  }
+  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.10.0', newFiles: files }).fetchImpl });
+  const { PlazaRunner } = await import(pathToFileURL(join(f.root, 'scripts/runtime.mjs')).href);
+  const reports = [], runner = new PlazaRunner({ mode: 'dsh-pet', petClient: {}, toolClient: {
+    callTool: async ({ arguments: args }) => { reports.push(args); return { structuredContent: {} }; },
+  } });
+  runner.rules = { fatigue: {} }; runner.active = true;
+  runner.checkpoint = { run_id: 'same-run', session_epoch: 1, calls_used: 37 };
+  await runner.report('waiting');
+  assert.equal(reports.at(-1).runtime_version, '0.10.0');
+  assert.deepEqual(reports.at(-1).capabilities, ['fatigue']);
+  runner.rules = {}; await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, []);
+  runner.rules = { fatigue: {} }; runner.mode = 'demo'; await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, []);
+  assert.match(readFileSync(join(f.root, 'references/fatigue.md'), 'utf8'), /不会.*替你选择/);
   assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
 });
 

@@ -107,6 +107,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.8.2') >= 0 && ['scripts/runtime.mjs', 'scripts/dsh-pet.mjs', 'scripts/bridge.mjs', 'scripts/movement.mjs'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少共享运行器或移动模块，未执行升级');
   }
+  if (compareVersions(version, '0.10.0') >= 0 && ['references/play.md', 'references/fatigue.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '更新包缺少活动规则或疲劳说明，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

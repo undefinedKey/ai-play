@@ -1,0 +1,1247 @@
+{
+  "version": 1,
+  "name": "campfire",
+  "width": 32,
+  "height": 48,
+  "palette": {
+    "u": "#4d4558",
+    "S": "#6e6678",
+    "r": "#b8322f",
+    "o": "#f0772b",
+    "y": "#ffcc4d",
+    "W": "#fff6d1",
+    "b": "#5a3825",
+    "B": "#8a5a36",
+    "k": "#2a1c18"
+  },
+  "symbols": {
+    "ground": [
+      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
+    ],
+    "logs": [
+      "....kk..............kk....",
+      "...kBBkk..........kkBBk...",
+      "..kBbbBBkk......kkBBbbBk..",
+      "..kbbbbbBBkk..kkBBbbbbbk..",
+      "...kkbbbbbBBkkBBbbbbbkk...",
+      ".....kkkbbbbBBbbbbkkk.....",
+      ".......kkkkbbbbkkkk.......",
+      "...........kkkk..........."
+    ]
+  },
+  "frames": [
+    {
+      "name": "campfire-0",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 9,
+          "y": 17,
+          "rows": [
+            ".......o.....",
+            ".......o.....",
+            "......o......",
+            "......o.uu...",
+            ".....yo...u..",
+            "...uuyu....u.",
+            ".yuuuyuu.....",
+            "uuu..uyr.....",
+            "uu...uyuu....",
+            ".uu..uyru..uu",
+            ".uu..uyuu..uu",
+            ".....rWrr....",
+            "....uryru....",
+            "....uryru....",
+            "....royr.....",
+            "...uooor.....",
+            "...uooor.....",
+            "...royoou....",
+            "...uyyyyW....",
+            "...ryWyWWy...",
+            "...yWWWyWyy..",
+            "..ryyWyWyWyy.",
+            "..ryyyyyyyWy.",
+            ".royyyyyyWyyr",
+            "..yyyyyyyyWy.",
+            "....yyyyyy...",
+            "......yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-1",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 9,
+          "y": 15,
+          "rows": [
+            ".......o....",
+            ".......o....",
+            ".......o....",
+            "......o.....",
+            ".....yo.....",
+            ".....yo.....",
+            "....uyuu....",
+            "yu...uuy....",
+            "uo...uuyu...",
+            "uu...uyru...",
+            "uu...Wruu...",
+            ".u...yrru..u",
+            ".....uySu..u",
+            "....uryru...",
+            "....rrruu...",
+            "....rrru....",
+            "....rrr.....",
+            "...uror.....",
+            "...uroou....",
+            "...uryyoW...",
+            "....oWyyyo..",
+            "...ryyyWWWy.",
+            "...yWyyyWyyo",
+            "..oWWyyyyWyy",
+            "..oyWyyyyyyr",
+            ".ryyyyyyyWyy",
+            "..ooyyyyWyWy",
+            "....oyyyyW..",
+            "......yo...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-2",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 9,
+          "y": 14,
+          "rows": [
+            "........o....",
+            ".......o.....",
+            ".............",
+            "......y......",
+            "......o......",
+            "....uouuy....",
+            "....uuuuo....",
+            ".....uuo.....",
+            "y....Wuou....",
+            "u....yuuu....",
+            "u....yuru....",
+            ".....yuuu....",
+            ".....uuru....",
+            "....uSruu....",
+            "....rruu.....",
+            "....ruu......",
+            "....rru......",
+            "...urru......",
+            "....rorW.....",
+            "....rWoy.....",
+            "....ryoyyo...",
+            "....oyyyWyo..",
+            "....yyyWWWyr.",
+            "...oyyyyWyor.",
+            "..ryyyyyWWo..",
+            "..ryyyyyWWyu.",
+            ".royyWyWWWWyr",
+            "..yyWWWWWWWy.",
+            "....yWWWWW...",
+            "......yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-3",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 8,
+          "y": 15,
+          "rows": [
+            "........y.....",
+            "........o.....",
+            ".....uuou.....",
+            ".....uuuu.y...",
+            ".....uuyuo....",
+            "......uyuu....",
+            "......yuuuu...",
+            ".o....yuuuuu..",
+            "o......uuuu...",
+            ".......uuu....",
+            "......uuuu....",
+            ".....uruu.....",
+            ".....uuu......",
+            ".....uuu......",
+            "....uru.......",
+            "....uur.......",
+            "....uuruy.....",
+            ".....uWry.....",
+            ".....uyorru...",
+            ".....uyoyWor..",
+            ".....ryyyyyo..",
+            ".....oWWWWWyr.",
+            "....ryyWWWWWo.",
+            "...royWWWWWWy.",
+            "...ooyWWWWWWy.",
+            "..royyWyWWWWWr",
+            "...yyyyyyWWWy.",
+            ".....yyyWWW...",
+            ".......yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-4",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 8,
+          "y": 13,
+          "rows": [
+            "........y....",
+            "........o....",
+            "......uuo....",
+            ".....uuuu..o.",
+            ".....uuyu..o.",
+            ".....uuyu.o..",
+            "......uyuu...",
+            "......uuuuu..",
+            "........uuuu.",
+            ".......uuuuuu",
+            "o.....uuuu...",
+            "......uu.....",
+            ".....uu......",
+            ".....uu......",
+            ".....uu......",
+            "....uuu......",
+            "....uruy.....",
+            "....uuyy.....",
+            ".....uyry....",
+            ".....uyrrrr..",
+            ".....uroWWru.",
+            ".....uoyyyyr.",
+            ".....oyWWWyo.",
+            "....ryWWWWWy.",
+            "....yWWWWWyyu",
+            "...ryWWWWyWyr",
+            "...oyWWWyWyo.",
+            "..ryyWWWWWyor",
+            "...yyWWWWWyyo",
+            ".....yWWWWy..",
+            ".......WW...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-5",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 8,
+          "y": 11,
+          "rows": [
+            "........y....",
+            "........o....",
+            "........o....",
+            "......uuy....",
+            ".....uuuy..o.",
+            "....uuuyu..o.",
+            ".....uuyuu...",
+            "......uuuu...",
+            "........uuu..",
+            ".......uuuuu.",
+            ".......uuuuuu",
+            "......uu...uu",
+            "o............",
+            ".....u.......",
+            ".....u.......",
+            ".....u.......",
+            "....uuu......",
+            "....uuyy.....",
+            "....uuyo.....",
+            "....uuyuuu...",
+            "......urWyu..",
+            "......royyru.",
+            "......ryyyor.",
+            ".....ryWWyWo.",
+            ".....oyWWyyo.",
+            "....ryWWWyyo.",
+            "....oyyWyyyo.",
+            "....oyWWyyWy.",
+            "...royWWyyyyu",
+            "..roWWWWWyyyo",
+            "...yWWWWyyoor",
+            ".....WWWyyo..",
+            ".......yy...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-6",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 10,
+          "rows": [
+            "......o....",
+            "......o....",
+            "...........",
+            ".....u.y...",
+            "...uuuo....",
+            "..uuuuu....",
+            "..uuuuuu...",
+            "......uu...",
+            ".....uuuu..",
+            ".....uuuuu.",
+            ".....u.uuuu",
+            "........uuu",
+            ".........uu",
+            "...........",
+            "...........",
+            "...u.......",
+            "..uyy......",
+            "..uoou.....",
+            "..uuoou....",
+            "..uuuuuuy..",
+            "....rrWuy..",
+            "....uryyru.",
+            "....royoWr.",
+            "....ryyyyo.",
+            "...uoyyyyo.",
+            "...oyWyWWo.",
+            ".uyyyyWWWo.",
+            ".yWWyyyWWo.",
+            ".WWWWyWWWr.",
+            ".yWWyWWWor.",
+            "ryWWyWWWyrr",
+            ".WWWyWWWyyo",
+            "...WyyWWW..",
+            ".....yy...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-7",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 11,
+          "y": 8,
+          "rows": [
+            ".....o....",
+            ".....o....",
+            ".....o....",
+            "......y...",
+            "......o...",
+            "...uuuo...",
+            "..uuuuu...",
+            ".uuu..u...",
+            "....uuu...",
+            "...uuuuu..",
+            "....u.uuu.",
+            ".......uu.",
+            "........uu",
+            "........uu",
+            ".........u",
+            "..........",
+            "...y......",
+            "..yo......",
+            ".uoo......",
+            ".uuuuu....",
+            ".uuruWuy..",
+            "...uryry..",
+            "...uryrrW.",
+            "....roory.",
+            "...uoyyyru",
+            "...uoyyyru",
+            "..uoyWyWr.",
+            ".uoyyyWyu.",
+            "oyyWyWWy..",
+            "yyyWWyyyr.",
+            "oWyWWWyyyr",
+            "oyyWWyyyyu",
+            "ryyWWWyyyo",
+            "yyWWWyWyyo",
+            "..yWWWyy..",
+            "....yy...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-8",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 11,
+          "y": 7,
+          "rows": [
+            ".....o....",
+            ".....o....",
+            "......y...",
+            "......o...",
+            "......o...",
+            "..........",
+            "..........",
+            "......u...",
+            "...uuuu...",
+            "...u..uu..",
+            "..........",
+            "........u.",
+            "........u.",
+            "........uu",
+            "........uu",
+            ".........u",
+            ".yo.......",
+            ".o.o......",
+            ".uou......",
+            ".uuuuyy...",
+            "uuuuuyo...",
+            ".uuuryuo..",
+            "...urrruW.",
+            "....roooy.",
+            "....rooyru",
+            "....roWyrr",
+            "...uooyoru",
+            "..uooyyo..",
+            "uuooyyyo..",
+            "oyyyyyyyr.",
+            "oyyyyyWyy.",
+            "ryyyyyyWyr",
+            ".oyyyyyyyu",
+            "ryyyyyyyyo",
+            "ooyyyyyoor",
+            "..oyyyyo..",
+            "....yo...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-9",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 8,
+          "rows": [
+            "........y..",
+            ".......o...",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...........",
+            "...o.....uu",
+            "..oo.......",
+            "..oo.......",
+            ".....y.y...",
+            "..uuuyuo...",
+            ".uuuuuyo...",
+            ".uuuurSuuy.",
+            "..u.uurrry.",
+            ".....urooyu",
+            ".....uryoru",
+            ".....uryoru",
+            ".....royour",
+            "....uroyo.u",
+            "..urooyyy..",
+            ".roooyyWy..",
+            ".oyyyyWWyu.",
+            ".oyyyyyWyr.",
+            ".ryyyyyyyr.",
+            ".oyyoyyWyr.",
+            "roWyyyWWWyr",
+            ".yyyyyyWWWy",
+            "...yyyWWW..",
+            ".....yy...."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-10",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 7,
+          "rows": [
+            "........o...",
+            "........o...",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "..o.........",
+            "..o.........",
+            "....y.y.....",
+            "..uuuy.o....",
+            "..uuuuuu....",
+            ".uuuuuruy...",
+            ".uu..uSrry..",
+            ".....urryru.",
+            ".....uuryru.",
+            "......ryrrr.",
+            ".....uuorru.",
+            ".....uroy.u.",
+            "...Wuroyo...",
+            ".urrooyyr...",
+            ".ooyyyyyr...",
+            ".ryyWWWyo...",
+            ".ryyyyyyyo..",
+            "..yoooyyyyr.",
+            ".royooyyyyo.",
+            "royyooyyWyyr",
+            ".yyyooyWWyy.",
+            "...oyoyWW...",
+            ".....yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-11",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 5,
+          "rows": [
+            ".........o..",
+            ".........o..",
+            "........o...",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "....y.o.....",
+            "....o.o.....",
+            "..uuouo.....",
+            "..uuuuu.y...",
+            ".uu.uuuuy...",
+            ".uu..uruyu..",
+            "..u..uuuoru.",
+            "......uuorr.",
+            "......ururuu",
+            "......urorru",
+            ".....uuooru.",
+            "...Wuuoyr.u.",
+            ".uuyuroou...",
+            ".rroooyo....",
+            ".royyyyyu...",
+            ".rWWyyyyo...",
+            ".oWWyyyyyo..",
+            ".yWWyyyyyo..",
+            ".yWWyyyyyo..",
+            "oyWWWyWWWyor",
+            ".yyWWWWWWWy.",
+            "...yWWWWW...",
+            ".....WW....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-12",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 4,
+          "rows": [
+            ".........o..",
+            ".........o..",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            "............",
+            ".....o......",
+            "...y.o......",
+            "....o.o.....",
+            "...uuu......",
+            "..uuuuuy....",
+            ".uu.uuuuo...",
+            ".....uuuyu..",
+            "..u...uuouu.",
+            "......uuuuuu",
+            "......uururu",
+            "......urrruu",
+            "......rrrrru",
+            "...W.urou.u.",
+            "..uyrroo....",
+            ".urrrooo....",
+            ".ryoyyyo....",
+            ".ryyyyyo....",
+            ".uyyyyWyo...",
+            "..yyoyWWyo..",
+            ".rWyyyWWWyr.",
+            ".yWWyyWWWyr.",
+            "ryWWyyWWWWyr",
+            ".WWWyWWWWWW.",
+            "...WWWWWW...",
+            ".....Wy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-13",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 18,
+          "rows": [
+            "...y........",
+            "...o........",
+            "...o........",
+            "....u.......",
+            "...uuuuy....",
+            "..uuuuuoo...",
+            "......uuou..",
+            ".......uouu.",
+            ".......uuuuu",
+            ".......uuuuu",
+            "......uururu",
+            "......uruuuu",
+            "....yurrruuu",
+            "...yurur....",
+            ".urrrror....",
+            ".rooooor....",
+            ".rooyyyr....",
+            ".uoyyyyyu...",
+            "..oyWWWyo...",
+            "..yWWWyyyo..",
+            ".oWWWWWyWyy.",
+            ".yyWWWyWyWy.",
+            "ryWyWWWWWWyr",
+            ".yyyyyyWWWy.",
+            "...yyyWWW...",
+            ".....yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-14",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 17,
+          "rows": [
+            "..o..........",
+            "...o.........",
+            ".............",
+            "......y......",
+            "...uuuo......",
+            "....uuuoo....",
+            "......uuo....",
+            ".......uuu...",
+            "........uuuu.",
+            ".......uuuuu.",
+            ".......uuuuuu",
+            "......uuruuuu",
+            "....yuuruuuuu",
+            "...uyuruu.uu.",
+            "..urrrru.....",
+            ".urroor......",
+            ".rrooor......",
+            ".uryyyyu.....",
+            "..ryyyyo.....",
+            "..oyWWyyou...",
+            "..yWyyyWyyr..",
+            ".rWWWyyyWyo..",
+            ".oWWyyyWyyo..",
+            "oyWyyyWWWyyr.",
+            ".yyyyyWWWWy..",
+            "...yyyWWW....",
+            ".....yy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-15",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 16,
+          "rows": [
+            "..o..........",
+            "..o..........",
+            ".............",
+            ".....y.......",
+            "......o......",
+            ".....uu......",
+            ".......uu....",
+            "........uu...",
+            "........uuu..",
+            "........uuuu.",
+            "........uuuuu",
+            ".....yuuuuuuu",
+            ".....yuuuuuuu",
+            "...uyuuuuuuuu",
+            "..uurrru..uu.",
+            ".uurrru......",
+            ".urooor......",
+            ".uryoor......",
+            ".uryyWou.....",
+            "..uyyyoou....",
+            "..yWWyyyyr...",
+            ".rWWyyyyyWu..",
+            ".WWWyyWyWWo..",
+            ".yWWyWWWWWo..",
+            "roWWWWWWWWo..",
+            ".WWWWWWWWWy..",
+            "...WWWWWW....",
+            ".....WW......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-16",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 11,
+          "y": 15,
+          "rows": [
+            ".o..........",
+            ".o..........",
+            "............",
+            "...o........",
+            "....o.......",
+            "............",
+            "......uu....",
+            ".......uu...",
+            "........uu..",
+            "........uuu.",
+            "........uuuu",
+            "....y.uuuuuu",
+            "....ouuuuuuu",
+            "..uuuruuuuuu",
+            ".uuuruu..uuu",
+            "urrrrr......",
+            "urorru......",
+            "uryWor......",
+            "uuyyor......",
+            "uuyyWor.....",
+            ".uyyyyor....",
+            ".yyWWyyyu...",
+            "rWWWWyyyyu..",
+            "yWWWWWyWWo..",
+            "oyWWWyyWyu..",
+            "ryWWWWWWyr..",
+            "oyWyWWWWyy..",
+            "..yWWWWW....",
+            "....yy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-17",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 17,
+          "rows": [
+            "...o.........",
+            "....o........",
+            ".............",
+            ".......uu....",
+            "........uu...",
+            ".........uu..",
+            "..........u..",
+            "......y...uu.",
+            "......o.uuuuu",
+            ".....ouuuuuuu",
+            "...uuuuuuuuuu",
+            "..uuuuru.uuuu",
+            ".uurrru...uu.",
+            ".urWoru......",
+            ".uuyrru......",
+            ".uroWrr......",
+            ".uuyyorr.....",
+            "..uyyyyo.....",
+            "..uyyyyyo....",
+            "..oyWyyyyu...",
+            "..oWWWyyyo...",
+            ".ryWWWyyyyr..",
+            ".oWWyyyyyyu..",
+            "oyWWyyyyyyou.",
+            ".WWWyyyyyyy..",
+            "...yyyyyy....",
+            ".....yy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-18",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 16,
+          "rows": [
+            "...o.........",
+            "...o.........",
+            ".............",
+            ".............",
+            "........uu...",
+            ".........uu..",
+            ".........uu..",
+            ".......y.....",
+            "......o......",
+            "......uuuuuuu",
+            "....uuuuuuuuu",
+            "..uyuuuu.uuu.",
+            ".uryruu...uu.",
+            ".uuyuuu......",
+            ".urWru.......",
+            ".uuyrr.......",
+            ".uuoyoru.....",
+            "...ooyoo.....",
+            "...Wyyyyr....",
+            "...oyyyyy....",
+            "..royyWWyr...",
+            "..ryyyyWyy...",
+            "..yyyyyWWy...",
+            ".ryyyyyWyy...",
+            "roWyWWWyyyo..",
+            ".yyWWWyyyyo..",
+            "...yWWyyo....",
+            ".....Wy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-19",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 19,
+          "rows": [
+            "........uu...",
+            "........uuu..",
+            "........ouu..",
+            "........o.uu.",
+            ".......o.....",
+            "......uuuu...",
+            "...yuuuuuuuuu",
+            "..uyruuu.uuuu",
+            ".uuyuuu...uu.",
+            "uuWuuuu...u..",
+            "uuyruu.......",
+            ".uuyruu......",
+            ".uurooru.....",
+            "...Wooor.....",
+            "...Woyoou....",
+            "...yyyyyo....",
+            "...yWWyyo....",
+            "..oWWWWyo....",
+            ".ryWWWyyyr...",
+            ".oWWWWyyWo...",
+            ".oyWWWyyyyr..",
+            "ryWWWyyyyyWo.",
+            ".yyyyyyyoyW..",
+            "...yyyyoo....",
+            ".....yy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-20",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 19,
+          "rows": [
+            ".........u...",
+            "........ouu..",
+            "........o.uu.",
+            ".............",
+            "......uu.....",
+            "..uyuuuuuu...",
+            "..uyuuuu..uuu",
+            ".yuuuuu...uuu",
+            "uyuuuu....uu.",
+            "uuyuuu.......",
+            "uuurrru......",
+            ".u.uyrru.....",
+            "...uWorr.....",
+            "...yyooou....",
+            "...yyyoou....",
+            "...oWyyor....",
+            "..ryWWyou....",
+            "..yWWWyor....",
+            ".uyWWWyyo....",
+            ".ryyWWyyyo...",
+            ".royWWyyyyr..",
+            "royyWWWyyyyr.",
+            ".yyyyyyyyyy..",
+            "...yyyyyW....",
+            ".....yy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-21",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 19,
+          "rows": [
+            ".........o...",
+            "........o....",
+            ".............",
+            "....yuu..u...",
+            "..uuouuuuu...",
+            ".uuo..uu.....",
+            ".yuu.......u.",
+            "uyuuu.....uuu",
+            "uuuryuu...uu.",
+            "uuuuyrru.....",
+            ".u.uWrru.....",
+            "....yorr.....",
+            "....yooru....",
+            "...uyoWru....",
+            "...oyyoru....",
+            "..uyyyyyu....",
+            "..oyyyyyu....",
+            "..yyWyWyr....",
+            ".uyyyyyyo....",
+            ".oWyWyyyyr...",
+            ".oyyyWyyyo...",
+            "roWWWWWyyyor.",
+            ".yyWWWWyyyy..",
+            "...yWWWyy....",
+            ".....Wy......"
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-22",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 10,
+          "y": 21,
+          "rows": [
+            "....yuu.....",
+            "....o.uuuu..",
+            ".u.......u..",
+            "yuu.y.......",
+            "uyuuo.......",
+            "uuuuWuu...uu",
+            "uuuuyruu..uu",
+            "uu..yrru....",
+            "....yorr....",
+            "....ooWuu...",
+            "...uooyuu...",
+            "...ryoyru...",
+            "...oyyyr....",
+            "..ryyyyr....",
+            "..oyyyyo....",
+            "..oyyyyyo...",
+            "..rWyyyWyy..",
+            "..yWWyyWWyo.",
+            ".ryWyyyWWWo.",
+            "ryWyyyyyWyyr",
+            ".yyyyyyyyyy.",
+            "...yWyyoo...",
+            ".....yy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    },
+    {
+      "name": "campfire-23",
+      "duration": 70,
+      "ops": [
+        {
+          "op": "grid",
+          "x": 9,
+          "y": 19,
+          "rows": [
+            "......y......",
+            "......ouu....",
+            ".....o..uuu..",
+            ".....y....uu.",
+            ".yu..y.......",
+            ".ouuuyu......",
+            "uuuuuyru.....",
+            "uuu..yrru..uu",
+            ".uu..uWuu..uu",
+            ".....ryru....",
+            ".....rryr....",
+            "....uooyru...",
+            "....roWou....",
+            "....oooou....",
+            "...uoooou....",
+            "...ryyoor....",
+            "...ryyyoo....",
+            "...ryyyyyo...",
+            "...ryyyyyyr..",
+            "...oyWyyyyo..",
+            "..royyyyyyyu.",
+            ".royyWWyyyyo.",
+            "..yyWWWyyyyo.",
+            "....WWWWyy...",
+            "......Wy....."
+          ]
+        },
+        {
+          "op": "stamp",
+          "symbol": "logs",
+          "x": 3,
+          "y": 40
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "campfire": {
+      "frames": [
+        "campfire-0",
+        "campfire-1",
+        "campfire-2",
+        "campfire-3",
+        "campfire-4",
+        "campfire-5",
+        "campfire-6",
+        "campfire-7",
+        "campfire-8",
+        "campfire-9",
+        "campfire-10",
+        "campfire-11",
+        "campfire-12",
+        "campfire-13",
+        "campfire-14",
+        "campfire-15",
+        "campfire-16",
+        "campfire-17",
+        "campfire-18",
+        "campfire-19",
+        "campfire-20",
+        "campfire-21",
+        "campfire-22",
+        "campfire-23"
+      ]
+    }
+  }
+}

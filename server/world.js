@@ -10,6 +10,8 @@ import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventur
 import { WORLD_MAP, MAX_MOVE, isPositionInBounds, boundedPosition, movementOptions } from './spatial.js';
 import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife } from './life.js';
 import { opportunitiesFor } from './opportunities.js';
+import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFatigueRecovery, tickFatigue } from './fatigue.js';
+import { initializeAppearance, publicAppearance } from './appearance.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -63,6 +65,7 @@ export class World extends EventEmitter {
     };
     Object.assign(this.state.room, WORLD_MAP);
     for (const a of Object.values(this.state.agents)) a.position = boundedPosition(a.position);
+    for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
     for (const a of Object.values(this.state.agents)) initializeLife(a);
     if (saved) {
@@ -135,6 +138,8 @@ export class World extends EventEmitter {
     }
     initializeFighter(a);
     initializeLife(a);
+    initializeFatigue(a, this.now());
+    initializeAppearance(a, this.state.agents);
     this.state.agents[a.agent_id] = a; this.commit(); return this.publicAgent(a);
   }
   createController(agentId, { name = '参考运行器', kind = 'external', token: suppliedToken } = {}) {
@@ -177,6 +182,7 @@ export class World extends EventEmitter {
   }
   ownerRoom(operation) {
     if (!['pause', 'resume'].includes(operation)) fail('INVALID_ACTION', '房间操作无效');
+    this.tick();
     this.state.room.status = operation === 'pause' ? 'paused' : 'active';
     if (operation === 'pause') {
       if (this.state.game && this.state.game.status !== 'finished') this.finishGame('房间暂停');
@@ -212,10 +218,10 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), life: publicLife(a, this.now()), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
-      places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
+      places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
   }
   ownerSnapshot() {
     const snap = this.publicSnapshot();
@@ -224,8 +230,8 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.9.0-life', recommended_skill_version: '0.9.0', room: { capacity: 5, ...WORLD_MAP },
-      places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.10.0-fatigue', recommended_skill_version: '0.10.0', room: { capacity: 5, ...WORLD_MAP },
+      places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
       game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: 30, turn_seconds: 30, max_valid_words: 10 },
@@ -427,6 +433,7 @@ export class World extends EventEmitter {
       if (!isPositionInBounds(p) || distance(a.position, p) > MAX_MOVE) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 格（横向与纵向距离之和）`, { movement: movementOptions(a.position) });
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
+      spendEnergy(this, a, 'move', distance(a.position, p));
       a.position = { x: p.x, y: p.y };
       if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
       this.event('agent_moved', { agent_id: a.agent_id, position: a.position, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6)); return { position: a.position };
@@ -592,6 +599,7 @@ export class World extends EventEmitter {
   }
   tick() {
     let changed = false; const now = this.now();
+    const fatigueRecovery = captureFatigueRecovery(this);
     for (const a of Object.values(this.state.agents)) {
       if (a.run?.status === 'active' && a.run.expires_at <= now) { this.pause(a, '授权时间已到'); changed = true; }
       else if (a.status === 'active' && a.last_contact_at !== null && now - a.last_contact_at >= 45000) {
@@ -620,8 +628,9 @@ export class World extends EventEmitter {
     if (this.state.events[0]?.occurred_at < cutoff) { this.state.events = this.state.events.filter(e => e.occurred_at >= cutoff); changed = true; }
     for (const collection of [this.state.receipts, this.state.controlReceipts]) for (const [key, receipt] of Object.entries(collection)) if (receipt.at < cutoff) { delete collection[key]; changed = true; }
     const adventureStep = tickAdventure(this);
+    const fatigueStep = tickFatigue(this, fatigueRecovery);
     const lifeStep = tickLife(this);
     if (changed || adventureStep.durable || lifeStep.changed) this.commit();
-    else if (adventureStep.changed) this.commit({ deferred: true });
+    else if (adventureStep.changed || fatigueStep.changed) this.commit({ deferred: true });
   }
 }
