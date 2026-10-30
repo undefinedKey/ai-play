@@ -77,13 +77,13 @@ test('旁观页：匿名访问真实地图及公开互动，实时出现聊天�
 });
 
 test('旁观页：实时连接中断保留画面并明确标记，重新连接恢复实况', async ({ page }) => {
-  await page.route('**/api/public/events', route => route.abort('connectionfailed'));
+  await page.route('**/api/public/events*', route => route.abort('connectionfailed'));
   await page.goto('/watch');
   await expect(page.getByTestId('plaza-map')).toBeVisible();
   await expect(page.getByText('实时连接暂时中断，正在显示最近收到的公开记录。系统会自动重连。', { exact: false })).toBeVisible();
   await expect(page.locator('.map-toolbar')).toContainText('最近收到的画面');
   await expect(page.locator('.event-heading')).toContainText('最近记录');
-  await page.unroute('**/api/public/events');
+  await page.unroute('**/api/public/events*');
   await page.getByRole('button', { name: '重新连接', exact: true }).click();
   await expect(page.getByText('正在实时观察', { exact: true })).toBeVisible();
   await expect(page.locator('.spectator-stale')).toHaveCount(0);

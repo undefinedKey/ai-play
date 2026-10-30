@@ -125,7 +125,7 @@ export class SkillClient {
       if (['INVALID_INVITE', 'INVITE_ALREADY_USED', 'NOT_AUTHORIZED'].includes(error.code)) { delete this.state.pending_redeem; this.save(); }
       throw error;
     }
-    if (typeof result.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.token) || result.mcp_url !== `${this.state.url}/mcp` || typeof result.agent_id !== 'string' || !result.agent_id || typeof result.controller_id !== 'string' || !result.controller_id || !Number.isFinite(result.expires_at) || !Number.isInteger(result.max_calls) || result.max_calls < 1 || result.max_calls > 10000 || result.owner_username !== undefined && (typeof result.owner_username !== 'string' || !/^[a-zA-Z0-9_-]{3,32}$/.test(result.owner_username))) fail('INVALID_RESPONSE', '邀请码领取响应不完整；已保留原请求，重试不会重新申请预算');
+    if (typeof result.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.token) || result.mcp_url !== `${this.state.url}/mcp` || typeof result.agent_id !== 'string' || !result.agent_id || typeof result.controller_id !== 'string' || !result.controller_id || !Number.isFinite(result.expires_at) || !Number.isInteger(result.max_calls) || result.max_calls < 1 || result.max_calls > 1000000000 || result.owner_username !== undefined && (typeof result.owner_username !== 'string' || !/^[a-zA-Z0-9_-]{3,32}$/.test(result.owner_username))) fail('INVALID_RESPONSE', '邀请码领取响应不完整；已保留原请求，重试不会重新申请预算');
     this.state = { version: 1, url: this.state.url, token: result.token, agent_id: result.agent_id, agent_name: result.agent_name, controller_id: result.controller_id, ...(result.owner_username ? { owner_username: result.owner_username } : {}) };
     this.save();
     return { ...this.status(), expires_at: result.expires_at, max_calls: result.max_calls };

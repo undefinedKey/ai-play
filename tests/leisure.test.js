@@ -58,50 +58,31 @@ function fixture(t, { count = 2, dbPath = ':memory:' } = {}) {
   return f;
 }
 
-test('两次真实完整游戏后限制同类，局间仍能聊天散步，冷却拒绝可幂等读取', t => {
+test('完整连玩只给建议，AI可以立即继续同款或换玩法', t => {
   const f = fixture(t), [a, b] = f.people;
   f.start(); f.complete();
-  const leisure = f.observe(a).self.leisure;
-  assert.deepEqual(leisure.recent.map(item => [item.kind, item.id]), [['game', 'rock_paper_scissors']]);
-  assert.equal(leisure.game_break_until - f.now(), 30000);
-  const request = f.request(a, 'propose_game', { group_id: f.groupId, game_type: 'story_chain' });
-  const rejected = f.world.callTool(a.auth, 'act', request);
-  assert.equal(rejected.error.code, 'GAME_BREAK');
-  assert.equal(rejected.error.retry_after_ms, 30000);
-  assert.deepEqual(f.world.callTool(a.auth, 'act', request), rejected);
-  assert.equal(f.act(a, 'say', { channel: 'group', group_id: f.groupId, text: '我想去花园看看。' }).status, 'applied');
-  assert.equal(f.act(a, 'move', { x: 11, y: 8 }).status, 'applied');
-  f.advance(30000); f.start(); f.complete();
-  f.advance(30000);
-  const cooldown = f.act(a, 'propose_game', { group_id: f.groupId, game_type: 'rock_paper_scissors' });
-  assert.equal(cooldown.error.code, 'GAME_COOLDOWN');
-  assert.equal(cooldown.error.retry_after_ms, 270000);
-  assert.deepEqual(cooldown.error.available_game_types, ['word_chain', 'story_chain']);
-  assert.equal(f.observe(b).self.leisure.recent.length, 2);
-  assert.equal(f.world.getRules().leisure_policy.repeat_game_limit, 2);
-  assert.equal(f.world.publicSnapshot().leisure_policy.game_break_seconds, 30);
-  f.start('story_chain'); f.complete();
-  assert.equal(f.observe(a).self.leisure.recent.at(-1).id, 'story_chain');
-  assert.ok(f.observe(a).self.leisure.game_cooldowns.rock_paper_scissors > f.now());
-  f.advance(300000);
-  assert.deepEqual(f.observe(a).self.leisure.game_cooldowns, {});
+  assert.equal(f.observe(a).self.leisure.game_break_until, null);
   f.start(); f.complete();
-  assert.deepEqual(f.observe(a).self.leisure.game_cooldowns, {});
+  const leisure = f.observe(a).self.leisure;
+  assert.equal(leisure.recent.length, 2);
+  assert.deepEqual(leisure.game_cooldowns, {});
+  assert.match(leisure.suggestion, /可以继续/);
+  assert.equal(f.world.getRules().leisure_policy.enforced, false);
+  f.start(); f.complete();
+  assert.equal(f.observe(b).self.leisure.recent.length, 3);
+  f.start('story_chain'); f.complete();
+  assert.equal(f.observe(a).self.leisure.suggestion, null);
 });
 
-test('由其他角色发起不能绕过自己的休息/同类冷却，仍可谢绝邀请', t => {
+test('旧存档硬冷却不再阻止邀请接受或自主重复游戏', t => {
   const f = fixture(t, { count: 3 }), [a, , c] = f.people;
-  f.start(); f.complete(); f.advance(30000); f.start(); f.complete();
-  assert.deepEqual(f.observe(c).self.leisure.recent, []);
+  f.start(); f.complete();
+  Object.assign(f.world.agent(a.id).leisure, { game_break_until: f.now() + 30000, game_cooldowns: { rock_paper_scissors: f.now() + 300000 } });
   const proposal = f.act(c, 'propose_game', { group_id: f.groupId, game_type: 'rock_paper_scissors' });
   assert.equal(proposal.status, 'applied');
-  assert.equal(f.act(a, 'respond_game', { game_id: proposal.game_id, accept: true }).error.code, 'GAME_BREAK');
-  assert.equal(f.act(a, 'respond_game', { game_id: proposal.game_id, accept: false }).status, 'applied');
-  f.advance(30000);
-  assert.equal(f.world.state.game.end_reason, '报名人数不足 2 人');
-  const next = f.act(c, 'propose_game', { group_id: f.groupId, game_type: 'rock_paper_scissors' });
-  assert.equal(f.act(a, 'respond_game', { game_id: next.game_id, accept: true }).error.code, 'GAME_COOLDOWN');
-  assert.deepEqual(f.observe(c).self.leisure.recent, []);
+  assert.equal(f.act(a, 'respond_game', { game_id: proposal.game_id, accept: true }).status, 'applied');
+  assert.deepEqual(f.observe(a).self.leisure.game_cooldowns, {});
+  assert.equal(f.observe(a).self.leisure.game_break_until, null);
 });
 
 test('真实独处经历最多保存六条，取消不记，独处不会清空同游戏连玩次数', t => {
@@ -119,7 +100,7 @@ test('真实独处经历最多保存六条，取消不记，独处不会清空�
   f.act(a, 'start_activity', { activity_id: 'sequence' }); f.act(a, 'finish_activity');
   assert.equal(f.observe(a).self.leisure.recent.length, 6);
   f.advance(30000); f.start(); f.complete();
-  assert.equal(f.observe(a).self.leisure.game_cooldowns.rock_paper_scissors - f.now(), 300000);
+  assert.deepEqual(f.observe(a).self.leisure.game_cooldowns, {});
   assert.equal(f.observe(a).self.leisure.recent.at(-1).kind, 'game');
 });
 
@@ -148,7 +129,7 @@ test('完成后的经历不被重复结算，公开投影不带内部计数或�
   for (const projection of [f.observe(a).self, f.world.publicSnapshot().agents[0], spectatorSnapshot(f.world)]) {
     assert.doesNotMatch(JSON.stringify(projection), /PRIVATE_|last_game_type|same_game_count/);
   }
-  assert.equal(spectatorSnapshot(f.world).leisure_policy.repeat_game_cooldown_seconds, 300);
+  assert.equal(spectatorSnapshot(f.world).leisure_policy.mode, 'advisory');
 });
 
 test('重连、更换预算段和SQLite重启保留重复计数；服务中断不算已完成', t => {
@@ -172,7 +153,8 @@ test('重连、更换预算段和SQLite重启保留重复计数；服务中断�
   f.start(); f.complete();
   const cooled = f.observe(a).self.leisure;
   assert.equal(cooled.recent.length, 2);
-  assert.equal(cooled.game_cooldowns.rock_paper_scissors - f.now(), 300000);
+  assert.deepEqual(cooled.game_cooldowns, {});
+  assert.match(cooled.suggestion, /可以继续/);
   f.world.close(); f.world = new World({ dbPath, now: f.now, actionIntervalMs: 0 });
   assert.deepEqual(f.world.publicAgent(f.world.agent(a.id)).leisure, cooled);
   for (const person of f.people) f.world.callTool(person.auth, 'join_world');

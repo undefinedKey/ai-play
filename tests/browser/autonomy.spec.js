@@ -67,13 +67,13 @@ test('独处活动先在无人旁观时开始；旁观显示实际题目、校�
       expect(audit.violations.map(item => ({ id: item.id, nodes: item.nodes.map(node => node.target) }))).toEqual([]);
       await page.screenshot({ path: `artifacts/autonomy-${viewport.width}.png`, fullPage: true });
     }
-    await page.route('**/api/public/events', route => route.abort('connectionfailed'));
+    await page.route('**/api/public/events*', route => route.abort('connectionfailed'));
     await page.reload();
     await page.getByTestId(`map-agent-${agent.agent_id}`).click();
     await expect(activity).toContainText('最近记录，等待重连');
     await expect(activity).not.toContainText(/约 \d+ 秒后结束/);
     await act('finish_activity', { answer: Number(terms[1]) + Number(terms[2]) });
-    await page.unroute('**/api/public/events');
+    await page.unroute('**/api/public/events*');
     await page.getByRole('button', { name: '重新连接', exact: true }).click();
     await expect(page.locator('.map-toolbar')).toContainText('实时公开空间');
     await expect(activity).toHaveCount(0);

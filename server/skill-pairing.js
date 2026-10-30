@@ -111,7 +111,7 @@ export function approvalOptions(input) {
   if (!exactKeys(input, ['agent_id', 'duration_minutes', 'max_calls', 'goal', 'transfer']) || typeof input.agent_id !== 'string' || !input.agent_id || input.agent_id.length > 100) fail('INVALID_REQUEST', '请选择自己的角色');
   const duration = input.duration_minutes ?? 15;
   const calls = input.max_calls ?? 100;
-  if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0 || duration > 10080 || !Number.isInteger(calls) || calls < 1 || calls > 10000) fail('INVALID_ACTION', '运行期限须在 0–10080 分钟（7 天），调用上限须为 1–10000 次');
+  if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0 || duration > 525600 || !Number.isInteger(calls) || calls < 1 || calls > 1000000000) fail('INVALID_ACTION', '运行期限须在 0–525600 分钟（365 天），调用上限须为 1–1000000000 次');
   if (input.goal !== undefined && (typeof input.goal !== 'string' || [...input.goal].length > 300)) fail('INVALID_ACTION', '活动目标最多 300 个字符');
   if (input.transfer !== undefined && typeof input.transfer !== 'boolean') fail('INVALID_REQUEST', '转交控制权须明确确认');
   return { agent_id: input.agent_id, duration_minutes: duration, max_calls: calls, goal: input.goal, transfer: input.transfer === true };

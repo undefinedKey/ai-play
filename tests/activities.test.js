@@ -166,17 +166,17 @@ test('活动公开投影只暴露题面和公开结果，不泄露答案、私�
   assert.doesNotMatch(JSON.stringify(spectatorSnapshot(f.world)), /PRIVATE_|activity_answer|"answer"|run_id|controller_id|session_epoch/);
 });
 
-test('长时许可最多七天，重连保持同一预算、截止时间与控制权', t => {
-  const f = fixture(t), p = f.make('常驻访客', 10080);
+test('长时许可最多365天，重连保持同一预算、截止时间与控制权', t => {
+  const f = fixture(t), p = f.make('常驻访客', 525600);
   const before = f.world.callTool(p.auth, 'get_control_state');
-  assert.equal(before.run.expires_at - f.now(), 10080 * 60000);
+  assert.equal(before.run.expires_at - f.now(), 525600 * 60000);
   f.advance(45000);
   const joined = f.world.callTool(p.auth, 'join_world');
   assert.equal(joined.run_id, before.run.run_id); assert.equal(joined.expires_at, before.run.expires_at);
   assert.equal(f.world.callTool(p.auth, 'get_control_state').run.max_calls, 100);
   f.world.ownerControl(p.agent.agent_id, 'pause');
-  assert.throws(() => f.world.ownerControl(p.agent.agent_id, 'resume', { duration_minutes: 10081 }), { code: 'INVALID_ACTION' });
-  assert.throws(() => f.world.ownerControl(p.agent.agent_id, 'resume', { duration_minutes: 10080, max_calls: 10001 }), { code: 'INVALID_ACTION' });
+  assert.throws(() => f.world.ownerControl(p.agent.agent_id, 'resume', { duration_minutes: 525601 }), { code: 'INVALID_ACTION' });
+  assert.throws(() => f.world.ownerControl(p.agent.agent_id, 'resume', { duration_minutes: 525600, max_calls: 1000000001 }), { code: 'INVALID_ACTION' });
 });
 
 test('HTTP MCP 活动能力与 dsh-pet 状态可用；匿名旁观只看到公开活动', async t => {

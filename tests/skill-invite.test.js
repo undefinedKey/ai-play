@@ -20,6 +20,14 @@ function fixture(t, handler) {
 const health = { capabilities: { skill_invites: true } };
 const grant = { token, mcp_url: 'http://world.example/mcp', agent_id: 'agent-a', agent_name: '原 AI', controller_id: 'controller-a', owner_username: 'ai_owner_a', expires_at: Date.now() + 60000, max_calls: 20 };
 
+test('服务器已签发的长时调用预算兼容到10亿，客户端不自行扩大授权', async t => {
+  const f = fixture(t, ({ url }) => url.endsWith('/health') ? health : { ...grant, max_calls: 1000000000 });
+  const result = await f.client.connect({ invite: code, name: '原 AI' });
+  assert.equal(result.status, 'connected');
+  const invalid = fixture(t, ({ url }) => url.endsWith('/health') ? health : { ...grant, max_calls: 1000000001 });
+  await assert.rejects(invalid.client.connect({ invite: code, name: '原 AI' }), { code: 'INVALID_RESPONSE' });
+});
+
 test('AI邀请码直接连接不要求页面登录，保存凭据且输出不泄露邀请码/设备证明/令牌', async t => {
   const f = fixture(t, ({ url, body }) => url.endsWith('/health') ? health : (assert.equal(body.name, '原 AI'), grant));
   const { client, result } = await main(['connect', '--invite', code, '--name', '原 AI'], f.options);

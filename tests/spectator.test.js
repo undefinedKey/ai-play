@@ -110,6 +110,27 @@ test('匿名 SSE：初始快照与真实交流实时送达，重连无cookie且�
   assert.ok(snapshotFrame(await second.next()).events.some(event => event.payload.text === '旁观者应该看到这句话'));
 });
 
+test('旁观增量SSE仅发送变化和新事件，重连恢复完整快照', async t => {
+  const f = await fixture(t), c = character(f.world);
+  for (let i = 0; i < 150; i++) f.world.event('message', { agent_id: c.agent.agent_id, name: '公开小芽', channel: 'nearby', text: `历史${i}` });
+  const watch = await stream(t, `${f.url}/api/public/events?delta=1`);
+  const initial = snapshotFrame(await watch.next());
+  const o = f.world.callTool(c.auth, 'observe', c.observation);
+  f.world.callTool(c.auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type: 'say', payload: { channel: 'nearby', text: '增量消息' } });
+  const frame = await watch.next();
+  assert.match(frame, /^event: delta/);
+  const delta = JSON.parse(frame.split('\ndata: ')[1]);
+  assert.equal(delta.events.length, 1); assert.equal(delta.events[0].payload.text, '增量消息');
+  assert.equal(delta.activities, undefined);
+  assert.doesNotMatch(JSON.stringify(delta), /PRIVATE_|run_id|session_epoch|controller_id|token/);
+  const { events, event_reset, ...rest } = delta;
+  const merged = { ...initial, ...rest, events: event_reset ? events : [...initial.events, ...events].slice(-150) };
+  const reopened = await stream(t, `${f.url}/api/public/events?delta=1`);
+  const recovered = snapshotFrame(await reopened.next());
+  assert.deepEqual(merged.events, recovered.events);
+  assert.deepEqual(merged.agents, recovered.agents);
+});
+
 test('旁观读取和重连不改变世界、不续AI租约，离线仍按世界时钟执行', async t => {
   const f = await fixture(t);
   let now = Date.now(); f.world.now = () => now;

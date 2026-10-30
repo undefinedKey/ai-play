@@ -1,5 +1,7 @@
 import { GAME_END_REASONS, gameName, publicChoices, publicGame } from './games.js';
 import { publicLeisure } from './leisure.js';
+import { snapshotDelta } from './snapshot-delta.js';
+import { publicAdventure, publicFighter } from './adventure.js';
 
 const string = value => typeof value === 'string' ? value : undefined;
 const number = value => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -16,6 +18,14 @@ const publicEventFields = {
   activity_started: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text'],
   activity_finished: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text', 'outcome', 'result'],
   treasure_collected: ['agent_id', 'name', 'collected', 'total', 'text'],
+  adventure_started: ['agent_id', 'name', 'text', 'intent', 'zone_id', 'monster_id'],
+  adventure_finished: ['agent_id', 'name', 'text', 'kind'],
+  adventure_arrived: ['agent_id', 'name', 'text', 'zone_id'],
+  adventure_combat: ['agent_id', 'name', 'text', 'monster_id', 'damage', 'hp'],
+  adventure_loot: ['agent_id', 'name', 'text', 'monster_id', 'xp', 'gold'],
+  adventure_defeated: ['agent_id', 'name', 'text', 'monster_id'],
+  adventure_danger: ['agent_id', 'name', 'text', 'hp'],
+  adventure_respawn: ['text', 'monster_id'],
   message: ['agent_id', 'name', 'text', 'channel', 'group_id'],
   group_created: ['agent_id', 'group_id', 'text'], group_joined: ['agent_id', 'group_id', 'text'], group_left: ['agent_id', 'group_id', 'text'],
   game_proposed: ['agent_id', 'game_id', 'group_id', 'game_type', 'text'], game_registered: ['agent_id', 'game_id', 'text'],
@@ -32,7 +42,7 @@ function publicEvent(event, agentIds) {
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
   for (const key of fields) {
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {
@@ -54,8 +64,8 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()) })),
-    leisure_policy: { ...catalog.leisure_policy },
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent) })),
+    leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state),
     places: catalog.places.map(place => ({ id: string(place.id), name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
@@ -78,13 +88,14 @@ export function attachSpectator(app, world, { maxStreams = 50, maxPerIp = 30, he
   app.get('/api/public/world', (_req, res) => res.json(spectatorSnapshot(world)));
   app.get('/api/public/events', (req, res) => {
     const ip = req.socket.remoteAddress;
-    if (streams.size >= maxStreams || [...streams.values()].filter(value => value === ip).length >= maxPerIp) {
+    if (streams.size >= maxStreams || [...streams.values()].filter(value => value.ip === ip).length >= maxPerIp) {
       return res.status(429).set('Retry-After', '15').json({ error: { code: 'RATE_LIMITED', message: '旁观连接已达上限，请稍后重试' } });
     }
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
-    streams.set(res, ip);
-    write(res, `event: snapshot\ndata: ${JSON.stringify(spectatorSnapshot(world))}\n\n`);
+    const snapshot = spectatorSnapshot(world);
+    streams.set(res, { ip, delta: req.query.delta === '1', last: snapshot });
+    write(res, `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`);
     res.on('close', () => streams.delete(res));
   });
   const changed = () => {
@@ -92,8 +103,13 @@ export function attachSpectator(app, world, { maxStreams = 50, maxPerIp = 30, he
     broadcastTimer = setTimeout(() => {
       broadcastTimer = null;
       if (closed || !streams.size) return;
-      const frame = `event: snapshot\ndata: ${JSON.stringify(spectatorSnapshot(world))}\n\n`;
-      for (const res of streams.keys()) write(res, frame);
+      const snapshot = spectatorSnapshot(world);
+      let fullFrame;
+      for (const [res, info] of streams) {
+        if (info.delta) write(res, `event: delta\ndata: ${JSON.stringify(snapshotDelta(info.last, snapshot))}\n\n`);
+        else { fullFrame ??= `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`; write(res, fullFrame); }
+        info.last = snapshot;
+      }
     }, 50);
     broadcastTimer.unref();
   };

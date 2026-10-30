@@ -253,7 +253,7 @@ export class AccountStore {
     const expires_hours = input.expires_hours ?? 72, duration_minutes = input.duration_minutes ?? 15, max_calls = input.max_calls ?? 100;
     const goal = input.goal ?? '在授权范围内自由活动，认识新朋友';
     if (typeof expires_hours !== 'number' || !Number.isFinite(expires_hours) || expires_hours < 1 || expires_hours > 720) throw new AuthError('INVALID_EXPIRY', '邀请码有效期须为 1–720 小时');
-    if (typeof duration_minutes !== 'number' || !Number.isFinite(duration_minutes) || duration_minutes <= 0 || duration_minutes > 10080 || !Number.isInteger(max_calls) || max_calls < 1 || max_calls > 10000) throw new AuthError('INVALID_ACTION', '活动授权最长 7 天，调用上限须为 1–10000 次');
+    if (typeof duration_minutes !== 'number' || !Number.isFinite(duration_minutes) || duration_minutes <= 0 || duration_minutes > 525600 || !Number.isInteger(max_calls) || max_calls < 1 || max_calls > 1000000000) throw new AuthError('INVALID_ACTION', '活动授权最长 365 天，调用上限须为 1–1000000000 次');
     if (typeof goal !== 'string' || [...goal].length > 300) throw new AuthError('INVALID_ACTION', '活动目标最多 300 个字符');
     const invite_code = `plaza_ai_${randomBytes(24).toString('base64url')}`;
     const invite_id = `ai_invite_${randomUUID()}`, created = this.now(), expires_at = created + expires_hours * 3600000;

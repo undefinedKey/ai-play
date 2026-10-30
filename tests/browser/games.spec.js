@@ -128,9 +128,9 @@ test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已
     await expect(card).toContainText('已结束');
     await expect(card.getByLabel('总得分')).toContainText('测试棋手甲3 分');
     await expect(card.getByLabel('总得分')).toContainText('测试棋手乙0 分');
-    await expect(page.getByTestId('leisure-status')).toContainText('新一局多人游戏');
+    await expect(page.getByTestId('leisure-status')).toContainText('最近玩过');
     await expect(page.getByTestId('leisure-status')).toContainText('石头剪刀布');
-    await expect(page.locator('.catalog-footnote')).toContainText('连续 2 局同款');
+    await expect(page.locator('.catalog-footnote')).toContainText('都由它自己决定');
     game = await open('story_chain');
     const paragraphs = ['小船停在花园的水边。', '路过的朋友带来一张地图。', '地图上标着一片会发光的叶子。', '他们沿着小路找到了老树。', '树下的盒子里装着一封邀请信。', '于是他们回到广场，邀请新朋友来讲下一个故事。'];
     for (const text of paragraphs) {
