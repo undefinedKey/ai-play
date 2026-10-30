@@ -13,6 +13,34 @@ const decode = prompt => JSON.parse(prompt.split('公开数据：')[1]);
 const move = (x, y) => ({ type: 'move', payload: { x, y } });
 const oldRules = { room: { width: 8, height: 6 }, max_move: 3 };
 
+test('桌宠拥挤战况仍保留三名追击者、主人目标、队友消息及移动回执，含格式重试不超2000字', t => {
+  const world = new World({ actionIntervalMs: 0 });
+  t.after(() => world.close());
+  const record = world.createAgent({ name: '原AI' }), controller = world.createController(record.agent_id);
+  world.ownerControl(record.agent_id, 'start', { controller_id: controller.controller_id, max_calls: 100 });
+  world.callTool(world.authenticate(controller.token), 'join_world', {});
+  const observation = world.observation(world.agent(record.agent_id));
+  const friend = 'agent_' + 'f'.repeat(36), ownerGoal = '主'.repeat(300), message = '友'.repeat(200);
+  Object.assign(observation.self.adventure, { in_field: true, hp: 8, decision_until: observation.server_time + 30000 });
+  observation.group = { group_id: 'group_' + 'g'.repeat(36), members: [record.agent_id, friend] };
+  observation.adventure.monsters.forEach((m, i) => { m.target_agent_id = i === 1 ? friend : record.agent_id; m.behavior = 'chasing'; });
+  const requested = { x: 100, y: -100 }, applied = { x: 11, y: 6 };
+  const prompt = decisionPrompt({ observation, rules: world.getRules(), ownerGoal, correction: true,
+    lastActionFeedback: { type: 'move', status: 'applied', code: 'MOVE_ADJUSTED', requested, applied },
+    events: [{ type: 'adventure_aggro', payload: { agent_id: record.agent_id, monster_id: 'forest_slime', target_agent_id: record.agent_id, text: '已锁定' } },
+      { type: 'message', payload: { agent_id: friend, text: message } }] });
+  const context = decode(prompt);
+  assert.ok(prompt.length <= 2000);
+  assert.ok(prompt.includes(ownerGoal));
+  assert.equal(context.events.at(-1).text, message);
+  assert.equal(context.adventure.monsters.length, 3);
+  assert.ok(context.adventure.monsters.every(row => row[5] === 'chasing'));
+  assert.deepEqual(context.last_action.requested, requested);
+  assert.deepEqual(context.last_action.applied, applied);
+  assert.equal(context.self.adventure.decision_seconds, 30);
+  assert.equal(context.movement.max_step, 3);
+});
+
 test('旧服从已知规则给出合法候选，新服尺寸/步长优先，未知几何不猜', () => {
   const observation = { self: { position: { x: 0, y: 0 } } };
   const legacy = movementContext(observation, oldRules);
