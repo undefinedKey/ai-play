@@ -135,7 +135,8 @@ test('read消费正文一次再等待；solo_game获取题面并完成，业务r
   f.world.perform(a, 'start_activity', { activity_id: 'solo_game' }); f.runner.observation = f.world.observation(a);
   f.advance(6000); assert.equal(f.runner.decisionDue(), true);
   const action = { type: 'finish_activity', payload: { answer: a.activity_answer } };
-  f.pet.fetch = async (url, options) => { assert.ok(options.body.includes(a.activity.task.prompt)); return json({ ok: true, text: JSON.stringify(action) }); };
+  const originalFetch = f.pet.fetch;
+  f.pet.fetch = async (url, options) => { if (url.endsWith('/config')) return originalFetch(url, options); assert.ok(options.body.includes(a.activity.task.prompt)); return json({ ok: true, text: JSON.stringify(action) }); };
   await f.runner.decide();
   assert.equal(f.runner.observation.self.activity, null);
   assert.equal(f.runner.checkpoint.next_action_id, a.next_action_id);
@@ -203,7 +204,7 @@ test('桌宠能力令牌只发本机，所有请求拒绝重定向且不携带�
   const requests = [];
   const pet = new DshPetClient({ home, fetchImpl: async (url, options) => { requests.push({ url, options }); return json(url.endsWith('/config') ? config('one') : { ok: true, text: '{"type":"wait","payload":{}}' }); } });
   await pet.initialize(); await pet.decide({ observation: {}, rules: {}, events: [] });
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3); // Initial discovery and fresh identity check before the one /chat.
   for (const r of requests) { assert.ok(r.url.startsWith('http://127.0.0.1:32994/')); assert.equal(r.options.redirect, 'error'); assert.equal(r.options.headers['X-DSH-Pet-Token'], token); assert.equal(r.options.headers.Authorization, undefined); assert.ok(!r.options.body?.includes(token)); }
   assert.equal(existsSync(join(home, 'dsh-pet', 'memory.json')), false);
 });

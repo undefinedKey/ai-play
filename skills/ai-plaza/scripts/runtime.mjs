@@ -5,7 +5,10 @@ import { DshPetClient, leisureContext, LEISURE_GUIDANCE, ADVENTURE_GUIDANCE, MON
 import { movementContext, normalizeMove, MOVEMENT_GUIDANCE } from './movement.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'farm', 'inventory', 'wait']);
-const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
+const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
+const INCOMPATIBLE_ERRORS = new Set(['INCOMPATIBLE_SERVER', 'INCOMPATIBLE_SKILL', 'UPGRADE_REQUIRED']);
+const HOST_ERRORS = new Set(['PET_NOT_FOUND', 'PET_UNAVAILABLE', 'PET_HTTP', 'PET_RESPONSE', 'PET_RUNTIME_INVALID', 'PET_NOT_READY', 'PET_HIDDEN', 'PET_BINDING_CHANGED', 'PET_SELECTION_REQUIRED']);
+const BACKOFF_MAX_MS = 30000;
 const SKILL = readFileSync(new URL('../references/play.md', import.meta.url), 'utf8');
 // Read the installed package, not the server version or a hard-coded client ID.
 const RUNTIME_VERSION = (() => {
@@ -133,12 +136,17 @@ export class PlazaRunner extends EventEmitter {
     this.checkpoint = null; this.checkpointCorrupt = false; this.rules = null;
     this.lastDecisionAt = 0; this.lastCycleAt = now(); this.lastReportAt = 0;
     this.pendingStopReason = null; this.ready = Promise.resolve();
+    this.connected = false; this.connectionJob = null; this.connectionGeneration = 0; this.authorityGeneration = 0;
+    this.tools = new Set(); this.loadedCheckpoint = false; this.lastConnectionReportAt = 0; this.lastConnectionReportKey = '';
+    this.lastHostCheckAt = 0;
+    this.health = { world: 'unknown', host: mode === 'dsh-pet' ? 'discovering' : 'not_applicable', model: 'idle', waiting_reason: 'grant_missing' };
   }
 
   start() {
     if (this.running) return this;
     this.running = true; this.abort = new AbortController();
-    this.ready = this.initialize();
+    // Startup outages are recoverable too. A failed handshake must not kill both loops.
+    this.ready = this.initialize().catch(error => { this.connectionFailure(error); });
     // Both jobs stay independent while a slow model request is pending.
     this.eventJob = this.ready.then(() => this.eventLoop()).catch(error => this.fail(error));
     this.decisionJob = this.ready.then(() => this.decisionLoop()).catch(error => this.fail(error));
@@ -147,30 +155,60 @@ export class PlazaRunner extends EventEmitter {
 
   async initialize() {
     if (RUNTIME_VERSION === 'unknown') this.log('未找到有效的 Skill version.json，运行版本暂不可确认；请完整更新安装包。');
-    if (this.mode === 'model' && (!this.model.baseUrl || !this.model.model || !this.model.apiKey)) {
-      throw new RunnerError('MODEL_CONFIG', '请在本机配置模型地址、名称与密钥');
-    }
-    if (this.mode === 'dsh-pet') await this.petClient.initialize();
-    if (this.checkpointPath && existsSync(this.checkpointPath)) {
+    if (!this.loadedCheckpoint && this.checkpointPath && existsSync(this.checkpointPath)) {
       try {
         this.checkpoint = JSON.parse(readFileSync(this.checkpointPath, 'utf8'));
         if (this.checkpoint.version !== 1 || !Number.isInteger(this.checkpoint.calls_used) || this.checkpoint.calls_used < 0 || !Array.isArray(this.checkpoint.queue)) throw new Error('损坏的预算记录');
       } catch { this.checkpointCorrupt = true; this.checkpoint = null; }
     }
+    this.loadedCheckpoint = true;
+    if (this.checkpoint) {
+      this.ensureCounters();
+      for (const key of ['last_model_success_at', 'last_request_at', 'last_host_success_at', 'last_world_success_at']) {
+        if (Number.isFinite(this.checkpoint.health?.[key])) this.health[key] = this.checkpoint.health[key];
+      }
+    }
+    if (this.mode === 'dsh-pet' && Number.isFinite(this.petClient.verifiedAt)) {
+      Object.assign(this.health, { host: 'ready', last_host_success_at: this.petClient.verifiedAt });
+      this.lastHostCheckAt = this.now();
+    }
+    await this.connect();
+    this.log('已连接 MCP；等待主人允许开始。');
+  }
+
+  async connect() {
+    if (this.connectionJob) return this.connectionJob;
+    const job = this.handshake();
+    this.connectionJob = job;
+    try { return await job; } finally { if (this.connectionJob === job) this.connectionJob = null; }
+  }
+
+  async handshake() {
+    this.connected = false;
+    const generation = ++this.connectionGeneration;
     if (!this.injectedClient) {
+      await this.client?.close?.().catch(() => {});
       const [{ Client }, { StreamableHTTPClientTransport }] = await Promise.all([
         import('@modelcontextprotocol/sdk/client/index.js'),
         import('@modelcontextprotocol/sdk/client/streamableHttp.js'),
       ]);
-      this.client = new Client({ name: 'ai-plaza-reference-runner', version: '0.1.0' }, { capabilities: {} });
+      this.client = new Client({ name: 'ai-plaza-reference-runner', version: RUNTIME_VERSION }, { capabilities: {} });
       this.transport = new StreamableHTTPClientTransport(new URL(this.url), { requestInit: { headers: { Authorization: `Bearer ${this.token}` } } });
-      await this.client.connect(this.transport);
+      await this.client.connect(this.transport, { timeout: 10000, signal: this.abort?.signal });
     }
-    const listed = await this.client.listTools();
-    const names = new Set(listed.tools.map(x => x.name));
+    const listed = await this.client.listTools(undefined, { timeout: 10000, signal: this.abort?.signal });
+    const names = this.tools = new Set(listed.tools.map(x => x.name));
     for (const name of ['get_rules', 'test_connection', 'join_world', 'observe', 'get_events', 'act', 'get_action_result', 'get_control_state', 'report_status', 'pause_self', 'leave_world']) {
       if (!names.has(name)) throw new RunnerError('INCOMPATIBLE_SERVER', `服务缺少工具：${name}`);
     }
+    await this.refreshRules();
+    await this.call('test_connection', { step: 'wait_events', wait_seconds: 0 });
+    if (generation !== this.connectionGeneration || this.abort?.signal.aborted) return;
+    this.connected = true;
+    Object.assign(this.health, { world: 'connected', last_world_success_at: this.now(), error_code: null });
+  }
+
+  async refreshRules() {
     this.rules = await this.call('get_rules', {});
     if (this.mode === 'dsh-pet' && (!Array.isArray(this.rules.places) || !this.rules.places.length ||
         !Array.isArray(this.rules.activities) || !this.rules.activities.length ||
@@ -179,16 +217,44 @@ export class PlazaRunner extends EventEmitter {
     }
     const required = this.rules.skill_version || this.rules.required_skill_version;
     if (required && !['0.1.0', '0.2', '0.2.0'].includes(required)) throw new RunnerError('INCOMPATIBLE_SKILL', `不兼容的 Skill 版本：${required}`);
-    await this.call('test_connection', { step: 'wait_events', wait_seconds: 0 });
-    this.log('已连接 MCP；等待主人允许开始。');
+    this.lastRulesAt = this.now();
   }
 
   async call(name, args) {
-    return decodeToolResult(await this.client.callTool({ name, arguments: args }));
+    const generation = this.connectionGeneration;
+    try {
+      const result = decodeToolResult(await this.client.callTool({ name, arguments: args }, undefined, { timeout: name === 'get_events' ? 30000 : 10000 }));
+      if (generation !== this.connectionGeneration) throw new RunnerError('WORLD_UNAVAILABLE', '旧连接结果已失效');
+      this.health.last_world_success_at = this.now();
+      return result;
+    } catch (error) {
+      if ([401, 403].includes(error.code ?? error.status ?? error.statusCode)) throw new RunnerError('NOT_AUTHORIZED', '控制端凭证无效或已撤销');
+      // Stable business errors are not transport failures. Never turn an action
+      // rejection or an expired grant into an automatic authorization attempt.
+      const transportError = /^(ECONN|EPIPE|ENOTFOUND|ETIMEDOUT|UND_ERR|NETWORK_ERROR|INVALID_RESPONSE|INTERNAL_ERROR|HTTP_5\d\d)/.test(error.code || '');
+      if (!transportError && (error instanceof RunnerError || typeof error.code === 'string')) throw error;
+      const failure = new RunnerError('WORLD_UNAVAILABLE', '广场连接暂不可用，等待重新握手');
+      if (generation === this.connectionGeneration) this.connectionFailure(failure);
+      throw failure;
+    }
+  }
+
+  ensureCounters() {
+    this.checkpoint.counters ||= { requests: 0, replies: 0, retries: 0, local_failures: 0 };
+    return this.checkpoint.counters;
+  }
+
+  connectionFailure(error) {
+    this.connected = false;
+    this.deactivate({ discard: CONTROL_ERRORS.has(error.code) && !['STALE_SESSION', 'NOT_IN_WORLD'].includes(error.code) });
+    const incompatible = INCOMPATIBLE_ERRORS.has(error.code);
+    Object.assign(this.health, { world: incompatible ? 'incompatible' : 'reconnecting', waiting_reason: incompatible ? 'rules_incompatible' : CONTROL_ERRORS.has(error.code) ? this.errorReason(error.code) : 'reconnecting', error_code: incompatible || CONTROL_ERRORS.has(error.code) ? error.code : 'WORLD_UNAVAILABLE' });
+    this.lastError = incompatible ? error.message : '广场连接暂不可用，等待重新握手';
   }
 
   save() {
     if (!this.checkpoint) return;
+    this.checkpoint.health = { ...this.health };
     Object.assign(this.checkpoint, this.checkpointMetadata);
     if (this.checkpointPath) {
       mkdirSync(dirname(this.checkpointPath), { recursive: true });
@@ -209,10 +275,15 @@ export class PlazaRunner extends EventEmitter {
     this.emit('runner-error', error);
   }
 
-  deactivate() {
+  deactivate({ discard = true } = {}) {
     this.active = false;
+    this.authorityGeneration++;
     this.modelAbort?.abort();
-    if (this.checkpoint) { this.checkpoint.queue = []; this.save(); }
+    if (this.health.model === 'requesting') this.health.model = 'idle';
+    if (this.checkpoint) {
+      if (discard) { this.checkpoint.queue = []; delete this.checkpoint.event_batch; }
+      this.save();
+    }
   }
 
   session() {
@@ -231,6 +302,8 @@ export class PlazaRunner extends EventEmitter {
   }
 
   async activate(control) {
+    await this.refreshRules();
+    this.lastControl = control;
     const run = control.run;
     const existing = this.checkpoint;
     const sameRun = existing?.run_id === run.run_id;
@@ -253,8 +326,11 @@ export class PlazaRunner extends EventEmitter {
     this.checkpoint.calls_used = Math.max(this.checkpoint.calls_used, control.diagnostics?.calls_used || 0);
     this.checkpoint.max_calls = Math.min(this.checkpoint.max_calls, run.max_calls);
     this.checkpoint.expires_at = Math.min(timestamp(this.checkpoint.expires_at), timestamp(run.expires_at));
+    this.ensureCounters();
     this.observation = observation; this.observedAt = this.now(); this.goal = run.goal || '';
     this.active = true; this.lastDecisionAt = 0; this.initialDecisionPending = true;
+    this.authorityGeneration++;
+    Object.assign(this.health, { world: 'connected', waiting_reason: 'idle', error_code: null });
     this.save();
     if (budgetLost) {
       this.checkpointCorrupt = false;
@@ -270,21 +346,42 @@ export class PlazaRunner extends EventEmitter {
     let failures = 0;
     while (this.running) {
       try {
+        if (!this.connected) await this.connect();
+        if (!this.running) break;
+        await this.checkHost();
+        if (this.now() - this.lastRulesAt >= 60000) await this.refreshRules();
         if (!this.active) {
           const control = await this.call('get_control_state', {});
-          if (control.run && (!control.auth_controller_id || control.auth_controller_id === control.run.controller_id) && ['active', 'authorized', 'running'].includes(control.run.status) && timestamp(control.run.expires_at) > this.now()) await this.activate(control);
-          if (!this.active) { await delay(500, this.abort.signal); continue; }
+          this.lastControl = control;
+          const reason = this.controlReason(control);
+          this.health.waiting_reason = reason || 'idle';
+          if (!reason) await this.activate(control);
+          else {
+            this.deactivate();
+            await this.finishStopRequest(control);
+            await this.reportConnection();
+          }
+          failures = 0;
+          if (!this.active) { await delay(1000, this.abort.signal); continue; }
         }
         const result = await this.call('get_events', { ...this.session(), cursor: this.checkpoint.cursor, wait_seconds: this.pollSeconds });
         if (!this.running) break;
         const control = result.control_state;
+        if (control) this.lastControl = control;
         if (control && (control.session_epoch !== this.checkpoint.session_epoch || control.run?.run_id !== this.checkpoint.run_id || ['paused', 'offline', 'recalled'].includes(control.status))) {
-          this.deactivate(); continue;
+          const reason = this.controlReason(control);
+          this.deactivate({ discard: !!reason });
+          if (reason) this.health.waiting_reason = reason;
+          else { this.connected = false; this.health.world = 'reconnecting'; }
+          continue;
         }
         if (result.snapshot) {
           this.observation = result.snapshot; this.observedAt = this.now();
-          this.checkpoint.queue = [];
-          this.checkpoint.seen = [];
+          // A refreshed snapshot cannot ACK messages already stored locally.
+          if (result.cursor_expired) {
+            this.checkpoint.event_gap_at = this.now();
+            if (!this.health.error_code) this.health.error_code = 'EVENT_GAP';
+          }
         } else {
           this.checkpoint = enqueueEvents(this.checkpoint, result.events, this.observation.self.agent_id, this.observation.group?.members || []);
         }
@@ -297,12 +394,57 @@ export class PlazaRunner extends EventEmitter {
         await delay(result.events?.length ? 50 : 300, this.abort.signal);
       } catch (error) {
         if (!this.running) break;
-        if (CONTROL_ERRORS.has(error.code)) this.deactivate();
+        if (CONTROL_ERRORS.has(error.code)) {
+          this.deactivate({ discard: !['STALE_SESSION', 'NOT_IN_WORLD'].includes(error.code) });
+          this.health.waiting_reason = this.errorReason(error.code);
+          this.health.error_code = error.code;
+          if (['STALE_SESSION', 'NOT_IN_WORLD'].includes(error.code)) this.connected = false;
+        } else this.connectionFailure(error);
         this.lastError = error.message;
         if (++failures === 1) this.log(`事件连接等待重试：${error.message}`);
-        await delay(Math.min(5000, 500 * 2 ** Math.min(failures, 4)), this.abort.signal);
+        if (INCOMPATIBLE_ERRORS.has(error.code) || ['ROOM_FULL', 'ROOM_PAUSED', 'RUN_EXPIRED'].includes(error.code)) await this.reportConnection().catch(() => {});
+        await delay(Math.min(BACKOFF_MAX_MS, 500 * 2 ** Math.min(failures, 6)), this.abort.signal);
       }
     }
+  }
+
+  async checkHost() {
+    if (this.mode !== 'dsh-pet' || !this.petClient.preflight || this.modelAbort || this.hostCheckJob || this.now() - this.lastHostCheckAt < 30000) return;
+    this.lastHostCheckAt = this.now();
+    this.hostCheckJob = this.petClient.preflight({ force: true, signal: AbortSignal.any([this.abort.signal, AbortSignal.timeout(5000)]) });
+    try {
+      await this.hostCheckJob;
+      Object.assign(this.health, { host: 'ready', last_host_success_at: this.now() });
+      if (HOST_ERRORS.has(this.health.error_code)) this.health.error_code = null;
+    } catch (error) {
+      if (!this.running || this.abort.signal.aborted) return;
+      this.health.host = 'unavailable';
+      this.health.error_code = /^[A-Z][A-Z0-9_]{0,63}$/.test(error.code || '') ? error.code : 'PET_UNAVAILABLE';
+    } finally { this.hostCheckJob = null; }
+    this.save(); // Read-only host proof remains useful while the owner has paused.
+  }
+
+  errorReason(code) {
+    return { RUN_EXPIRED: 'grant_expired', ROOM_PAUSED: 'room_paused', ROOM_FULL: 'room_full', CONTROLLER_BUSY: 'controller_busy', NOT_AUTHORIZED: 'revoked', BUDGET_EXHAUSTED: 'budget_exhausted' }[code] || 'reconnecting';
+  }
+
+  controlReason(control) {
+    const run = control.run;
+    if (!run) return 'grant_missing';
+    if (control.auth_controller_id && control.auth_controller_id !== run.controller_id) return 'controller_busy';
+    if (timestamp(run.expires_at) <= this.now()) return 'grant_expired';
+    if (this.checkpoint?.stop_request?.run_id === run.run_id) return this.checkpoint.stop_request.waiting_reason;
+    if (run.status === 'paused' || control.status === 'paused') return /房间/.test(control.reason || '') ? 'room_paused' : 'owner_paused';
+    if (!['active', 'authorized', 'running'].includes(run.status)) return 'revoked';
+    if (this.mode !== 'demo' && this.checkpoint?.run_id === run.run_id && !this.checkpoint.pending_action && this.checkpoint.calls_used >= Math.min(this.checkpoint.max_calls, run.max_calls)) return 'budget_exhausted';
+    return null;
+  }
+
+  async finishStopRequest(control) {
+    const stop = this.checkpoint?.stop_request;
+    if (!stop || stop.run_id !== control.run?.run_id || control.status !== 'active' || control.run.status !== 'active' || timestamp(control.run.expires_at) <= this.now()) return;
+    // Only finish the already requested pause, never join or renew this grant.
+    await this.call('pause_self', { run_id: stop.run_id, session_epoch: control.session_epoch, reason: stop.reason });
   }
 
   async decisionLoop() {
@@ -319,7 +461,8 @@ export class PlazaRunner extends EventEmitter {
         }
         this.lastCycleAt = this.now();
       } catch (error) {
-        if (CONTROL_ERRORS.has(error.code)) this.deactivate();
+        if (CONTROL_ERRORS.has(error.code)) { this.deactivate({ discard: !['STALE_SESSION', 'NOT_IN_WORLD'].includes(error.code) }); this.health.waiting_reason = this.errorReason(error.code); }
+        else if (error.code === 'WORLD_UNAVAILABLE') this.connectionFailure(error);
         else if (this.active) {
           this.lastError = error.message;
           this.log(`决策等待重试：${error.message}`);
@@ -331,11 +474,12 @@ export class PlazaRunner extends EventEmitter {
   }
 
   decisionDue() {
+    if (this.now() < (this.checkpoint?.model_retry_at || 0)) return false;
     if (this.initialDecisionPending && this.lastDecisionAt === 0) return true;
     const elapsed = this.now() - this.lastDecisionAt;
     if (elapsed < this.decisionIntervalMs) return false;
     if (this.checkpoint.pending_action || this.mode === 'demo') return true;
-    if (this.checkpoint.queue.length) return true;
+    if (this.checkpoint.event_batch || this.checkpoint.queue.length) return true;
     const game = this.observation?.game;
     const selfId = this.observation?.self?.agent_id;
     const serverNow = (this.observation?.server_time ?? this.observedAt) + Math.max(0, this.now() - this.observedAt);
@@ -368,6 +512,7 @@ export class PlazaRunner extends EventEmitter {
   }
 
   async decide() {
+    if (this.now() < (this.checkpoint.model_retry_at || 0)) return;
     this.initialDecisionPending = false;
     this.lastDecisionAt = this.now();
     if (this.checkpoint.pending_action) { await this.recoverPending(); return; }
@@ -377,7 +522,28 @@ export class PlazaRunner extends EventEmitter {
     this.checkpoint.next_action_id = observation.next_action_id;
     const epoch = this.checkpoint.session_epoch;
     const runId = this.checkpoint.run_id;
-    const events = this.checkpoint.queue.splice(0);
+    const generation = this.authorityGeneration;
+    if (!this.checkpoint.event_batch) {
+      this.checkpoint.batch_sequence = (this.checkpoint.batch_sequence || 0) + 1;
+      let events;
+      if (this.mode === 'dsh-pet') {
+        // The compact host prompt can guarantee delivery of one message. Urgent
+        // danger must not sit behind older join/activity events in that queue.
+        const danger = this.checkpoint.queue.findIndex(event => /^(adventure_danger|adventure_defeated|fatigue_exhausted)$/.test(event.type));
+        const aggro = this.checkpoint.queue.findIndex(event => event.type === 'adventure_aggro');
+        const message = this.checkpoint.queue.findIndex(event => /message|chat|story_submitted/.test(event.type || '') && typeof event.payload?.text === 'string');
+        const notice = this.checkpoint.queue.findIndex(event => /^(fatigue_tired|game_turn)$/.test(event.type));
+        const urgent = danger >= 0 ? danger : aggro;
+        const deliverMessage = message >= 0 && (urgent < 0 || (this.checkpoint.priority_batches || 0) >= 2);
+        const selected = deliverMessage ? message : [danger, aggro, message, notice].find(index => index >= 0) ?? 0;
+        this.checkpoint.priority_batches = selected === urgent && message >= 0 ? (this.checkpoint.priority_batches || 0) + 1 : 0;
+        events = this.checkpoint.queue.splice(selected, 1);
+      } else events = this.checkpoint.queue.splice(0, 25);
+      this.checkpoint.event_batch = { id: `${runId}:${this.checkpoint.batch_sequence}`, run_id: runId,
+        events, attempts: 0 };
+    }
+    const batchId = this.checkpoint.event_batch.id;
+    const events = this.checkpoint.event_batch.events;
     this.save();
     let action;
     if (this.mode === 'demo') action = this.demoDecision(observation, events);
@@ -385,22 +551,38 @@ export class PlazaRunner extends EventEmitter {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           action = await this.modelDecision(observation, events, attempt === 1);
-          if (this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) return;
+          if (this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) return;
+          if (action.type !== 'wait' && Array.isArray(this.rules?.allowed_actions) && !this.rules.allowed_actions.includes(action.type)) throw new RunnerError('INVALID_MODEL_OUTPUT', '动作不在当前服务器规则中');
           this.checkpoint.consecutive_errors = 0;
+          this.checkpoint.model_retry_at = 0;
           break;
         } catch (error) {
-          if (!this.active || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch || error.name === 'AbortError' && this.abort.signal.aborted) return;
-          if (CONTROL_ERRORS.has(error.code)) { this.deactivate(); return; }
-          this.checkpoint.consecutive_errors++;
+          if (!this.active || this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch || error.name === 'AbortError' && this.abort.signal.aborted) return;
+          if (CONTROL_ERRORS.has(error.code)) { this.deactivate({ discard: !['STALE_SESSION', 'NOT_IN_WORLD'].includes(error.code) }); return; }
+          if (error.code === 'WORLD_UNAVAILABLE') { this.connectionFailure(error); return; }
+          if (error.code === 'BUDGET_EXHAUSTED') { await this.pause('模型调用预算已用完'); return; }
+          this.checkpoint.consecutive_errors = (this.checkpoint.consecutive_errors || 0) + 1;
+          const local = HOST_ERRORS.has(error.code) || ['PET_CONTEXT_TOO_LARGE', 'MODEL_CONFIG', 'PET_URL'].includes(error.code);
+          if (local) this.ensureCounters().local_failures++;
+          Object.assign(this.health, { waiting_reason: HOST_ERRORS.has(error.code) ? 'host_unavailable' : local || error.code === 'INVALID_MODEL_OUTPUT' ? 'local_error' : 'model_unavailable',
+            error_code: /^[A-Z][A-Z_]{0,63}$/.test(error.code || '') ? error.code : 'MODEL_UNAVAILABLE' });
+          if (HOST_ERRORS.has(error.code)) this.health.host = 'unavailable';
+          else if (!local) this.health.model = error.code === 'INVALID_MODEL_OUTPUT' ? 'ready' : 'unavailable';
+          this.checkpoint.model_retry_at = this.now() + Math.min(BACKOFF_MAX_MS, 5000 * 2 ** Math.min(3, this.checkpoint.consecutive_errors - 1));
           this.save();
-          if (this.checkpoint.consecutive_errors >= 3) { await this.pause('模型连续三次调用失败'); return; }
           await this.report('waiting', error.message);
           // Only malformed output gets one correction; failures do not trigger unbounded retries.
           if (error.code !== 'INVALID_MODEL_OUTPUT' || attempt !== 0 || this.checkpoint.calls_used >= this.checkpoint.max_calls) return;
         }
       }
     }
-    if (!this.running || !this.active || this.checkpoint.session_epoch !== epoch || this.checkpoint.run_id !== runId) return;
+    if (!this.running || !this.active || this.authorityGeneration !== generation || this.checkpoint.session_epoch !== epoch || this.checkpoint.run_id !== runId) return;
+    // This check applies to wait as well: a late wait must not ACK a paused batch.
+    const control = await this.call('get_control_state', {});
+    if (control.session_epoch !== epoch || control.run?.run_id !== runId || control.status !== 'active') {
+      this.deactivate({ discard: !!this.controlReason(control) }); return;
+    }
+    if (!this.active || this.authorityGeneration !== generation) return;
     if (action) { this.checkpoint.last_decision_type = action.type; this.save(); }
     if (observation.self?.activity) {
       this.checkpoint.activity_seen = `${observation.self.activity.activity_id}:${observation.self.activity.started_at}`;
@@ -408,48 +590,67 @@ export class PlazaRunner extends EventEmitter {
     }
     if (action && action.type !== 'wait') {
       // Check server authority again after a slow model completion.
-      const control = await this.call('get_control_state', {});
-      if (control.session_epoch !== epoch || control.run?.run_id !== runId || control.status !== 'active') { this.deactivate(); return; }
       let adjustment = null;
       if (action.type === 'move' && this.mode !== 'demo') {
         // A plan may have moved us while the original AI was thinking. Use a fresh
         // observation exactly once, before persisting the idempotent action.
         const latest = await this.call('observe', this.session());
-        if (!this.running || !this.active || this.checkpoint.session_epoch !== epoch || this.checkpoint.run_id !== runId) return;
+        if (!this.running || !this.active || this.authorityGeneration !== generation || this.checkpoint.session_epoch !== epoch || this.checkpoint.run_id !== runId) return;
         if (latest.session_epoch !== epoch || latest.run_id !== runId) { this.deactivate(); return; }
         this.observation = latest; this.observedAt = this.now(); this.checkpoint.next_action_id = latest.next_action_id;
         ({ action, adjustment } = normalizeMove(action, latest, this.rules));
       }
       this.checkpoint.pending_action = { ...this.session(), action_id: this.checkpoint.next_action_id, ...action };
+      this.checkpoint.pending_batch_id = batchId;
       if (adjustment) this.checkpoint.pending_movement = { action_id: this.checkpoint.next_action_id, ...adjustment };
       else delete this.checkpoint.pending_movement;
       this.save();
       if (adjustment) this.log(`移动请求 (${adjustment.requested.x},${adjustment.requested.y}) 已截为本步 (${adjustment.applied.x},${adjustment.applied.y})，等待服务确认；未宣称到达原目标。`);
       await this.recoverPending();
-    }
+    } else if (action?.type === 'wait') this.ackBatch(batchId);
+    this.health.waiting_reason = this.waitingReason();
     if (this.active) await this.report('waiting');
+  }
+
+  ackBatch(id) {
+    if (!id || this.checkpoint.event_batch?.id !== id) return;
+    this.checkpoint.last_acked_batch = { id, event_ids: this.checkpoint.event_batch.events.map(event => event.event_id).filter(Boolean), at: this.now() };
+    delete this.checkpoint.event_batch;
+    this.save();
   }
 
   async recoverPending() {
     const action = this.checkpoint.pending_action;
     if (!action) return;
+    const generation = this.authorityGeneration;
     let result;
     try { result = await this.call('get_action_result', { action_id: action.action_id }); }
     catch (error) { if (!['NOT_FOUND', 'ACTION_NOT_FOUND', 'UNKNOWN_ACTION', 'INVALID_ACTION'].includes(error.code)) throw error; }
+    if (!this.active || this.authorityGeneration !== generation || this.checkpoint.pending_action?.action_id !== action.action_id) return;
     if (!result || result.status === 'not_found' || result.found === false || result.result === null) {
       if (action.run_id !== this.checkpoint.run_id || action.session_epoch !== this.checkpoint.session_epoch) {
         // An uncommitted old-session action is not a new-session intention.
         this.checkpoint.pending_action = null;
+        delete this.checkpoint.pending_batch_id;
         delete this.checkpoint.pending_movement;
         this.save();
         return;
       }
+      const control = await this.call('get_control_state', {});
+      if (control.session_epoch !== action.session_epoch || control.run?.run_id !== action.run_id || control.status !== 'active' || this.controlReason(control)) {
+        this.deactivate({ discard: !!this.controlReason(control) }); return;
+      }
+      if (!this.active || this.authorityGeneration !== generation) return;
       result = await this.call('act', action);
     }
     if (!result?.status && ['applied', 'rejected'].includes(result?.result?.status)) result = result.result;
     if (result?.error?.code === 'RATE_LIMITED' || result?.code === 'RATE_LIMITED') return;
+    if (!['applied', 'rejected'].includes(result?.status)) return; // Unknown is not an ACK.
+    if (!this.active || this.authorityGeneration !== generation || this.checkpoint.pending_action?.action_id !== action.action_id) return;
     this.checkpoint.next_action_id = result.next_action_id || this.checkpoint.next_action_id;
     this.checkpoint.pending_action = null;
+    this.ackBatch(this.checkpoint.pending_batch_id);
+    delete this.checkpoint.pending_batch_id;
     const adjusted = this.checkpoint.pending_movement?.action_id === action.action_id ? this.checkpoint.pending_movement : null;
     delete this.checkpoint.pending_movement;
     if (result.status === 'rejected') {
@@ -479,24 +680,57 @@ export class PlazaRunner extends EventEmitter {
     if (this.checkpoint.calls_used >= this.checkpoint.max_calls) throw new RunnerError('BUDGET_EXHAUSTED', '模型调用预算已用完');
     const runId = this.checkpoint.run_id;
     const epoch = this.checkpoint.session_epoch;
+    const generation = this.authorityGeneration;
     const previous = this.checkpoint.last_model_at || 0;
     await delay(Math.max(0, 5000 - (this.now() - previous)), this.abort.signal);
-    if (!this.running || !this.active || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) throw new RunnerError('STALE_SESSION', '运行已暂停');
+    if (!this.running || !this.active || this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) throw new RunnerError('STALE_SESSION', '运行已暂停');
     await this.report('thinking');
-    if (!this.running || !this.active || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) throw new RunnerError('STALE_SESSION', '运行已暂停');
-    if (timestamp(this.checkpoint.expires_at) <= this.now()) throw new RunnerError('RUN_EXPIRED', '本次授权时间已到');
-    this.checkpoint.calls_used++;
-    this.checkpoint.last_model_at = this.now();
-    this.save(); // The spend is durable before any request can leave this process.
     const controller = new AbortController();
     this.modelAbort = controller;
     const timeout = setTimeout(() => controller.abort(), this.mode === 'dsh-pet' ? 65000 : 10000);
+    const onRequest = async () => {
+      if (!this.running || !this.active || controller.signal.aborted || this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) throw new RunnerError('STALE_SESSION', '运行已暂停');
+      if (timestamp(this.checkpoint.expires_at) <= this.now()) throw new RunnerError('RUN_EXPIRED', '本次授权时间已到');
+      if (this.checkpoint.calls_used >= this.checkpoint.max_calls) throw new RunnerError('BUDGET_EXHAUSTED', '模型调用预算已用完');
+      this.checkpoint.calls_used++;
+      this.checkpoint.last_model_at = this.now();
+      const counters = this.ensureCounters();
+      counters.requests++;
+      if (this.checkpoint.event_batch) {
+        if (this.checkpoint.event_batch.attempts > 0) counters.retries++;
+        this.checkpoint.event_batch.attempts++;
+      }
+      Object.assign(this.health, { model: 'requesting', waiting_reason: 'processing', last_request_at: this.now(), error_code: null,
+        ...(this.mode === 'dsh-pet' ? { host: 'ready', last_host_success_at: this.now() } : {}) });
+      this.save(); // Reservation and actual-request counter are durable before fetch.
+    };
+    const replyReceived = () => {
+      // A reply from a previous authorization may finish, but cannot mutate its successor.
+      if (this.checkpoint.run_id !== runId || this.authorityGeneration !== generation) return;
+      this.ensureCounters().replies++;
+      Object.assign(this.health, { model: 'ready', last_model_success_at: this.now(), error_code: null });
+      this.save();
+    };
     try {
       if (this.mode === 'dsh-pet') {
-        const content = await this.petClient.decide({ observation, events, rules: this.rules, ownerGoal: this.goal, correction, lastActionFeedback: this.actionFeedback(observation), signal: controller.signal });
+        // Serialize the background read-only probe with /chat preflight. The pet
+        // endpoint cannot change between validation and its actual POST.
+        await this.hostCheckJob?.catch(() => {});
+        if (!this.active || this.authorityGeneration !== generation || controller.signal.aborted) throw new RunnerError('STALE_SESSION', '运行已暂停');
+        const context = { observation, events, rules: this.rules, ownerGoal: this.goal, correction, lastActionFeedback: this.actionFeedback(observation), signal: controller.signal };
+        const prepared = this.petClient.prepareDecision?.(context);
+        // Older injected adapters lack the request hook. The installed client uses
+        // prepare + preflight + onRequest and never spends for local validation.
+        if (!this.petClient.prepareDecision) await onRequest();
+        const content = await this.petClient.decide(context, { prepared, onRequest: this.petClient.prepareDecision ? onRequest : undefined });
+        replyReceived();
         return parseModelAction(content);
       }
+      if (!this.model.baseUrl || !this.model.model || !this.model.apiKey) throw new RunnerError('MODEL_CONFIG', '请在本机配置模型地址、名称与密钥');
       const baseUrl = this.model.baseUrl.replace(/\/$/, '');
+      // Construct and validate local input before charging the network request.
+      try { new URL(`${baseUrl}/chat/completions`); } catch { throw new RunnerError('MODEL_CONFIG', '本机模型地址格式无效'); }
+      await onRequest();
       const response = await this.fetchImpl(`${baseUrl}/chat/completions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.model.apiKey}` },
         signal: controller.signal,
@@ -511,6 +745,12 @@ export class PlazaRunner extends EventEmitter {
       });
       if (!response.ok) throw new RunnerError('MODEL_HTTP', `模型服务返回 HTTP ${response.status}`);
       const result = await response.json();
+      replyReceived();
+      if (this.authorityGeneration === generation && Number.isSafeInteger(result.usage?.prompt_tokens) && result.usage.prompt_tokens >= 0 && Number.isSafeInteger(result.usage?.completion_tokens) && result.usage.completion_tokens >= 0) {
+        const old = this.checkpoint.token_usage || { input_tokens: 0, output_tokens: 0 };
+        this.checkpoint.token_usage = { input_tokens: old.input_tokens + result.usage.prompt_tokens, output_tokens: old.output_tokens + result.usage.completion_tokens, source: 'provider' };
+        this.save();
+      }
       return parseModelAction(result.choices?.[0]?.message?.content);
     } finally { clearTimeout(timeout); if (this.modelAbort === controller) this.modelAbort = null; }
   }
@@ -575,19 +815,56 @@ export class PlazaRunner extends EventEmitter {
     return act('wait');
   }
 
-  async report(state, lastError = null) {
-    if (!this.active) return;
+  capabilities() {
     const allowed = this.rules?.allowed_actions || [];
-    const capabilities = this.mode === 'demo' ? [] : [
+    return this.mode === 'demo' ? [] : [
       ...(allowed.includes('adventure_plan') ? ['adventure'] : []),
       ...(allowed.includes('farm') ? ['farming'] : []),
       ...(allowed.includes('inventory') ? ['inventory', 'equipment'] : []),
       ...(allowed.includes('farm') && allowed.includes('inventory') && Array.isArray(this.rules?.life?.tools) && ['hoe', 'watering_can'].every(id => this.rules.life.tools.some(tool => tool.id === id && tool.levels?.length)) ? ['farm_tools'] : []),
       ...(this.rules?.fatigue ? ['fatigue'] : []),
+      'recovery', 'reliable_events', ...(this.tools.has('report_connection') ? ['runtime_health'] : []),
     ];
+  }
+
+  waitingReason() {
+    if (this.observation?.self?.adventure?.plan) return 'plan_running';
+    if (this.observation?.self?.activity) return 'activity_running';
+    return this.checkpoint?.queue?.length ? 'waiting_event' : 'idle';
+  }
+
+  healthReport({ connection = false } = {}) {
+    const sameRun = !connection || this.lastControl?.run?.run_id === this.checkpoint?.run_id;
+    return { ...this.health,
+      ...(sameRun ? { counters: this.checkpoint ? { ...this.ensureCounters() } : { requests: 0, replies: 0, retries: 0, local_failures: 0 },
+        pending_events: (this.checkpoint?.queue?.length || 0) + (this.checkpoint?.event_batch?.events?.length || 0), dropped_events: this.checkpoint?.dropped_events || 0,
+        ...(!this.health.error_code && this.checkpoint?.event_gap_at ? { error_code: 'EVENT_GAP' } : {}) } : {}),
+      token_usage: sameRun ? this.checkpoint?.token_usage || null : null };
+  }
+
+  async reportConnection() {
+    if (!this.tools.has('report_connection')) return;
+    const reportRunId = this.lastControl ? this.lastControl.run?.run_id : this.checkpoint?.run_id;
+    const key = JSON.stringify([reportRunId, this.health.world, this.health.host, this.health.model, this.health.waiting_reason, this.health.error_code]);
+    if (this.now() - this.lastConnectionReportAt < 15000 && key === this.lastConnectionReportKey) return;
+    try {
+      await this.call('report_connection', { ...(reportRunId ? { run_id: reportRunId } : {}),
+        ...(RUNTIME_VERSION !== 'unknown' ? { runtime_version: RUNTIME_VERSION } : {}), mode: this.mode, capabilities: this.capabilities(), health: this.healthReport({ connection: true }) });
+    } catch (error) {
+      // Control may change between its read and this optional report. Observe the
+      // new control on the next poll; a diagnostic race is not a network outage.
+      if (error.code === 'STALE_SESSION') return;
+      throw error;
+    }
+    this.lastConnectionReportAt = this.now(); this.lastConnectionReportKey = key;
+  }
+
+  async report(state, lastError = null) {
+    if (!this.active) return this.reportConnection();
     await this.call('report_status', { ...this.session(), state, calls_used: this.checkpoint.calls_used,
       last_error: lastError, last_cycle_at: new Date(this.now()).toISOString(), mode: this.mode,
-      ...(RUNTIME_VERSION !== 'unknown' ? { runtime_version: RUNTIME_VERSION } : {}), capabilities,
+      ...(RUNTIME_VERSION !== 'unknown' ? { runtime_version: RUNTIME_VERSION } : {}), capabilities: this.capabilities(),
+      ...(this.tools.has('report_connection') ? { health: this.healthReport() } : {}),
       ...(this.checkpoint.last_decision_type ? { last_decision_type: this.checkpoint.last_decision_type } : {}) });
     this.lastReportAt = this.now();
   }
@@ -596,10 +873,13 @@ export class PlazaRunner extends EventEmitter {
     if (!this.checkpoint) return;
     this.modelAbort?.abort();
     const session = this.session();
-    this.active = false;
-    this.checkpoint.queue = [];
+    this.health.waiting_reason = /预算/.test(reason) ? 'budget_exhausted' : /时间|到期/.test(reason) ? 'grant_expired' : 'owner_paused';
+    this.checkpoint.stop_request = { run_id: session.run_id, reason, waiting_reason: this.health.waiting_reason };
+    this.deactivate();
     this.save();
-    await this.call('pause_self', { ...session, reason });
+    try { await this.call('pause_self', { ...session, reason }); }
+    catch (error) { if (!['RUN_EXPIRED', 'STALE_SESSION', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY'].includes(error.code)) throw error; }
+    await this.reportConnection();
     this.log(reason);
   }
 

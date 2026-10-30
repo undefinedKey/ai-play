@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SkillClient, origin } from './plaza.mjs';
 import { PlazaRunner } from './runtime.mjs';
 import { DshPetClient, PetError } from './dsh-pet.mjs';
 import { updateNotice } from './update.mjs';
+import { acquireProcessLock } from './process-lock.mjs';
 
 export class BridgeError extends Error { constructor(code, message) { super(message); this.code = code; } }
 const fail = (code, message) => { throw new BridgeError(code, message); };
@@ -13,13 +14,7 @@ const time = value => typeof value === 'number' ? value : Date.parse(value);
 const count = value => Number.isSafeInteger(value) && value >= 0;
 
 export function acquireClientLock(path) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  let descriptor;
-  try { descriptor = openSync(path + '.lock', 'wx', 0o600); }
-  catch { fail('CLIENT_BUSY', '该 Skill 已有操作或常驻桥运行；请先停止原进程，不要删除仍在使用的锁'); }
-  writeFileSync(descriptor, String(process.pid));
-  let released = false;
-  return () => { if (!released) { released = true; closeSync(descriptor); unlinkSync(path + '.lock'); } };
+  return acquireProcessLock(path + '.lock');
 }
 
 function validateCheckpoint(checkpoint) {
@@ -70,7 +65,7 @@ function writeCheckpoint(path, checkpoint) {
 
 export function createToolAdapter(client) {
   return {
-    listTools: () => client.listTools(),
+    listTools: () => { client.protocol = null; return client.listTools(); },
     // The runtime owns action IDs, recovery and model-call accounting. SkillClient.call would
     // count actions again and overwrite run/epoch, so use its raw MCP tool method here.
     callTool: async ({ name, arguments: args }) => ({ structuredContent: await client.tool(name, args) }),
@@ -96,12 +91,26 @@ export async function createBridge({ statePath, checkpointPath, petId, petUrl, p
       validateCheckpoint(existing);
     }
     const pet = providedPet || new DshPetClient({ url: petUrl, petId, home: petHome, runtimePath, fetchImpl: petFetchImpl });
-    await pet.initialize();
-    const binding = { pet_id: pet.petId, pet_url: pet.connection?.baseUrl || null, agent_id: client.state.agent_id, controller_id: client.state.controller_id };
-    if (existing?.bridge_binding && JSON.stringify(existing.bridge_binding) !== JSON.stringify(binding)) {
+    pet.expectBinding?.(existing?.bridge_binding);
+    let unavailable;
+    try { await pet.initialize(); }
+    catch (error) {
+      if (!existing?.bridge_binding || !['PET_NOT_FOUND', 'PET_UNAVAILABLE', 'PET_HTTP', 'PET_RESPONSE', 'PET_RUNTIME_INVALID', 'PET_HIDDEN'].includes(error.code)) throw error;
+      unavailable = error;
+    }
+    const binding = { pet_id: pet.petId, pet_url: pet.connection?.baseUrl || null, ...(pet.discovery ? { pet_discovery: pet.discovery } : {}), agent_id: client.state.agent_id, controller_id: client.state.controller_id };
+    const previous = existing?.bridge_binding;
+    if (unavailable && previous && !pet.connection && !previous.pet_discovery) binding.pet_url = previous.pet_url;
+    if (previous && (['pet_id', 'agent_id', 'controller_id'].some(key => previous[key] !== binding[key]) ||
+      (previous.pet_discovery ? JSON.stringify(previous.pet_discovery) !== JSON.stringify(binding.pet_discovery) : previous.pet_url !== binding.pet_url))) {
       fail('PET_BINDING_CHANGED', '桥记录已绑定另一只桌宠或广场角色，请为另一只宠物使用独立配对记录');
     }
-    const control = await client.tool('get_control_state', {});
+    let control;
+    try { control = await client.tool('get_control_state', {}); }
+    catch (error) {
+      if (!existing || !(error.code === 'NETWORK_ERROR' || /^HTTP_5\d\d$/.test(error.code))) throw error;
+      control = { run: { ...existing }, diagnostics: {} };
+    }
     const checkpoint = migrateCheckpoint(client.state, control, existing);
     if (checkpoint) { checkpoint.bridge_binding = binding; writeCheckpoint(path, checkpoint); }
     const sync = (cp, active) => {
@@ -117,6 +126,7 @@ export async function createBridge({ statePath, checkpointPath, petId, petUrl, p
     };
     runner = new PlazaRunner({ mode: 'dsh-pet', petClient: pet, toolClient: createToolAdapter(client), checkpointPath: path,
       idleMs: idleSeconds * 1000, now, logger, onCheckpoint: sync, checkpointMetadata: { bridge_binding: binding } });
+    if (unavailable) logger('原桌宠暂不可用；保留原身份和预算，等待同一宿主恢复。');
     let stopped = false;
     const stop = async () => {
       if (stopped) return;
@@ -151,11 +161,10 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   const bridge = await createBridge({ ...options, logger: message => console.log(message) });
-  console.log(`已连接原桌宠 ${bridge.pet.name || bridge.pet.petId}；按网页授权的时间与调用预算活动，Ctrl+C 停止。`);
+  console.log(`原桌宠桥 ${bridge.pet.name || bridge.pet.petId} 已启动；按网页授权活动，实际连通与等待状态见运行诊断，Ctrl+C 停止。`);
   const stop = () => bridge.stop().catch(() => { process.exitCode = 1; });
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
-  bridge.runner.on('runner-error', stop);
-  if (bridge.runner.lastError) await bridge.stop();
+  bridge.runner.on('runner-error', () => { process.exitCode = 1; void stop(); });
   void updateNotice({ statePath: bridge.client.path }).then(update => { if (update) console.error(JSON.stringify({ update })); });
   return bridge;
 }

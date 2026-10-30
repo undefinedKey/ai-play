@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { movementPromptContext } from './movement.mjs';
 
 export class PetError extends Error {
@@ -20,7 +20,7 @@ export function localPetUrl(value) {
 }
 
 /** Discover only an existing local runtime. Never start, install, expose or reconfigure a pet. */
-export function resolvePetConnection({ url, token, home = process.env.DSH_HOME || join(homedir(), '.dsh'), runtimePath = join(home, 'dsh-pet', 'standalone-runtime.json') } = {}) {
+function discoverPetConnection({ url, token, home = process.env.DSH_HOME || join(homedir(), '.dsh'), runtimePath = join(home, 'dsh-pet', 'standalone-runtime.json'), runtimeOnly = false } = {}) {
   let runtime;
   if (existsSync(runtimePath)) {
     try {
@@ -29,15 +29,16 @@ export function resolvePetConnection({ url, token, home = process.env.DSH_HOME |
           typeof runtime.token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(runtime.token)) throw new Error();
     } catch { fail('PET_RUNTIME_INVALID', '桌宠本机运行记录无效；请检查原桌宠进程，不要重置其配置'); }
   }
-  const requested = url || process.env.DSH_PET_URL;
+  const requested = runtimeOnly ? undefined : url || process.env.DSH_PET_URL;
   if (!requested && !runtime) fail('PET_NOT_FOUND', '未找到正在运行的独立桌宠。DSH 宿主模式请用 --pet-url 指定实际本机地址');
   const baseUrl = localPetUrl(requested || `http://127.0.0.1:${runtime.port}`);
   const target = new URL(baseUrl);
   const runtimeMatches = runtime && target.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(target.hostname) && Number(target.port || 80) === runtime.port;
   const capability = token ?? (runtimeMatches ? runtime.token : undefined);
   if (capability !== undefined && (typeof capability !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(capability))) fail('PET_TOKEN_INVALID', '桌宠本机访问凭据无效');
-  return { baseUrl, token: capability };
+  return { baseUrl, token: capability, discovery: runtimeMatches && token === undefined ? { kind: 'runtime', path: resolve(runtimePath) } : { kind: 'explicit', url: baseUrl } };
 }
+export function resolvePetConnection(options = {}) { const { baseUrl, token } = discoverPetConnection(options); return { baseUrl, token }; }
 
 const text = (value, maximum) => typeof value === 'string' ? [...value].slice(0, maximum).join('') : undefined;
 const pick = (source, fields) => Object.fromEntries(fields.filter(key => source?.[key] !== undefined).map(key => [key, source[key]]));
@@ -420,8 +421,36 @@ export class DshPetClient {
   constructor({ petId = process.env.DSH_PET_ID, fetchImpl = fetch, ...connection } = {}) {
     this.connectionOptions = connection; this.petId = petId; this.fetch = fetchImpl;
   }
-  async request(path, { body, signal } = {}) {
-    this.connection ||= resolvePetConnection(this.connectionOptions);
+  expectBinding(binding) {
+    if (!binding) return;
+    if (typeof binding.pet_id !== 'string' || !binding.pet_id) fail('PET_BINDING_CHANGED', '桥记录缺少原桌宠身份，请核实原连接');
+    if (this.petId && this.petId !== binding.pet_id) fail('PET_BINDING_CHANGED', '桥记录属于另一只原桌宠，不能自动更换身份');
+    this.petId = binding.pet_id;
+    if (binding.pet_discovery?.kind === 'runtime') {
+      const expected = resolve(this.connectionOptions.runtimePath || join(this.connectionOptions.home || process.env.DSH_HOME || join(homedir(), '.dsh'), 'dsh-pet', 'standalone-runtime.json'));
+      if (binding.pet_discovery.path !== expected) fail('PET_BINDING_CHANGED', '原宿主发现来源已改变，请核实原连接');
+      this.discovery = { ...binding.pet_discovery };
+    } else if (binding.pet_discovery?.kind === 'explicit') {
+      this.discovery = { kind: 'explicit', url: localPetUrl(binding.pet_discovery.url) };
+    } else if (!binding.pet_discovery && binding.pet_url) {
+      this.legacyUrl = localPetUrl(binding.pet_url);
+    } else {
+      fail('PET_BINDING_CHANGED', '桥记录的原宿主发现来源无效，请核实原连接');
+    }
+  }
+  discover() {
+    const discovered = discoverPetConnection({ ...this.connectionOptions, runtimeOnly: this.discovery?.kind === 'runtime' });
+    if (this.legacyUrl && discovered.baseUrl !== this.legacyUrl) fail('PET_BINDING_CHANGED', '旧桥尚未验证新的发现来源，请使用原宿主地址完成升级');
+    if (this.discovery && JSON.stringify(this.discovery) !== JSON.stringify(discovered.discovery)) fail('PET_BINDING_CHANGED', '原宿主发现来源已改变，未调用其他实例');
+    if (!this.connection || this.connection.baseUrl !== discovered.baseUrl || this.connection.token !== discovered.token) this.verifiedAt = 0;
+    this.connection = { baseUrl: discovered.baseUrl, token: discovered.token };
+    this.discovery = discovered.discovery;
+  }
+  async request(path, { body, signal, model = false, onRequest } = {}) {
+    if (!this.connection) this.discover();
+    if (signal?.aborted) throw Object.assign(new Error('桌宠请求已取消'), { name: 'AbortError' });
+    if (model) await onRequest?.(); // Budget authorization must finish before fetch; rejection prevents the request.
+    if (signal?.aborted) throw Object.assign(new Error('桌宠请求已取消'), { name: 'AbortError' });
     let response;
     try {
       response = await this.fetch(this.connection.baseUrl + path, {
@@ -433,18 +462,28 @@ export class DshPetClient {
       });
     } catch (error) {
       if (signal?.aborted) throw Object.assign(new Error('桌宠请求已取消'), { name: 'AbortError' });
-      fail('PET_UNAVAILABLE', '无法连接本机原桌宠，或桌宠请求了重定向；未调用替代模型');
+      fail(model ? 'PET_MODEL_UNAVAILABLE' : 'PET_UNAVAILABLE', '无法连接本机原桌宠，或桌宠请求了重定向；未调用替代模型');
     }
-    if (!response.ok) fail('PET_HTTP', `本机桌宠返回 HTTP ${response.status}；请检查原进程与本机访问授权`);
-    try { return await response.json(); } catch { fail('PET_RESPONSE', '本机桌宠未返回有效 JSON 响应'); }
+    if (!response.ok) fail(model ? 'PET_MODEL_HTTP' : 'PET_HTTP', `本机桌宠返回 HTTP ${response.status}；请检查原进程与本机访问授权`);
+    try { return await response.json(); } catch { fail(model ? 'PET_GENERATION_FAILED' : 'PET_RESPONSE', '本机桌宠未返回有效 JSON 响应'); }
   }
-  async listPets() {
-    const config = await this.request('/config');
+  async listPets({ signal } = {}) {
+    const config = await this.request('/config', { signal });
     const pets = Object.values(config || {}).flatMap(entry => Array.isArray(entry?.pets) ? entry.pets : []);
     return pets.filter(p => typeof p?.id === 'string' && p.id).map(p => ({ id: p.id, name: text(p.name || p.id, 80), display: p.display }));
   }
-  async initialize() {
-    const pets = await this.listPets();
+  async preflight({ signal, force = false } = {}) {
+    this.discover();
+    if (!force && this.petId && this.verifiedAt && Date.now() - this.verifiedAt < 2000) return { id: this.petId, name: this.name };
+    let pets;
+    try { pets = await this.listPets({ signal }); }
+    catch (error) {
+      if (!['PET_UNAVAILABLE', 'PET_HTTP', 'PET_RESPONSE'].includes(error.code)) throw error;
+      const previous = this.connection;
+      this.discover();
+      if (previous.baseUrl === this.connection.baseUrl && previous.token === this.connection.token) throw error;
+      pets = await this.listPets({ signal }); // Discovery race: retry only GET, never an uncertain /chat.
+    }
     if (!pets.length) fail('PET_NOT_FOUND', '原桌宠没有可用实例，请先在原应用启动桌宠');
     if (!this.petId && pets.length > 1) fail('PET_SELECTION_REQUIRED', '找到多个桌宠，请先运行 pets 查看名字和 ID，再用 --pet ID 选择');
     this.petId ||= pets[0].id;
@@ -452,12 +491,19 @@ export class DshPetClient {
     if (!selected) fail('PET_NOT_FOUND', '指定桌宠 ID 不存在，请运行 pets 查看');
     if (selected.display === 'none') fail('PET_HIDDEN', '原桌宠目前隐藏；请在原应用选择显示后再连接');
     this.name = selected.name;
+    delete this.legacyUrl;
+    this.verifiedAt = Date.now();
     return selected;
   }
-  async decide(context) {
+  async initialize() { return this.preflight({ force: true }); }
+  prepareDecision(context) { return { text: decisionPrompt(context) }; }
+  async decide(context, { prepared, onRequest, signal = context.signal } = {}) {
     if (!this.petId) fail('PET_NOT_READY', '请先选择原桌宠');
+    const body = prepared || this.prepareDecision(context);
+    if (!body || typeof body.text !== 'string' || body.text.length > 2000) fail('PET_CONTEXT_TOO_LARGE', '公开观察超过桌宠消息上限，未发送模型请求');
+    await this.preflight({ signal, force: true });
     const result = await this.request(`/chat?pet=${encodeURIComponent(this.petId)}&surface=any`, {
-      body: { text: decisionPrompt(context) }, signal: context.signal,
+      body: { text: body.text }, signal, model: true, onRequest,
     });
     if (!result.ok || typeof result.text !== 'string') fail('PET_GENERATION_FAILED', '原桌宠未能生成回复；请检查其模型配置，桥不会配置或替换模型');
     return result.text;

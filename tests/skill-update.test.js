@@ -74,31 +74,33 @@ test('0.9.0完整升级要求版本文件与Skill一致，保留已有身份和�
   assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
 });
 
-test('0.11.0独立升级包含疲劳和农具文档，实际运行器可脱离仓库加载并报告真实版本与能力', async t => {
+test('0.12.0独立升级包含恢复锁与文档，实际桥可脱离仓库加载并报告真实版本与能力', async t => {
   const f = fixture(t);
-  const files = Object.fromEntries(['SKILL.md', 'version.json', 'references/play.md', 'references/fatigue.md', 'references/farming-tools.md',
-    ...['runtime', 'dsh-pet', 'bridge', 'movement', 'plaza', 'update'].map(name => `scripts/${name}.mjs`)]
+  const files = Object.fromEntries(['SKILL.md', 'version.json', 'references/play.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md',
+    ...['runtime', 'dsh-pet', 'bridge', 'movement', 'plaza', 'update', 'process-lock'].map(name => `scripts/${name}.mjs`)]
     .map(path => [path, readFileSync(new URL(`../skills/ai-plaza/${path}`, import.meta.url), 'utf8')]));
-  for (const missing of ['references/play.md', 'references/fatigue.md', 'references/farming-tools.md']) {
+  for (const missing of ['references/play.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md', 'scripts/process-lock.mjs']) {
     const incomplete = { ...files }; delete incomplete[missing];
-    await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.11.0', newFiles: incomplete }).fetchImpl }), { code: 'UPDATE_TREE' });
+    await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.12.0', newFiles: incomplete }).fetchImpl }), { code: 'UPDATE_TREE' });
     assert.match(readFileSync(join(f.root, 'SKILL.md'), 'utf8'), /0\.5\.0/);
   }
-  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.11.0', newFiles: { ...files, 'version.json': '{"version":"0.10.0"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
-  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.11.0', newFiles: files }).fetchImpl });
+  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.12.0', newFiles: { ...files, 'version.json': '{"version":"0.11.0"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
+  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.12.0', newFiles: files }).fetchImpl });
   const { PlazaRunner } = await import(pathToFileURL(join(f.root, 'scripts/runtime.mjs')).href);
+  const { createBridge } = await import(pathToFileURL(join(f.root, 'scripts/bridge.mjs')).href);
+  assert.equal(typeof createBridge, 'function');
   const reports = [], runner = new PlazaRunner({ mode: 'dsh-pet', petClient: {}, toolClient: {
     callTool: async ({ arguments: args }) => { reports.push(args); return { structuredContent: {} }; },
   } });
   runner.rules = { fatigue: {} }; runner.active = true;
   runner.checkpoint = { run_id: 'same-run', session_epoch: 1, calls_used: 37 };
   await runner.report('waiting');
-  assert.equal(reports.at(-1).runtime_version, '0.11.0');
-  assert.deepEqual(reports.at(-1).capabilities, ['fatigue']);
+  assert.equal(reports.at(-1).runtime_version, '0.12.0');
+  assert.deepEqual(reports.at(-1).capabilities, ['fatigue', 'recovery', 'reliable_events']);
   runner.rules = { allowed_actions: ['farm', 'inventory'], life: { tools: ['hoe', 'watering_can'].map(id => ({ id, levels: [{ level: 1 }] })) } };
-  await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, ['farming', 'inventory', 'equipment', 'farm_tools']);
+  await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, ['farming', 'inventory', 'equipment', 'farm_tools', 'recovery', 'reliable_events']);
   delete runner.rules.life.tools; await runner.report('waiting'); assert.ok(!reports.at(-1).capabilities.includes('farm_tools'));
-  runner.rules = {}; await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, []);
+  runner.rules = {}; await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, ['recovery', 'reliable_events']);
   runner.rules = { fatigue: {}, allowed_actions: ['farm', 'inventory'], life: { tools: ['hoe', 'watering_can'].map(id => ({ id, levels: [{ level: 1 }] })) } };
   runner.mode = 'demo'; await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, []);
   assert.match(readFileSync(join(f.root, 'references/fatigue.md'), 'utf8'), /不会.*替你选择/);

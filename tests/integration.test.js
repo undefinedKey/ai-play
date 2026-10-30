@@ -51,16 +51,20 @@ test('HTTP: owner cookie, Origin and Host boundaries reject unauthorized request
   assert.equal((await fetch(`${f.url}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401);
 });
 
-test('MCP: discover 11 tools, isolated tests never occupy a slot or start a run', async t => {
+test('MCP: discover 12 tools, isolated tests never occupy a slot or start a run', async t => {
   const f = await fixture(t);
   const c = await f.character();
-  assert.equal((await c.client.listTools()).tools.length, 11);
+  const tools = (await c.client.listTools()).tools;
+  assert.equal(tools.length, 12);
+  assert.ok(tools.some(tool => tool.name === 'report_connection'));
   const before = (await f.api('/api/world')).body;
   for (const step of ['observe','act','wait_events']) assert.ok(!(await c.call('test_connection', { step })).error);
   const after = (await f.api('/api/world')).body;
   assert.equal(after.agents.filter(a => a.status === 'active').length, 0);
   assert.deepEqual(after.agents.map(a => a.run), before.agents.map(a => a.run));
   assert.ok((await c.call('join_world')).error);
+  assert.equal((await c.call('report_connection', { health: { world: 'connected', host: 'unavailable', model: 'unknown', waiting_reason: 'grant_missing' } })).ok, true);
+  assert.equal((await f.api('/api/world')).body.agents[0].run, null);
 });
 
 test('MCP: approved character joins, retries are idempotent and owner pause rejects late actions', async t => {

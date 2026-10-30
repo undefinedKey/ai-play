@@ -59,6 +59,7 @@ test('农作区独立于两张世界地图，真实农具使用维修升级可�
   await expect(page.getByTestId('farm-view')).toBeVisible();
   await expect(page.getByTestId('farm-present-agent')).toBeVisible();
   await expect(page.getByTestId('farm-plot_1')).toHaveAttribute('data-plot-state','untilled');
+  await page.getByTestId('farm-tools').locator('summary').first().click();
   const hoe=page.getByTestId('farm-tool-hoe'),can=page.getByTestId('farm-tool-watering_can');
   await expect(hoe).toContainText('20 / 20');await expect(can).toContainText('20 / 20');
   await a.act('farm',{intent:'till',plot_id:'plot_1'});
@@ -119,10 +120,10 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   while(clock<=planted.ready_at){clock+=Math.min(20000,planted.ready_at+1-clock);application.world.tick();await a.observe();}
   await expect(page.getByTestId('farm-plot_1')).toContainText('已成熟 · 等待收获');
   expect((await a.observe()).self.life.inventory.turnip).toBeUndefined();
-  await page.getByLabel('查看谁的农田').selectOption(b.agent_id);
+  await page.getByLabel('观察对象',{exact:true}).selectOption(b.agent_id);
   await expect(page.locator('.farm-owner')).toContainText('邻居的小田的农田');
   await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
-  await page.getByLabel('查看谁的农田').selectOption(a.agent.agent_id);
+  await page.getByLabel('观察对象',{exact:true}).selectOption(a.agent.agent_id);
   await audit(page,'life-public-mature');
   await a.act('farm',{intent:'harvest',plot_id:'plot_1'});
   await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
@@ -143,9 +144,11 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(warehouse.locator('.warehouse-items>div').filter({has:page.getByText('木剑',{exact:true})})).toContainText('已装备');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('尚未核实');
   await a.report({runtime_version:'0.8.2',mode:'dsh-pet',capabilities:['adventure']});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.11 农具玩法');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.12 恢复诊断');
   await a.report({runtime_version:'0.11.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.11.0');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('早于 0.12 恢复诊断');
+  await a.report({runtime_version:'0.12.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health'],last_decision_type:'wait'});
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.12.0');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('原宠物桥接');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报决定等待');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 已执行');

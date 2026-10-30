@@ -127,13 +127,14 @@ for (const mode of ['model', 'dsh-pet']) test(`${mode}共享运行器用最新�
 
 test('移动结果未知时保持归一化pending与元信息，恢复回执不按新位置二次改坐标', async t => {
   const f = await fixture(t, { loseFirstReceipt: true });
-  await assert.rejects(f.runner.decide(), /lost response/);
+  await assert.rejects(f.runner.decide(), { code: 'WORLD_UNAVAILABLE' });
   const saved = JSON.parse(readFileSync(f.checkpointPath, 'utf8'));
   assert.deepEqual(saved.pending_action.payload, { x: 11, y: 6 });
   assert.deepEqual(saved.pending_movement.requested, { x: 100, y: -100 });
   assert.deepEqual(saved.pending_movement.applied, saved.pending_action.payload);
   f.a.position = { x: 20, y: 15 }; // World may advance after an acknowledged action whose reply was lost.
-  await f.runner.recoverPending();
+  await f.runner.connect();
+  await f.runner.activate(await f.runner.call('get_control_state', {}));
   assert.equal(f.tools.filter(call => call.name === 'act').length, 1);
   assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.pending_movement, undefined);
   assert.deepEqual(f.runner.checkpoint.last_action_feedback.applied, { x: 11, y: 6 });

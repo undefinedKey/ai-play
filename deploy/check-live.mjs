@@ -11,7 +11,7 @@ const health = await (await response('/api/health')).json();
 assert.equal(health.ok, true);
 assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
-for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world']) assert.equal(health.capabilities[capability], true, capability);
+for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
@@ -38,7 +38,10 @@ for (const agent of world.agents) {
     assert.ok(Number.isInteger(tool.durability) && tool.durability >= 0 && tool.durability <= tool.max_durability);
   }
   assert.equal(agent.life.inventory, undefined);
-  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token']) assert.equal(agent[field], undefined, field);
+  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run']) assert.equal(agent[field], undefined, field);
+  assert.ok(['active', 'paused', 'offline', 'never_joined', 'unknown'].includes(agent.presence.state));
+  assert.ok([true, false, null].includes(agent.presence.has_joined));
+  for (const field of ['first_joined_at', 'last_seen_at', 'last_departed_at']) assert.ok(agent.presence[field] === null || Number.isSafeInteger(agent.presence[field]));
   assert.ok(agent.life.stats.attack > 0 && agent.life.stats.effective_attack > 0);
   assert.ok(Number.isFinite(agent.fatigue.energy) && agent.fatigue.energy >= 0 && agent.fatigue.energy <= 100);
   assert.equal(agent.appearance.version, 1);

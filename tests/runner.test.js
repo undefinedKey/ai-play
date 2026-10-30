@@ -108,14 +108,20 @@ test('模型请求发出前持久化预算，密钥不进入世界工具与check
   } finally { await f.runner.stop(); rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('失败调用计入预算，连续三次模型失败后暂停', async () => {
+test('真实失败请求计入预算，临时模型故障退避且不伪装为主人暂停', async () => {
   const f = fixture({ mode: 'model', fetchImpl: async () => ({ ok: false, status: 503 }) });
   await activate(f);
-  for (let i = 0; i < 3; i++) { await f.runner.decide(); f.advance(6000); }
+  for (let i = 0; i < 3; i++) {
+    await f.runner.decide();
+    assert.equal(f.runner.decisionDue(), false);
+    f.advance(31000);
+  }
   assert.equal(f.runner.checkpoint.calls_used, 3);
-  assert.equal(f.runner.active, false);
-  assert.equal(f.calls.filter(x => x.name === 'pause_self').length, 1);
-  assert.match(f.calls.find(x => x.name === 'pause_self').args.reason, /连续三次/);
+  assert.equal(f.runner.checkpoint.counters.requests, 3);
+  assert.equal(f.runner.checkpoint.counters.retries, 2);
+  assert.equal(f.runner.active, true);
+  assert.equal(f.calls.filter(x => x.name === 'pause_self').length, 0);
+  assert.equal(f.runner.health.waiting_reason, 'model_unavailable');
   await f.runner.stop();
 });
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync, chmodSync, openSync, closeSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, existsSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { checkForUpdate, updateSkill, updateNotice, UpdateError } from './update.mjs';
+import { acquireProcessLock } from './process-lock.mjs';
 
 const defaults = JSON.parse(readFileSync(new URL('../config.json', import.meta.url), 'utf8'));
 const tools = new Set(['get_rules', 'test_connection', 'join_world', 'observe', 'get_events', 'act', 'get_action_result', 'get_control_state', 'report_status', 'pause_self', 'leave_world']);
@@ -223,10 +224,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
   if (command === 'status') return { client, result: client.status() };
   if (command === 'check-update') return { client, result: await checkForUpdate({ cachePath: client.path + '.updates.json', force: true, ...options.updateOptions }) };
   if (command === 'update') return { client, result: await updateSkill({ statePath: client.path, ...options.updateOptions }) };
-  mkdirSync(dirname(client.path), { recursive: true, mode: 0o700 });
-  let lock;
-  try { lock = openSync(client.path + '.lock', 'wx', 0o600); writeFileSync(lock, String(process.pid)); }
-  catch { fail('CLIENT_BUSY', '已有连接操作或残留锁，请确认前一进程已结束后再重试'); }
+  const release = acquireProcessLock(client.path + '.lock');
   try {
     // Re-read only after owning the lock; another completed command may have saved newer state.
     client = new SkillClient(options);
@@ -247,7 +245,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       result = await client.call(args[0], input);
     } else fail('UNKNOWN_COMMAND', '可用命令：status、check-update、update、connect [--invite 邀请码 --name 原AI名字] [--wait] [--url 地址]、enter、tools、call 工具名 [JSON|--stdin]');
     return { client, result };
-  } finally { closeSync(lock); unlinkSync(client.path + '.lock'); }
+  } finally { release(); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main().then(async ({ client, result }) => {

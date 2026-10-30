@@ -12,6 +12,8 @@ import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife } from '.
 import { opportunitiesFor } from './opportunities.js';
 import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFatigueRecovery, tickFatigue } from './fatigue.js';
 import { initializeAppearance, publicAppearance } from './appearance.js';
+import { initializePresence, seenPresence, departPresence, publicPresence } from './presence.js';
+import { runtimeReport } from './runtime-health.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -67,10 +69,11 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) a.position = boundedPosition(a.position);
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
-    for (const a of Object.values(this.state.agents)) initializeLife(a);
+    for (const a of Object.values(this.state.agents)) { initializeLife(a); initializePresence(a, { legacy: true, events: this.state.events }); }
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
         this.finishActivity(a, { cancelled: true });
+        departPresence(a, this.now());
         a.session_epoch++; a.status = 'offline'; a.group_id = null; a.last_contact_at = null; a.reserved_until = null; a.next_action_id = null;
         a.diagnostics = { ...a.diagnostics, state: 'waiting', calls_used: a.diagnostics?.calls_used || 0, last_error: null };
       }
@@ -137,6 +140,7 @@ export class World extends EventEmitter {
       a.invitation_claim = { invite_id: claim.invite_id, device_hash: claim.device_hash };
     }
     initializeFighter(a);
+    initializePresence(a);
     initializeLife(a);
     initializeFatigue(a, this.now());
     initializeAppearance(a, this.state.agents);
@@ -205,6 +209,7 @@ export class World extends EventEmitter {
     this.event('agent_left', { agent_id: a.agent_id, text: `${a.name}离开了广场`, reason }, this.activeIds());
   }
   detach(a, { leaveField = true } = {}) {
+    departPresence(a, this.now());
     stopAdventure(this, a, 'interrupted', '控制已暂停、转交或离线，冒险计划停止');
     if (leaveField) leaveAdventureField(this, a);
     this.finishActivity(a, { cancelled: true });
@@ -218,7 +223,7 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
@@ -230,7 +235,7 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.11.0-farm-tools', recommended_skill_version: '0.11.0', room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.12.0-recovery', recommended_skill_version: '0.12.0', room: { capacity: 5, ...WORLD_MAP },
       places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
@@ -243,7 +248,7 @@ export class World extends EventEmitter {
     if (a.run.expires_at <= this.now()) fail('RUN_EXPIRED', '本次授权已到期，需要主人重新恢复');
     if (a.status !== 'active' || a.run.status !== 'active') fail('STALE_SESSION', '角色当前未活动');
     if (this.state.room.status !== 'active') fail('ROOM_PAUSED', '房间已暂停');
-    if (touch) { a.last_contact_at = this.now(); this.save({ deferred: true }); }
+    if (touch) { a.last_contact_at = this.now(); seenPresence(a, this.now()); this.save({ deferred: true }); }
   }
   observation(a) {
     const group = a.group_id ? this.state.groups[a.group_id] : null;
@@ -259,10 +264,11 @@ export class World extends EventEmitter {
     if (args.run_id && args.run_id !== a.run.run_id) fail('STALE_SESSION', '恢复的预算段已经失效');
     if (a.run.expires_at <= this.now()) fail('RUN_EXPIRED', '活动许可已到期');
     if (a.run.status !== 'active') fail('NOT_AUTHORIZED', '活动许可已关闭，请主人重新允许开始');
-    if (a.status === 'active') { a.last_contact_at = this.now(); this.save(); return this.observation(a); }
+    if (a.status === 'active') { a.last_contact_at = this.now(); seenPresence(a, this.now(), { joined: true }); this.save(); return this.observation(a); }
     const occupied = Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && (b.status === 'active' || (b.reserved_until || 0) > this.now()));
     if (occupied.length >= 5) fail('ROOM_FULL', '广场已满，最多允许 5 个 AI 同时活动');
     a.status = 'active'; a.run.has_joined = true; a.last_contact_at = this.now(); a.reserved_until = null; a.next_action_id = uid('act'); a.pause_reason = null;
+    seenPresence(a, this.now(), { joined: true });
     this.event('agent_joined', { agent_id: a.agent_id, name: a.name, text: `${a.name}来到了广场` }, Object.values(this.state.agents).filter(b => b.status === 'active' && distance(a.position, b.position) <= 6).map(b => b.agent_id));
     this.commit(); return this.observation(a);
   }
@@ -272,6 +278,14 @@ export class World extends EventEmitter {
     if (name === 'test_connection') return { ok: true, isolated: true, step: args.step || 'all', world_api_version: '0.2', skill_version: '0.1.0',
       observation: { self: { agent_id: 'test-agent', position: { x: 0, y: 0 } }, nearby_agents: [] }, events: [{ event_id: 'test-event', type: 'test', payload: { text: '隔离测试事件' } }], action: { status: 'validated', applied: false }, continuous: false };
     if (name === 'get_control_state') return { ...this.controlState(a), auth_controller_id: c.controller_id };
+    if (name === 'report_connection') {
+      if (a.run && a.run.controller_id !== c.controller_id) fail('CONTROLLER_BUSY', '当前控制权属于其他控制端');
+      if (args.run_id !== undefined && args.run_id !== a.run?.run_id) fail('STALE_SESSION', '诊断所属授权已变更');
+      if (args.health === undefined) fail('INVALID_ACTION', '请提供连接诊断');
+      const report = runtimeReport(args, this.now(), fail);
+      a.diagnostics = { ...a.diagnostics, ...report };
+      this.commit(); return { ok: true, control_state: this.controlState(a) };
+    }
     if (name === 'join_world') return this.join(a, c, args);
     if (name === 'get_action_result') {
       const receipt = this.state.receipts[`${a.agent_id}:${args.action_id}`];
@@ -296,6 +310,7 @@ export class World extends EventEmitter {
     }
     if (name === 'report_status') {
       this.validateSession(a, c, args);
+      const report = runtimeReport(args, this.now(), fail);
       const state = args.state ?? args.status ?? 'waiting';
       if (!['waiting', 'thinking', 'error', 'paused', 'acting', 'idle'].includes(state)) fail('INVALID_ACTION', '执行状态无效');
       const count = Number(args.calls_used ?? args.call_count ?? a.diagnostics.calls_used);
@@ -304,7 +319,7 @@ export class World extends EventEmitter {
       if (args.runtime_version !== undefined && (typeof args.runtime_version !== 'string' || !/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(args.runtime_version))) fail('INVALID_ACTION', '运行器版本格式无效');
       if (args.capabilities !== undefined && (!Array.isArray(args.capabilities) || args.capabilities.length > 12 || args.capabilities.some(value => typeof value !== 'string' || !/^[a-z_]{1,32}$/.test(value)))) fail('INVALID_ACTION', '运行能力格式无效');
       if (args.last_decision_type !== undefined && !ACTIONS.includes(args.last_decision_type)) fail('INVALID_ACTION', '最近决策类型无效');
-      a.diagnostics = { ...a.diagnostics, state, calls_used: count, last_error: args.last_error == null ? null : textField(args.last_error, 300, '最近错误'), reported_at: this.now(), last_cycle_at: args.last_cycle_at ?? this.now(),
+      a.diagnostics = { ...a.diagnostics, ...report, state, calls_used: count, last_error: args.last_error == null ? null : textField(args.last_error, 300, '最近错误'), reported_at: this.now(), last_cycle_at: args.last_cycle_at ?? this.now(),
         ...(args.mode !== undefined ? { mode: args.mode } : {}), ...(args.runtime_version !== undefined ? { runtime_version: args.runtime_version } : {}),
         ...(args.capabilities !== undefined ? { capabilities: [...new Set(args.capabilities)] } : {}), ...(args.last_decision_type !== undefined ? { last_decision_type: args.last_decision_type } : {}) };
       this.commit(); return { ok: true, control_state: this.controlState(a) };

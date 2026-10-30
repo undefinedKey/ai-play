@@ -26,5 +26,8 @@ check('future TLS proxy targets loopback and supports streaming', /reverse_proxy
 check('Node installer pins both supported architectures with SHA-256', /node_version=v22\.23\.4/.test(read('deploy/install-node-debian.sh')) && (read('deploy/install-node-debian.sh').match(/expected_sha=[0-9a-f]{64}/g) || []).length === 2);
 check('backup stops the service and restores its previous running state', /systemctl stop ai-plaza\.service/.test(read('deploy/backup.sh')) && /trap restore_service EXIT/.test(read('deploy/backup.sh')));
 for (const path of ['server/index.js', 'package-lock.json', 'docs/服务器部署.md']) check(`referenced artifact exists: ${path}`, existsSync(resolve(root, path)));
+const version = JSON.parse(read('package.json')).version;
+check('server, npm lock and complete Skill have one release version', JSON.parse(read('package-lock.json')).version === version && JSON.parse(read('skills/ai-plaza/version.json')).version === version && read('server/index.js').includes(`version: '${version}'`) && read('skills/ai-plaza/SKILL.md').includes(`version: "${version}"`));
+for (const path of ['skills/ai-plaza/scripts/process-lock.mjs', 'skills/ai-plaza/references/recovery.md', 'server/runtime-health.js', 'server/presence.js']) check(`recovery artifact exists: ${path}`, existsSync(resolve(root, path)));
 for (const path of ['deploy/ai-plaza.service', 'deploy/install-node-debian.sh', 'deploy/backup.sh']) check(`Linux configuration has LF line endings: ${path}`, !read(path).includes('\r'));
 console.log(JSON.stringify({ status: 'pass', scope: 'Static artifact checks only; not a Linux deployment test.', checks }, null, 2));

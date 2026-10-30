@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { acquireClientLock, createBridge, migrateCheckpoint } from '../skills/ai-plaza/scripts/bridge.mjs';
 import { main as skillMain } from '../skills/ai-plaza/scripts/plaza.mjs';
+import { OFFICIAL_SOURCE } from '../skills/ai-plaza/scripts/update.mjs';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
 
@@ -94,6 +95,77 @@ test('损坏桥checkpoint不能归零，启动错误会释放锁且不调用原A
   let generated = 0; f.options.petClient.decide = async () => { generated++; return '{}'; };
   await assert.rejects(createBridge(f.options), e => e.code === 'CHECKPOINT_INVALID');
   assert.equal(existsSync(f.statePath + '.lock'), false); assert.equal(generated, 0);
+});
+
+test('已绑定原宿主暂不可用时保留预算启动等待，恢复后沿原来源的新端口继续', async t => {
+  const f = fixture(t), runtimePath = join(f.directory, 'runtime.json');
+  writeFileSync(runtimePath, JSON.stringify({ port: 32980, token: 'a'.repeat(43) }));
+  const observation = f.world.callTool(f.auth, 'join_world');
+  Object.assign(f.state, { session: { run_id: observation.run_id, session_epoch: observation.session_epoch, expires_at: observation.expires_at },
+    cursor: observation.cursor, next_action_id: observation.next_action_id, calls_used: 7, budget_run_id: observation.run_id });
+  writeFileSync(f.statePath, JSON.stringify(f.state));
+  let online = true, posts = 0;
+  const options = { ...f.options, petClient: undefined, petId: 'original', runtimePath, petUrl: 'http://127.0.0.1:32980', petFetchImpl: async (url, request) => {
+    if (!online) throw new Error('host down');
+    if (request.method === 'POST') { posts++; return json({ ok: true, text: '{"type":"wait","payload":{}}' }); }
+    return json({ main: { pets: [{ id: 'original', display: 'both', name: '原宠物' }] } });
+  } };
+  const initial = await createBridge(options); await initial.stop(); online = false;
+  const waiting = await createBridge(options); assert.equal(waiting.pet.petId, 'original');
+  assert.equal(JSON.parse(readFileSync(waiting.checkpointPath)).calls_used, 7); assert.equal(posts, 0);
+  writeFileSync(runtimePath, JSON.stringify({ port: 32981, token: 'b'.repeat(43) })); online = true;
+  await waiting.pet.initialize(); assert.equal(waiting.pet.connection.baseUrl, 'http://127.0.0.1:32981/dsh-pet-7340');
+  assert.equal(waiting.pet.petId, 'original'); await waiting.stop();
+  await assert.rejects(createBridge({ ...options, petId: 'different' }), { code: 'PET_BINDING_CHANGED' });
+});
+
+test('已有预算记录可在服务启动前等待重连，不丢弃manual较高计数；新连接不伪造成功', async t => {
+  const f = fixture(t), observation = f.world.callTool(f.auth, 'join_world');
+  Object.assign(f.state, { session: { run_id: observation.run_id, session_epoch: observation.session_epoch, expires_at: observation.expires_at },
+    cursor: observation.cursor, next_action_id: observation.next_action_id, calls_used: 7, budget_run_id: observation.run_id });
+  writeFileSync(f.statePath, JSON.stringify(f.state));
+  const initial = await createBridge(f.options); await initial.stop();
+  const state = JSON.parse(readFileSync(f.statePath)); state.calls_used = 9; writeFileSync(f.statePath, JSON.stringify(state));
+  const offline = { ...f.options, fetchImpl: async () => { throw new Error('world offline'); } };
+  const waiting = await createBridge(offline);
+  assert.equal(JSON.parse(readFileSync(waiting.checkpointPath)).calls_used, 9); await waiting.stop();
+  rmSync(f.statePath + '.bridge.json');
+  await assert.rejects(createBridge(offline), { code: 'NETWORK_ERROR' });
+});
+
+test('真实CLI启动时世界503仍保持恢复循环，服务恢复后原授权入场', { timeout: 15000 }, async t => {
+  const f = fixture(t), observation = f.world.callTool(f.auth, 'join_world');
+  Object.assign(f.state, { session: { run_id: observation.run_id, session_epoch: observation.session_epoch, expires_at: observation.expires_at },
+    cursor: observation.cursor, next_action_id: observation.next_action_id, calls_used: 7, budget_run_id: observation.run_id });
+  writeFileSync(f.statePath, JSON.stringify(f.state));
+  const initial = await createBridge(f.options); await initial.stop();
+  let available = false, joined = false, posts = 0;
+  const server = createServer(async (req, res) => {
+    let body = ''; for await (const part of req) body += part;
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url.endsWith('/config')) return res.end(JSON.stringify({ main: { pets: [{ id: 'original', display: 'both' }] } }));
+    if (req.url.startsWith('/dsh-pet-7340/chat?')) { posts++; return res.end(JSON.stringify({ ok: true, text: '{"type":"wait","payload":{}}' })); }
+    if (!available) { res.statusCode = 503; return res.end('{}'); }
+    const request = JSON.parse(body); if (request.params?.name === 'join_world') joined = true;
+    const reply = await f.options.fetchImpl('', { body, headers: {} }); res.end(JSON.stringify(await reply.json()));
+  });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(async () => { server.closeAllConnections(); await new Promise(done => server.close(done)); });
+  const url = `http://127.0.0.1:${server.address().port}`, cpPath = f.statePath + '.bridge.json';
+  f.state.url = url; writeFileSync(f.statePath, JSON.stringify(f.state));
+  const cp = JSON.parse(readFileSync(cpPath)); cp.bridge_binding.pet_url = url + '/dsh-pet-7340'; writeFileSync(cpPath, JSON.stringify(cp));
+  const version = JSON.parse(readFileSync(join(skillRoot, 'version.json'))).version;
+  writeFileSync(f.statePath + '.updates.json', JSON.stringify({ source: OFFICIAL_SOURCE, local_version: version, checked_at: Date.now(), status: 'unavailable' }));
+  const child = spawn(process.execPath, [join(skillRoot, 'scripts/bridge.mjs'), 'run', '--pet', 'original', '--pet-url', url],
+    { windowsHide: true, env: { ...process.env, AI_PLAZA_STATE: f.statePath, DSH_HOME: f.directory, DSH_PET_URL: '' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stdout = '', stderr = ''; child.stdout.on('data', chunk => { stdout += chunk; }); child.stderr.on('data', chunk => { stderr += chunk; });
+  const exited = new Promise(done => child.once('exit', done));
+  t.after(async () => { child.kill('SIGKILL'); await exited; });
+  const until = async check => { const deadline = Date.now() + 8000; while (!check()) { assert.equal(child.exitCode, null, stderr); assert.ok(Date.now() < deadline, stdout + stderr); await new Promise(done => setTimeout(done, 25)); } };
+  await until(() => stdout.includes('已启动')); assert.equal(posts, 0);
+  available = true; await until(() => joined && posts > 0);
+  assert.equal(child.exitCode, null); assert.equal(JSON.parse(readFileSync(cpPath)).run_id, observation.run_id);
+  assert.ok(JSON.parse(readFileSync(cpPath)).calls_used >= 7);
 });
 
 test('单独复制Skill目录可import共享runtime并运行pets，无node_modules依赖', async t => {

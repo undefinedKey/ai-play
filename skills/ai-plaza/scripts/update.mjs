@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { acquireProcessLock } from './process-lock.mjs';
 
 export const OFFICIAL_SOURCE = 'https://github.com/undefinedKey/ai-play/tree/main/skills/ai-plaza';
 const API = 'https://api.github.com/repos/undefinedKey/ai-play';
@@ -113,6 +114,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.11.0') >= 0 && !paths.has('references/farming-tools.md')) {
     fail('UPDATE_TREE', '更新包缺少农具规则，未执行升级');
   }
+  if (compareVersions(version, '0.12.0') >= 0 && ['scripts/process-lock.mjs', 'references/recovery.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '更新包缺少进程锁或恢复说明，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');
@@ -186,9 +190,7 @@ async function installUpdate({ skillRoot = defaultRoot, statePath, fetchImpl = f
   if (repository) return { status: 'git_checkout', source: OFFICIAL_SOURCE, repository, message: '这是 Git 工作区中的 Skill，请先停止接入桥，再在仓库执行 git pull --ff-only；更新器不会覆盖 Git 工作树。' };
   const local = versionFromSkill(readFileSync(join(root, 'SKILL.md'), 'utf8'));
   const lockPath = join(parent, `.${basename(root)}.update.lock`);
-  let lock;
-  try { lock = openSync(lockPath, 'wx', 0o600); writeFileSync(lock, String(process.pid)); }
-  catch { fail('UPDATE_BUSY', '已有 Skill 更新操作或残留更新锁，请确认原进程已结束'); }
+  const release = acquireProcessLock(lockPath, { code: 'UPDATE_BUSY' });
   let staging, backup;
   try {
     const latest = await releaseInfo(fetchImpl, timeoutMs);
@@ -235,18 +237,13 @@ async function installUpdate({ skillRoot = defaultRoot, statePath, fetchImpl = f
       message: 'Skill 已升级，原服务地址、授权记录和自定义文件已保留；重新启动接入桥以加载新版。' };
   } finally {
     if (staging && staging.startsWith(parent + sep) && dirname(staging) === parent) rmSync(staging, { recursive: true, force: true });
-    closeSync(lock); unlinkSync(lockPath);
+    release();
   }
 }
 
 export async function updateSkill(options = {}) {
   const path = options.statePath && resolve(options.statePath);
-  let lock;
-  if (path) {
-    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    try { lock = openSync(path + '.lock', 'wx', 0o600); writeFileSync(lock, String(process.pid)); }
-    catch { fail('CLIENT_BUSY', '请先正常停止接入桥或原 Skill 操作，再执行升级；不要删除仍在使用的锁'); }
-  }
+  const release = path ? acquireProcessLock(path + '.lock') : null;
   try { return await installUpdate({ ...options, statePath: path }); }
-  finally { if (lock !== undefined) { closeSync(lock); unlinkSync(path + '.lock'); } }
+  finally { release?.(); }
 }

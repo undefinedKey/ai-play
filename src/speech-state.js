@@ -28,3 +28,10 @@ export function speechPreview(text, limit = 92) {
   const compact = text.trim().replace(/\s+/gu, ' '), points = Array.from(compact);
   return { text: points.length > limit ? `${points.slice(0, limit).join('')}…` : compact, truncated: points.length > limit || text.split('\n').length > 3 };
 }
+
+export function publicSpeechHistory({events=[],agents=[],selected,filter='all',now=Date.now()}) {
+  const chosen=agents.find(a=>a.agent_id===selected);
+  return events.filter(event=>['message','say','chat'].includes(event?.type)&&['nearby','group'].includes(event.payload?.channel)&&typeof event.payload?.text==='string'&&event.payload.text.trim()&&Number.isFinite(at(event.occurred_at))&&at(event.occurred_at)<=now)
+    .filter(event=>filter==='selected'?event.payload.agent_id===selected:filter==='group'?chosen?.group_id&&event.payload.channel==='group'&&event.payload.group_id===chosen.group_id:true)
+    .map(event=>({key:speechEventKey(event),eventId:event.event_id,agentId:event.payload.agent_id,groupId:event.payload.group_id,name:agents.find(a=>a.agent_id===event.payload.agent_id)?.name||'历史角色',channel:event.payload.channel,text:event.payload.text,occurredAt:at(event.occurred_at)})).reverse().sort((a,b)=>b.occurredAt-a.occurredAt).slice(0,70);
+}

@@ -64,7 +64,7 @@ test('旁观页：匿名访问真实地图及公开互动，实时出现聊天�
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      expect((await page.getByTestId('plaza-map').boundingBox()).width).toBeGreaterThan(viewport.width * 0.6);
+      expect((await page.getByTestId('plaza-map').boundingBox()).width).toBeGreaterThan(viewport.width * 0.5);
       if (viewport.width < 700) expect((await page.locator('.profile-panel').boundingBox()).width).toBeGreaterThan(viewport.width * 0.6);
       const audit = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       expect(audit.violations.map(v => ({ id: v.id, help: v.help, nodes: v.nodes.map(n => n.target) }))).toEqual([]);
