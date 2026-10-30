@@ -102,7 +102,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}入场立即有决策机�
   const version = JSON.parse(readFileSync(new URL('../skills/ai-plaza/version.json', import.meta.url), 'utf8')).version;
   assert.equal(reports.at(-1).runtime_version, version);
   assert.equal(reports.at(-1).mode, mode);
-  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'recovery', 'reliable_events', 'runtime_health']);
+  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'gathering', 'cooking', 'trading', 'recovery', 'reliable_events', 'runtime_health']);
   assert.equal(reports.at(-1).last_decision_type, 'adventure_plan');
   assert.ok(reports.some(r => r.last_decision_type === 'wait'));
 });
@@ -139,7 +139,8 @@ test('桌宠可直接选择服务提供的制作/装备机会，穿戴改变真�
   let intent = 'craft';
   const f = await fixture(t, { choose: data => data.opportunities.find(o => o.action.type === 'inventory' && o.action.payload.intent === intent)?.action || action('wait') });
   f.a.position = { x: 11, y: 8 };
-  for (const plot of f.a.life.plots) plot.tilled = true;
+  // Already-growing fields keep this scenario focused on equipment candidates.
+  for (const plot of f.a.life.plots) Object.assign(plot, { tilled: true, crop_id: 'turnip', planted_at: f.runner.now(), watered_at: f.runner.now(), ready_at: f.runner.now() + 60000 });
   f.refresh();
   await f.decide();
   assert.equal(f.a.life.inventory.wooden_sword, 1);

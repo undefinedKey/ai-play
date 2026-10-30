@@ -29,5 +29,6 @@ for (const path of ['server/index.js', 'package-lock.json', 'docs/服务器部�
 const version = JSON.parse(read('package.json')).version;
 check('server, npm lock and complete Skill have one release version', JSON.parse(read('package-lock.json')).version === version && JSON.parse(read('skills/ai-plaza/version.json')).version === version && read('server/index.js').includes(`version: '${version}'`) && read('skills/ai-plaza/SKILL.md').includes(`version: "${version}"`));
 for (const path of ['skills/ai-plaza/scripts/process-lock.mjs', 'skills/ai-plaza/references/recovery.md', 'server/runtime-health.js', 'server/presence.js']) check(`recovery artifact exists: ${path}`, existsSync(resolve(root, path)));
+for (const path of ['server/economy.js', 'docs/V013-LIFE-CONTRACT.md', 'skills/ai-plaza/references/gathering-cooking-trading.md']) check(`living artifact exists: ${path}`, existsSync(resolve(root, path)));
 for (const path of ['deploy/ai-plaza.service', 'deploy/install-node-debian.sh', 'deploy/backup.sh']) check(`Linux configuration has LF line endings: ${path}`, !read(path).includes('\r'));
 console.log(JSON.stringify({ status: 'pass', scope: 'Static artifact checks only; not a Linux deployment test.', checks }, null, 2));

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "name": "item_wood",
+  "width": 32,
+  "height": 32,
+  "palette": {
+    "A": "#293f3f",
+    "B": "#e3bb77",
+    "C": "#af8053",
+    "D": "#b28b5c",
+    "E": "#d9b178",
+    "F": "#8b6043",
+    "G": "#203d382e"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            ".......................AAAAA....",
+            ".....................AABCCAA....",
+            "....................ABBCCCAA....",
+            "..................AABCCCCCAA....",
+            ".................ABBCCCCCAAA....",
+            "...............AABCCCCCAAAA.....",
+            "..............ACBCCCCCAAA.......",
+            "............ACBBCCCCAAAAAAA.....",
+            "...........ACBCDDCCAAABCCAA.....",
+            "........EEEBBCCDDAAAABCCCAA.....",
+            ".......EEEEECCCDDAABCCCCCAA.....",
+            ".......EEFEECCADDDBCCCCCAAA.AAAA",
+            ".......EEEEEAAAADDCCCCAAAAAABCCA",
+            "........EEEAAAABDDCCCAAA.ABBCCCA",
+            "........AAAAABBCDDCAAAAAABCCCCCA",
+            "..........ACBCCCDDAAA.ABBCCCCCAA",
+            ".......EEEBBCCCCAAAAAABCCCCCAAAA",
+            "......EEEEECCCAAAA.ACBCCCCCAAA..",
+            "......EEFEECCAAAAACBBCCCCAAAA...",
+            "......EEEEEAAAA.ACBCCCCCAAA.....",
+            ".......EEEAAAEEEBBCCCCAAAA......",
+            ".......AAAAAEEEEECCCAAAA........",
+            "............EEFEECCAAAA.........",
+            ".......GGGGGEEEEEAAAAGGGGG......",
+            "....GGGGGGGGGEEEAAAAGGGGGGGGG...",
+            ".......GGGGGGAAAAAGGGGGGGG......",
+            "................................",
+            "................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

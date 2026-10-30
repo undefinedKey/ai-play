@@ -17,11 +17,15 @@ export function characterAction(agent, events, now, moving = false) {
   for (const event of [...(events || [])].reverse()) {
     if (event.payload?.agent_id !== agent.agent_id || !recent(occurredAt(event.occurred_at), now)) continue;
     if (event.type === 'adventure_combat') return event.payload.attacker === 'monster' ? 'hurt' : 'attack';
+    if (event.type === 'life_consumed') return 'eat';
+    if (event.type === 'life_crafted' && ['turnip_soup','wheat_bread'].includes(event.payload.item_id)) return 'cook';
+    if (event.type === 'life_gather_started' && agent.life?.gathering?.ends_at > now) return 'gather';
     if (['agent_moved','moved','move'].includes(event.type)) return 'walk';
     const action = { life_tilled: 'till', life_planted: 'plant', life_watered: 'water', life_harvested: 'harvest', life_crafted: 'craft', life_tool_repaired: 'repair', life_tool_upgraded: 'upgrade' }[event.type];
     if (action) return action;
   }
   if (moving) return 'walk';
+  if (agent.life?.gathering?.started_at <= now && agent.life.gathering.ends_at > now) return 'gather';
   const exertion = agent.fatigue?.recent_exertion;
   if (exertion && recent(exertion.last_at, now, 900) && ['move','attack','till','plant','water','harvest','craft','repair','upgrade'].includes(exertion.last_kind)) return exertion.last_kind === 'move' ? 'walk' : exertion.last_kind;
   if ((agent.adventure?.plan?.intent === 'rest' && agent.position?.x === 11 && agent.position?.y === 8) || agent.activity?.activity_id === 'relax') return 'rest';
@@ -31,6 +35,11 @@ export function characterAction(agent, events, now, moving = false) {
 
 /** A repeated receipt restarts its one-shot pose, even if the action is unchanged. */
 export function characterActionKey(agent, events, action) {
+  if(action==='gather')return `gather:${agent.life?.gathering?.job_id||''}`;
+  if(action==='cook'||action==='eat'){
+    const receipt=[...(events||[])].reverse().find(event=>event.payload?.agent_id===agent.agent_id&&event.type===(action==='cook'?'life_crafted':'life_consumed'));
+    return `${action}:${receipt?.event_id||receipt?.occurred_at||''}`;
+  }
   const type = { attack:'adventure_combat',hurt:'adventure_combat',till:'life_tilled',plant:'life_planted',water:'life_watered',harvest:'life_harvested',craft:'life_crafted',repair:'life_tool_repaired',upgrade:'life_tool_upgraded' }[action];
   const receipt = [...(events || [])].reverse().find(event => event.payload?.agent_id === agent.agent_id && event.type === type && (action !== 'attack' && action !== 'hurt' || event.payload.attacker === (action === 'attack' ? 'agent' : 'monster')));
   return `${action}:${receipt?.event_id || receipt?.occurred_at || agent.fatigue?.recent_exertion?.last_at || ''}`;

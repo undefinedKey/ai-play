@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "name": "landmark_ore",
+  "width": 64,
+  "height": 64,
+  "palette": {
+    "A": "#293f3f",
+    "B": "#aabec0",
+    "C": "#9b9f86",
+    "D": "#e2e1c8",
+    "E": "#647f8b",
+    "F": "#203d3838"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        32,
+        64
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            ".......................................AAAA.....................",
+            "...................................AAAAAAAAA....................",
+            "................................AAAAAABBBBAAA...................",
+            "............................AAAAAABBBBBBBBBAAA..................",
+            ".........................CCCAABBBBBBBBBDDDDBAA..................",
+            ".......................CCCCCAABBBBDDDDDDDDDBAAA.................",
+            ".....................CCCCCCCAABDDDDDDDDDBBBBBAAA................",
+            "..................CCCCCCCCCAABBDDDDBBBBBBBBBBBAAA...............",
+            "................CCCCCCCCCCCAABBBBBBBBBBBBBBBBBAAA...............",
+            "..............CCCCCCCCCCCCCAABBBBBBBBBBBBBBBBEEAA...............",
+            "...........CCCCCCCCCCCCCCCCABBBBBBBBBBBBBBBBEEEAA...............",
+            "...........CCCCCCCCAACCCCCAABBBBBBBBBBBBBBBEEEEAA...............",
+            "...........CCCCCCAAAAACCCCAABBBBBBBBBBBBBBEEEEEEA...............",
+            "..........CCCCCAAABBAAACCCABBBBBBBBBBBBBBEEEEEEECC..............",
+            "..........CCCAAAABBBBAAACCAAAAAAAAAAAAAAEEEEEEEEAAC.............",
+            ".........CCCCAABBBBDDBAACAAAAAAAAAAAAAAAAAAAAAAAAAA.............",
+            ".........CCCCAABBDDDDBAAACCCCCCCCCCCAAAAAAAAAAABBAAA............",
+            ".........CCCCAABDDDDBBBAAACCCCCCCCCCCCCCCCAAAABBBBAAA...........",
+            "........CCCCAABBDDBBBBBBAAACCCCCCCCCCCCCCCAABBBBDDBAAC..........",
+            "........CCCCAABBBBBBBBBBAAACCCCCCCCCCCCCCCAABBDDDDBAAAC.........",
+            ".......CCCCCAABBBBBBBBBEEAACCCCCCCCCCCCCCCAABDDDDBBBAAA.........",
+            ".......CCCCCABBBBBBBBBEEEAACCCCCCCCCCCCCCAABBDDBBBBBBAAA........",
+            ".......CCCCAABBBBBBBBEEEEAACCCCCCCCCCCCCCAABBBBBBBBBBAAAC.......",
+            "......CCCCCAABBBBBBBEEEEEEACCCCCCCCCCCCCCAABBBBBBBBBEEAACC......",
+            "......CCCCCABBBBBBBEEEEEEECCCCCCCCCCCCCCCABBBBBBBBBEEEAACC......",
+            ".....CCCCCCAAAAAAAEEEEEEEECCCCCCCCCCCCCCAABBBBBBBBEEEEAAC.......",
+            "......FCCCAAAAAAAAAAAAAAAACCCCCCCCCCCCCCAABBBBBBBEEEEEEAFF......",
+            ".....FFFCCCCCCCCCCAAAAAAAACCCCCCCCCCCCCCABBBBBBBEEEEEEEFFFF.....",
+            ".....FFFFCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCAAAAAAAEEEEEEEEFFFF.....",
+            "......FFFFFCCCCCCCCCCCCCCCCCCCCCCCCCCCCAAAAAAAAAAAAAAAAFFF......",
+            ".......FFFFFCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCAAAAAAAAFF.......",
+            "..........FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF..........",
+            "..............FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF..............",
+            ".....................FFFFFFFFFFFFFFFFFFFFFF.....................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

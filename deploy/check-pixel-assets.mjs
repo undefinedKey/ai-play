@@ -25,6 +25,7 @@ for (const directory of ['public', 'dist']) {
       assert.equal(height, value.sheet_height ?? value.height, filename);
       const atlas = JSON.parse(read(filename.replace('.png', '.atlas.json')));
       assert.ok(atlas && typeof atlas === 'object');
+      assert.equal(atlas.meta.image,filename);
       for (const animation of Object.values(value.animations || {})) {
         assert.ok(animation.frames.length > 0);
         for (const frame of animation.frames) {
@@ -45,8 +46,14 @@ for (const directory of ['public', 'dist']) {
     assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
   }
   for (const character of Object.values(manifest.characters)) {
-    for (const action of ['idle', 'walk_north', 'walk_south', 'walk_east', 'attack', 'hurt', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'rest', 'tired']) assert.ok(character.animations[action], action);
+    for (const action of ['idle', 'walk_north', 'walk_south', 'walk_east', 'attack', 'hurt', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'gather', 'cook', 'eat', 'rest', 'tired']) assert.ok(character.animations[action], action);
+    assert.equal(character.animations.gather.loop,true);
+    assert.equal(character.animations.cook.loop,false);
+    assert.equal(character.animations.eat.loop,false);
   }
-  assert.equal(images.size, 36);
-  console.log(`${directory}: 36 Pixelbolt images, PNG dimensions and all animation frames verified.`);
+  for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold'])assert.ok(manifest.items[`item_${id}`]);
+  for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
+  assert.equal(manifest.release,'0.13.0');
+  assert.equal(images.size, 49);
+  console.log(`${directory}: 49 Pixelbolt images, PNG dimensions and all animation frames verified.`);
 }

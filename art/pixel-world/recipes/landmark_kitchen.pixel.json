@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "name": "landmark_kitchen",
+  "width": 64,
+  "height": 64,
+  "palette": {
+    "A": "#bd996b",
+    "B": "#293f3f",
+    "C": "#b8cbc3",
+    "D": "#8e9a88",
+    "E": "#d1a766",
+    "F": "#916c42",
+    "G": "#526e72",
+    "H": "#6f8587",
+    "I": "#c5ab77",
+    "J": "#d9bd8b",
+    "K": "#efdab0",
+    "L": "#9d805c",
+    "M": "#d1b283",
+    "N": "#7f684c",
+    "O": "#6b5744",
+    "P": "#203d3838"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        32,
+        64
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "...................................AA...........................",
+            "...................................AA...........................",
+            "..................................AAA...........................",
+            "..................................AA............................",
+            ".................................AAA............................",
+            ".................................AA.............................",
+            "..................BBBBBBBBBBB...AAA.............................",
+            "..............BBBBCCCCCCCCCCCBBBAA..............................",
+            "............BBCCCCCCCCCCCCCCCCCAAAB.............................",
+            "...........BCCCCCCDDDDDDDDDDDCCAACCB............................",
+            "..........BCCCCDDDDDDDDDDDDDDDAAACCCB...........................",
+            ".........BBCCCDDDDDDDDDDDDDDDDAADCCCBB..........................",
+            ".........BBCCCCDDDDDDDDDDDDDDAAACCCCBB........EEEE..............",
+            ".........BBBCCCCCCDDDDDDDDDDDAACCCCBBB......EEFEEEEE............",
+            "........GGGGBBCCCCCCCCCCCCCCCCCCCBBBGGGG...EEEFEEEEEE...........",
+            "........GGGGBBBBBBCCCCCCCCCCCBBBBBBBGGGG..BEEEFEEEEEEB..........",
+            "........GGGGBBBBBBBBBBBBBBBBBBBBBBBBGGGG..BEEEFEEEEEEB..........",
+            "........GGGGHHBBBBBBBBBBBBBBBBBBBHHBGGGG..BEEEFEEEEEEB..........",
+            "...........BHHHHHHBBBBBBBBBBBHHHHHHB......BIEEEEEEEEIB..........",
+            "...........BHHHHHHHHHHHHHHHHHHHHHHHB......BIIIEEEEIIIB..........",
+            "...........BHHHHHHHHHHHHHHHHHHHHHHHB......BIIIIIIIIIIB..........",
+            "...........BHHHHHHHHHHHHHHHHHHHHHHHB......BIIIIIIIIIIB..........",
+            ".....BBBBBBBHHHHHHHHHHHHHHHHHHHHHHHBBBBBBBBBBBBBBBBBBBBBBBB.....",
+            ".....BJKKKKBHHHHHHHHHHHHHHHHHHHHHHHBKKKKKKKKKKKKKKKKKKKKJJB.....",
+            ".....BJKKKKBBBBBBBBBBBBBBBBBBBBBBBBBKKKKKKKKKKKKKKKKKKKKJJB.....",
+            ".....BJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJB.....",
+            ".....BJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJB.....",
+            ".....BJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJB.....",
+            ".....BJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJB.....",
+            ".....BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.....",
+            ".......BLMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMLB.......",
+            ".......BLMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMLB.......",
+            ".......BLLLLLNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLB.......",
+            ".......BLLOOOOOOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLOOOOOOLB.......",
+            ".......BLLOOOOOOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLOOOOOOLB.......",
+            ".......BLLOOOOOOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLOOOOOOLB.......",
+            "......PBLLOOOOOOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLOOOOOOLBP......",
+            ".....PPBBBOOOOOOBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBOOOOOOBBPP.....",
+            ".....PPPPPOOOOOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOOOOOPPPP.....",
+            "......PPPPOOOOOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOOOOOPPP......",
+            ".......PPPOOOOOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOOOOOPP.......",
+            "..........OOOOOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOOOOO.........",
+            "..............PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP..............",
+            ".....................PPPPPPPPPPPPPPPPPPPPPP.....................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

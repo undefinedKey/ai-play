@@ -36,10 +36,14 @@ const publicEventFields = {
   life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'level', 'durability'],
   life_tool_repaired: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
   life_tool_upgraded: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
+  life_gather_started: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'item_id', 'quantity', 'started_at', 'ends_at'],
+  life_gather_finished: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'item_id', 'quantity'],
+  life_gather_cancelled: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'reason'],
+  life_traded: ['agent_id', 'name', 'text', 'intent', 'item_id', 'quantity', 'total_price'],
   life_harvested: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
-  life_crafted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_crafted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'quantity'],
   life_equipped: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
-  life_consumed: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_consumed: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'quantity', 'hp', 'energy'],
   life_ready: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   fatigue_tired: ['agent_id', 'name', 'text', 'energy', 'fatigue'],
   fatigue_exhausted: ['agent_id', 'name', 'text', 'energy', 'fatigue'],
@@ -59,7 +63,7 @@ function publicEvent(event, agentIds) {
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
   for (const key of fields) {
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {

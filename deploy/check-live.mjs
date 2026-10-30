@@ -11,12 +11,17 @@ const health = await (await response('/api/health')).json();
 assert.equal(health.ok, true);
 assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
-for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events']) assert.equal(health.capabilities[capability], true, capability);
+for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
 assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
 for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), [20, 40, 60]);
+assert.equal(world.life.gathering.tool_required, false);
+assert.deepEqual(world.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
+assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread']);
+assert.equal(world.life.market.stock_policy, 'per_agent_window');
+assert.ok(world.life.market.items.some(i => i.buy_price > 0) && world.life.market.items.some(i => i.sell_price > 0));
 assert.equal(world.fatigue.max_energy, 100);
 assert.deepEqual(world.adventure.map, { width: world.room.width, height: world.room.height });
 assert.equal(world.adventure.zones.length, 3);
@@ -38,6 +43,14 @@ for (const agent of world.agents) {
     assert.ok(Number.isInteger(tool.durability) && tool.durability >= 0 && tool.durability <= tool.max_durability);
   }
   assert.equal(agent.life.inventory, undefined);
+  assert.equal(agent.life.ledger, undefined);
+  assert.equal(agent.life.market, undefined);
+  for (const id of ['wood', 'ore']) assert.ok(Number.isSafeInteger(agent.life.gather_ready_at[id]));
+  if (agent.life.gathering) {
+    assert.ok(['wood', 'ore'].includes(agent.life.gathering.resource_id));
+    assert.equal(agent.life.gathering.run_id, undefined);
+    assert.equal(agent.life.gathering.session_epoch, undefined);
+  }
   for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run']) assert.equal(agent[field], undefined, field);
   assert.ok(['active', 'paused', 'offline', 'never_joined', 'unknown'].includes(agent.presence.state));
   assert.ok([true, false, null].includes(agent.presence.has_joined));

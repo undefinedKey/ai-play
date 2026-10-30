@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "name": "landmark_wood",
+  "width": 64,
+  "height": 64,
+  "palette": {
+    "A": "#6c9560",
+    "B": "#99724f",
+    "C": "#293f3f",
+    "D": "#ab7b51",
+    "E": "#dab57a",
+    "F": "#e0bd87",
+    "G": "#936a47",
+    "H": "#a69c74",
+    "I": "#203d3838"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        32,
+        64
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "............................................AAAAAAA.............",
+            "............................................AAAAAAA.............",
+            "............................................AAAAAA..............",
+            "............................................AAAAAA..............",
+            "............................................AAAAA...............",
+            "..........................BBB..............BAAAA................",
+            "..........................BBBB............BBBB..................",
+            "..........................BBBB............BBBB..................",
+            "...........................BBBB..........BBBBCCCC...............",
+            "...........................BBBB..........BBBBDDCC...............",
+            "............................BBBB.......CBBBBDDDCC...............",
+            "............................BBBBB....CCEBBBBDDDCC...............",
+            ".............................BBBB..CCEEBBBBDDCCCC...............",
+            "..............................BBBBCEEDBBBBBCCCC.................",
+            "..............................BBBBEDDDBBBBCCCCCCCC..............",
+            ".............................CDBBBBDDBBBBCCCCEDDCC..............",
+            "...........................CDEEBBBBDDBBBBCCEEDDDCC..............",
+            ".........................CDEEDDDBBBCBBBBCCEDDDDDCC..............",
+            ".......................CDEEDDDDDCCCCBBBBDEDDDDDCCC..............",
+            ".....................CDEEDDDDDCCCCCCBBBEEDDDDCCCC...............",
+            ".................FFFDEEDDDDDCCCCCCDECDEDDDDDCCC.................",
+            "................FFFFFDDDDDCCCCCCEEECEEDDDDCCCCCCCCC.............",
+            "................FFGFFDDDCCCCCCEEDCDEDDDDDCCCCEEDDCC.............",
+            "...........HHHHHFFFFFDCCCCCDEEDDCEEDDDDCCCCEEDDDDCC.............",
+            "...........HHHHHHFFFCCCCCDEEDDCDEDDDDDCCCEEDDDDDDCC.............",
+            "..........HHHHHHHCCCCCCEEEDDDCDEDDDDCCCCEDDDDDDCCCCH............",
+            "..........HHHHHHHHHCDEEDDDFFFEEDDDDCCCCDDDDDDCCCCHHH............",
+            ".........HHHHHHHHCDEEDDDDFFFFFDDDCCCCDDDDDDCCCCHHHHHH...........",
+            "........HHHHHFFFDEEDDDDDDFFGFFDDCCCCDDDDCCCCCHHHHHHHHH..........",
+            "........HHHHFFFFFDDDDDCCCFFFFFCCCCDDDDCCCCCHHHHHHHHHHHH.........",
+            ".......HHHHHFFGFFDDDCCCCCCFFFCCCCDDDCCCCHHHHHHHHHHHHHHH.........",
+            ".......HHHHHFFFFFDCCCCCCDECCCCCDDCCCCCHHHHHHHHHHHHHHHHHH........",
+            "......HHHHHHHFFFCCCCCCDEEDDDDDDCCCCCHHHHHHHHHHHHHHHHHHHHH.......",
+            ".....HHHHHHHHCCCCFFFDEEDDDDDDCCCCCHHHHHHHHHHHHHHHHHHHHHHHH......",
+            "......HHHHHHHHHHFFFFFDDDDDCCCCCCHHHHHHHHHHHHHHHHHHHHHHHHHH......",
+            ".......HHHHHHHHHFFGFFDDDCCCCCHHHHHHHHHHHHHHHHHHHHHHHHHHHHH......",
+            ".......IHHHHHHHHFFFFFDCCCCCHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH.......",
+            "......IIHHHHHHHHHFFFCCCCCHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHII......",
+            ".....IIIIHHHHHHHHCCCCCCHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHIII.....",
+            ".....IIIIIHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHIIII.....",
+            "......IIIIIHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHIIII......",
+            ".......IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII.......",
+            "..........IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII..........",
+            "..............IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII..............",
+            ".....................IIIIIIIIIIIIIIIIIIIIII.....................",
+            "................................................................",
+            "................................................................",
+            "................................................................",
+            "................................................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

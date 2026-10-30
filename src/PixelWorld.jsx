@@ -5,7 +5,7 @@ import { mapDimensions, projectMapPoint } from './map-projection.js';
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.11.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.13.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -80,7 +80,7 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const requestedTool = action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
   const tool = ['hoe','watering_can'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
-  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade'].includes(action);
+  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
   return <span className={`pixel-character ${className}`} data-sprite-id={id || 'unassigned'} data-action={action} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
     <PixelSprite definition={sprite} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active && action !== 'idle'}/>
     {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active && action !== 'idle'}/>}
@@ -120,5 +120,10 @@ export function PixelCrop({ crop, state }) {
 
 export function PixelItem({ id }) {
   const assets = usePixelManifest();
-  return <PixelSprite definition={assets?.equipment?.[id]} className="pixel-item" itemId={id}/>;
+  return <PixelSprite definition={assets?.items?.[`item_${id}`]||assets?.equipment?.[id]} className="pixel-item" itemId={id}/>;
+}
+
+export function PixelLandmark({id}){
+  const assets=usePixelManifest();
+  return <PixelSprite definition={assets?.landmarks?.[id]} className="pixel-landmark"/>;
 }

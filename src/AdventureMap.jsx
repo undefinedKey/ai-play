@@ -6,6 +6,7 @@ import {CameraContext,MapCamera,ObserverStatus} from './Observer.jsx';
 import {nearbySlots,presenceState,presenceLabel,publicName} from './observer-state.js';
 import SpeechOverlay, { SpeechOverlayScope } from './SpeechOverlay.jsx';
 import FarmPanel, { EquipmentStatus } from './FarmPanel.jsx';
+import CampLife,{CampLandmarks} from './CampLife.jsx';
 import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
@@ -71,8 +72,9 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
     {!present.length&&<div className="adventure-empty-banner" data-testid="adventure-empty-banner"><Compass size={18}/><div><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，由它决定去哪里、与谁同行。</p></div><span>0 位 AI</span></div>}
     <div className="map-scene-frame"><MapCamera><div className="adventure-map pixel-map" data-testid="adventure-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
       <PixelScene grid={grid} map={map} live={live}/>
+      <CampLandmarks catalog={world.life||world.rules?.life} map={map}/>
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
-      {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
+      {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-(zone.id==='camp'?3.8:2.8))},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span>{zone.id!=='camp'&&<small>{zone.id==='forest'?'低风险探索':'强敌出没'}</small>}</div>)}
       <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);const from=point(monster.position,map),to=point(target?.position,map);return target&&<line key={monster.monster_id} x1={from.left} y1={from.top} x2={to.left} y2={to.top}/>;})}</svg>
       {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={world.agents} events={world.events} now={now} map={map} live={live}/>)}
       {present.map(agent=><button key={agent.agent_id} data-crowded={present.filter(a=>a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position,map),'--unit-offset':unitOffset(agent),'--unit-row':`${slots.get(agent.agent_id)?.y||0}px`,'--avatar-color':agent.appearance?.accent||agent.color||'#61846b',zIndex:(selected===agent.agent_id?50:10)+Math.floor(agent.position?.y||0)}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${publicName(agent,world.agents)}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character"><CharacterSprite agent={agent} events={world.events} now={now} live={live}/></span><span className="adventure-agent-name">{publicName(agent,world.agents)}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
@@ -101,6 +103,7 @@ export default function WorldScene({ world, selected, onSelect, grid, onGrid, li
     <ObserverStatus world={world} agent={agent} live={live} now={now}/>
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
     {view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={now}/>:React.cloneElement(plaza,{onSelect:choose})}
+    <CampLife world={world} agent={agent} now={now} live={live}/>
   </CameraContext.Provider></SpeechOverlayScope>;
 }
 

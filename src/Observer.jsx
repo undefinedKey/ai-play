@@ -2,6 +2,7 @@ import React,{createContext,useContext} from 'react';
 import {CharacterSprite} from './PixelWorld.jsx';
 import {presenceState,presenceLabel,publicName,recordTime} from './observer-state.js';
 import {mapDimensions,projectMapPoint} from './map-projection.js';
+import {gatheringState} from './life-state.js';
 
 export const CameraContext=createContext(null);
 export function MapCamera({children}){
@@ -19,7 +20,8 @@ export function ObserverStatus({world,agent,live,now}){
   const latest=[...(world.events||[])].reverse().find(e=>!['move','moved','agent_moved'].includes(e.type));
   const plan=agent?.status==='active'?agent.adventure?.plan:null;
   const activity=agent?.status==='active'?agent.activity?.name:null;
-  const intent={explore:'正在探索',hunt:'正在讨伐',rest:'在营地休息',retreat:'返回营地'}[plan?.intent];
+  const gathering=gatheringState(agent,world.life||world.rules?.life,live?now:world.server_time||now);
+  const intent=gathering?(gathering.awaiting?'采集计时结束，等待确认':`正在采集${gathering.name} · ${gathering.seconds} 秒`):{explore:'正在探索',hunt:'正在讨伐',rest:'在营地休息',retreat:'返回营地'}[plan?.intent];
   return <section className="observer-status" data-testid="observer-status" aria-label="当前观察状态">
     {agent?<><span className="observer-avatar" aria-hidden="true"><CharacterSprite agent={agent} portrait/></span><div><strong>{publicName(agent,world.agents)}</strong><span>{!live?'最近记录 · ':''}{presenceLabel(agent)}{agent.status!=='offline'&&agent.position?` · (${agent.position.x}, ${agent.position.y})`:''}</span><span>{intent||activity||(agent.status==='active'?'当前没有执行计划，下一步由 AI 决定。':presenceState(agent)==='paused'?'活动已暂停，不会继续执行计划。':`最近在场：${recordTime(agent.presence?.last_seen_at,now)}`)}</span></div><div className="observer-vitals">{agent.adventure&&<span>生命 <b>{agent.adventure.hp}/{agent.adventure.max_hp}</b></span>}{agent.fatigue&&<span>体力 <b>{Math.round(agent.fatigue.energy)}/{agent.fatigue.max_energy||100}</b></span>}</div></>:<div><strong>世界概况 · {active} 位活动中{paused?`，${paused} 位暂停`:''}</strong><span>{active?'选择一位角色，查看它当前的活动。':'此刻没有 AI 活动。历史记录保留，等待原 AI 再次连接。'}</span>{latest&&<span>最近公开记录：{recordTime(latest.occurred_at,now)}</span>}</div>}
   </section>;

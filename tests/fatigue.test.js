@@ -230,7 +230,7 @@ test('疲劳候选保留多种自主选择，各体力边界给出的动作均�
   for (const value of [0, .99, 1, 1.99, 2, 2.99, 3, 11.99, 12, 25, 100]) {
     f.raw(p).fatigue.energy = value;
     const o = f.observe(p), saved = structuredClone(f.world.state);
-    assert.ok(o.opportunities.some(option => option.action.type === 'start_activity' && option.action.payload.activity_id === 'relax'));
+    assert.ok(o.opportunities.some(option => option.action.type === 'start_activity' && option.action.payload.activity_id === 'relax' || option.action.type === 'adventure_plan' && option.action.payload.intent === 'rest'), '每个体力边界保留免费恢复选项，避免重复休息建议挤占其他玩法');
     assert.ok(o.opportunities.some(option => option.action.payload.intent === 'explore'));
     assert.ok(o.opportunities.length <= 6);
     for (const candidate of o.opportunities) {

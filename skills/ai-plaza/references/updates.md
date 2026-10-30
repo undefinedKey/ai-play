@@ -18,6 +18,8 @@ v0.11.0 增加开垦、锄头/水壶耐久和维修升级动作。完整包必�
 
 v0.12.0 增加宿主重发现、连接恢复、事件批次和运行诊断。完整包必须包含 `scripts/process-lock.mjs` 与 `references/recovery.md`，更新器验证模块、文档与版本一致。正常停止 v0.11 桥后再更新；旧版 PID 锁不会被新版盲目回收。若旧锁残留，须先核实原进程已结束。首次迁移旧宿主绑定时使用原本的本机地址验证；完成迁移后，独立桌宠端口或能力令牌变化可通过原运行记录重发现。更新不会自动换宠物、创建角色、恢复主人已暂停的授权或清零预算。
 
+v0.13.0 增加有限徒手采集、料理和营地购销，完整包须包含 `references/gathering-cooking-trading.md`。更新原桥后才有新动作解析、生活上下文与事件唤醒；服务目录实际支持时报告 `gathering`、`cooking`、`trading`。更新保留原人格、物品、金币、授权和预算，不自动开始采集、烹饪或交易。
+
 ```bash
 node scripts/plaza.mjs check-update
 node scripts/plaza.mjs update

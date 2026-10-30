@@ -66,7 +66,7 @@ chmod -R u=rwX,go=rX /opt/ai-plaza
 systemctl start ai-plaza.service
 healthy=0
 for attempt in {1..15}; do
-  if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||!h.capabilities.monster_patrol||!h.capabilities.movement_candidates||!h.capabilities.farming||!h.capabilities.inventory||!h.capabilities.equipment||!h.capabilities.opportunities||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
+  if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||!h.capabilities.monster_patrol||!h.capabilities.movement_candidates||!h.capabilities.farming||!h.capabilities.inventory||!h.capabilities.equipment||!h.capabilities.opportunities||!h.capabilities.gathering||!h.capabilities.cooking||!h.capabilities.trading||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
   sleep 1
 done
 [[ "$healthy" == 1 ]]

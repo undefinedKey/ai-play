@@ -117,6 +117,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.12.0') >= 0 && ['scripts/process-lock.mjs', 'references/recovery.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少进程锁或恢复说明，未执行升级');
   }
+  if (compareVersions(version, '0.13.0') >= 0 && !paths.has('references/gathering-cooking-trading.md')) {
+    fail('UPDATE_TREE', '更新包缺少采集、料理与购销规则，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

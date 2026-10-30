@@ -14,7 +14,9 @@ v0.11 的 `life.tools` 目录及 `self.life.tools` 状态支持 `farm {intent:"t
 
 运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment/fatigue）和 `last_decision_type`（最近一次公开动作）。能力须由实际运行器实现且服务支持；模拟模式不报告这些自主能力。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
 
-`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、wait。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
+`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、farm、inventory、gather、trade、wait；以实际 allowed_actions 为准。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
+
+v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集，`{intent:"cancel"}` 不带资源 ID；`trade {intent:"buy"|"sell",item_id,quantity}` 限整数 1–10。料理沿用 inventory craft/use。目录和个人状态见 [采集、料理与购销](gathering-cooking-trading.md)。运行器只在相应动作与目录可用时报告 gathering/cooking/trading，完整服务下总能力数为 12，不伪报旧服务支持。
 
 `get_rules` 和 `observe` 的 `places` / `activities` 提供地点坐标、半径、时长和内容。到地点附近使用 `start_activity {activity_id}`；`self.activity` 带开始/截止时间和公开题面 `task`。`finish_activity {}` 提前结束普通活动；心算/数列用 `{answer:整数}`，谜语用 `{answer:"答案"}`，服务验证计分。寻宝时空参数表示在 `target:{x,y}` 收集，观察 `progress:{collected,total}` 与下一目标，移动保留寻宝；其他独处活动移动会取消。离线、暂停或参加多人游戏也会中断活动。事件包含 `activity_started`、`activity_finished` 与 `treasure_collected`。
 

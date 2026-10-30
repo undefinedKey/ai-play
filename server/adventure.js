@@ -2,6 +2,7 @@
 import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward } from './spatial.js';
 import { equipmentStats, grantMonsterLoot } from './life.js';
 import { FATIGUE_RULES, publicFatigue, spendEnergy, attackMultiplier, announceExhausted } from './fatigue.js';
+import { economyBalance, recordEconomyDelta } from './economy.js';
 export const ADVENTURE_ZONES = [
   { id: 'camp', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。主动休息恢复生命与体力，可以聊天并邀请同伴。' },
   { id: 'forest', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
@@ -57,7 +58,7 @@ export function publicAdventure(state) {
       patrol_radius: m.patrol_radius, patrol_interval_ms: m.patrol_interval_ms })) };
 }
 function announce(world, type, a, text, extra = {}) {
-  world.event(type, { ...(a ? { agent_id: a.agent_id, name: a.name } : {}), text, ...extra }, world.activeIds());
+  return world.event(type, { ...(a ? { agent_id: a.agent_id, name: a.name } : {}), text, ...extra }, world.activeIds());
 }
 export function stopAdventure(world, a, kind = 'stopped', text = '冒险计划已停止') {
   if (!a.adventure?.plan) return false;
@@ -81,6 +82,7 @@ export function leaveAdventureField(world, a) {
   }
 }
 export function startAdventure(world, a, payload, fail) {
+  if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
   if (Object.keys(payload).some(k => !['intent', 'zone_id', 'monster_id'].includes(k)) || !['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(payload.intent)) fail('INVALID_ACTION', '冒险计划只接受 intent、zone_id 和 monster_id');
   const { intent, zone_id, monster_id } = payload;
   if (zone_id !== undefined && !ADVENTURE_ZONES.some(z => z.id === zone_id)) fail('INVALID_ACTION', '冒险区域不存在');
@@ -151,16 +153,19 @@ function reward(world, monster) {
   const total = eligible.reduce((n, entry) => n + entry.damage, 0);
   let xpLeft = monster.xp, goldLeft = monster.gold;
   for (const [index, { a, damage }] of eligible.entries()) {
+    const balanceBefore = economyBalance(a);
     const xp = index === eligible.length - 1 ? xpLeft : Math.floor(monster.xp * damage / total);
-    const gold = index === eligible.length - 1 ? goldLeft : Math.floor(monster.gold * damage / total);
-    xpLeft -= xp; goldLeft -= gold;
+    const allocatedGold = index === eligible.length - 1 ? goldLeft : Math.floor(monster.gold * damage / total);
+    const gold = Math.min(allocatedGold, Number.MAX_SAFE_INTEGER - a.adventure.gold);
+    xpLeft -= xp; goldLeft -= allocatedGold;
     const f = a.adventure; f.xp += xp; f.gold += gold; f.kills++;
     const oldLevel = f.level;
     f.level = Math.min(20, 1 + Math.floor(f.xp / 30)); f.max_hp = 40 + (f.level - 1) * 5;
     if (f.level > oldLevel) f.hp = Math.min(f.max_hp, f.hp + (f.level - oldLevel) * 5);
     const materials = grantMonsterLoot(a, monster.monster_id);
     const materialText = materials.map(item => `${item.quantity}份${item.item_id === 'wood' ? '木材' : '矿石'}`).join('、');
-    announce(world, 'adventure_loot', a, `${a.name}参与击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}${f.level > oldLevel ? `，升到 ${f.level} 级` : ''}`, { monster_id: monster.monster_id, xp, gold, materials });
+    const event = announce(world, 'adventure_loot', a, `${a.name}参与击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}${f.level > oldLevel ? `，升到 ${f.level} 级` : ''}`, { monster_id: monster.monster_id, xp, gold, materials });
+    recordEconomyDelta(a, balanceBefore, { source_id: event.event_id, reason: 'monster_loot', at: world.now() });
     stopAdventure(world, a, 'victory', `击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}`);
   }
   monster.hp = 0; monster.status = 'respawning'; monster.respawn_at = world.now() + 60000; monster.contributions = {};

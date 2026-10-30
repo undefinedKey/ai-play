@@ -4,6 +4,20 @@ import { animationFrame, characterAction, characterActionKey, monsterAction, mov
 
 const actor = { agent_id:'a',status:'active',position:{x:11,y:8},fatigue:{state:'fresh'} };
 const event = (type, payload = {}, occurred_at=1000) => ({type,occurred_at,payload:{agent_id:'a',...payload}});
+test('gathering poses require a live bounded job; cooking and eating only confirmed receipts',()=>{
+  const gathering={...actor,life:{gathering:{job_id:'job',resource_id:'wood',started_at:1000,ends_at:13000}}};
+  assert.equal(characterAction(gathering,[],5000),'gather');
+  assert.equal(characterAction(gathering,[],14000),'idle');
+  assert.equal(characterAction({...gathering,status:'offline'},[],5000),'idle');
+  assert.equal(characterAction({...gathering,status:'paused'},[],5000),'idle');
+  assert.equal(characterAction({...actor,life:{gathering:null}},[event('life_gather_cancelled')],1100),'idle');
+  assert.equal(characterAction(actor,[event('life_crafted',{item_id:'turnip_soup'})],1100),'cook');
+  assert.equal(characterAction(actor,[event('life_crafted',{item_id:'wooden_sword'})],1100),'craft');
+  assert.equal(characterAction(actor,[event('life_consumed',{item_id:'wheat_bread'})],1100),'eat');
+  assert.equal(characterAction(actor,[event('life_consumed',{item_id:'wheat_bread'})],3000),'idle');
+  assert.equal(characterActionKey(gathering,[],'gather'),'gather:job');
+  assert.notEqual(characterActionKey(actor,[{...event('life_crafted'),event_id:'one'}],'cook'),characterActionKey(actor,[{...event('life_crafted'),event_id:'two'}],'cook'));
+});
 test('pixel action follows the latest confirmed public action and expires',()=>{
   assert.equal(characterAction(actor,[event('life_planted')],1100),'plant');
   assert.equal(characterAction(actor,[event('life_planted'),event('agent_moved')],1100),'walk');
