@@ -64,6 +64,15 @@ test('0.8.2升级必须包含移动模块并校验下载，独立Skill更新后�
   assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
 });
 
+test('0.9.0完整升级要求版本文件与Skill一致，保留已有身份和预算', async t => {
+  const f = fixture(t), modules = Object.fromEntries(['runtime', 'dsh-pet', 'bridge', 'movement'].map(name => [`scripts/${name}.mjs`, `new ${name}`]));
+  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.9.0', newFiles: modules }).fetchImpl }), { code: 'UPDATE_TREE' });
+  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.9.0', newFiles: { ...modules, 'version.json': '{"version":"0.8.2"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
+  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.9.0', newFiles: { ...modules, 'version.json': '{"version":"0.9.0"}' } }).fetchImpl });
+  assert.equal(JSON.parse(readFileSync(join(f.root, 'version.json'), 'utf8')).version, '0.9.0');
+  assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
+});
+
 test('版本检测使用数值语义，固定官方仓库并缓存，不把本地新版本降级', async t => {
   assert.equal(compareVersions('0.10.0', '0.9.8'), 1);
   assert.equal(compareVersions('1.0.0', '0.99.99'), 1);

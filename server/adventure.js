@@ -1,5 +1,6 @@
 // The original AI chooses a finite plan; this module only executes public game rules.
 import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward } from './spatial.js';
+import { equipmentStats, grantMonsterLoot } from './life.js';
 export const ADVENTURE_ZONES = [
   { id: 'camp', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。休息恢复生命，可以聊天并邀请同伴。' },
   { id: 'forest', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
@@ -16,7 +17,7 @@ export const ADVENTURE_RULES = {
   description: 'AI 自己选择冒险计划；服务器每秒最多执行一步，不代替 AI 选择下一个计划。探索抵达即结束；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命；撤退回营地后结束；stop 只停止计划，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒一步；每秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
   actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], zone_id: ['camp', 'forest', 'ruins'], monster_id: MONSTERS.map(m => m.monster_id) } },
   party: '使用 create_group / invite / respond_invite 自主组队；每位成员需自己选择 hunt 同一个 monster_id。同组或临时协力者只有实际参与战斗、结算时仍在目标附近且继续该计划，才按实际伤害分享总经验和金币。加入小组本身不授权战斗或跟随。',
-  combat: '普通攻击为 4 + 等级×2，射程1格；怪物每秒最多移动一步或攻击一次，不叠加反击。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
+  combat: '普通攻击为 4 + 等级×2 + 武器加成，射程1格；护甲降低怪物伤害但每次至少受到1点。怪物每秒最多移动一步或攻击一次，不叠加反击。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
 };
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const camp = ADVENTURE_ZONES[0];
@@ -153,8 +154,10 @@ function reward(world, monster) {
     const oldLevel = f.level;
     f.level = Math.min(20, 1 + Math.floor(f.xp / 30)); f.max_hp = 40 + (f.level - 1) * 5;
     if (f.level > oldLevel) f.hp = Math.min(f.max_hp, f.hp + (f.level - oldLevel) * 5);
-    announce(world, 'adventure_loot', a, `${a.name}参与击败${monster.name}，获得 ${xp} 经验、${gold} 金币${f.level > oldLevel ? `，升到 ${f.level} 级` : ''}`, { monster_id: monster.monster_id, xp, gold });
-    stopAdventure(world, a, 'victory', `击败${monster.name}，获得 ${xp} 经验、${gold} 金币`);
+    const materials = grantMonsterLoot(a, monster.monster_id);
+    const materialText = materials.map(item => `${item.quantity}份${item.item_id === 'wood' ? '木材' : '矿石'}`).join('、');
+    announce(world, 'adventure_loot', a, `${a.name}参与击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}${f.level > oldLevel ? `，升到 ${f.level} 级` : ''}`, { monster_id: monster.monster_id, xp, gold, materials });
+    stopAdventure(world, a, 'victory', `击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}`);
   }
   monster.hp = 0; monster.status = 'respawning'; monster.respawn_at = world.now() + 60000; monster.contributions = {};
   monster.target_agent_id = null; monster.behavior = 'idle'; monster.position = boundedPosition(monster.home_position);
@@ -178,8 +181,9 @@ function monsterAttack(world, m, a) {
   // Recheck after every monster: another monster can grant protection this tick.
   if (!vulnerable(world, a) || distance(a.position, m.position) > 1) return false;
   const f = a.adventure, before = f.hp;
-  f.hp = Math.max(0, f.hp - m.attack);
-  announce(world, 'adventure_combat', a, `${m.name}攻击${a.name}，造成 ${m.attack} 点伤害`, { monster_id: m.monster_id, attacker: 'monster', damage: m.attack, hp: f.hp });
+  const damage = Math.max(1, m.attack - equipmentStats(a).defense);
+  f.hp = Math.max(0, f.hp - damage);
+  announce(world, 'adventure_combat', a, `${m.name}攻击${a.name}，造成 ${damage} 点伤害`, { monster_id: m.monster_id, attacker: 'monster', damage, hp: f.hp });
   if (f.hp === 0) {
     a.position = { x: camp.x, y: camp.y }; f.hp = 10;
     announce(world, 'adventure_defeated', a, `${a.name}被${m.name}击败，已安全返回营地`, { monster_id: m.monster_id });
@@ -251,7 +255,7 @@ export function tickAdventure(world) {
     const m = state.monsters.find(m => m.monster_id === id);
     for (const a of party) {
       if (m.hp <= 0) break;
-      const damage = Math.min(m.hp, 4 + a.adventure.level * 2); m.hp -= damage;
+      const damage = Math.min(m.hp, 4 + a.adventure.level * 2 + equipmentStats(a).attack_bonus); m.hp -= damage;
       m.contributions[a.agent_id] = (m.contributions[a.agent_id] || 0) + damage;
       announce(world, 'adventure_combat', a, `${a.name}攻击${m.name}，造成 ${damage} 点伤害`, { monster_id: id, attacker: 'agent', damage, hp: m.hp });
     }

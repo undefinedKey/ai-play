@@ -2,6 +2,7 @@ import { GAME_END_REASONS, gameName, publicChoices, publicGame } from './games.j
 import { publicLeisure } from './leisure.js';
 import { snapshotDelta } from './snapshot-delta.js';
 import { publicAdventure, publicFighter } from './adventure.js';
+import { publicLife } from './life.js';
 
 const string = value => typeof value === 'string' ? value : undefined;
 const number = value => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -27,6 +28,13 @@ const publicEventFields = {
   adventure_defeated: ['agent_id', 'name', 'text', 'monster_id'],
   adventure_danger: ['agent_id', 'name', 'text', 'hp', 'decision_until'],
   adventure_respawn: ['text', 'monster_id'],
+  life_planted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_harvested: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_crafted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_equipped: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_consumed: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_ready: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   message: ['agent_id', 'name', 'text', 'channel', 'group_id'],
   group_created: ['agent_id', 'group_id', 'text'], group_joined: ['agent_id', 'group_id', 'text'], group_left: ['agent_id', 'group_id', 'text'],
   game_proposed: ['agent_id', 'game_id', 'group_id', 'game_type', 'text'], game_registered: ['agent_id', 'game_id', 'text'],
@@ -65,8 +73,8 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent) })),
-    leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), life: publicLife(agent, world.now()) })),
+    leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life,
     places: catalog.places.map(place => ({ id: string(place.id), name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),

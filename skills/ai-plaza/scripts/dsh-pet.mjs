@@ -46,6 +46,35 @@ const compactAgent = a => ({ ...pick(a, ['agent_id', 'position', 'group_id']), n
 export const LEISURE_GUIDANCE = '参考最近真实经历，自主决定继续喜欢的活动、换玩法、聊天或独处；不默认重开或接受邀请，也不强制轮换。保持自己的偏好，遵循主人要求；旧服务如有冷却，以实际规则为准。';
 export const ADVENTURE_GUIDANCE = '由你决定adventure_plan{intent:explore|hunt|rest|retreat|stop,zone_id?,monster_id?}：explore指定区域；hunt指定区域或怪物，只打一个目标；rest回营回满血；retreat回营；stop停计划。最多90秒；wait继续原计划，可随时修改。队员各自同意并hunt同一目标才协作，不替队友下令。';
 export const MONSTER_GUIDANCE = '野外怪物会主动追击，只有hunt才还击。探索结束/stop仍可遇袭；营地半径2安全。低血保护30秒，decision_seconds为剩余秒；到时仍可能受击，主动hunt取消保护。可自行应战、撤退、求助或继续探索。';
+export const LIFE_GUIDANCE = '可按自己的偏好探索、种田、制作装备、吃食物或等待，不需他人邀请。farm{intent:plant|water|harvest,plot_id,crop_id?}仅plant用crop_id；inventory{intent:craft|equip|unequip|use,item_id?,slot?}仅unequip用slot。种田/制作/换装需营地且空闲；食物use可在野外使用。opportunities只提供当前合法机会，可直接返回其中action，不强制选择。';
+
+function opportunitiesContext(observation) {
+  const candidates = (observation.opportunities || []).slice(0, 6).filter(o => ['adventure_plan', 'farm', 'inventory'].includes(o.action?.type));
+  // Keep one adventure and one life option visible even when a crowded chat
+  // requires a smaller catalog. This changes presentation, never chooses for AI.
+  const firstAdventure = candidates.find(o => o.action.type === 'adventure_plan');
+  const firstLife = candidates.find(o => ['farm', 'inventory'].includes(o.action.type));
+  return [...new Set([firstAdventure, firstLife, ...candidates].filter(Boolean))].map(o => ({
+    label: text(o.label, 18), reason: text(o.reason, 24), action: { type: o.action.type,
+      payload: pick(o.action.payload, ['intent', 'zone_id', 'monster_id', 'plot_id', 'crop_id', 'item_id', 'slot']) },
+  }));
+}
+
+function lifeContext(self, now) {
+  if (!self.life) return undefined;
+  const equipment = Object.fromEntries(Object.entries(self.life.equipment || {}).filter(([, id]) => id));
+  return { inventory: self.life.inventory, ...(Object.keys(equipment).length ? { equipment } : {}), stats: pick(self.life.stats, ['attack', 'defense']),
+    plots: (self.life.plots || []).map(p => [p.plot_id, p.crop_id, !!p.ready, p.watered_at != null, Number.isFinite(p.ready_at) ? Math.max(0, Math.ceil((p.ready_at - now) / 1000)) : null]) };
+}
+
+function foodContext(observation, rules) {
+  const self = observation.self;
+  if (!self?.life || !(self.adventure?.hp < self.adventure?.max_hp)) return undefined;
+  const food = (observation.life || rules.life)?.items?.filter(item => item.kind === 'food' && self.life.inventory?.[item.id] > 0)
+    .map(item => [item.id, item.heal, self.life.inventory[item.id]]) || [];
+  return food.length ? food : undefined;
+}
+const FOOD_GUIDANCE = 'inventory{intent:use,item_id}可吃food[id,回血,数量]，不解除危险。\n';
 
 /** Only actual public completions and server deadlines; no synthetic mood or persona. */
 export function leisureContext(observation = {}, rules = {}, now = observation.server_time ?? Date.now()) {
@@ -80,6 +109,9 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   const plan = progress.plan ? pick(progress.plan, ['intent', 'zone_id', 'monster_id', 'expires_at']) : null;
   const teammate = a => ({ ...compactAgent(a), ...(a.adventure ? { hp: a.adventure.hp, plan: a.adventure.plan ? pick(a.adventure.plan, ['intent', 'monster_id']) : null } : {}) });
   const data = {
+    food: foodContext(observation, rules),
+    opportunities: opportunitiesContext(observation),
+    life: lifeContext(self, observation.server_time ?? Date.now()),
     movement: movementPromptContext(observation, rules),
     self: { ...compactAgent(self), adventure: { ...pick(progress, ['hp', 'max_hp', 'level', 'xp', 'gold', 'kills', 'in_field']), plan,
       ...(Number.isFinite(progress.decision_until) ? { decision_until: progress.decision_until, decision_seconds: Math.max(0, Math.ceil((progress.decision_until - (observation.server_time ?? Date.now())) / 1000)) } : {}),
@@ -87,6 +119,9 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     nearby: (observation.nearby_agents || []).slice(0, 4).map(teammate),
     group: observation.group ? pick(observation.group, ['group_id', 'members']) : undefined,
     invitations: (observation.invitations || []).slice(0, 2).map(i => pick(i, ['invite_id', 'from_agent_id', 'group_id'])),
+    game: observation.game?.status === 'recruiting' && !progress.in_field ? {
+      ...pick(observation.game, ['game_id', 'status', 'game_type']), responded: observation.game.responses?.[self.agent_id],
+    } : undefined,
     adventure: {
       zones: (adventure.zones || []).map(z => [z.id, text(z.name, 20), z.x, z.y, z.danger]),
       monsters: monsters.map(m => hostile
@@ -103,8 +138,10 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   };
   if (data.group) delete data.self.group_id;
   let compactInstructions = false;
+  let compactThreats = false;
   const socialActions = () => 'say{channel:nearby|group,text,group_id?}(≤200字)、' +
     (data.invitations.length ? 'respond_invite{invite_id,accept}、' : '') +
+    (data.game ? 'respond_game{game_id,accept}、' : '') +
     (compactInstructions ? '' : data.group ? 'invite{group_id,target_agent_id}、leave_group{group_id}、' : 'create_group{}、') +
     'move{x,y}(整数从0起、小于map宽高；曼哈顿≤max_step；见movement候选[x,y])、' +
     (!plan ? (data.games ? 'propose_game{group_id,game_type}、' : '') + (data.activities ? 'start_activity{activity_id}、' : '') : '') + 'wait{}。';
@@ -113,13 +150,30 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
       ? 'adventure_plan{intent,zone_id?,monster_id?}：explore选zone；hunt选zone/monster；rest回营回血；retreat回营；stop停；wait续。≤90秒。野怪追击，仅hunt还击；stop仍危险，营地2格安全。decision_seconds为30秒低血保护余秒，过期受击，hunt取消。队友各自同意hunt同目标。'
       : ADVENTURE_GUIDANCE + (hostile ? '\n' + MONSTER_GUIDANCE : '')) + '\n' +
     (ownerGoal ? `主人本次要求（不向广场复述）：${JSON.stringify(text(ownerGoal, 300))}\n` : '') +
+    (data.opportunities?.length ? 'opportunities为当前机会，可直接返回action或自选/wait；无需邀请才探索。\n' : '') +
+    (data.life ? (data.life.plots ? 'life.plots=[id,作物,成熟,已浇水,剩余秒]；' : '') + (data.life.inventory_omitted ? '库存未列，不代表为空；' : 'inventory为数量；') + 'equipment为已装备。\n' : '') +
+    (data.food ? FOOD_GUIDANCE : '') +
     '也可' + socialActions() + '不强制换玩法。MOVE_ADJUSTED仅到applied，未到requested。\n' +
-    'zones=[id,名,x,y,危险度]；' + (hostile ? 'monsters=[id,x,y,hp,attack,behavior,target,aggro,leash,homeX,homeY]，target=self表示你；' : 'monsters=[id,名,zone,x,y,hp,max_hp,attack,status]；') + (data.activities ? 'activities=[id,place]；places=[id,x,y,半径]；' : '') + '不返回身份/凭据/action_id。\n' +
+    (data.adventure.zones.length ? 'zones=[id,名,x,y,危险度]；' : '') + (data.adventure.monsters.length ? hostile ? `monsters=[id,x,y,hp,attack,behavior,target${compactThreats ? '' : ',aggro,leash,homeX,homeY'}]，target=self表示你；` : 'monsters=[id,名,zone,x,y,hp,max_hp,attack,status]；' : '') + (data.activities ? 'activities=[id,place]；places=[id,x,y,半径]；' : '') + '不返回身份/凭据/action_id。\n' +
     (correction ? '上次格式无效，只返回合法动作JSON。\n' : '') + '公开数据：';
   const render = () => instruction() + JSON.stringify(data);
+  if (!data.opportunities.length) delete data.opportunities;
   // Keep the original AI's goal, own health/plan, real target IDs and latest social
   // message. Drop catalogs/remote entities first, never truncate JSON or task text.
   if (render().length > 2000) delete data.self.adventure.last_result;
+  if (render().length > 2000 && data.opportunities) for (const opportunity of data.opportunities) delete opportunity.reason;
+  if (render().length > 2000 && data.opportunities && !plan && !threatened.size) {
+    compactInstructions = true;
+    compactThreats = hostile;
+    if (hostile) data.adventure.monsters = data.adventure.monsters.map(row => row.slice(0, 7));
+  }
+  if (render().length > 2000 && (threatened.size || plan)) delete data.opportunities;
+  if (render().length > 2000 && data.life && (progress.in_field || plan || threatened.size)) {
+    // Combat needs own effective stats, not a crop/crafting catalog. The complete
+    // life state remains in observation and returns on the next free decision.
+    Object.assign(data.self.adventure, data.life.stats);
+    delete data.life;
+  }
   while (render().length > 2000 && data.movement?.candidates.length > 2) data.movement.candidates.pop();
   while (render().length > 2000 && data.nearby.length > 1) data.nearby.pop();
   if (render().length > 2000 && data.group) delete data.group.members;
@@ -154,6 +208,21 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   if (render().length > 2000 && (threatened.size || plan)) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp' || row[0] === plan?.zone_id);
   if (render().length > 2000 && (threatened.size || plan)) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp');
   if (render().length > 2000 && data.last_action) delete data.last_action.message; // Keep the actual status/code and movement requested/applied coordinates.
+  while (render().length > 2000 && data.opportunities?.length > 2) data.opportunities.pop();
+  if (render().length > 2000 && data.opportunities) for (const opportunity of data.opportunities) delete opportunity.label;
+  if (render().length > 2000 && data.opportunities?.length) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp');
+  if (render().length > 2000 && data.life) delete data.life.plots; // Ready/water/plant actions still identify the current plot in opportunities.
+  if (render().length > 2000 && data.life?.inventory) {
+    delete data.life.inventory;
+    data.life.inventory_omitted = true; // Never turn a truncated inventory into an apparently empty one.
+  }
+  if (render().length > 2000 && hostile) {
+    compactThreats = true;
+    data.adventure.monsters = data.adventure.monsters.map(row => row.slice(0, 7));
+  }
+  if (render().length > 2000 && data.opportunities?.length && !progress.in_field && !plan && !threatened.size) data.adventure.monsters = [];
+  while (render().length > 2000 && data.food?.length > 1) data.food.pop();
+  if (render().length > 2000 && data.food) { data.adventure.zones = []; delete data.self.adventure.level; }
   if (render().length > 2000) fail('PET_CONTEXT_TOO_LARGE', `冒险观察为 ${render().length} 字符，超出桌宠单次消息上限，未发送模型请求`);
   return render();
 }
@@ -164,8 +233,11 @@ export function decisionPrompt({ observation = {}, events = [], rules = {}, owne
   const activity = self.activity;
   const activities = observation.activities || rules.activities || [];
   const places = observation.places || rules.places || [];
-  const game = observation.game;
-  if ((observation.adventure || rules.adventure) && (self.adventure?.in_field || self.adventure?.plan || !activity && (!game || ['finished', 'ended'].includes(game.status)))) {
+  const observedGame = observation.game;
+  const participating = observedGame?.participants?.includes(self.agent_id) || observedGame?.current_agent_id === self.agent_id;
+  const game = observedGame?.status === 'active' && !participating ? undefined : observedGame;
+  const participatingGame = participating && game && !['finished', 'ended'].includes(game.status);
+  if ((observation.adventure || rules.adventure) && (self.adventure?.in_field || self.adventure?.plan || !activity && !participatingGame)) {
     return adventurePrompt({ observation, events, rules, ownerGoal, correction, lastActionFeedback });
   }
   const gameType = game?.game_type || (game ? 'word_chain' : undefined);
@@ -177,8 +249,10 @@ export function decisionPrompt({ observation = {}, events = [], rules = {}, owne
   const selectedEvents = events.slice(-3);
   if (latestMessage && !selectedEvents.includes(latestMessage)) selectedEvents.splice(0, 1, latestMessage);
   const data = {
+    food: foodContext(observation, rules),
     movement: movementPromptContext(observation, rules),
-    self: { ...compactAgent(self), activity: activity ? pick(activity, ['activity_id', 'ends_at']) : null },
+    self: { ...compactAgent(self), activity: activity ? pick(activity, ['activity_id', 'ends_at']) : null,
+      ...(foodContext(observation, rules) ? { hp: self.adventure.hp, max_hp: self.adventure.max_hp } : {}) },
     nearby: (observation.nearby_agents || []).slice(0, 4).map(compactAgent),
     places: places.map(p => [p.id, p.x, p.y, p.radius]),
     activities: activities.map(a => [a.id, a.name, a.place_id, a.duration_seconds]),
@@ -220,12 +294,14 @@ export function decisionPrompt({ observation = {}, events = [], rules = {}, owne
     (choosing ? LEISURE_GUIDANCE + '\n' : '') +
     (lastActionFeedback ? 'last_action为实际回执；MOVE_ADJUSTED只到applied而非requested；拒绝后先观察再选。\n' : '') +
     (ownerGoal ? `主人本次要求（仅给你，不向广场复述）：${JSON.stringify(text(ownerGoal, 300))}\n` : '') +
+    (data.food ? FOOD_GUIDANCE : '') +
     'payload：move{x,y}(整数从0起、小于map宽高；曼哈顿≤max_step；见movement候选[x,y])；say{channel:nearby|group,text,group_id?}(≤200字)；start_activity{activity_id}(到地点半径内)；finish_activity{answer?}(依answer_type交整数/字符串)；wait{}；' + socialActions +
     (activity?.task?.kind === 'treasure_hunt' ? '寻宝：走到task.target，再finish_activity{}采集，按新目标继续至3件；移动保留寻宝。' : '') +
     'places=[id,x,y,半径]；activities=[id,名,place_id,秒]；games=[id,名]。不返回身份/凭据/action_id。\n' +
     (correction ? '上次不是合法动作JSON，请纠正；无法确定动作就返回wait。\n' : '') + '公开数据：';
   const render = () => instruction + JSON.stringify(data);
   const keptEvent = data.events[latestMessage ? selectedEvents.indexOf(latestMessage) : data.events.length - 1];
+  while (render().length > 2000 && data.food?.length > 1) data.food.pop();
   // Keep a complete valid JSON observation within the original /chat 2000-character limit.
   while (render().length > 2000 && data.movement?.candidates.length > 2) data.movement.candidates.pop();
   while (render().length > 2000 && data.events.length > 1) data.events.splice(data.events.findIndex(event => event !== keptEvent), 1);

@@ -85,6 +85,7 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
     {!present.length&&<div className="adventure-empty-banner" data-testid="adventure-empty-banner"><Compass size={18}/><div><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，由它决定去哪里、与谁同行。</p></div><span>0 位 AI</span></div>}
     <div className="adventure-map" data-testid="adventure-map">
       <ForestScene grid={grid} map={map}/>
+      {world.life?.farm_place&&<div className="farm-map-mark" style={point(world.life.farm_place,map)}><Leaf size={13}/><span>营地农田</span></div>}
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
       {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
       <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);const from=point(monster.position,map),to=point(target?.position,map);return target&&<line key={monster.monster_id} x1={from.left} y1={from.top} x2={to.left} y2={to.top}/>;})}</svg>

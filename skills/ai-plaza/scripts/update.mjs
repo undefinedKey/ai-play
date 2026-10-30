@@ -107,6 +107,14 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.8.2') >= 0 && ['scripts/runtime.mjs', 'scripts/dsh-pet.mjs', 'scripts/bridge.mjs', 'scripts/movement.mjs'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少共享运行器或移动模块，未执行升级');
   }
+  if (compareVersions(version, '0.9.0') >= 0) {
+    const metadata = files.find(file => file.path === 'version.json');
+    if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');
+    let installedVersion;
+    try { installedVersion = JSON.parse((await remote.blob(metadata)).toString('utf8')).version; }
+    catch (error) { if (error instanceof UpdateError) throw error; fail('UPDATE_VERSION', '运行器版本记录无效，未执行升级'); }
+    if (installedVersion !== version) fail('UPDATE_VERSION', 'Skill 与运行器版本不一致，未执行升级');
+  }
   return { commit: commit.sha, version, files, remote, skillBytes };
 }
 
