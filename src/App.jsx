@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WorldScene, { AdventureProfile, adventureStatus } from './AdventureMap.jsx';
 import { CharacterSprite, PixelScene } from './PixelWorld.jsx';
+import SpeechOverlay from './SpeechOverlay.jsx';
 import { mapDimensions, projectMapPoint } from './map-projection.js';
 import { mergeSpectatorDelta } from './spectator-frame.js';
 import FarmPanel, { Warehouse, RuntimeDiagnostics } from './FarmPanel.jsx';
@@ -135,25 +136,21 @@ function PlazaMap({ world, agents, events, selected, onSelect, grid, now, hasMin
   const map = mapDimensions(world?.adventure?.map);
   const unitOffset = agent => { const occupants=present.filter(other=>other.position?.x===agent.position?.x&&other.position?.y===agent.position?.y); return `${(occupants.findIndex(other=>other.agent_id===agent.agent_id)-(occupants.length-1)/2)*28}px`; };
   const treasure = currentActivity(agents.find(agent=>agent.agent_id===selected))?.target;
-  const recentMessages = [...events].reverse().filter(event => ['message', 'say', 'chat'].includes(event.type) && event.payload?.text && present.some(agent => agent.agent_id === event.payload.agent_id) && now - timeValue(event.occurred_at) < 14000);
-  const visibleSpeech = recentMessages.find(event => event.payload.agent_id === selected) || recentMessages[0];
-  return <div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
+  return <div className="map-scene-frame"><div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
     <PixelScene grid={grid} map={map} live={live} farmAgent={agents.find(agent=>agent.agent_id===selected)||agents[0]} label="像素广场，薄荷小池、中央营地、书屋与游戏角"/>
     {(world?.places || []).map(place=><div key={place.id} className="pixel-place-label" style={projectMapPoint({x:place.x,y:place.y-1.8},map)}>{place.name}</div>)}
     <div className="map-coordinate">{map.width} × {map.height} <span>SHARED WORLD</span></div>
     {treasure&&<div className="map-treasure" style={projectMapPoint(treasure,map)} aria-label={`下一处宝藏位于 ${treasure.x}, ${treasure.y}`}><Flag size={16}/><span>下一处宝藏</span></div>}
     {present.map(agent => {
-      const speech = visibleSpeech?.payload.agent_id === agent.agent_id ? visibleSpeech : null;
       const activity = currentActivity(agent);
       return <button key={agent.agent_id} className={`map-agent ${selected === agent.agent_id ? 'selected' : ''} ${agent.status === 'paused' ? 'paused' : ''}`} style={{ ...projectMapPoint(agent.position,map), '--unit-offset':unitOffset(agent), '--avatar-color': agent.appearance?.accent || agent.color, zIndex:(selected===agent.agent_id?50:10)+Math.floor(agent.position?.y||0) }} onClick={() => onSelect(agent.agent_id)} aria-label={`查看${agent.name}，${activity ? activity.name : agentStatus(agent)}${!live ? '，最近记录' : ''}`} data-testid={`map-agent-${agent.agent_id}`}>
-        {speech && <span className="speech-bubble">{speech.payload.text}</span>}
         <CharacterSprite agent={agent} events={events} now={now} live={live}/><span className="map-agent-name">{agent.name}{agent.status === 'paused' && <Pause size={9}/>}</span>
         {activity && <span className="map-agent-activity">{!live && '上次：'}{activity.name}</span>}
       </button>;
     })}
     {!present.length && <div className="map-empty"><span className="map-empty-icon"><Sprout size={24}/></span><strong>{readOnly ? '空场也没关系，等真实 AI 来玩' : '今天的故事，从一次相遇开始'}</strong><span>{readOnly ? '这里没有预设居民。接入你的 AI 后，运行器在线时，它就可以自由活动。' : hasMine ? '让你的 AI 入场，去认识新朋友。' : '带着已有的名字与性格，来广场坐坐。'}</span>{!readOnly && !hasMine && <button className="text-button" onClick={onCreate}>创建我的 AI <ArrowRight size={14}/></button>}</div>}
     <div className="map-weather"><span className="sun-icon">☀</span> 适合遇见朋友的一天</div>
-  </div>;
+  </div><SpeechOverlay events={events} agents={agents} selected={selected} now={now} live={live}/></div>;
 }
 
 function eventDescription(event, agents) {
