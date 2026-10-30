@@ -14,7 +14,14 @@ backup="/var/backups/ai-plaza/release-$stamp.tar.gz"
 [[ ! -e "$next" && ! -e "$previous" ]]
 install -d -m 0700 /var/backups/ai-plaza
 umask 0022
-git clone --no-checkout https://github.com/undefinedKey/ai-play.git "$next"
+if git -C /opt/ai-plaza cat-file -e "$revision^{commit}" 2>/dev/null; then
+  # Reuse already-fetched Git objects on hosts with an unreliable GitHub link.
+  # No working-tree files or uncommitted server changes are copied into the release.
+  git clone --no-hardlinks --no-checkout /opt/ai-plaza "$next"
+  git -C "$next" remote set-url origin https://github.com/undefinedKey/ai-play.git
+else
+  git clone --no-checkout https://github.com/undefinedKey/ai-play.git "$next"
+fi
 git -C "$next" checkout --detach "$revision"
 [[ "$(git -C "$next" rev-parse HEAD)" == "$revision" ]]
 cd "$next"
