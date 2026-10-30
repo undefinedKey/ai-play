@@ -111,11 +111,11 @@ test('两个真实 MCP 接入端选择组队讨伐，无观众时前进，旁观
 
 test('原 AI 的探索计划抵达即结束，主人暂停后停止执行且旁观档案同步', async ({page,request}) => {
   const api=await owner(request), a=await actor(api,'测试探索者');
-  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
+  await a.act('adventure_plan',{intent:'explore',zone_id:'camp'});
   await page.goto(base+'/watch?view=adventure');
-  await expect(page.getByTestId('adventure-profile')).toContainText('探索 · 苔光森林');
+  await expect(page.getByTestId('adventure-profile')).toContainText('探索 · 星火营地');
   step(16);
-  await expect(page.getByTestId('adventure-profile')).toContainText('已抵达苔光森林');
+  await expect(page.getByTestId('adventure-profile')).toContainText('已抵达星火营地');
   expect((await a.observe()).self.adventure.plan).toBeNull();
   await a.act('adventure_plan',{intent:'rest'}); step(2);
   await api(`/api/agents/${a.agent.agent_id}/control`,{operation:'pause'});
@@ -156,4 +156,75 @@ test('HTTP 轮询先于同版本 SSE 增量到达时，旁观日志不重复且�
   step();
   await expect(page.getByTestId(`adventure-agent-${a.agent.agent_id}`)).not.toHaveAttribute('style',before);
   await expect(page.getByRole('log').getByText(text,{exact:true})).toHaveCount(1);
+});
+
+test('只探索的 AI 会被怪物主动追击与攻击，返回营地或主人暂停后不再受伤', async ({page,request}) => {
+  const api=await owner(request), a=await actor(api,'测试林间旅人');
+  await page.goto(base+'/watch?view=adventure');
+  await expect(page.getByTestId('adventure-field-status')).toContainText('未开启冒险');
+  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
+  let chasing;
+  for(let i=0;i<16&&!chasing;i++) {
+    step();
+    chasing=application.world.state.adventure.monsters.find(monster=>monster.target_agent_id===a.agent.agent_id&&monster.behavior==='chasing');
+  }
+  expect(chasing).toBeTruthy();
+  expect(chasing.position).not.toEqual(chasing.home_position);
+  const pursuing=page.getByTestId(`monster-${chasing.monster_id}`);
+  await expect(pursuing).toHaveAttribute('data-behavior','chasing');
+  await expect(page.getByLabel('野外怪物动向')).toContainText('追赶 测试林间旅人');
+  await expect(page.getByTestId('adventure-field-status')).toContainText('正在被怪物盯上');
+  for(let i=0;i<8&&application.world.agent(a.agent.agent_id).adventure.hp===40;i++)step();
+  const injured=(await a.observe()).self;
+  expect(injured.adventure.hp).toBeLessThan(injured.adventure.max_hp);
+  expect(injured.adventure.kills).toBe(0);
+  expect(application.world.state.adventure.monsters.every(monster=>monster.hp===monster.max_hp)).toBe(true);
+  await expect(page.getByLabel('角色生命')).toHaveAttribute('value',String(injured.adventure.hp));
+  await expect(page.getByLabel('野外怪物动向')).toContainText('攻击 测试林间旅人');
+  await page.getByRole('button',{name:'冒险',exact:true}).click();
+  await expect(page.getByRole('log')).toContainText('造成');
+  for(const width of [1440,390]) {
+    await page.setViewportSize({width,height:900});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+    expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);
+    await page.screenshot({path:`artifacts/adventure-aggro-${width}.png`,fullPage:true});
+  }
+  await a.act('adventure_plan',{intent:'retreat'});
+  for(let i=0;i<18&&application.world.agent(a.agent.agent_id).adventure.in_field;i++)step();
+  const safe=(await a.observe()).self;
+  expect(safe.adventure.in_field).toBe(false);
+  await expect(page.getByTestId('adventure-field-status')).toContainText('营地安全区');
+  expect(application.world.state.adventure.monsters.every(monster=>monster.target_agent_id!==a.agent.agent_id)).toBe(true);
+  step(3);expect((await a.observe()).self.adventure.hp).toBe(safe.adventure.hp);
+  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
+  for(let i=0;i<16&&!application.world.state.adventure.monsters.some(monster=>monster.target_agent_id===a.agent.agent_id);i++)step();
+  expect(application.world.state.adventure.monsters.some(monster=>monster.target_agent_id===a.agent.agent_id)).toBe(true);
+  await api(`/api/agents/${a.agent.agent_id}/control`,{operation:'pause'});
+  const pausedHp=application.world.agent(a.agent.agent_id).adventure.hp;
+  step(3);
+  expect(application.world.agent(a.agent.agent_id).adventure.hp).toBe(pausedHp);
+  expect(application.world.state.adventure.monsters.every(monster=>monster.target_agent_id!==a.agent.agent_id)).toBe(true);
+  await expect(page.getByTestId('adventure-field-status')).toContainText('冒险已停止');
+});
+
+test('低生命时公开显示反应保护，保护期间停止受击，旁观者不能代替原 AI 选择', async ({page,request}) => {
+  const api=await owner(request), a=await actor(api,'测试遗迹旅人');
+  await a.act('adventure_plan',{intent:'explore',zone_id:'ruins'});
+  await page.goto(base+'/watch?view=adventure');
+  for(let i=0;i<25&&!application.world.agent(a.agent.agent_id).adventure.decision_until;i++)step();
+  const fighter=(await a.observe()).self.adventure;
+  expect(fighter.decision_until).toBeGreaterThan(clock);
+  expect(fighter.hp).toBeGreaterThan(0);expect(fighter.hp).toBeLessThanOrEqual(fighter.max_hp*.25);
+  expect(fighter.plan).toBeNull();
+  await expect(page.getByTestId('adventure-field-status')).toContainText('反应保护');
+  await expect(page.getByTestId('adventure-field-status')).toContainText('保护到期后，留在野外仍有危险');
+  await expect(page.getByTestId('adventure-profile')).toContainText('等待 AI 决定');
+  await expect(page.getByRole('button',{name:'撤退',exact:true})).toHaveCount(0);
+  const hp=fighter.hp;step(5);
+  expect((await a.observe()).self.adventure.hp).toBe(hp);
+  await a.act('adventure_plan',{intent:'retreat'});
+  for(let i=0;i<18&&application.world.agent(a.agent.agent_id).adventure.in_field;i++)step();
+  await expect(page.getByTestId('adventure-field-status')).toContainText('营地安全区');
+  expect((await a.observe()).self.adventure.hp).toBe(hp);
 });

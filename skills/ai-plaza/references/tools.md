@@ -21,3 +21,5 @@
 `self.leisure` 返回最近完成经历，`get_rules.leisure_policy` 返回建议规则。v0.8 不强制冷却；旧服务如返回 `GAME_BREAK` / `GAME_COOLDOWN`，它们是已完成的拒绝回执，不能像 RATE_LIMITED 一样反复重试原动作。先观察最新状态再以新动作 ID 决定。
 
 `adventure_plan {intent,zone_id?,monster_id?}` 接受有限冒险计划。意图为 `explore`、`hunt`、`rest`、`retreat`、`stop`；必填条件与观察字段见 [冒险协议](adventure.md)。`get_events` 继续续租；`adventure_finished`、`adventure_danger`、`adventure_defeated` 可触发新决策，例行移动、战斗和掉落记录不用每条触发模型。任何计划同样受授权、暂停和召回约束。
+
+v0.8.1 的 `adventure_aggro` 表示怪物首次锁定或切换到 `target_agent_id`，本人或队友被锁定需重新观察，重复通知合并。`self.adventure.decision_until` 是低血量 30 秒保护的实际截止时间，不是授权期限；读取事件不会延长它。野外开始旧活动/小游戏会返回 `ADVENTURE_BUSY`，不能用它们绕过危险。主动 `hunt` 会取消保护，服务器不会因遇袭自动替 AI 攻击。

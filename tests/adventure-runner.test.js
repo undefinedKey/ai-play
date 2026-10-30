@@ -62,7 +62,7 @@ test('真实World中原桌宠决定探索，自动移动不逐步调用模型，
   assert.equal(f.a.adventure.plan.intent, 'explore');
   for (let step = 0; step < 20 && f.a.adventure.plan; step++) {
     f.tick();
-    if (f.a.adventure.plan) assert.equal(f.runner.decisionDue(), false, '移动只执行原意图');
+    if (f.a.adventure.plan && !f.runner.checkpoint.queue.some(event => event.type === 'adventure_aggro')) assert.equal(f.runner.decisionDue(), false, '移动本身不触发模型，遭怪物锁定可唤醒');
   }
   assert.equal(f.a.adventure.plan, null); assert.equal(f.runner.checkpoint.calls_used, 1);
   assert.equal(f.runner.decisionDue(), true); assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_finished'));
@@ -156,4 +156,112 @@ test('新版独立模型请求保留完整冒险环境，原AI输出才会生成
   assert.ok(request.messages[0].content.includes('adventure_plan'));
   assert.ok(!JSON.stringify(context).includes('MODEL_SECRET'));
   assert.equal(f.a.adventure.plan.zone_id, 'ruins');
+});
+
+test('探索遭遇主动锁定唤醒原AI，原AI可选择撤退，未下hunt不会自动反击', async t => {
+  let decisions = 0;
+  const f = await fixture(t, data => ++decisions === 1
+    ? { type: 'adventure_plan', payload: { intent: 'explore', zone_id: 'forest' } }
+    : data.events.some(e => e.type === 'adventure_aggro') ? { type: 'adventure_plan', payload: { intent: 'retreat' } } : { type: 'wait', payload: {} });
+  await f.decide(); f.poll();
+  for (let step = 0; step < 15 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'); step++) f.tick();
+  assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'));
+  assert.equal(f.runner.decisionDue(), true);
+  assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
+  await f.decide(); f.poll();
+  const context = decode(f.prompts.at(-1));
+  assert.ok(context.adventure.monsters.some(row => row[6] === 'self' && ['chasing', 'attacking'].includes(row[5])));
+  assert.equal(f.a.adventure.plan.intent, 'retreat'); assert.equal(f.runner.checkpoint.calls_used, 2);
+  for (let step = 0; step < 20 && f.a.adventure.plan; step++) f.tick();
+  assert.equal(f.a.adventure.in_field, false);
+  assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
+});
+
+test('同样的探索遭遇可由另一原AI选择应战，模型明确hunt后才攻击', async t => {
+  let decisions = 0;
+  const f = await fixture(t, data => ++decisions === 1
+    ? { type: 'adventure_plan', payload: { intent: 'explore', zone_id: 'forest' } }
+    : { type: 'adventure_plan', payload: { intent: 'hunt', monster_id: data.adventure.monsters.find(row => row[6] === 'self')[0] } });
+  await f.decide(); f.poll();
+  for (let step = 0; step < 15 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'); step++) f.tick();
+  assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
+  await f.decide(); f.poll();
+  assert.equal(f.a.adventure.plan.intent, 'hunt');
+  const chosen = f.a.adventure.plan.monster_id;
+  for (let step = 0; step < 5; step++) f.tick();
+  assert.ok(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent' && e.payload.monster_id === chosen));
+  assert.equal(f.runner.checkpoint.calls_used, 2);
+});
+
+test('怪物同次锁定合并，普通高频攻击与陌生人被锁定不唤醒，队友锁定会保留', () => {
+  const events = Array.from({ length: 20 }, (_, i) => ({ event_id: `hit${i}`, type: 'adventure_combat', payload: { agent_id: 'self', monster_id: 'slime', attacker: 'monster' } }));
+  for (let i = 0; i < 20; i++) events.push({ event_id: `lock${i}`, type: 'adventure_aggro', payload: { agent_id: 'self', target_agent_id: 'self', monster_id: 'slime' } });
+  events.push({ event_id: 'friend', type: 'adventure_aggro', payload: { agent_id: 'friend', target_agent_id: 'friend', monster_id: 'boar' } });
+  events.push({ event_id: 'stranger', type: 'adventure_aggro', payload: { agent_id: 'stranger', target_agent_id: 'stranger', monster_id: 'guardian' } });
+  const cp = enqueueEvents({ queue: [], seen: [] }, events, 'self', ['friend']);
+  assert.deepEqual(cp.queue.map(e => e.event_id), ['lock19', 'friend']);
+  assert.deepEqual(enqueueEvents(cp, events, 'self', ['friend']).queue, cp.queue);
+});
+
+test('即使普通空闲为90秒，反应保护到期前也给原AI复查机会', async t => {
+  const f = await fixture(t);
+  f.runner.idleMs = 90000; f.runner.lastDecisionAt = f.runner.now();
+  f.runner.observation.self.adventure.in_field = true;
+  f.runner.observation.self.adventure.decision_until = f.runner.now() + 30000;
+  f.advance(15000); assert.equal(f.runner.decisionDue(), false);
+  f.advance(6000); assert.equal(f.runner.decisionDue(), true);
+  f.advance(10000); assert.equal(f.runner.decisionDue(), false, '旧快照中的已过期保护不能导致每10秒无限唤醒');
+  assert.equal(f.calls.filter(call => call.name === 'act').length, 0, '唤醒只请求原AI决定，不自动生成撤退或反击');
+});
+
+test('拥挤观察优先保留本人/队友追击者和保护期限，不被最后陌生人aggro覆盖', async t => {
+  const f = await fixture(t);
+  const observation = structuredClone(f.runner.observation), friend = 'agent_' + 'f'.repeat(36), stranger = 'agent_' + 's'.repeat(36);
+  observation.self.adventure.in_field = true;
+  observation.self.adventure.hp = 8;
+  observation.self.adventure.decision_until = observation.server_time + 30000;
+  observation.group = { group_id: 'group_' + 'g'.repeat(36), members: [f.a.agent_id, friend] };
+  observation.adventure.monsters.forEach((monster, index) => {
+    monster.target_agent_id = index === 1 ? friend : f.a.agent_id;
+    monster.behavior = 'chasing';
+  });
+  const message = '友'.repeat(200), goal = '主'.repeat(300);
+  const prompt = decisionPrompt({ observation, rules: f.world.getRules(), ownerGoal: goal, events: [
+    { type: 'adventure_aggro', payload: { agent_id: f.a.agent_id, monster_id: 'forest_slime', target_agent_id: f.a.agent_id, text: '史莱姆盯上了你' } },
+    { type: 'message', payload: { agent_id: friend, text: message } },
+    { type: 'adventure_aggro', payload: { agent_id: stranger, monster_id: 'distant_monster', target_agent_id: stranger, text: '远处怪物盯上了陌生人' } },
+  ] });
+  const data = decode(prompt);
+  assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(goal));
+  assert.ok(data.adventure.monsters.some(row => row[0] === 'forest_slime' && row[6] === 'self'));
+  assert.ok(data.adventure.monsters.some(row => row[0] === 'forest_boar' && row[6] === friend));
+  assert.ok(data.adventure.monsters.some(row => row[0] === 'ruins_guardian' && row[6] === 'self'));
+  assert.equal(data.self.adventure.decision_until, observation.self.adventure.decision_until);
+  assert.equal(data.self.adventure.decision_seconds, 30);
+  assert.equal(data.events[0].monster_id, 'forest_slime'); assert.equal(data.events.at(-1).text, message);
+});
+
+test('同组其他角色在报名游戏时，本人在野外仍优先读取怪物威胁且不推荐旧活动', async t => {
+  const f = await fixture(t);
+  const bRecord = f.world.createAgent({ name: '营地同伴' }), bController = f.world.createController(bRecord.agent_id);
+  f.world.ownerControl(bRecord.agent_id, 'start', { controller_id: bController.controller_id });
+  f.world.callTool(f.world.authenticate(bController.token), 'join_world');
+  const b = f.world.agent(bRecord.agent_id); b.position = { ...f.a.position };
+  f.world.perform(f.a, 'create_group', {});
+  const invite = f.world.perform(f.a, 'invite', { group_id: f.a.group_id, target_agent_id: b.agent_id });
+  f.world.perform(b, 'respond_invite', { invite_id: invite.invite_id, accept: true });
+  f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.a.position = { x: 4, y: 11 }; f.tick();
+  f.world.perform(b, 'propose_game', { group_id: b.group_id, game_type: 'word_chain' });
+  f.refresh();
+  assert.equal(f.runner.observation.game.status, 'recruiting');
+  assert.ok(!f.runner.observation.game.participants.includes(f.a.agent_id));
+  const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.world.getRules(), events: f.runner.checkpoint.queue });
+  const data = decode(prompt);
+  assert.ok(data.adventure.monsters.some(row => row[6] === 'self'));
+  assert.equal(data.self.adventure.in_field, true);
+  assert.equal(data.activities, undefined); assert.equal(data.games, undefined);
+  assert.ok(!prompt.includes('start_activity{')); assert.ok(!prompt.includes('propose_game{'));
+  f.runner.lastDecisionAt = f.runner.now(); f.runner.checkpoint.queue = [];
+  f.advance(10000); assert.equal(f.runner.decisionDue(), false, '无新威胁时不为不能参加的报名反复唤醒');
 });

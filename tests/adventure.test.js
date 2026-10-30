@@ -50,13 +50,13 @@ test('冒险目录和公开成长可发现；新角色没有自动计划或默�
 
 test('无旁观者仍按有限探索计划移动，抵达后不会自动挑选下一项', t => {
   const f = fixture(t), p = f.make(); const initial = { ...f.fighter(p).position };
-  assert.equal(f.plan(p, 'explore', { zone_id: 'forest' }).status, 'applied');
+  assert.equal(f.plan(p, 'explore', { zone_id: 'camp' }).status, 'applied');
   assert.deepEqual(f.fighter(p).position, initial);
   f.advance(2000); assert.notDeepEqual(f.fighter(p).position, initial);
-  f.advance(18000); assert.deepEqual(f.fighter(p).position, { x: 4, y: 11 });
+  f.advance(18000); assert.deepEqual(f.fighter(p).position, { x: 11, y: 8 });
   assert.equal(f.fighter(p).adventure.plan, null); assert.equal(f.fighter(p).adventure.last_result.kind, 'completed');
   const completed = f.world.state.events.filter(e => e.type === 'adventure_finished').length;
-  f.advance(20000); assert.deepEqual(f.fighter(p).position, { x: 4, y: 11 });
+  f.advance(20000); assert.deepEqual(f.fighter(p).position, { x: 11, y: 8 });
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_finished').length, completed);
 });
 
@@ -80,12 +80,12 @@ test('组队需要双方同意，各自选择同一目标后协同作战并分�
   const invite = f.act(a, 'invite', { group_id: group, target_agent_id: b.agent.agent_id });
   assert.equal(f.fighter(b).group_id, null);
   assert.equal(f.act(b, 'respond_invite', { invite_id: invite.invite_id, accept: true }).status, 'applied');
-  f.plan(a, 'hunt', { monster_id: 'ruins_guardian' });
+  f.plan(a, 'hunt', { monster_id: 'forest_boar' });
   assert.equal(f.fighter(b).adventure.plan, null);
-  f.plan(b, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(30000);
+  f.plan(b, 'hunt', { monster_id: 'forest_boar' }); f.advance(20000);
   const aa = f.fighter(a).adventure, bb = f.fighter(b).adventure;
   assert.equal(aa.last_result.kind, 'victory'); assert.equal(bb.last_result.kind, 'victory');
-  assert.equal(aa.xp + bb.xp, 48); assert.equal(aa.gold + bb.gold, 24);
+  assert.equal(aa.xp + bb.xp, 20); assert.equal(aa.gold + bb.gold, 10);
   assert.ok(aa.hp > 0 && bb.hp > 0); assert.ok(aa.xp > 0 && bb.xp > 0);
 });
 
@@ -161,6 +161,8 @@ test('冒险与独处活动/多人游戏互斥，聊天和邀请仍可进行', t
   assert.equal(f.act(p, 'start_activity', { activity_id: 'relax' }).error.code, 'ADVENTURE_BUSY');
   assert.equal(f.act(p, 'say', { channel: 'nearby', text: '我要去森林，有同伴吗？' }).status, 'applied');
   const group = f.act(p, 'create_group').group_id;
+  assert.equal(f.act(p, 'propose_game', { group_id: group }).error.code, 'ADVENTURE_BUSY');
+  f.plan(p, 'retreat'); f.advance(10000);
   f.act(p, 'propose_game', { group_id: group }); assert.equal(f.fighter(p).adventure.plan, null);
   assert.equal(f.plan(p, 'hunt', { monster_id: 'forest_slime' }).error.code, 'GAME_BUSY');
 });
@@ -261,6 +263,135 @@ test('失去原AI心跳后先停止计划，不补算离线期间的移动和攻
   f.jump(45000);
   assert.equal(f.fighter(p).status, 'offline'); assert.equal(f.fighter(p).adventure.plan, null); assert.deepEqual(f.fighter(p).position, position);
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat').length, 0);
+});
+
+test('只探索也会被发现、追击与攻击；不替原AI反击，锁定事件不按秒重复', t => {
+  const f = fixture(t), p = f.make(); f.fighter(p).position = { x: 17, y: 7 };
+  f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000);
+  const m = f.world.state.adventure.monsters[2], a = f.fighter(p);
+  assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'chasing'); assert.deepEqual(m.position, { x: 19, y: 7 }); assert.equal(a.adventure.hp, 40);
+  f.advance(2000); assert.equal(a.adventure.hp, 24); assert.equal(m.behavior, 'attacking');
+  assert.equal(a.adventure.plan, null); assert.equal(a.adventure.in_field, true); assert.equal(a.adventure.last_result.kind, 'completed');
+  assert.equal(m.hp, 70); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length, 0);
+  assert.equal(f.world.state.events.filter(e => e.type === 'adventure_aggro' && e.payload.monster_id === m.monster_id).length, 1);
+  const publicState = spectatorSnapshot(f.world); assert.equal(publicState.adventure.monsters[2].target_agent_id, a.agent_id);
+  assert.equal(publicState.events.find(e => e.type === 'adventure_aggro').payload.target_agent_id, a.agent_id);
+  assert.equal(publicState.events.find(e => e.type === 'adventure_combat').payload.attacker, 'monster');
+});
+
+test('未选择过冒险的旧广场角色即使在怪物身边也不会被攻击', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 20, y: 7 };
+  f.advance(20000); assert.equal(a.adventure.in_field, false); assert.equal(a.adventure.hp, 40);
+  assert.equal(f.world.state.adventure.monsters[2].target_agent_id, null);
+  assert.equal(f.world.state.events.filter(e => e.type === 'adventure_aggro').length, 0);
+});
+
+test('stop和探索结束不授予野外免疫；无计划低血也会触发有限保护', t => {
+  const f = fixture(t), p = f.make(); f.fighter(p).position = { x: 17, y: 7 };
+  f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(2000); f.plan(p, 'stop');
+  const a = f.fighter(p); assert.equal(a.adventure.plan, null); assert.equal(a.adventure.hp, 32);
+  f.advance(1000); assert.equal(a.adventure.hp, 24); assert.equal(a.adventure.in_field, true);
+  f.advance(2000); assert.equal(a.adventure.hp, 8); assert.equal(a.adventure.last_result.kind, 'needs_decision');
+  assert.equal(a.adventure.decision_until, f.now() + 30000);
+  const until = a.adventure.decision_until, hp = a.adventure.hp;
+  f.plan(p, 'stop'); f.advance(1000); assert.equal(a.adventure.decision_until, until); assert.equal(a.adventure.hp, hp);
+  f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000); assert.equal(a.adventure.decision_until, until);
+  f.advance(25000); assert.equal(a.adventure.hp, hp); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_danger').length, 1);
+  f.advance(10000); assert.equal(a.adventure.last_result.kind, 'defeated'); assert.equal(a.adventure.in_field, false); assert.equal(a.adventure.decision_until, null);
+});
+
+test('同tick多怪只有第一只跨低血线时受击，后续怪物立即尊重保护', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 4, y: 11 };
+  f.plan(p, 'explore', { zone_id: 'forest' }); f.plan(p, 'stop'); a.adventure.hp = 12;
+  const [slime, boar] = f.world.state.adventure.monsters; boar.position = { x: 5, y: 11 };
+  f.advance(1000);
+  assert.equal(a.adventure.hp, 10); assert.equal(a.adventure.decision_until, f.now() + 30000);
+  const hits = f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'monster');
+  assert.equal(hits.length, 1); assert.equal(hits[0].payload.monster_id, slime.monster_id);
+  assert.equal(boar.target_agent_id, null);
+});
+
+test('低血保护到期不会因仍低血反复续期；主动hunt立刻取消剩余保护', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 3, y: 10 };
+  f.plan(p, 'explore', { zone_id: 'forest' }); f.plan(p, 'stop'); a.adventure.hp = 12;
+  f.advance(1000); assert.equal(a.adventure.hp, 10); assert.ok(a.adventure.decision_until > f.now());
+  const until = a.adventure.decision_until;
+  f.advance(30000); assert.equal(a.adventure.decision_until, null); assert.ok(a.adventure.hp < 10);
+  assert.equal(f.world.state.events.filter(e => e.type === 'adventure_danger').length, 1);
+  a.adventure.hp = 12; f.advance(1000); assert.ok(a.adventure.decision_until > until);
+  f.plan(p, 'hunt', { monster_id: 'forest_slime' }); assert.equal(a.adventure.decision_until, null);
+  f.advance(1000); assert.equal(a.adventure.hp, 8); assert.equal(a.adventure.decision_until, null);
+});
+
+test('同一怪物每秒只攻击一次，不叠加反击与主动攻击', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 19, y: 7 };
+  f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(1000);
+  const m = f.world.state.adventure.monsters[2]; assert.equal(a.adventure.hp, 32); assert.equal(m.hp, 64);
+  const attacks = f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'monster');
+  assert.equal(attacks.length, 1); assert.equal(attacks[0].payload.damage, 8);
+});
+
+test('怪物超出追击范围放弃目标并逐步归位，回家恢复生命而不无限追赶', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 17, y: 7 };
+  f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000); f.plan(p, 'stop');
+  f.act(p, 'move', { x: 15, y: 7 }); f.advance(2000);
+  const m = f.world.state.adventure.monsters[2]; assert.deepEqual(m.position, { x: 17, y: 7 });
+  m.hp = 60; f.act(p, 'move', { x: 15, y: 4 }); f.advance(1000);
+  assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'returning'); assert.deepEqual(m.position, { x: 18, y: 7 });
+  f.advance(2000); assert.deepEqual(m.position, m.home_position); assert.equal(m.behavior, 'idle'); assert.equal(m.hp, 70);
+  f.advance(5000); assert.deepEqual(m.position, m.home_position); assert.equal(a.adventure.in_field, true);
+});
+
+test('归位中的怪物遭到攻击仍会应战，不能利用returning无伤刷怪', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p), m = f.world.state.adventure.monsters[2];
+  a.position = { x: 17, y: 6 }; m.position = { x: 17, y: 7 }; m.behavior = 'returning';
+  f.plan(p, 'hunt', { monster_id: m.monster_id }); f.advance(1000);
+  assert.equal(m.hp, 64); assert.equal(a.adventure.hp, 32); assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'attacking');
+});
+
+test('营地边界安全，返回营地立即退出野外，营地内不能远程无伤攻击', t => {
+  const f = fixture(t), p = f.make(); const a = f.fighter(p), m = f.world.state.adventure.monsters[2];
+  a.position = { x: 13, y: 8 }; a.adventure.in_field = true;
+  m.position = { x: 14, y: 8 }; m.home_position = { x: 14, y: 8 };
+  f.advance(1000); assert.equal(a.adventure.hp, 40); assert.equal(a.adventure.in_field, false); assert.equal(m.target_agent_id, null);
+  f.plan(p, 'hunt', { monster_id: m.monster_id }); f.advance(1000);
+  assert.deepEqual(a.position, { x: 14, y: 8 }); assert.equal(m.hp, 70); assert.equal(a.adventure.hp, 32);
+  assert.equal(a.adventure.in_field, true);
+  f.act(p, 'move', { x: 13, y: 8 }); assert.equal(a.adventure.in_field, false); assert.equal(m.target_agent_id, null);
+  f.advance(5000); assert.equal(a.adventure.hp, 32); assert.equal(m.target_agent_id, null);
+});
+
+test('野外停止计划后也不能用旧小游戏或独处活动规避风险，聊天邀请仍可用', t => {
+  const f = fixture(t), a = f.make('甲'), b = f.make('乙'); const group = f.act(a, 'create_group').group_id;
+  const invite = f.act(a, 'invite', { group_id: group, target_agent_id: b.agent.agent_id }); f.act(b, 'respond_invite', { invite_id: invite.invite_id, accept: true });
+  const game = f.act(b, 'propose_game', { group_id: group }).game_id;
+  f.plan(a, 'explore', { zone_id: 'forest' }); f.plan(a, 'stop');
+  assert.equal(f.fighter(a).adventure.in_field, true);
+  assert.equal(f.act(a, 'start_activity', { activity_id: 'relax' }).error.code, 'ADVENTURE_BUSY');
+  assert.equal(f.act(a, 'respond_game', { game_id: game, accept: true }).error.code, 'ADVENTURE_BUSY');
+  assert.equal(f.act(a, 'say', { channel: 'group', group_id: group, text: '我在野外，需要同伴' }).status, 'applied');
+  f.act(a, 'leave_group', { group_id: group }); assert.equal(f.fighter(a).adventure.in_field, true);
+});
+
+test('权限暂停、过期、失联及房间暂停清除仇恨，已完成计划角色也不再受伤', t => {
+  for (const operation of ['pause', 'recall', 'expiry', 'offline', 'room']) {
+    const f = fixture(t), p = f.make(operation), a = f.fighter(p); a.position = { x: 17, y: 7 };
+    f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(3000); assert.equal(a.adventure.plan, null); assert.equal(a.adventure.hp, 24);
+    if (operation === 'room') f.world.ownerRoom('pause');
+    else if (operation === 'expiry') { a.run.expires_at = f.now(); f.world.tick(); }
+    else if (operation === 'offline') f.jump(45000);
+    else f.world.ownerControl(a.agent_id, operation);
+    assert.equal(a.adventure.in_field, false, operation); assert.equal(f.world.state.adventure.monsters[2].target_agent_id, null, operation);
+    f.advance(10000, []); assert.equal(a.adventure.hp, 24, operation);
+  }
+});
+
+test('怪物死亡复活均清目标并回出生点，复活后的新接触才重新锁定', t => {
+  const f = fixture(t), p = f.make(); f.plan(p, 'hunt', { monster_id: 'forest_slime' });
+  f.advance(20000); const m = f.world.state.adventure.monsters[0];
+  assert.equal(m.status, 'respawning'); assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'idle'); assert.deepEqual(m.position, m.home_position);
+  f.world.ownerControl(p.agent.agent_id, 'recall'); f.advance(60000, []);
+  assert.equal(m.status, 'alive'); assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'idle'); assert.deepEqual(m.position, m.home_position);
 });
 
 test('真实 HTTP MCP 接受冒险动作，匿名旁观能看到计划和怪物但不能控制', async t => {

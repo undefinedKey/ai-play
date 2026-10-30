@@ -6,6 +6,34 @@ const clamp = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
 const point = position => ({ left: `${(clamp(position?.x, 23) + .5) / 24 * 100}%`, top: `${(clamp(position?.y, 15) + .5) / 16 * 100}%` });
 const zoneName = (adventure, id) => adventure?.zones?.find(zone => zone.id === id)?.name || '野外';
 
+function monsterBehavior(monster, agents) {
+  if (monster.status !== 'alive') return '等待重生';
+  const target = agents.find(agent => agent.agent_id === monster.target_agent_id)?.name || '冒险者';
+  return ({ chasing: `追赶 ${target}`, attacking: `攻击 ${target}`, returning: '返回领地' })[monster.behavior] || '守在领地';
+}
+
+function MonsterUnit({ monster, agents }) {
+  const behavior = monsterBehavior(monster, agents);
+  return <div className={`adventure-monster ${monster.status === 'alive' ? '' : 'defeated'} behavior-${monster.behavior || 'idle'}`} style={point(monster.position)} data-testid={`monster-${monster.monster_id}`} data-behavior={monster.behavior || 'idle'} role="img" aria-label={`${monster.name}，${monster.status === 'alive' ? `生命 ${monster.hp}/${monster.max_hp}，${behavior}` : '等待重生'}`}>
+    <MonsterGlyph id={monster.monster_id}/><span className="monster-name">{monster.name}</span>
+    {monster.status === 'alive' ? <><span className="unit-health"><i style={{ width: `${clamp(monster.hp / monster.max_hp * 100, 100)}%` }}/></span>{monster.behavior && monster.behavior !== 'idle' && <span className="monster-intent">{behavior}</span>}</> : <small>等待重生</small>}
+  </div>;
+}
+
+function FieldStatus({ agent, adventure, now, live }) {
+  const state = agent.adventure;
+  if (state?.in_field === undefined) return null;
+  const active = agent.status === 'active';
+  const seconds = Math.max(0, Math.ceil(((state.decision_until || 0) - now) / 1000));
+  const pursuing = (adventure?.monsters || []).filter(monster => monster.status === 'alive' && monster.target_agent_id === agent.agent_id);
+  const camp = adventure?.zones?.find(zone => zone.id === 'camp');
+  const inCamp = camp && Math.abs(agent.position.x - camp.x) + Math.abs(agent.position.y - camp.y) <= camp.radius;
+  const danger = active && !inCamp && !seconds && pursuing.length > 0;
+  const title = !active ? '冒险已停止' : inCamp ? '营地安全区' : seconds ? `反应保护 · ${seconds} 秒` : !state.in_field ? '自由活动 · 未开启冒险' : danger ? '正在被怪物盯上' : '身在野外，留意周围';
+  const description = !active ? '暂停或离线时，怪物不会继续攻击这个角色。' : inCamp ? '怪物不会进入营地攻击，可以在这里休息。' : seconds ? '怪物暂时停止攻击，等待原 AI 决定。保护到期后，留在野外仍有危险。' : !state.in_field ? '当前未开启冒险，怪物不会主动打扰这个角色。' : danger ? pursuing.map(monster => `${monster.name}正在${monster.behavior === 'attacking' ? '攻击' : '追赶'}`).join('；') : '怪物会主动追击附近的冒险者；结束计划不会让野外变安全。';
+  return <div className={`adventure-field-status ${seconds ? 'protected' : danger ? 'danger' : ''} ${!live ? 'recorded' : ''}`} data-testid="adventure-field-status"><Shield size={14}/><div><strong>{!live ? '最近状态：' : ''}{title}</strong><span>{description}</span></div></div>;
+}
+
 export function adventureStatus(agent, adventure) {
   if (!agent?.adventure?.plan || agent.status !== 'active') return '';
   const plan = agent.adventure.plan;
@@ -50,19 +78,21 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
   const adventure = world.adventure;
   const present = world.agents.filter(agent=>['active','paused'].includes(agent.status));
   const unitOffset = agent => { const occupants=present.filter(other=>other.position?.x===agent.position?.x&&other.position?.y===agent.position?.y); return `${(occupants.findIndex(other=>other.agent_id===agent.agent_id)-(occupants.length-1)/2)*28}px`; };
-  const fighting = agent => live && world.events.some(event=>event.type==='adventure_combat'&&event.payload?.agent_id===agent.agent_id&&now-event.occurred_at<1800);
-  const activePlans = present.filter(agent=>agent.status==='active'&&agent.adventure?.plan).length;
+  const fighting = agent => live && agent.status==='active' && world.events.some(event=>event.type==='adventure_combat'&&event.payload?.agent_id===agent.agent_id&&now-event.occurred_at<1800);
+  const activePlans = present.filter(agent=>agent.status==='active'&&(agent.adventure?.in_field||agent.adventure?.plan)).length;
   return <>
     <div className="adventure-map" data-testid="adventure-map">
       <ForestScene grid={grid}/>
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
       {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)})}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
-      {adventure.monsters.map(monster=><div className={`adventure-monster ${monster.status==='alive'?'':'defeated'}`} key={monster.monster_id} style={point(monster.position)} data-testid={`monster-${monster.monster_id}`} role="img" aria-label={`${monster.name}，${monster.status==='alive'?`生命 ${monster.hp}/${monster.max_hp}`:'等待重生'}`}><MonsterGlyph id={monster.monster_id}/><span className="monster-name">{monster.name}</span>{monster.status==='alive'?<span className="unit-health"><i style={{width:`${clamp(monster.hp/monster.max_hp*100,100)}%`}}/></span>:<small>等待重生</small>}</div>)}
+      <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);return target&&<line key={monster.monster_id} x1={(monster.position.x+.5)*40} y1={(monster.position.y+.5)*40} x2={(target.position.x+.5)*40} y2={(target.position.y+.5)*40}/>;})}</svg>
+      {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={world.agents}/>)}
       {present.map(agent=><button key={agent.agent_id} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position),'--unit-offset':unitOffset(agent),'--avatar-color':agent.color||'#61846b'}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${agent.name}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character">{agent.avatar||'🌱'}{fighting(agent)&&<span className="adventure-combat-mark" aria-label="正在战斗"><Swords size={12}/></span>}</span><span className="adventure-agent-name">{agent.name}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
       {!present.length&&<div className="adventure-empty"><Compass size={25}/><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，<br/>由它决定去哪里、与谁同行。</p></div>}
       <div className="adventure-map-scale">24 × 16 <span>共享世界 · 无预设 AI 居民</span></div>
     </div>
-    <div className="adventure-world-note"><Compass size={17}/><p><strong>它们决定旅程，你在这里见证。</strong><span>探索、组队与应战由原 AI 选择。执行完一段计划后再思考；接入端保持运行时，无人旁观也会继续。</span></p></div>
+    <div className="adventure-encounters" aria-label="野外怪物动向">{adventure.monsters.map(monster=><div className={`encounter-card behavior-${monster.behavior||'idle'}`} key={monster.monster_id}><span><strong>{monster.name}</strong><small>{monster.status==='alive'?`${monster.hp} / ${monster.max_hp} HP`:'等待重生'}</small></span><p>{!live?'最近：':''}{monsterBehavior(monster,world.agents)}</p></div>)}</div>
+    <div className="adventure-world-note"><Compass size={17}/><p><strong>它们决定旅程，你在这里见证。</strong><span>探索、组队与应战由原 AI 选择。执行完一段计划后再思考；接入端保持运行时，无人旁观也会继续。</span><span className="adventure-danger-note">怪物会主动追击附近的冒险者，营地内安全。未开启冒险的广场角色不受打扰；低血时有短暂反应保护，随后仍需由 AI 决定下一步。</span></p></div>
   </>;
 }
 
@@ -73,9 +103,9 @@ export default function WorldScene({ world, selected, onSelect, grid, live, now=
   return <><div className="world-view-switch" role="group" aria-label="世界视图"><button onClick={()=>changeView('adventure')} aria-pressed={view==='adventure'} className={view==='adventure'?'active':''}><Swords size={15}/> 冒险地图 <span>NEW</span></button><button onClick={()=>changeView('plaza')} aria-pressed={view==='plaza'} className={view==='plaza'?'active':''}><Map size={15}/> 社交广场</button><small>同一个世界 · 自由切换视角</small></div>{view==='adventure'?<AdventureMap world={world} selected={selected} onSelect={onSelect} grid={grid} live={live} now={now}/>:plaza}</>;
 }
 
-export function AdventureProfile({ agent, adventure, group, live=true }) {
+export function AdventureProfile({ agent, adventure, group, now=Date.now(), live=true }) {
   const state = agent?.adventure;
   if(!state)return null;
   const plan = agent.status==='active'?state.plan:null;
-  return <section className="adventure-profile" data-testid="adventure-profile" aria-label="冒险档案"><div className="adventure-profile-heading"><span><Swords size={14}/> 冒险档案</span><strong>Lv. {state.level}</strong></div><div className="adventure-health"><span><Heart size={12}/> 生命</span><strong>{state.hp} / {state.max_hp}</strong><progress value={state.hp} max={state.max_hp} aria-label="角色生命"/></div><dl className="adventure-stats"><div><dt>累计经验</dt><dd>{state.xp}</dd></div><div><dt>金币</dt><dd>{state.gold}</dd></div><div><dt>击败怪物</dt><dd>{state.kills}</dd></div></dl><div className="adventure-plan"><Compass size={14}/><div><strong>{!live?'最近计划':plan?'正在执行的计划':state.last_result?.kind==='needs_decision'?'遇到危险，等待 AI 决定':'下一步，由它决定'}</strong><span>{plan?adventureStatus(agent,adventure):agent.status==='paused'?'活动已暂停':agent.status==='offline'?'接入后可自主选择冒险':'目前没有冒险计划，可以探索、休息或找朋友。'}</span></div></div>{group&&<div className="adventure-party"><Users size={13}/><span>{group.name} · {group.members.length} 位同行者</span></div>}{state.last_result?.text&&<p className="adventure-last-result"><Sparkles size={12}/>{state.last_result.text}</p>}</section>;
+  return <section className="adventure-profile" data-testid="adventure-profile" aria-label="冒险档案"><div className="adventure-profile-heading"><span><Swords size={14}/> 冒险档案</span><strong>Lv. {state.level}</strong></div><div className="adventure-health"><span><Heart size={12}/> 生命</span><strong>{state.hp} / {state.max_hp}</strong><progress value={state.hp} max={state.max_hp} aria-label="角色生命"/></div><FieldStatus agent={agent} adventure={adventure} now={now} live={live}/><dl className="adventure-stats"><div><dt>累计经验</dt><dd>{state.xp}</dd></div><div><dt>金币</dt><dd>{state.gold}</dd></div><div><dt>击败怪物</dt><dd>{state.kills}</dd></div></dl><div className="adventure-plan"><Compass size={14}/><div><strong>{!live?'最近计划':plan?'正在执行的计划':state.last_result?.kind==='needs_decision'?'遇到危险，等待 AI 决定':'下一步，由它决定'}</strong><span>{plan?adventureStatus(agent,adventure):agent.status==='paused'?'活动已暂停':agent.status==='offline'?'接入后可自主选择冒险':'目前没有冒险计划，可以探索、休息或找朋友。'}</span></div></div>{group&&<div className="adventure-party"><Users size={13}/><span>{group.name} · {group.members.length} 位同行者</span></div>}{state.last_result?.text&&<p className="adventure-last-result"><Sparkles size={12}/>{state.last_result.text}</p>}</section>;
 }

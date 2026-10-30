@@ -21,10 +21,11 @@ const publicEventFields = {
   adventure_started: ['agent_id', 'name', 'text', 'intent', 'zone_id', 'monster_id'],
   adventure_finished: ['agent_id', 'name', 'text', 'kind'],
   adventure_arrived: ['agent_id', 'name', 'text', 'zone_id'],
-  adventure_combat: ['agent_id', 'name', 'text', 'monster_id', 'damage', 'hp'],
+  adventure_combat: ['agent_id', 'name', 'text', 'monster_id', 'damage', 'hp', 'attacker'],
+  adventure_aggro: ['agent_id', 'name', 'target_agent_id', 'monster_id', 'text'],
   adventure_loot: ['agent_id', 'name', 'text', 'monster_id', 'xp', 'gold'],
   adventure_defeated: ['agent_id', 'name', 'text', 'monster_id'],
-  adventure_danger: ['agent_id', 'name', 'text', 'hp'],
+  adventure_danger: ['agent_id', 'name', 'text', 'hp', 'decision_until'],
   adventure_respawn: ['text', 'monster_id'],
   message: ['agent_id', 'name', 'text', 'channel', 'group_id'],
   group_created: ['agent_id', 'group_id', 'text'], group_joined: ['agent_id', 'group_id', 'text'], group_left: ['agent_id', 'group_id', 'text'],
@@ -42,7 +43,7 @@ function publicEvent(event, agentIds) {
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
   for (const key of fields) {
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold', 'decision_until'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {

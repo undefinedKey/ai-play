@@ -6,7 +6,7 @@ import { dirname } from 'node:path';
 import { WORDS, WORD_VERSION } from './words.js';
 import { GAMES, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
-import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, tickAdventure } from './adventure.js';
+import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -191,8 +191,9 @@ export class World extends EventEmitter {
     if (a.run) a.run.status = 'closed'; a.diagnostics.state = 'offline';
     this.event('agent_left', { agent_id: a.agent_id, text: `${a.name}离开了广场`, reason }, this.activeIds());
   }
-  detach(a) {
+  detach(a, { leaveField = true } = {}) {
     stopAdventure(this, a, 'interrupted', '控制已暂停、转交或离线，冒险计划停止');
+    if (leaveField) leaveAdventureField(this, a);
     this.finishActivity(a, { cancelled: true });
     this.removeFromGame(a.agent_id);
     if (a.group_id) {
@@ -216,7 +217,7 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.8.0-adventure', room: { capacity: 5, width: 24, height: 16 },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.8.1-monsters', room: { capacity: 5, width: 24, height: 16 },
       places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: 3, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
@@ -359,6 +360,7 @@ export class World extends EventEmitter {
     if (type === 'wait') return {};
     if (type === 'adventure_plan') return startAdventure(this, a, p, fail);
     if (type === 'start_activity') {
+      if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，可能受到怪物攻击；请先返回营地再开始独处活动');
       if (a.adventure?.plan) fail('ADVENTURE_BUSY', '请先用 adventure_plan stop 停止冒险，再开始独处活动');
       if (Object.keys(p).some(key => key !== 'activity_id') || typeof p.activity_id !== 'string') fail('INVALID_ACTION', '开始活动只接受 activity_id');
       const activity = ACTIVITIES.find(item => item.id === p.activity_id);
@@ -408,6 +410,7 @@ export class World extends EventEmitter {
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
       a.position = { x: p.x, y: p.y };
+      if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
       this.event('agent_moved', { agent_id: a.agent_id, position: a.position, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6)); return { position: a.position };
     }
     if (type === 'say') {
@@ -443,10 +446,11 @@ export class World extends EventEmitter {
       this.event(p.accept ? 'group_joined' : 'invitation_declined', { agent_id: a.agent_id, group_id: group.group_id, text: `${a.name}${p.accept ? '加入了' : '婉拒了'}${group.name}` }, [...group.members, i.from_agent_id]); return { group_id: p.accept ? group.group_id : null };
     }
     if (type === 'leave_group') {
-      const group = this.groupOf(a, p.group_id); const recipients = [...group.members]; this.detach(a);
+      const group = this.groupOf(a, p.group_id); const recipients = [...group.members]; this.detach(a, { leaveField: false });
       this.event('group_left', { agent_id: a.agent_id, group_id: p.group_id, text: `${a.name}离开了小组` }, recipients); return {};
     }
     if (type === 'propose_game') {
+      if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，请先返回营地再发起多人游戏');
       const group = this.groupOf(a, p.group_id);
       const gameType = p.game_type ?? 'word_chain';
       if (Object.keys(p).some(key => !['group_id', 'game_type'].includes(key)) || !GAMES.some(game => game.id === gameType)) fail('INVALID_ACTION', '请选择多人游戏目录中的 game_type');
@@ -464,7 +468,10 @@ export class World extends EventEmitter {
       if (!game || game.game_id !== p.game_id || game.status !== 'recruiting' || game.deadline <= this.now()) fail('STALE_TURN', '游戏报名已结束');
       this.groupOf(a, game.group_id);
       if (typeof p.accept !== 'boolean') fail('INVALID_ACTION', 'accept 必须为布尔值');
-      if (p.accept) { this.checkGameAvailability(a, game.game_type || 'word_chain'); stopAdventure(this, a, 'stopped', '原 AI 选择参加多人游戏，冒险计划结束'); }
+      if (p.accept) {
+        if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，请先返回营地再参加多人游戏');
+        this.checkGameAvailability(a, game.game_type || 'word_chain'); stopAdventure(this, a, 'stopped', '原 AI 选择参加多人游戏，冒险计划结束');
+      }
       game.responses[a.agent_id] = p.accept;
       game.participants = game.participants.filter(id => id !== a.agent_id); if (p.accept) game.participants.push(a.agent_id);
       this.event('game_registered', { agent_id: a.agent_id, game_id: game.game_id, text: `${a.name}${p.accept ? '报名参加' : '选择围观'}${gameName(game.game_type)}` }, this.state.groups[game.group_id].members); return { participants: game.participants };
