@@ -11,10 +11,12 @@ const health = await (await response('/api/health')).json();
 assert.equal(health.ok, true);
 assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
-for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world']) assert.equal(health.capabilities[capability], true, capability);
+for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
+assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
+for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), [20, 40, 60]);
 assert.equal(world.fatigue.max_energy, 100);
 assert.deepEqual(world.adventure.map, { width: world.room.width, height: world.room.height });
 assert.equal(world.adventure.zones.length, 3);
@@ -28,6 +30,13 @@ for (const monster of world.adventure.monsters) {
 const manifest = await (await response('/pixel-world/manifest.json')).json();
 for (const agent of world.agents) {
   assert.equal(agent.life.plots.length, 2);
+  for (const plot of agent.life.plots) assert.equal(typeof plot.tilled, 'boolean');
+  for (const id of ['hoe', 'watering_can']) {
+    const tool = agent.life.tools[id];
+    assert.ok([1, 2, 3].includes(tool.level));
+    assert.equal(tool.max_durability, tool.level * 20);
+    assert.ok(Number.isInteger(tool.durability) && tool.durability >= 0 && tool.durability <= tool.max_durability);
+  }
   assert.equal(agent.life.inventory, undefined);
   for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token']) assert.equal(agent[field], undefined, field);
   assert.ok(agent.life.stats.attack > 0 && agent.life.stats.effective_attack > 0);
@@ -49,5 +58,6 @@ for (const path of paths) {
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 }
 await response('/watch?view=adventure');
+await response('/watch?view=farm');
 assert.equal((await fetch(`${base}/api/world`, { signal: AbortSignal.timeout(10000) })).status, 401);
 console.log(JSON.stringify({ version, agents: world.agents.length, active: world.agents.filter(a => a.status === 'active').length, pixel_images: paths.size, fatigue: true, appearance: true, public_privacy: true }));

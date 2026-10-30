@@ -149,16 +149,17 @@ test('疲劳公开投影只保留合法事实值，异常嵌套字段不能泄�
 
 test('农事和制作按成功动作扣体力，幂等重放与拒绝请求不重复扣除', t => {
   const f = fixture(t), p = f.make();
+  assert.equal(f.act(p, 'farm', { intent: 'till', plot_id: 'plot_1' }).status, 'applied');
   const req = f.request(p, 'farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' });
   const result = f.world.callTool(p.auth, 'act', req); assert.equal(result.status, 'applied');
-  assert.equal(f.raw(p).fatigue.energy, 98); assert.deepEqual(f.world.callTool(p.auth, 'act', req), result);
-  assert.equal(f.raw(p).fatigue.energy, 98);
+  assert.equal(f.raw(p).fatigue.energy, 95); assert.deepEqual(f.world.callTool(p.auth, 'act', req), result);
+  assert.equal(f.raw(p).fatigue.energy, 95);
   assert.equal(f.act(p, 'farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }).error.code, 'PLOT_OCCUPIED');
-  assert.equal(f.raw(p).fatigue.energy, 98);
-  assert.equal(f.act(p, 'farm', { intent: 'water', plot_id: 'plot_1' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 97);
-  assert.equal(f.act(p, 'inventory', { intent: 'craft', item_id: 'wooden_sword' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 95);
+  assert.equal(f.raw(p).fatigue.energy, 95);
+  assert.equal(f.act(p, 'farm', { intent: 'water', plot_id: 'plot_1' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 94);
+  assert.equal(f.act(p, 'inventory', { intent: 'craft', item_id: 'wooden_sword' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 92);
   f.raw(p).life.plots[0].ready_at = f.now();
-  assert.equal(f.act(p, 'farm', { intent: 'harvest', plot_id: 'plot_1' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 93);
+  assert.equal(f.act(p, 'farm', { intent: 'harvest', plot_id: 'plot_1' }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 90);
   f.raw(p).fatigue.energy = 1;
   const seeds = f.raw(p).life.inventory.turnip_seed;
   assert.equal(f.act(p, 'farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }).error.code, 'FATIGUE_EXHAUSTED');

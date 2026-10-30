@@ -31,7 +31,10 @@ const publicEventFields = {
   adventure_danger: ['agent_id', 'name', 'text', 'hp', 'decision_until'],
   adventure_respawn: ['text', 'monster_id'],
   life_planted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
-  life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
+  life_tilled: ['agent_id', 'name', 'text', 'plot_id', 'item_id', 'level', 'durability'],
+  life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'level', 'durability'],
+  life_tool_repaired: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
+  life_tool_upgraded: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
   life_harvested: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   life_crafted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   life_equipped: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
@@ -55,7 +58,7 @@ function publicEvent(event, agentIds) {
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
   for (const key of fields) {
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {

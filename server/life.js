@@ -1,5 +1,5 @@
 import { isPositionInBounds } from './spatial.js';
-import { spendEnergy, attackMultiplier } from './fatigue.js';
+import { FATIGUE_RULES, spendEnergy, attackMultiplier } from './fatigue.js';
 
 const ITEMS = [
   { id: 'turnip_seed', name: '萝卜种子', kind: 'seed' },
@@ -23,10 +23,22 @@ const RECIPES = [
   { item_id: 'wooden_shield', ingredients: { wood: 3 } },
   { item_id: 'iron_armor', ingredients: { ore: 5 } },
 ];
+const TOOLS = [
+  { id: 'hoe', name: '锄头', levels: [
+    { level: 1, max_durability: 20, energy_cost: 3, upgrade_cost: {}, repair_cost: { wood: 1 } },
+    { level: 2, max_durability: 40, energy_cost: 2, upgrade_cost: { wood: 3, ore: 2 }, repair_cost: { wood: 1, ore: 1 } },
+    { level: 3, max_durability: 60, energy_cost: 1, upgrade_cost: { wood: 5, ore: 4 }, repair_cost: { wood: 2, ore: 1 } },
+  ] },
+  { id: 'watering_can', name: '水壶', levels: [
+    { level: 1, max_durability: 20, energy_cost: 1, upgrade_cost: {}, repair_cost: { wood: 1 } },
+    { level: 2, max_durability: 40, energy_cost: 0.75, upgrade_cost: { wood: 3, ore: 2 }, repair_cost: { wood: 1, ore: 1 } },
+    { level: 3, max_durability: 60, energy_cost: 0.5, upgrade_cost: { wood: 5, ore: 4 }, repair_cost: { wood: 2, ore: 1 } },
+  ] },
+];
 export const LIFE_RULES = {
   farm_place: { id: 'farm', name: '营地农田', x: 12, y: 8, service_center: { x: 11, y: 8 }, radius: 2 },
-  plots_per_agent: 2, crops: CROPS, items: ITEMS, recipes: RECIPES,
-  description: '每个角色有两块专属田和个人仓库。种植消耗1种子，浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子。离线仍生长，没人替你种植或收获。农田、制作与换装在营地半径2内进行，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
+  plots_per_agent: 2, crops: CROPS, items: ITEMS, recipes: RECIPES, tools: TOOLS,
+  description: '每个角色有两块专属田、个人仓库和持久的锄头/水壶。空地先用锄头开垦，种植消耗1种子，用水壶浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子，收获后需重新开垦。开垦/浇水各耗对应工具1耐久，工具升级降低该动作体力消耗；repair按当前等级repair_cost维修，upgrade消耗下一等级upgrade_cost，均回满耐久、各耗2体力；最高3级。工具独立于战斗装备，不可复制或装备到武器护甲槽。离线仍生长，没人替你耕作。农田、制作、工具维护与换装在营地半径2内进行，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
 };
 const byId = new Map(ITEMS.map(item => [item.id, item]));
 const slots = ['weapon', 'armor'];
@@ -35,8 +47,16 @@ const plain = value => value && typeof value === 'object' && !Array.isArray(valu
 const validQuantity = value => Number.isSafeInteger(value) && value >= 0;
 const count = (a, item) => validQuantity(a.life?.inventory?.[item]) ? a.life.inventory[item] : 0;
 const time = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
-const emptyPlot = plot_id => ({ plot_id, crop_id: null, planted_at: null, watered_at: null, ready_at: null, ready_notified: false });
+const emptyPlot = plot_id => ({ plot_id, tilled: false, tilled_at: null, crop_id: null, planted_at: null, watered_at: null, ready_at: null, ready_notified: false });
 const ready = (plot, now) => plot.crop_id !== null && Number.isSafeInteger(plot.ready_at) && plot.ready_at <= now;
+function normalizedTool(value, definition, grant = false) {
+  const level = definition.levels.find(entry => entry.level === value?.level) || definition.levels[0];
+  return { level: level.level, durability: validQuantity(value?.durability) ? Math.min(value.durability, level.max_durability) : grant ? level.max_durability : 0, max_durability: level.max_durability };
+}
+function normalizedPlot(p, id) {
+  if (!p || !CROPS.some(crop => crop.id === p.crop_id)) return { ...emptyPlot(id), tilled: p?.tilled === true, tilled_at: p?.tilled === true ? time(p.tilled_at) : null };
+  return { plot_id: id, tilled: true, tilled_at: time(p.tilled_at) ?? time(p.planted_at), crop_id: p.crop_id, planted_at: time(p.planted_at), watered_at: time(p.watered_at), ready_at: time(p.ready_at), ready_notified: p.ready_notified === true };
+}
 
 /** Idempotent compatibility initialization. Existing valid quantities are retained. */
 export function initializeLife(a) {
@@ -49,11 +69,10 @@ export function initializeLife(a) {
     life.starter_granted = true;
   }
   const previous = Array.isArray(life.plots) ? life.plots : [];
-  life.plots = ['plot_1', 'plot_2'].map(id => {
-    const p = previous.find(plot => plot?.plot_id === id);
-    if (!p || !CROPS.some(crop => crop.id === p.crop_id)) return emptyPlot(id);
-    return { plot_id: id, crop_id: p.crop_id, planted_at: time(p.planted_at), watered_at: time(p.watered_at), ready_at: time(p.ready_at), ready_notified: p.ready_notified === true };
-  });
+  life.plots = ['plot_1', 'plot_2'].map(id => normalizedPlot(previous.find(plot => plot?.plot_id === id), id));
+  const tools = plain(life.tools) ? life.tools : {};
+  life.tools = Object.fromEntries(TOOLS.map(definition => [definition.id, normalizedTool(tools[definition.id], definition, life.tools_granted !== true && !Object.hasOwn(tools, definition.id))]));
+  life.tools_granted = true;
   const equipment = plain(life.equipment) ? life.equipment : {};
   life.equipment = Object.fromEntries(slots.map(slot => {
     const item = byId.get(equipment[slot]);
@@ -72,9 +91,10 @@ export function publicLife(a, now, { privateInventory = false } = {}) {
   const level = Number.isSafeInteger(a.adventure?.level) && a.adventure.level > 0 ? a.adventure.level : 1;
   return {
     plots: ['plot_1', 'plot_2'].map(id => {
-      const p = life.plots?.find(plot => plot.plot_id === id) || emptyPlot(id);
-      return { plot_id: id, crop_id: p.crop_id, planted_at: p.planted_at, watered_at: p.watered_at, ready_at: p.ready_at, ready: ready(p, now) };
+      const p = normalizedPlot(life.plots?.find(plot => plot.plot_id === id), id);
+      return { plot_id: id, tilled: p.tilled, tilled_at: p.tilled_at, crop_id: p.crop_id, planted_at: p.planted_at, watered_at: p.watered_at, ready_at: p.ready_at, ready: ready(p, now) };
     }),
+    tools: Object.fromEntries(TOOLS.map(definition => [definition.id, normalizedTool(life.tools?.[definition.id], definition)])),
     equipment: Object.fromEntries(slots.map(slot => {
       const item = byId.get(life.equipment?.[slot]);
       return [slot, item?.slot === slot && count(a, item.id) > 0 ? item.id : null];
@@ -111,15 +131,25 @@ export function performLife(world, a, type, payload, fail) {
   initializeLife(a);
   if (type === 'farm') {
     exact(payload, ['intent', 'plot_id', 'crop_id'], fail);
-    if (!['plant', 'water', 'harvest'].includes(payload.intent) || typeof payload.plot_id !== 'string' || payload.intent !== 'plant' && payload.crop_id !== undefined) fail('INVALID_ACTION', 'farm 只接受 plant/water/harvest 与自己的 plot_id，只有种植可提供 crop_id');
+    if (!['till', 'plant', 'water', 'harvest'].includes(payload.intent) || typeof payload.plot_id !== 'string' || payload.intent !== 'plant' && payload.crop_id !== undefined) fail('INVALID_ACTION', 'farm 只接受 till/plant/water/harvest 与自己的 plot_id，只有种植可提供 crop_id');
     const plot = a.life.plots.find(p => p.plot_id === payload.plot_id);
     if (!plot) fail('NOT_AUTHORIZED', '只能操作自己的 plot_1 或 plot_2');
     campAvailable(world, a, fail);
-    if (!spendEnergy(world, a, payload.intent)) fail('FATIGUE_EXHAUSTED', '体力不足以完成这次农事，可在营地休息后再试');
-    if (payload.intent === 'plant') {
+    const toolId = payload.intent === 'till' ? 'hoe' : payload.intent === 'water' ? 'watering_can' : null;
+    const tool = toolId ? a.life.tools[toolId] : null;
+    const toolLevel = tool ? TOOLS.find(item => item.id === toolId).levels.find(entry => entry.level === tool.level) : null;
+    if (tool && tool.durability < 1) fail('TOOL_BROKEN', '农具耐久已耗尽，请先维修或升级');
+    if (!spendEnergy(world, a, payload.intent, toolLevel ? toolLevel.energy_cost / FATIGUE_RULES.costs[payload.intent] : 1)) fail('FATIGUE_EXHAUSTED', '体力不足以完成这次农事，可在营地休息后再试');
+    if (payload.intent === 'till') {
+      if (plot.crop_id !== null) fail('PLOT_OCCUPIED', '田里已有作物，不能重复开垦');
+      if (plot.tilled) fail('ALREADY_TILLED', '这块田已经开垦，可直接种植');
+      plot.tilled = true; plot.tilled_at = world.now(); tool.durability--;
+      announce(world, a, 'life_tilled', `${a.name}用锄头开垦了自己的田地`, { plot_id: plot.plot_id, item_id: toolId, level: tool.level, durability: tool.durability });
+    } else if (payload.intent === 'plant') {
       const crop = CROPS.find(crop => crop.id === payload.crop_id);
       if (!crop) fail('INVALID_ACTION', '请选择农田目录中的作物');
       if (plot.crop_id !== null) fail('PLOT_OCCUPIED', '这块田已有作物，请成熟收获后再种植');
+      if (!plot.tilled) fail('PLOT_NOT_TILLED', '请先用 farm till 开垦这块空地');
       adjustInventory(a, { [crop.seed_id]: -1 }, fail);
       Object.assign(plot, { crop_id: crop.id, planted_at: world.now(), watered_at: null, ready_at: null, ready_notified: false });
       announce(world, a, 'life_planted', `${a.name}在自己的${plot.plot_id === 'plot_1' ? '一号' : '二号'}田种下了${crop.name}，等待浇水`, { plot_id: plot.plot_id, crop_id: crop.id });
@@ -128,8 +158,9 @@ export function performLife(world, a, type, payload, fail) {
       if (!crop) fail('PLOT_EMPTY', '这块田还没有作物');
       if (payload.intent === 'water') {
         if (plot.watered_at !== null) fail('ALREADY_WATERED', '已经浇水，无需重复浇水');
+        tool.durability--;
         plot.watered_at = world.now(); plot.ready_at = world.now() + crop.grow_seconds * 1000; plot.ready_notified = false;
-        announce(world, a, 'life_watered', `${a.name}给${crop.name}浇了水，开始生长`, { plot_id: plot.plot_id, crop_id: crop.id, ready_at: plot.ready_at });
+        announce(world, a, 'life_watered', `${a.name}用水壶给${crop.name}浇水，开始生长`, { plot_id: plot.plot_id, crop_id: crop.id, ready_at: plot.ready_at, item_id: toolId, level: tool.level, durability: tool.durability });
       } else {
         if (!ready(plot, world.now())) fail('CROP_NOT_READY', plot.watered_at === null ? '请先浇水，作物才会开始生长' : '作物尚未成熟');
         adjustInventory(a, { [crop.produce_id]: crop.yield_count, [crop.seed_id]: crop.seed_return }, fail);
@@ -141,8 +172,21 @@ export function performLife(world, a, type, payload, fail) {
   }
   if (type !== 'inventory') fail('INVALID_ACTION', '未知生活动作');
   exact(payload, ['intent', 'item_id', 'slot'], fail);
-  if (!['craft', 'equip', 'unequip', 'use'].includes(payload.intent)) fail('INVALID_ACTION', '仓库只支持 craft/equip/unequip/use');
-  if (payload.intent === 'unequip') {
+  if (!['craft', 'equip', 'unequip', 'use', 'repair', 'upgrade'].includes(payload.intent)) fail('INVALID_ACTION', '仓库只支持 craft/equip/unequip/use/repair/upgrade');
+  if (['repair', 'upgrade'].includes(payload.intent)) {
+    const definition = TOOLS.find(tool => tool.id === payload.item_id);
+    if (payload.slot !== undefined || !definition) fail('INVALID_ACTION', '工具维护只接受 item_id: hoe 或 watering_can');
+    campAvailable(world, a, fail);
+    const tool = a.life.tools[definition.id], current = definition.levels.find(level => level.level === tool.level);
+    const next = payload.intent === 'upgrade' ? definition.levels.find(level => level.level === tool.level + 1) : current;
+    if (!next) fail('TOOL_MAX_LEVEL', '工具已经达到最高3级');
+    if (payload.intent === 'repair' && tool.durability >= tool.max_durability) fail('TOOL_FULL', '工具耐久已满，无需维修');
+    if (!spendEnergy(world, a, payload.intent)) fail('FATIGUE_EXHAUSTED', '体力不足以维护工具，可在营地休息后再试');
+    const cost = payload.intent === 'upgrade' ? next.upgrade_cost : current.repair_cost;
+    adjustInventory(a, Object.fromEntries(Object.entries(cost).map(([id, quantity]) => [id, -quantity])), fail);
+    Object.assign(tool, { level: next.level, durability: next.max_durability, max_durability: next.max_durability });
+    announce(world, a, payload.intent === 'upgrade' ? 'life_tool_upgraded' : 'life_tool_repaired', `${a.name}${payload.intent === 'upgrade' ? '升级' : '维修'}了${definition.name}，等级${tool.level}，耐久恢复到${tool.durability}`, { item_id: definition.id, level: tool.level, durability: tool.durability, max_durability: tool.max_durability });
+  } else if (payload.intent === 'unequip') {
     if (payload.item_id !== undefined || !slots.includes(payload.slot)) fail('INVALID_ACTION', '卸下装备只接受 slot: weapon 或 armor');
     campAvailable(world, a, fail);
     const itemId = a.life.equipment[payload.slot];

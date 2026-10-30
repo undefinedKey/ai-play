@@ -1,0 +1,61 @@
+{
+  "frames": {
+    "farm": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 640,
+        "h": 400
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 640,
+        "h": 400
+      },
+      "sourceSize": {
+        "w": 640,
+        "h": 400
+      },
+      "duration": 200,
+      "pivot": {
+        "x": 0.5,
+        "y": 1
+      },
+      "anchor": {
+        "x": 320,
+        "y": 400
+      }
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        "farm"
+      ],
+      "loop": true,
+      "duration": 200
+    }
+  },
+  "meta": {
+    "app": "Pixelbolt",
+    "version": "1",
+    "image": "farm_scene.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 640,
+      "h": 400
+    },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "idle",
+        "from": 0,
+        "to": 0,
+        "direction": "forward"
+      }
+    ]
+  }
+}

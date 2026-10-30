@@ -36,16 +36,64 @@ async function audit(page,prefix) {
     const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
     expect(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);
     await page.screenshot({path:`artifacts/${prefix}-${width}.png`,fullPage:true});
+    if(await page.getByTestId('farm-scene').count())await page.getByTestId('farm-scene').screenshot({path:`artifacts/${prefix}-scene-${width}.png`});
   }
 }
 
 test('真实空场展示田园引导，不创建角色，不展示任何私有仓库',async({page})=>{
-  await page.goto(base+'/watch?view=adventure');
+  await page.goto(base+'/watch?view=farm');
   await expect(page.locator('.farm-panel')).toContainText('田园等着第一位朋友');
   await expect(page.getByTestId('private-warehouse')).toHaveCount(0);
   await expect(page.getByTestId('runtime-diagnostics')).toHaveCount(0);
   expect((await (await page.request.get(base+'/api/public/world')).json()).agents).toEqual([]);
   await audit(page,'life-empty');
+});
+
+test('农作区独立于两张世界地图，真实农具使用维修升级可见，人物只在营地出现',async({page})=>{
+  const api=await owner(page.request),a=await actor(api,'拿起锄头的旅人');
+  // Local in-memory fixture supplies maintenance materials; all state changes
+  // below still go through authenticated MCP commands and public SSE snapshots.
+  Object.assign(application.world.agent(a.agent.agent_id).life.inventory,{wood:12,ore:8});
+  await a.act('move',{x:9,y:8}); // Exactly two tiles from service_center (11,8).
+  await page.goto(base+'/watch?view=farm');
+  await expect(page.getByTestId('farm-view')).toBeVisible();
+  await expect(page.getByTestId('farm-present-agent')).toBeVisible();
+  await expect(page.getByTestId('farm-plot_1')).toHaveAttribute('data-plot-state','untilled');
+  const hoe=page.getByTestId('farm-tool-hoe'),can=page.getByTestId('farm-tool-watering_can');
+  await expect(hoe).toContainText('20 / 20');await expect(can).toContainText('20 / 20');
+  await a.act('farm',{intent:'till',plot_id:'plot_1'});
+  await expect(page.getByTestId('farm-plot_1')).toContainText('已开垦 · 等待播种');
+  await expect(hoe).toContainText('19 / 20');
+  await expect(page.getByTestId('farm-present-agent').locator('.pixel-tool')).toHaveAttribute('data-item','hoe');
+  await a.act('inventory',{intent:'repair',item_id:'hoe'});
+  await expect(hoe).toContainText('20 / 20');
+  await expect(page.getByTestId('farm-present-agent').locator('.pixel-character')).toHaveAttribute('data-action','repair');
+  await a.act('inventory',{intent:'upgrade',item_id:'hoe'});
+  await expect(hoe).toContainText('Lv. 2');await expect(hoe).toContainText('40 / 40');
+  await expect(hoe.locator('.pixel-tool-icon')).toHaveAttribute('data-tool-level','2');
+  await expect(page.getByTestId('farm-present-agent').locator('.pixel-tool')).toHaveAttribute('data-tool-level','2');
+  await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
+  await a.act('farm',{intent:'water',plot_id:'plot_1'});
+  await expect(can).toContainText('19 / 20');
+  await a.act('inventory',{intent:'upgrade',item_id:'watering_can'});
+  await expect(can).toContainText('40 / 40');
+  await hoe.getByText('锄头等级与维护目录').click();
+  await expect(hoe).toContainText('满耐久 60');
+  await expect(page.getByTestId('private-warehouse')).toHaveCount(0);
+  await expect(page.locator('[data-asset-missing]')).toHaveCount(0);
+  await audit(page,'farm-tools-v011');
+  await a.act('move',{x:12,y:8});await a.act('move',{x:14,y:8});
+  await expect(page.getByTestId('farm-present-agent')).toHaveCount(0);
+  await expect(page.getByTestId('farm-presence')).toContainText('正在别处活动');
+  await page.getByRole('button',{name:/冒险地图/}).click();
+  await expect(page.getByTestId('farm-view')).toHaveCount(0);
+  await expect(page.locator('.pixel-map-crop,.farm-map-mark')).toHaveCount(0);
+  await page.getByRole('button',{name:'社交广场',exact:true}).click();
+  await expect(page.locator('.farm-plot,.pixel-map-crop,.farm-map-mark')).toHaveCount(0);
+  await page.getByRole('button',{name:'农作区',exact:true}).click();
+  await page.reload();
+  await expect(page.getByTestId('farm-view')).toBeVisible();
+  await expect(page.getByTestId('farm-tool-hoe')).toContainText('40 / 40');
 });
 
 test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，只有主人能看自己的库存',async({page,request})=>{
@@ -56,10 +104,11 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   const other=await request.post(base+'/api/agents',{headers:{Origin:base,'X-CSRF-Token':neighbor.csrf_token},data:{name:'邻居的小田'}});
   expect(other.ok()).toBe(true);const b=(await other.json()).agent;
   await a.act('move',{x:11,y:8});
+  await a.act('farm',{intent:'till',plot_id:'plot_1'});
   await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
-  await page.goto(base+'/watch?view=adventure');
+  await page.goto(base+'/watch?view=farm');
   await expect(page.getByTestId('farm-plot_1')).toContainText('已播种 · 等待浇水');
-  await expect(page.getByTestId('farm-plot_2')).toContainText('等待播种');
+  await expect(page.getByTestId('farm-plot_2')).toContainText('未开垦 · 等待锄地');
   await a.act('farm',{intent:'water',plot_id:'plot_1'});
   await expect(page.getByTestId('farm-plot_1')).toContainText('生长中');
   await a.act('inventory',{intent:'craft',item_id:'wooden_sword'});
@@ -72,11 +121,11 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   expect((await a.observe()).self.life.inventory.turnip).toBeUndefined();
   await page.getByLabel('查看谁的农田').selectOption(b.agent_id);
   await expect(page.locator('.farm-owner')).toContainText('邻居的小田的农田');
-  await expect(page.getByTestId('farm-plot_1')).toContainText('等待播种');
+  await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
   await page.getByLabel('查看谁的农田').selectOption(a.agent.agent_id);
   await audit(page,'life-public-mature');
   await a.act('farm',{intent:'harvest',plot_id:'plot_1'});
-  await expect(page.getByTestId('farm-plot_1')).toContainText('等待播种');
+  await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
   const publicWorld=await (await page.request.get(base+'/api/public/world')).json();
   expect(publicWorld.agents.every(agent=>!Object.hasOwn(agent.life,'inventory'))).toBe(true);
   await expect(page.getByTestId('private-warehouse')).toHaveCount(0);
@@ -94,13 +143,13 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(warehouse.locator('.warehouse-items>div').filter({has:page.getByText('木剑',{exact:true})})).toContainText('已装备');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('尚未核实');
   await a.report({runtime_version:'0.8.2',mode:'dsh-pet',capabilities:['adventure']});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于本版体力玩法');
-  await a.report({runtime_version:'0.10.0',mode:'dsh-pet',capabilities:['adventure','farming','inventory','equipment','fatigue'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.10.0');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.11 农具玩法');
+  await a.report({runtime_version:'0.11.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue'],last_decision_type:'wait'});
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.11.0');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('原宠物桥接');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报决定等待');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 已执行');
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('是否探索、种田或休息，仍由原 AI 自己选择');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('是否探索、种田、维护农具或休息，仍由原 AI 自己选择');
   await audit(page,'life-owner-warehouse');
   await a.act('farm',{intent:'harvest',plot_id:'plot_1'},'rejected');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 未执行');

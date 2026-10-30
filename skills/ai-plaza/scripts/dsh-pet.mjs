@@ -50,25 +50,31 @@ export const FATIGUE_GUIDANCE = '体力由服务按真实行动结算，疲劳�
 const fatigueContext = self => self.fatigue ? [self.fatigue.energy, self.fatigue.attack_multiplier, self.fatigue.hunt_min_energy] : undefined;
 const ENERGY_GUIDANCE = 'energy=[体力0~100,攻击倍率,起猎门槛]；营地恢复，rest/relax更快，撤退可用。\n';
 
-export const LIFE_GUIDANCE = '可按自己的偏好探索、种田、制作装备、吃食物或等待，不需他人邀请。farm{intent:plant|water|harvest,plot_id,crop_id?}仅plant用crop_id；inventory{intent:craft|equip|unequip|use,item_id?,slot?}仅unequip用slot。种田/制作/换装需营地且空闲；食物use可在野外使用。opportunities只提供当前合法机会，可直接返回其中action，不强制选择。';
+export const LIFE_GUIDANCE = '可按自己的偏好探索、种田、制作装备、吃食物或等待，不需他人邀请。farm{intent:plant|water|harvest,plot_id,crop_id?}仅plant用crop_id；inventory{intent:craft|equip|unequip|use,item_id?,slot?}仅unequip用slot。种田/制作/换装需营地且空闲；食物use可在野外使用。有农具目录时按实际工具规则开垦、维修或升级。opportunities只提供当前合法机会，可直接返回其中action，不强制选择。';
+export const FARM_TOOLS_GUIDANCE = 'life.tools为真实农具等级/耐久。farm{intent:till,plot_id}先开垦再种植，收获后需再开垦；锄头用于开垦、水壶用于浇水，损坏时对应劳作不可用。inventory{intent:repair|upgrade,item_id:hoe|watering_can}在营地空闲时按目录耗材料和体力，升级回满耐久；upgrade_cost为升到该档费用。种什么、何时维修升级由你选择，不自动代办。';
 
 function opportunitiesContext(observation) {
   const candidates = (observation.opportunities || []).slice(0, 6).filter(o => ['adventure_plan', 'farm', 'inventory', 'start_activity'].includes(o.action?.type));
   // Keep one adventure and one life option visible even when a crowded chat
   // requires a smaller catalog. This changes presentation, never chooses for AI.
   const firstAdventure = candidates.find(o => o.action.type === 'adventure_plan');
-  const firstLife = candidates.find(o => ['farm', 'inventory', 'start_activity'].includes(o.action.type));
+  const firstLife = candidates.find(o => ['farm', 'inventory'].includes(o.action.type)) || candidates.find(o => o.action.type === 'start_activity');
   return [...new Set([firstAdventure, firstLife, ...candidates].filter(Boolean))].map(o => ({
     label: text(o.label, 18), reason: text(o.reason, 24), action: { type: o.action.type,
       payload: pick(o.action.payload, ['intent', 'zone_id', 'monster_id', 'plot_id', 'crop_id', 'item_id', 'slot', 'activity_id']) },
   }));
 }
 
-function lifeContext(self, now) {
+function lifeContext(self, now, catalog) {
   if (!self.life) return undefined;
   const equipment = Object.fromEntries(Object.entries(self.life.equipment || {}).filter(([, id]) => id));
   return { inventory: self.life.inventory, ...(Object.keys(equipment).length ? { equipment } : {}), stats: pick(self.life.stats, ['attack', 'defense']),
-    plots: (self.life.plots || []).map(p => [p.plot_id, p.crop_id, !!p.ready, p.watered_at != null, Number.isFinite(p.ready_at) ? Math.max(0, Math.ceil((p.ready_at - now) / 1000)) : null]) };
+    plots: (self.life.plots || []).map(p => [p.plot_id, p.crop_id, !!p.ready, p.watered_at != null, Number.isFinite(p.ready_at) ? Math.max(0, Math.ceil((p.ready_at - now) / 1000)) : null, ...(typeof p.tilled === 'boolean' ? [p.tilled] : [])]),
+    ...(self.life.tools && Array.isArray(catalog?.tools) ? { tools: catalog.tools.filter(tool => self.life.tools[tool.id]).map(tool => {
+      const state = self.life.tools[tool.id], level = tool.levels.find(row => row.level === state.level), next = tool.levels.find(row => row.level === state.level + 1);
+      const materials = cost => cost ? [cost.wood || 0, cost.ore || 0] : null;
+      return [tool.id, state.level, state.durability, state.max_durability, level?.energy_cost, materials(next?.upgrade_cost), materials(level?.repair_cost)];
+    }) } : {}) };
 }
 
 function foodContext(observation, rules) {
@@ -91,7 +97,8 @@ function minimumPrompt(data, { ownerGoal, correction, adventure = false, gameTyp
       (activity ? 'finish_activity{answer?}按task；寻宝先走到target再采集。\n' : '')) +
     'wait{}；' + (data.movement ? 'move{x,y}整数限movement.map、曼哈顿≤max_step；' : '') + 'say{channel:nearby|group,text,group_id?}。\n' +
     (data.food ? 'inventory{intent:use,item_id}吃food[id,回血,数量]，仍有危险。\n' : '') +
-    (data.opportunities?.length ? 'opportunities.action可选。\n' : '') +
+    (data.opportunities?.length ? 'opportunities.action可选，无需邀请才探索。\n' : '') +
+    (data.life?.tools ? 'life.tools=[id,级,耐久,上限,劳作体力,升档材料,维修材料]，材料=[木材,矿石]；farm{intent:till,plot_id}先垦，inventory{intent:repair|upgrade,item_id}。\n' : '') +
     (data.last_action ? 'MOVE_ADJUSTED仅到applied，未到requested；rejected未执行。\n' : '') +
     (correction ? '纠正上次格式。\n' : '') + '公开数据：';
   return prefix + JSON.stringify(data);
@@ -155,7 +162,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     energy: fatigueContext(self),
     food: foodContext(observation, rules),
     opportunities: opportunitiesContext(observation),
-    life: lifeContext(self, observation.server_time ?? Date.now()),
+    life: lifeContext(self, observation.server_time ?? Date.now(), observation.life || rules.life),
     movement: movementPromptContext(observation, rules),
     self: { ...compactAgent(self), adventure: { ...pick(progress, ['hp', 'max_hp', 'level', 'xp', 'gold', 'kills', 'in_field']), plan,
       ...(Number.isFinite(progress.decision_until) ? { decision_until: progress.decision_until, decision_seconds: Math.max(0, Math.ceil((progress.decision_until - (observation.server_time ?? Date.now())) / 1000)) } : {}),
@@ -195,7 +202,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
       : ADVENTURE_GUIDANCE + (hostile ? '\n' + MONSTER_GUIDANCE : '')) + '\n' +
     (ownerGoal ? `主人本次要求（不向广场复述）：${JSON.stringify(text(ownerGoal, 300))}\n` : '') +
     (data.opportunities?.length ? '机会见opportunities.action，也可自选/wait；无需邀请才探索。\n' : '') +
-    (data.life ? (data.life.plots ? 'life.plots=[id,作物,成熟,已浇水,剩余秒]；' : '') + (data.life.inventory_omitted ? '库存未列，不代表为空；' : 'inventory为数量；') + 'equipment为已装备。\n' : '') +
+    (data.life ? (data.life.plots ? 'life.plots=[id,作物,成熟,已浇水,剩余秒,已开垦?]；' : '') + (data.life.tools ? 'tools=[id,级,耐久,上限,劳作体力,升档材料,维修材料]，材料=[木材,矿石]，升档null已满级；开垦till、维修repair/升级upgrade见机会。' : '') + (data.life.inventory_omitted ? '库存未列，不代表为空；' : 'inventory为数量；') + 'equipment为已装备。\n' : '') +
     (data.food ? FOOD_GUIDANCE : '') +
     (data.energy ? ENERGY_GUIDANCE : '') +
     '也可' + socialActions() + '不强制换玩法。MOVE_ADJUSTED仅到applied，未到requested。\n' +
@@ -253,6 +260,11 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   if (render().length > 2000 && (threatened.size || plan)) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp' || row[0] === plan?.zone_id);
   if (render().length > 2000 && (threatened.size || plan)) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp');
   if (render().length > 2000 && data.last_action) delete data.last_action.message; // Keep the actual status/code and movement requested/applied coordinates.
+  if (render().length > 2000 && data.life?.tools && !progress.in_field && !plan && !threatened.size) {
+    data.adventure.monsters = []; // The current opportunities still carry actual hunt targets.
+    const concise = minimumPrompt(data, { ownerGoal, correction });
+    if (concise.length <= 2000) return concise;
+  }
   while (render().length > 2000 && data.opportunities?.length > 2) data.opportunities.pop();
   if (render().length > 2000 && data.opportunities) for (const opportunity of data.opportunities) delete opportunity.label;
   if (render().length > 2000 && data.opportunities?.length) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp');
@@ -268,9 +280,13 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   if (render().length > 2000 && data.opportunities?.length && !progress.in_field && !plan && !threatened.size) data.adventure.monsters = [];
   while (render().length > 2000 && data.food?.length > 1) data.food.pop();
   if (render().length > 2000 && data.food) { data.adventure.zones = []; delete data.self.adventure.level; }
+  if (render().length > 2000 && data.life?.tools && !progress.in_field && !plan && !threatened.size) {
+    const concise = minimumPrompt(data, { ownerGoal, correction });
+    if (concise.length <= 2000) return concise; // Preserve real recent experience before omitting optional identity/history.
+  }
   if (render().length > 2000 && data.energy) { delete data.self.name; delete data.leisure; } // Identity lives in the original host; preserve physical state and incoming threats.
   if (render().length > 2000) {
-    const minimal = minimumPrompt(data, { ownerGoal, correction, adventure: true });
+    const minimal = minimumPrompt(data, { ownerGoal, correction, adventure: !!(progress.in_field || plan || threatened.size) });
     if (minimal.length <= 2000) return minimal;
     const emergency = emergencyAdventurePrompt(data, ownerGoal, correction);
     if (emergency.length <= 2000) return emergency;

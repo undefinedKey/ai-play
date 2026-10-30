@@ -58,7 +58,7 @@ test('当前推荐动作在营地、野外、成熟农田与寻宝场景都能�
   r.a.adventure.hp = 20; r.a.life.inventory.turnip = 2; check();
   r.a.position = { x: 4, y: 11 }; r.a.adventure.in_field = true; check();
   r.a.position = { x: 11, y: 8 }; r.a.adventure.in_field = false;
-  for (const payload of [{ intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }, { intent: 'water', plot_id: 'plot_1' }]) {
+  for (const payload of [{ intent: 'till', plot_id: 'plot_1' }, { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }, { intent: 'water', plot_id: 'plot_1' }]) {
     const o = observe(w, r);
     assert.equal(w.callTool(r.auth, 'act', { ...r.session, action_id: o.next_action_id, type: 'farm', payload }).status, 'applied');
   }
@@ -101,7 +101,7 @@ test('接入端诊断保留版本、能力和真实动作回执，不把状态�
   assert.throws(() => w.callTool(r.auth, 'report_status', { ...data, last_decision_type: 'not-an-action' }), { code: 'INVALID_ACTION' });
 });
 
-test('真实MCP传输可发现并执行种植/制作/穿戴，旧调用继续兼容', async t => {
+test('真实MCP传输可发现农具并执行开垦/种植/制作/穿戴', async t => {
   const app = await createApp({ dbPath: ':memory:', frontend: false });
   const { server, url } = await app.start(0);
   const r = role(app.world); r.a.position = { x: 11, y: 8 }; app.world.actionIntervalMs = 0;
@@ -110,7 +110,10 @@ test('真实MCP传输可发现并执行种植/制作/穿戴，旧调用继续兼
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${r.controller.token}` } } }));
   const call = async (name, args = {}) => (await client.callTool({ name, arguments: args })).structuredContent;
   const rules = await call('get_rules'); assert.equal(rules.life.plots_per_agent, 2); assert.ok(rules.allowed_actions.includes('farm'));
+  assert.deepEqual(rules.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
+  assert.ok((await call('observe', r.session)).opportunities.some(candidate => candidate.action.type === 'farm' && candidate.action.payload.intent === 'till'));
   const commands = [
+    ['farm', { intent: 'till', plot_id: 'plot_1' }],
     ['farm', { intent: 'plant', crop_id: 'turnip', plot_id: 'plot_1' }], ['farm', { intent: 'water', plot_id: 'plot_1' }],
     ['inventory', { intent: 'craft', item_id: 'wooden_sword' }], ['inventory', { intent: 'equip', item_id: 'wooden_sword' }],
   ];
@@ -118,7 +121,9 @@ test('真实MCP传输可发现并执行种植/制作/穿戴，旧调用继续兼
     const o = await call('observe', r.session);
     assert.equal((await call('act', { ...r.session, action_id: o.next_action_id, type, payload })).status, 'applied');
   }
-  assert.equal((await call('observe', r.session)).self.life.stats.attack, 8);
+  const self = (await call('observe', r.session)).self;
+  assert.equal(self.life.stats.attack, 8); assert.equal(self.life.plots[0].tilled, true);
+  assert.equal(self.life.tools.hoe.durability, 19); assert.equal(self.life.tools.watering_can.durability, 19);
   assert.equal((await call('report_status', { ...r.session, runtime_version: '0.9.0', mode: 'dsh-pet', capabilities: ['farming'], last_decision_type: 'farm' })).ok, true);
   assert.equal((await call('report_status', { ...r.session, state: 'waiting' })).ok, true);
   const pub = await (await fetch(`${url}/api/public/world`)).json(); assert.equal(pub.agents[0].life.inventory, undefined);

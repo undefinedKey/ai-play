@@ -1,6 +1,6 @@
 {
   "frames": {
-    "empty": {
+    "untilled": {
       "frame": {
         "x": 0,
         "y": 0,
@@ -29,7 +29,7 @@
         "y": 32
       }
     },
-    "seeded": {
+    "tilled": {
       "frame": {
         "x": 32,
         "y": 0,
@@ -58,7 +58,7 @@
         "y": 32
       }
     },
-    "growing": {
+    "empty": {
       "frame": {
         "x": 64,
         "y": 0,
@@ -87,9 +87,67 @@
         "y": 32
       }
     },
-    "ready": {
+    "seeded": {
       "frame": {
         "x": 96,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "duration": 1000,
+      "pivot": {
+        "x": 0.5,
+        "y": 1
+      },
+      "anchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    "growing": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "duration": 1000,
+      "pivot": {
+        "x": 0.5,
+        "y": 1
+      },
+      "anchor": {
+        "x": 16,
+        "y": 32
+      }
+    },
+    "ready": {
+      "frame": {
+        "x": 160,
         "y": 0,
         "w": 32,
         "h": 32
@@ -118,6 +176,20 @@
     }
   },
   "animations": {
+    "untilled": {
+      "frames": [
+        "untilled"
+      ],
+      "loop": true,
+      "duration": 1000
+    },
+    "tilled": {
+      "frames": [
+        "tilled"
+      ],
+      "loop": true,
+      "duration": 1000
+    },
     "empty": {
       "frames": [
         "empty"
@@ -153,33 +225,45 @@
     "image": "wheat.png",
     "format": "RGBA8888",
     "size": {
-      "w": 128,
+      "w": 192,
       "h": 32
     },
     "scale": "1",
     "frameTags": [
       {
-        "name": "empty",
+        "name": "untilled",
         "from": 0,
         "to": 0,
         "direction": "forward"
       },
       {
-        "name": "seeded",
+        "name": "tilled",
         "from": 1,
         "to": 1,
         "direction": "forward"
       },
       {
-        "name": "growing",
+        "name": "empty",
         "from": 2,
         "to": 2,
         "direction": "forward"
       },
       {
-        "name": "ready",
+        "name": "seeded",
         "from": 3,
         "to": 3,
+        "direction": "forward"
+      },
+      {
+        "name": "growing",
+        "from": 4,
+        "to": 4,
+        "direction": "forward"
+      },
+      {
+        "name": "ready",
+        "from": 5,
+        "to": 5,
         "direction": "forward"
       }
     ]

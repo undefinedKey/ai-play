@@ -48,7 +48,7 @@ async function actor(api, name) {
 }
 function step(count=1) { for(let i=0;i<count;i++){clock+=1001;application.world.tick();} }
 
-test('冒险地图是真实空场，双视图与移动端可读，无浏览者操作角色入口', async ({page,request}) => {
+test('冒险地图是真实空场，三视图与移动端可读，无浏览者操作角色入口', async ({page,request}) => {
   const initial = await (await request.get(base+'/api/public/world')).json();
   expect(initial.agents).toEqual([]); expect(initial.adventure.monsters).toHaveLength(3);
   await page.goto(base+'/watch?view=adventure');
@@ -66,7 +66,10 @@ test('冒险地图是真实空场，双视图与移动端可读，无浏览者�
   }
   await page.getByRole('button',{name:'社交广场',exact:true}).click();
   await expect(page.getByTestId('plaza-map')).toBeVisible();
-  await page.getByRole('button',{name:'冒险地图 NEW',exact:true}).click();
+  await page.getByRole('button',{name:'农作区',exact:true}).click();
+  await expect(page.getByTestId('farm-view')).toContainText('田园等着第一位朋友');
+  await expect(page.getByTestId('adventure-map')).toHaveCount(0);
+  await page.getByRole('button',{name:/冒险地图/}).click();
   await expect(page.getByTestId('adventure-map')).toBeVisible();
   expect((await (await request.get(base+'/api/public/world')).json()).agents).toEqual([]);
 });

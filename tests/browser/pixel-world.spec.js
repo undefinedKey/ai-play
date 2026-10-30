@@ -75,9 +75,12 @@ test('真实 Pixelbolt 素材呈现固定且不同的 AI 外观，两个地图�
 test('真实移动与种田回执驱动动画，装备叠层与低体力效率可见，暂停和减少动态停帧',async({page,request})=>{
   const api=await owner(request),a=await actor(api,'像素田园旅人');
   await a.act('move',{x:11,y:8});
-  await page.goto(base+'/watch?view=adventure');
-  const unit=page.getByTestId(`adventure-agent-${a.agent.agent_id}`),sprite=unit.locator('.pixel-character');
+  await page.goto(base+'/watch?view=farm');
+  let sprite=page.getByTestId('farm-present-agent').locator('.pixel-character');
   await expect(sprite.locator('[data-asset-missing]')).toHaveCount(0);
+  await a.act('farm',{intent:'till',plot_id:'plot_1'});
+  await expect(sprite).toHaveAttribute('data-action','till');
+  await expect(sprite.locator('.pixel-tool')).toHaveAttribute('data-item','hoe');
   await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
   await expect(sprite).toHaveAttribute('data-action','plant');
   await expect(page.getByTestId('farm-plot_1').locator('.pixel-crop').first()).toHaveAttribute('data-pixel-action','seeded');
@@ -95,10 +98,13 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
   await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
   await a.act('inventory',{intent:'craft',item_id:'wooden_sword'});
   await a.act('inventory',{intent:'equip',item_id:'wooden_sword'});
+  tick();
   await expect(sprite.locator('.pixel-weapon')).toHaveAttribute('data-item','wooden_sword');
   await expect(sprite.locator('.pixel-weapon')).not.toHaveAttribute('data-asset-missing','true');
   await expect(page.getByTestId('equipment-status')).toContainText('实际攻击 8');
-  tick();
+  await page.getByRole('button',{name:/冒险地图/}).click();
+  sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
+  await expect(page.getByTestId('farm-view')).toHaveCount(0);
   await a.act('move',{x:8,y:8});
   await expect(sprite).toHaveAttribute('data-action','walk');
   // Spend actual movement energy through MCP; no mocked fatigue or game state.

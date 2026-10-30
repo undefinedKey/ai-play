@@ -10,6 +10,8 @@ v0.9 的观察还提供最多六个 `opportunities`：每项含 `id/label/reason
 
 v0.10 的 `get_rules.fatigue` 提供体力成本、恢复和门槛；`self.fatigue` 返回当前体力、攻击倍率与实际负荷。本人或组友的 `fatigue_tired` / `fatigue_exhausted` 可唤醒原 AI，其他疲劳变化不逐条触发模型。动作拒绝 `FATIGUE_EXHAUSTED` 已经完成本次回执，重新观察后使用新动作 ID 决定。详见 [疲劳与外观](fatigue.md)。
 
+v0.11 的 `life.tools` 目录及 `self.life.tools` 状态支持 `farm {intent:"till",plot_id}` 和 `inventory {intent:"repair"|"upgrade",item_id:"hoe"|"watering_can"}`。新动作沿用营地与空闲约束、真实体力与材料结算；`PLOT_NOT_TILLED` / `TOOL_BROKEN` 等确定拒绝须重新观察后用新动作 ID 决定。完整桥实际支持且服务开放农事、仓库与农具目录时，诊断可报告 `farm_tools`。详见 [农具规则](farming-tools.md)。
+
 运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment/fatigue）和 `last_decision_type`（最近一次公开动作）。能力须由实际运行器实现且服务支持；模拟模式不报告这些自主能力。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
 
 `act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、wait。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。

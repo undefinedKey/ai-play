@@ -40,31 +40,46 @@ export function opportunitiesFor(world, a) {
   const farmOptions = [];
   if (atCamp && !f.in_field) {
     add('relax', '在花园小憩', '可以休息、聊天或看看周围，活动期间恢复体力；是否参加由自己决定', 'start_activity', { activity_id: 'relax' });
+    const toolLevel = id => LIFE_RULES.tools.find(tool => tool.id === id).levels.find(level => level.level === life.tools[id].level);
+    const toolUsable = id => life.tools[id].durability > 0 && energy >= toolLevel(id).energy_cost;
+    const canPay = cost => Object.entries(cost).every(([id, quantity]) => held(id) >= quantity);
+    const farmAdd = (priority, id, label, reason, type, payload) => farmOptions.push({ priority, id, label, reason, action: { type, payload } });
     for (const plot of life.plots) {
       const crop = LIFE_RULES.crops.find(c => c.id === plot.crop_id);
       if (crop && energy >= FATIGUE_RULES.costs.harvest && plot.ready_at !== null && plot.ready_at <= world.now()
         && held(crop.produce_id) <= Number.MAX_SAFE_INTEGER - crop.yield_count && held(crop.seed_id) <= Number.MAX_SAFE_INTEGER - crop.seed_return) {
-        farmOptions.push({ id: `harvest_${plot.plot_id}`, label: `收获${crop.name}`, reason: '已成熟，收获存入自己的仓库并返还种子', action: { type: 'farm', payload: { intent: 'harvest', plot_id: plot.plot_id } } });
-      } else if (crop && energy >= FATIGUE_RULES.costs.water && plot.watered_at === null) {
-        farmOptions.push({ id: `water_${plot.plot_id}`, label: `浇灌${crop.name}`, reason: `浇水后${crop.grow_seconds}秒成熟，可先去做别的事`, action: { type: 'farm', payload: { intent: 'water', plot_id: plot.plot_id } } });
+        farmAdd(0, `harvest_${plot.plot_id}`, `收获${crop.name}`, '已成熟，收获存入自己的仓库并返还种子，之后需重新开垦', 'farm', { intent: 'harvest', plot_id: plot.plot_id });
+      } else if (crop && toolUsable('watering_can') && plot.watered_at === null) {
+        farmAdd(1, `water_${plot.plot_id}`, `浇灌${crop.name}`, `耗水壶1耐久和${toolLevel('watering_can').energy_cost}体力，${crop.grow_seconds}秒后成熟`, 'farm', { intent: 'water', plot_id: plot.plot_id });
+      } else if (!crop && !plot.tilled && toolUsable('hoe')) {
+        farmAdd(3, `till_${plot.plot_id}`, '开垦空田', `耗锄头1耐久和${toolLevel('hoe').energy_cost}体力；之后可自己选择作物`, 'farm', { intent: 'till', plot_id: plot.plot_id });
       }
     }
-    // Expose one plot with both seed choices; avoid filling every slot with planting.
-    const empty = life.plots.find(plot => !plot.crop_id);
-    if (empty && energy >= FATIGUE_RULES.costs.plant) for (const crop of LIFE_RULES.crops) if (held(crop.seed_id)) {
-      farmOptions.push({ id: `plant_${crop.id}`, label: `种${crop.name}`, reason: '用自己的种子种在空田，之后需要浇水', action: { type: 'farm', payload: { intent: 'plant', plot_id: empty.plot_id, crop_id: crop.id } } });
+    for (const definition of LIFE_RULES.tools) {
+      const tool = life.tools[definition.id], current = toolLevel(definition.id), next = definition.levels.find(level => level.level === tool.level + 1);
+      if (tool.durability < tool.max_durability && energy >= FATIGUE_RULES.costs.repair && canPay(current.repair_cost)) {
+        farmAdd(2, `repair_${definition.id}`, `维修${definition.name}`, `当前耐久${tool.durability}/${tool.max_durability}；消耗目录材料和2体力，回满耐久`, 'inventory', { intent: 'repair', item_id: definition.id });
+      }
+      if (next && energy >= FATIGUE_RULES.costs.upgrade && canPay(next.upgrade_cost)) {
+        farmAdd(5, `upgrade_${definition.id}`, `升级${definition.name}`, `升到${next.level}级，耐久${next.max_durability}，使用时耗${next.energy_cost}体力；需下一等级材料和2体力`, 'inventory', { intent: 'upgrade', item_id: definition.id });
+      }
     }
-    options.push(...farmOptions.slice(0, options.length >= 2 ? 1 : 2));
+    // Expose one tilled plot with both seed choices; keep room for adventure.
+    const empty = life.plots.find(plot => !plot.crop_id && plot.tilled);
+    if (empty && energy >= FATIGUE_RULES.costs.plant) for (const crop of LIFE_RULES.crops) if (held(crop.seed_id)) {
+      farmAdd(4, `plant_${crop.id}`, `种${crop.name}`, '使用已开垦田和自己的种子，之后需要用水壶浇水', 'farm', { intent: 'plant', plot_id: empty.plot_id, crop_id: crop.id });
+    }
     const equipment = LIFE_RULES.items.filter(item => item.kind === 'equipment');
     const strength = item => (item?.attack_bonus || 0) + (item?.defense || 0);
     const better = equipment.filter(item => strength(item) > strength(equipment.find(current => current.id === life.equipment[item.slot])));
     const equip = better.filter(item => held(item.id)).sort((x, y) => strength(y) - strength(x))[0];
-    if (equip) add('equip', `装备${equip.name}`, '已有物品，穿戴后实际改变战斗属性', 'inventory', { intent: 'equip', item_id: equip.id });
+    if (equip) farmAdd(6, 'equip', `装备${equip.name}`, '已有物品，穿戴后实际改变战斗属性', 'inventory', { intent: 'equip', item_id: equip.id });
     else {
       const recipe = LIFE_RULES.recipes.filter(recipe => !held(recipe.item_id) && better.some(item => item.id === recipe.item_id) && Object.entries(recipe.ingredients).every(([id, count]) => held(id) >= count))
         .sort((x, y) => strength(equipment.find(item => item.id === y.item_id)) - strength(equipment.find(item => item.id === x.item_id)))[0];
-      if (recipe && energy >= FATIGUE_RULES.costs.craft) add('craft', `制作${equipment.find(item => item.id === recipe.item_id).name}`, '材料足够，制成后还需自己选择穿戴', 'inventory', { intent: 'craft', item_id: recipe.item_id });
+      if (recipe && energy >= FATIGUE_RULES.costs.craft) farmAdd(6, 'craft', `制作${equipment.find(item => item.id === recipe.item_id).name}`, '材料足够，制成后还需自己选择穿戴', 'inventory', { intent: 'craft', item_id: recipe.item_id });
     }
+    options.push(...farmOptions.sort((x, y) => x.priority - y.priority).slice(0, Math.min(3, 5 - options.length)).map(({ priority, ...option }) => option));
   } else {
     add('return_camp', '回营地休息或照料农田', '安全区可种植、收获、制作和穿戴装备', 'adventure_plan', { intent: 'rest' });
   }

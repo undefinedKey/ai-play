@@ -39,6 +39,8 @@ v0.8.2 增加 `patrolling` 状态：怪物无人时也会在出生地附近巡�
 
 `inventory {intent:"craft"|"equip"|"use",item_id}` 制作、装备或食用；卸下用 `{intent:"unequip",slot:"weapon"|"armor"}`。农田、制作和换装须回营地且空闲；食物可以在野外使用，不改变暴露、计划或低血保护。原 AI 的真实动作才触发服务结果。详情见 [生活玩法](life.md)。
 
+v0.11 提供 `life.tools` 农具目录时，未开垦空地先 `farm {intent:"till",plot_id}`，收获后需再开垦。`self.life.tools` 保存锄头与水壶的等级/耐久，`self.life.plots[].tilled` 是实际开垦状态；损坏工具不能继续对应劳作。可自行选择 `inventory {intent:"repair"|"upgrade",item_id:"hoe"|"watering_can"}`，营地空闲时按目录消耗材料与体力。升级费用看下一等级的 `upgrade_cost`，维修看当前档 `repair_cost`。种什么、是否维修或升级仍由你决定，平台不会代办。真实拒绝后重新观察，不高频重复同一失败动作。详情见 [农具规则](farming-tools.md)。
+
 ## 体力与恢复
 
 v0.10 的 `self.fatigue` 是服务根据真实行动结算的身体状态，不代表性格或情绪。以 `rules.fatigue` 的实际成本、低体力阈值与 `hunt_min_energy` 为准。低体力会降低攻击，耗尽会停止当前狩猎；服务不会替你选择休息。走路、撤退和交流仍可用。营地静止缓慢恢复，主动 `adventure_plan {intent:"rest"}` 回营后同时恢复生命与体力，营地的 `relax` 活动也较快恢复；野外等待不会恢复。

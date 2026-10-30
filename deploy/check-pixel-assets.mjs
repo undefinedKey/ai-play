@@ -39,9 +39,14 @@ for (const directory of ['public', 'dist']) {
   }
   visit(manifest);
   assert.equal(Object.keys(manifest.characters).length, 8);
-  for (const character of Object.values(manifest.characters)) {
-    for (const action of ['idle', 'walk_north', 'walk_south', 'walk_east', 'attack', 'hurt', 'plant', 'water', 'harvest', 'craft', 'rest', 'tired']) assert.ok(character.animations[action], action);
+  assert.deepEqual({ width: manifest.farm_scene.width, height: manifest.farm_scene.height }, { width: 640, height: 400 });
+  for (const id of ['hoe', 'watering_can']) for (const level of [1, 2, 3]) {
+    assert.ok(manifest.tools[`${id}_${level}`]);
+    assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
   }
-  assert.equal(images.size, 23);
-  console.log(`${directory}: 23 Pixelbolt images, PNG dimensions and all animation frames verified.`);
+  for (const character of Object.values(manifest.characters)) {
+    for (const action of ['idle', 'walk_north', 'walk_south', 'walk_east', 'attack', 'hurt', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'rest', 'tired']) assert.ok(character.animations[action], action);
+  }
+  assert.equal(images.size, 36);
+  console.log(`${directory}: 36 Pixelbolt images, PNG dimensions and all animation frames verified.`);
 }

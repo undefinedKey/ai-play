@@ -3,7 +3,8 @@ import { CharacterSprite, PixelScene, PixelSprite, usePixelManifest, usePixelNow
 import { mapDimensions, projectMapPoint as point } from './map-projection.js';
 import { monsterAction, movementFacing } from './pixel-state.js';
 import SpeechOverlay, { SpeechOverlayScope } from './SpeechOverlay.jsx';
-import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Swords, Users } from 'lucide-react';
+import FarmPanel, { EquipmentStatus } from './FarmPanel.jsx';
+import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
 const clamp = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
@@ -66,8 +67,7 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
   return <>
     {!present.length&&<div className="adventure-empty-banner" data-testid="adventure-empty-banner"><Compass size={18}/><div><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，由它决定去哪里、与谁同行。</p></div><span>0 位 AI</span></div>}
     <div className="map-scene-frame"><div className="adventure-map pixel-map" data-testid="adventure-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
-      <PixelScene grid={grid} map={map} live={live} farmAgent={world.agents.find(agent=>agent.agent_id===selected)||world.agents[0]}/>
-      {world.life?.farm_place&&<div className="farm-map-mark" style={point(world.life.farm_place,map)}><Leaf size={13}/><span>营地农田</span></div>}
+      <PixelScene grid={grid} map={map} live={live}/>
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
       {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
       <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);const from=point(monster.position,map),to=point(target?.position,map);return target&&<line key={monster.monster_id} x1={from.left} y1={from.top} x2={to.left} y2={to.top}/>;})}</svg>
@@ -81,17 +81,17 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
 }
 
 export default function WorldScene({ world, selected, onSelect, grid, live, now=world.server_time, plaza }) {
-  const [view,setView]=useState(()=>new URLSearchParams(location.search).get('view')==='adventure'?'adventure':'plaza');
+  const [view,setView]=useState(()=>{const requested=new URLSearchParams(location.search).get('view');return ['adventure','farm'].includes(requested)?requested:'plaza';});
   if (!world.adventure) return <SpeechOverlayScope selected={selected}>{plaza}</SpeechOverlayScope>;
   const changeView = value => { setView(value); const url = new URL(location.href); url.searchParams.set('view',value); history.replaceState(null,'',url.pathname+url.search+url.hash); };
-  return <SpeechOverlayScope selected={selected}><div className="world-view-switch" role="group" aria-label="世界视图"><button onClick={()=>changeView('adventure')} aria-pressed={view==='adventure'} className={view==='adventure'?'active':''}><Swords size={15}/> 冒险地图 <span>NEW</span></button><button onClick={()=>changeView('plaza')} aria-pressed={view==='plaza'} className={view==='plaza'?'active':''}><Map size={15}/> 社交广场</button><small>同一个世界 · 自由切换视角</small></div>{view==='adventure'?<AdventureMap world={world} selected={selected} onSelect={onSelect} grid={grid} live={live} now={now}/>:plaza}</SpeechOverlayScope>;
+  return <SpeechOverlayScope selected={selected}><div className="world-view-switch" role="group" aria-label="世界视图"><button onClick={()=>changeView('adventure')} aria-pressed={view==='adventure'} className={view==='adventure'?'active':''}><Swords size={15}/> 冒险地图 <span>NEW</span></button><button onClick={()=>changeView('plaza')} aria-pressed={view==='plaza'} className={view==='plaza'?'active':''}><Map size={15}/> 社交广场</button><button onClick={()=>changeView('farm')} aria-pressed={view==='farm'} className={view==='farm'?'active':''}><Sprout size={15}/> 农作区</button><small>同一个世界 · 自由切换视角</small></div>{view==='adventure'?<AdventureMap world={world} selected={selected} onSelect={onSelect} grid={grid} live={live} now={now}/>:view==='farm'?<FarmPanel world={world} selected={selected} onSelect={onSelect} now={now} live={live}/>:plaza}</SpeechOverlayScope>;
 }
 
-export function AdventureProfile({ agent, adventure, group, now=Date.now(), live=true }) {
+export function AdventureProfile({ agent, adventure, group, catalog, now=Date.now(), live=true }) {
   const state = agent?.adventure;
   if(!state)return null;
   const plan = agent.status==='active'?state.plan:null;
-  return <section className="adventure-profile" data-testid="adventure-profile" aria-label="冒险档案"><div className="adventure-profile-heading"><span><Swords size={14}/> 冒险档案</span><strong>Lv. {state.level}</strong></div><div className="adventure-health"><span><Heart size={12}/> 生命</span><strong>{state.hp} / {state.max_hp}</strong><progress value={state.hp} max={state.max_hp} aria-label="角色生命"/></div><FatigueStatus agent={agent} live={live}/><FieldStatus agent={agent} adventure={adventure} now={now} live={live}/><dl className="adventure-stats"><div><dt>累计经验</dt><dd>{state.xp}</dd></div><div><dt>金币</dt><dd>{state.gold}</dd></div><div><dt>击败怪物</dt><dd>{state.kills}</dd></div></dl><div className="adventure-plan"><Compass size={14}/><div><strong>{!live?'最近计划':plan?'正在执行的计划':state.last_result?.kind==='needs_decision'?'遇到危险，等待 AI 决定':'下一步，由它决定'}</strong><span>{plan?adventureStatus(agent,adventure):agent.status==='paused'?'活动已暂停':agent.status==='offline'?'接入后可自主选择冒险':'目前没有冒险计划，可以探索、休息或找朋友。'}</span></div></div>{group&&<div className="adventure-party"><Users size={13}/><span>{group.name} · {group.members.length} 位同行者</span></div>}{state.last_result?.text&&<p className="adventure-last-result"><Sparkles size={12}/>{state.last_result.text}</p>}</section>;
+  return <section className="adventure-profile" data-testid="adventure-profile" aria-label="冒险档案"><div className="adventure-profile-heading"><span><Swords size={14}/> 冒险档案</span><strong>Lv. {state.level}</strong></div><div className="adventure-health"><span><Heart size={12}/> 生命</span><strong>{state.hp} / {state.max_hp}</strong><progress value={state.hp} max={state.max_hp} aria-label="角色生命"/></div><FatigueStatus agent={agent} live={live}/><div className="profile-equipment"><EquipmentStatus agent={agent} catalog={catalog}/></div><FieldStatus agent={agent} adventure={adventure} now={now} live={live}/><dl className="adventure-stats"><div><dt>累计经验</dt><dd>{state.xp}</dd></div><div><dt>金币</dt><dd>{state.gold}</dd></div><div><dt>击败怪物</dt><dd>{state.kills}</dd></div></dl><div className="adventure-plan"><Compass size={14}/><div><strong>{!live?'最近计划':plan?'正在执行的计划':state.last_result?.kind==='needs_decision'?'遇到危险，等待 AI 决定':'下一步，由它决定'}</strong><span>{plan?adventureStatus(agent,adventure):agent.status==='paused'?'活动已暂停':agent.status==='offline'?'接入后可自主选择冒险':'目前没有冒险计划，可以探索、休息或找朋友。'}</span></div></div>{group&&<div className="adventure-party"><Users size={13}/><span>{group.name} · {group.members.length} 位同行者</span></div>}{state.last_result?.text&&<p className="adventure-last-result"><Sparkles size={12}/>{state.last_result.text}</p>}</section>;
 }
 
 export function FatigueStatus({ agent, live = true }) {

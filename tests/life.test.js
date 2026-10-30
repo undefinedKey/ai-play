@@ -68,6 +68,7 @@ test('规则和自己的观察发现农田/仓库；旁观、邻居和其他主�
 
 test('种植—浇水—成熟—收获真实循环；成熟不自动奖励且动作重放不重复扣发物品', t => {
   const f = fixture(t), p = f.make();
+  assert.equal(f.farm(p, 'till').status, 'applied');
   const planting = f.request(p, 'farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' });
   const planted = f.world.callTool(p.auth, 'act', planting); assert.equal(planted.status, 'applied');
   assert.deepEqual(f.world.callTool(p.auth, 'act', planting), planted); assert.equal(f.observe(p).self.life.inventory.turnip_seed, 2);
@@ -88,6 +89,7 @@ test('种植—浇水—成熟—收获真实循环；成熟不自动奖励且�
 
 test('两块田与两种作物独立计时，暂停/离线仍成熟但不会自动收获', t => {
   const f = fixture(t), p = f.make();
+  f.farm(p, 'till', 'plot_1'); f.farm(p, 'till', 'plot_2');
   f.farm(p, 'plant', 'plot_1', 'turnip'); f.farm(p, 'water', 'plot_1');
   f.farm(p, 'plant', 'plot_2', 'wheat'); f.farm(p, 'water', 'plot_2');
   f.world.ownerControl(p.agent.agent_id, 'pause'); f.advance(120000, []);
@@ -102,6 +104,7 @@ test('两块田与两种作物独立计时，暂停/离线仍成熟但不会自�
 
 test('只能操作自己的田和仓库，不能通过附加主人/数量/装备字段越权', t => {
   const f = fixture(t), a = f.make('甲'), b = f.make('乙', 'owner_b');
+  f.farm(a, 'till'); f.farm(b, 'till');
   f.farm(a, 'plant', 'plot_1', 'turnip');
   for (const payload of [
     { intent: 'plant', plot_id: `${a.agent.agent_id}:plot_1`, crop_id: 'turnip' },
@@ -156,7 +159,7 @@ test('铁剑铁甲材料门槛与属性真实生效，仓库数量上限不溢�
 });
 
 test('食物可在野外使用但不结束计划、不退出危险、不刷新反应保护，满血不消耗', t => {
-  const f = fixture(t), p = f.make(); f.farm(p, 'plant', 'plot_1', 'turnip'); f.farm(p, 'water'); f.advance(120000); f.farm(p, 'harvest');
+  const f = fixture(t), p = f.make(); f.farm(p, 'till'); f.farm(p, 'plant', 'plot_1', 'turnip'); f.farm(p, 'water'); f.advance(120000); f.farm(p, 'harvest');
   assert.equal(f.inventory(p, 'use', 'turnip').error.code, 'FULL_HEALTH'); assert.equal(f.observe(p).self.life.inventory.turnip, 2);
   f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   const a = f.raw(p); a.position = { x: 4, y: 11 }; a.adventure.in_field = true; a.adventure.hp = 8; a.adventure.decision_until = f.now() + 30000;
@@ -203,7 +206,7 @@ test('重启保留种子/装备/成长，离线成熟通知只发一次且不重
     const auth = world.authenticate(c.token); let o = world.callTool(auth, 'join_world');
     const act = (type, payload) => { o = world.callTool(auth, 'observe', { run_id: o.run_id, session_epoch: o.session_epoch }); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); };
     act('move', { x: 11, y: 8 }); act('inventory', { intent: 'craft', item_id: 'wooden_sword' }); act('inventory', { intent: 'equip', item_id: 'wooden_sword' });
-    act('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); act('farm', { intent: 'water', plot_id: 'plot_1' });
+    act('farm', { intent: 'till', plot_id: 'plot_1' }); act('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); act('farm', { intent: 'water', plot_id: 'plot_1' });
     world.close(); world = undefined; now += 180000;
     world = new World({ dbPath, now: () => now, actionIntervalMs: 0 }); world.tick(); world.tick();
     assert.equal(world.agent(a.agent_id).life.inventory.turnip_seed, 2); assert.equal(world.agent(a.agent_id).life.inventory.turnip, undefined);
@@ -228,7 +231,8 @@ test('真实HTTP MCP公开生活动作，私有仓库只在本人回应中，匿
   assert.ok(types.includes('farm') && types.includes('inventory'));
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
   const move = await call('act', { ...session, action_id: joined.next_action_id, type: 'move', payload: { x: 11, y: 8 } });
-  const plant = await call('act', { ...session, action_id: move.next_action_id, type: 'farm', payload: { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' } });
+  const till = await call('act', { ...session, action_id: move.next_action_id, type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } });
+  const plant = await call('act', { ...session, action_id: till.next_action_id, type: 'farm', payload: { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' } });
   assert.equal(plant.status, 'applied'); assert.equal(plant.life.inventory.turnip_seed, 2);
   const publicState = await (await fetch(`${url}/api/public/world`)).json();
   assert.equal(publicState.agents[0].life.plots[0].crop_id, 'turnip'); assert.equal(publicState.agents[0].life.inventory, undefined);

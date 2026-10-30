@@ -38,14 +38,14 @@ const specs = [
   ['rose', '#aa758b', '#d4a6ad', '#724e68', '#805747', '#b98059', 'buns'],
   ['slate', '#6c8580', '#a2b3a1', '#455b5a', '#c3c7bc', '#f0e7cd', 'hood'],
 ];
-const motionNames = ['idle','walk','walk_south','walk_north','walk_east','attack','hurt','plant','water','harvest','craft','rest','tired'];
+const motionNames = ['idle','walk','walk_south','walk_north','walk_east','attack','hurt','till','plant','water','harvest','craft','repair','upgrade','rest','tired'];
 const poses = [];
 for (const action of motionNames) for (let frame = 0; frame < (action === 'hurt' ? 2 : 4); frame++) poses.push({ action, frame, name: `${action}_${frame}`, duration: action === 'idle' ? [700,180,700,140][frame] : action === 'rest' ? 500 : action === 'tired' ? 340 : action === 'attack' ? [180,100,140,240][frame] : 180 });
 function pose(action, i) {
   const walking = action.startsWith('walk');
-  return { bob: action === 'idle' && i === 1 ? -1 : walking && i % 2 ? -1 : action === 'tired' ? 2 : action === 'rest' ? 6 : ['plant','water','harvest','craft'].includes(action) && i % 3 ? 3 : action === 'attack' && i === 2 ? 1 : 0,
+  return { bob: action === 'idle' && i === 1 ? -1 : walking && i % 2 ? -1 : action === 'tired' ? 2 : action === 'rest' ? 6 : action === 'till' ? [0,-1,3,1][i] : ['plant','water','harvest','craft','repair','upgrade'].includes(action) && i % 3 ? 3 : action === 'attack' && i === 2 ? 1 : 0,
     stride: walking ? [-2,0,2,0][i] : 0, back: action === 'walk_north', side: action === 'walk_east', seated: action === 'rest', blink: action === 'idle' && i === 3 || action === 'rest' || action === 'tired' && i % 2 === 0,
-    hand: action === 'attack' ? [[31,29],[29,20],[38,31],[32,33]][i] : action === 'water' ? [34,34] : action === 'plant' ? [30+i,37] : action === 'harvest' ? [32,33-(i%2)*3] : action === 'craft' ? [[32,32],[32,25],[35,34],[32,33]][i] : [32,34] };
+    hand: action === 'attack' ? [[31,29],[29,20],[38,31],[32,33]][i] : action === 'till' ? [[30,28],[28,19],[34,35],[31,32]][i] : action === 'water' ? [34,34] : action === 'plant' ? [30+i,37] : action === 'harvest' ? [32,33-(i%2)*3] : ['craft','repair','upgrade'].includes(action) ? [[32,32],[32,25],[35,34],[32,33]][i] : [32,34] };
 }
 function character(s, action, i) {
   const g = new Grid(48,48), p = pose(action,i), b = p.bob, [,coat,light,shade,hair,hairLight,feature] = s;
@@ -75,10 +75,11 @@ function character(s, action, i) {
   if(feature==='cap'){g.ellipse(14,7+b,22,10,outline);g.ellipse(15,8+b,20,8,coat);g.rect(13,14+b,25,3,shade);g.rect(15,14+b,16,1,light);}
   if(feature==='buns'){g.ellipse(10,10+b,8,8,outline);g.ellipse(11,11+b,6,6,hair);g.ellipse(32,10+b,8,8,outline);g.ellipse(33,11+b,6,6,hair);g.rect(10,16+b,7,2,light);g.rect(33,16+b,7,2,light);}
   if(feature==='hood'){g.poly([[14,16+b],[14,9+b],[20,5+b],[29,6+b],[36,13+b],[35,22+b],[32,17+b],[30,12+b],[18,12+b],[16,18+b]],outline);g.poly([[15,15+b],[16,10+b],[21,7+b],[28,8+b],[34,13+b],[34,18+b],[30,11+b],[18,11+b]],coat);g.line(17,10+b,22,8+b,light);}
-  if(action==='water'){g.borderedRect(31,32+b,8,6,'#5a8e9b');g.rect(32,33+b,5,2,'#a2c5bd');g.line(38,34+b,43,32+b,'#497383',2);g.line(43,33+b,44,37+b,'#a8d5d3');if(i%2)g.dot(43,40,'#d5ece1');}
+  if(action==='water'){g.line(43,33+b,44,37+b,'#a8d5d3');if(i%2)g.dot(43,40,'#d5ece1');}
+  if(action==='till'&&i===2){g.rect(39,43,3,2,'#b99163');g.dot(44,40,'#e0b97e');g.dot(37,42,'#b99163');}
   if(action==='plant'){g.rect(33,40,2,2,'#e3c482');if(i===2)g.dot(37,42,'#dec19a');}
   if(action==='harvest'){g.borderedRect(29,35+b,10,7,'#ad8055');g.rect(30,37+b,8,2,'#dbb978');g.ellipse(32,31+b,5,7,'#f4e9bf');g.line(34,32+b,32,29+b,'#74a160',2);}
-  if(action==='craft'){g.line(p.hand[0]+1,hy,p.hand[0]+3,hy-5,'#956b4d',2);g.borderedRect(p.hand[0],hy-8,8,4,'#9aada4');}
+  if(['craft','repair','upgrade'].includes(action)){g.line(p.hand[0]+1,hy,p.hand[0]+3,hy-5,'#956b4d',2);g.borderedRect(p.hand[0],hy-8,8,4,action==='upgrade'?'#d9bd76':'#9aada4');if(action==='upgrade'&&i===2){g.line(8,20,8,24,'#f0d992');g.line(6,22,10,22,'#f0d992');}}
   if(action==='hurt'){g.line(35,7,38,4,'#e4b175');g.line(39,9,43,8,'#e4b175');}
   if(action==='rest'&&i%2){g.line(36,13,40,13,'#e7ddbb');g.line(40,13,36,17,'#e7ddbb');g.line(36,17,40,17,'#e7ddbb');}
   if(action==='tired'&&i%2){g.rect(35,23+b,1,3,'#a0d5d1');g.dot(34,26+b,'#a0d5d1');}
@@ -101,6 +102,40 @@ function overlay(kind,action,i){
   else if(kind==='scarf'){g.rect(17,26+b,15,3,'#d8aa68');g.rect(18,26+b,12,1,'#f1d49b');g.rect(27,29+b,3,7,'#b78051');g.rect(27,34+b,4,2,'#e6bf79');}
   return g;
 }
+const toolPalette = level => level===3 ? {body:'#c6a45d',light:'#f3dc91',shade:'#876d43',edge:'#4f5a4c'} : level===2 ? {body:'#829ea6',light:'#d2e0d1',shade:'#4d707d',edge:'#304e58'} : {body:'#a17b57',light:'#dfbc82',shade:'#6d5640',edge:'#34483e'};
+function toolOverlay(id,level,action,i){
+ const g=new Grid(48,48),p=pose(action,i),b=p.bob,c=toolPalette(level),maintenance=['repair','upgrade'].includes(action);
+ const hy=Math.min(42,p.hand[1]+(p.seated?3:b));
+ if(id==='hoe'){
+  const hand=maintenance?[12,35+b]:[p.hand[0]+1,hy];
+  const tip=maintenance?[6,20+b]:action==='till'?[[39,14],[35,5],[44,40],[40,19]][i]:[40,hy-15];
+  g.line(...hand,...tip,outline,3);g.line(...hand,...tip,'#ae8357',2);g.line(hand[0],hand[1],tip[0],tip[1],'#e0bd82');
+  const blade=level+4;g.borderedRect(tip[0]-blade+1,tip[1]-1,blade+2,6,c.shade,c.edge);g.rect(tip[0]-blade+2,tip[1],blade,2,c.light);g.rect(tip[0]-blade+2,tip[1]+2,blade-1,2,c.body);
+  if(level===3)g.dot(tip[0]-2,tip[1]+2,'#fff3c4');
+ }else{
+  const x=maintenance?4:31,y=maintenance?31+b:32+b;
+  g.borderedRect(x,y,10,8,c.body,c.edge);g.rect(x+1,y+1,7,2,c.light);g.rect(x+7,y+3,2,4,c.shade);
+  g.line(x+2,y,x+2,y-3,c.edge,2);g.line(x+2,y-3,x+6,y-3,c.edge,2);g.line(x+6,y-3,x+6,y,c.edge,2);
+  g.line(x+9,y+3,x+13,y-1,c.edge,3);g.line(x+10,y+3,x+13,y,c.light,2);g.rect(x+12,y-2,3,2,c.body);
+  if(level>1)g.rect(x+2,y+4,2+level,1,c.light);
+ }
+ return g;
+}
+function toolIcon(id,level){
+ const g=new Grid(32,32),c=toolPalette(level);
+ g.ellipse(5,27,23,3,'#203d382e');
+ if(id==='hoe'){
+  g.line(10,27,22,7,outline,4);g.line(11,27,22,7,'#ac8052',2);g.line(11,26,21,8,'#e4c38b');
+  g.poly([[8,4],[25,5],[27,9],[23,15],[16,12],[9,11]],c.edge);g.poly([[10,5],[24,6],[25,9],[22,13],[17,11],[10,10]],c.body);g.line(10,6,23,7,c.light,2);g.line(18,11,23,13,c.shade,2);
+ }else{
+  g.borderedRect(7,12,17,15,c.body,c.edge);g.rect(9,14,11,4,c.light);g.rect(19,18,3,7,c.shade);
+  g.borderedRect(11,5,10,9,c.edge,c.edge);g.rect(14,7,5,6,null);g.rect(13,7,6,5,'#00000000');g.line(12,6,19,6,c.light);
+  g.poly([[23,17],[28,9],[31,10],[29,20],[24,24]],c.edge);g.poly([[24,18],[28,12],[29,13],[27,20],[24,22]],c.body);g.line(25,18,28,12,c.light);g.borderedRect(26,8,6,3,c.light,c.edge);
+ }
+ // Tier markings are deliberate pixels, not text baked at fractional scale.
+ for(let n=0;n<level;n++)g.rect(3+n*4,29,3,2,c.light);
+ return g;
+}
 function monster(id,action,i){
  const g=new Grid(48,48),b=(action==='walk'||action==='idle')&&i%2?-1:action==='attack'&&i===2?2:0;g.ellipse(6,39,36,7,'#203d383a');
  if(id==='forest_slime'){
@@ -112,7 +147,7 @@ function monster(id,action,i){
  }
  if(action==='attack'&&i===2){g.line(37,20,44,27,'#efcf8b',2);g.line(41,29,45,31,'#fff0c2',2);}if(action==='hurt'){g.line(8,9,4,5,'#f1cf95',2);g.line(39,9,44,6,'#f1cf95',2);}return g;
 }
-function crop(id,stage){const g=new Grid(32,32);g.borderedRect(0,9,32,22,'#86633f','#594e37');g.rect(2,10,28,3,'#b38b51');for(let y=16;y<31;y+=6)g.line(2,y,29,y,'#684d35');if(stage==='empty')return g;for(const x of [7,16,25]){if(stage==='seeded'){g.dot(x,22,'#dbc38c');g.line(x,22,x,19,'#82a35a');g.dot(x-1,20,'#b3c67b');}else if(id==='turnip'){g.ellipse(x-4,stage==='ready'?17:21,8,stage==='ready'?10:6,stage==='ready'?'#f0e4b9':'#b1bc7c');g.line(x,24,x-1,28,'#d2c18f');g.poly([[x,21],[x-6,15],[x-4,12],[x,17],[x+4,11],[x+6,15]],'#668e4a');g.line(x,21,x,12,'#a9c67c');}else{g.line(x,27,x,9,'#a7a85c');for(const y of [12,17,22]){g.poly([[x,y+3],[x-4,y],[x-3,y-4],[x,y-1]],stage==='ready'?'#dfb85d':'#8da563');g.poly([[x,y+1],[x+4,y-3],[x+3,y-6],[x,y-2]],stage==='ready'?'#f0d27e':'#b4be73');}}}return g;}
+function crop(id,stage){const g=new Grid(32,32);if(stage==='untilled'){g.borderedRect(0,9,32,22,'#8b8460','#636747');for(const[x,y]of[[5,17],[14,24],[25,17],[27,28]]){g.line(x,y,x-2,y-5,'#60774d',2);g.line(x,y,x+3,y-4,'#a1ae6b',2);}g.poly([[17,13],[22,12],[24,15],[21,18],[16,16]],'#b6b393');g.dot(5,27,'#d2c48d');return g;}g.borderedRect(0,9,32,22,'#86633f','#594e37');g.rect(2,10,28,3,'#b38b51');for(let y=16;y<31;y+=6)g.line(2,y,29,y,'#684d35');if(stage==='empty'||stage==='tilled')return g;for(const x of [7,16,25]){if(stage==='seeded'){g.dot(x,22,'#dbc38c');g.line(x,22,x,19,'#82a35a');g.dot(x-1,20,'#b3c67b');}else if(id==='turnip'){g.ellipse(x-4,stage==='ready'?17:21,8,stage==='ready'?10:6,stage==='ready'?'#f0e4b9':'#b1bc7c');g.line(x,24,x-1,28,'#d2c18f');g.poly([[x,21],[x-6,15],[x-4,12],[x,17],[x+4,11],[x+6,15]],'#668e4a');g.line(x,21,x,12,'#a9c67c');}else{g.line(x,27,x,9,'#a7a85c');for(const y of [12,17,22]){g.poly([[x,y+3],[x-4,y],[x-3,y-4],[x,y-1]],stage==='ready'?'#dfb85d':'#8da563');g.poly([[x,y+1],[x+4,y-3],[x+3,y-6],[x,y-2]],stage==='ready'?'#f0d27e':'#b4be73');}}}return g;}
 function seedRandom(seed=7340){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
 function scene(){
  const g=new Grid(768,512),rand=seedRandom();g.rect(0,0,768,512,'#7fa079');
@@ -133,9 +168,7 @@ function scene(){
  g.ellipse(288,206,177,123,'#c5b78c');g.ellipse(300,216,154,103,'#d7c89b');
  tent(g,302,203);building(g,455,190,'#8b7650','#bda271',false);
  g.borderedRect(449,239,16,15,'#a98250');g.line(450,240,463,252,'#69573d');g.line(463,240,450,252,'#69573d');
- // Agricultural terrace; actual crops come from authenticated world state.
- g.borderedRect(390,285,92,52,'#8d7046','#b7a373');g.rect(394,289,84,44,'#9b7a49');for(let y=297;y<331;y+=8)g.line(396,y,474,y,'#725a3c');
- for(const x of [390,480]){g.rect(x,280,3,63,'#cbb080');g.rect(x+1,280,1,63,'#edcf91');}g.line(390,339,483,339,'#b29968',3);
+ // Farming has its own close-up scene; no field is baked into the shared map.
  // East ruins: carved stone foreground steps and broken columns.
  ruins(g,572,167);
  // Library and play spot preserve social locations.
@@ -154,6 +187,33 @@ function rock(g,x,y){g.ellipse(x-12,y+7,32,7,'#537759');g.poly([[x-12,y+7],[x-9,
 function tent(g,x,y){g.ellipse(x-10,y+38,86,19,'#ad9a6d');g.poly([[x+30,y-17],[x-9,y+43],[x+69,y+43]],'#5f644d');g.poly([[x+30,y-15],[x-6,y+41],[x+35,y+41]],'#e4c47c');g.poly([[x+30,y-15],[x+35,y+41],[x+66,y+41]],'#b58c55');g.line(x+28,y-8,x+1,y+37,'#f5dca0',2);g.poly([[x+30,y+6],[x+15,y+41],[x+43,y+41]],'#5c5d47');g.poly([[x+30,y+8],[x+18,y+40],[x+29,y+35]],'#8b7851');g.line(x-15,y+43,x+9,y+4,'#8c7952');g.line(x+74,y+44,x+51,y+4,'#8c7952');g.rect(x-16,y+40,3,8,'#786345');g.rect(x+74,y+41,3,7,'#786345');}
 function building(g,x,y,roof,wall,library){g.ellipse(x-8,y+49,92,17,'#647e60');g.borderedRect(x+3,y+19,63,38,wall,'#59654e');for(let yy=y+28;yy<y+55;yy+=7)g.line(x+5,yy,x+64,yy,'#987c59');g.poly([[x-6,y+21],[x+15,y-4],[x+57,y-4],[x+76,y+21],[x+74,y+25],[x-5,y+25]],'#4a5549');g.poly([[x-3,y+20],[x+16,y-2],[x+56,y-2],[x+72,y+20]],roof);for(let yy=y+3;yy<y+20;yy+=6)g.line(x+13-(yy-y)/2,yy,x+59+(yy-y)/2,yy,'#c09b73');g.borderedRect(x+13,y+30,14,15,'#b7cbac');g.line(x+20,y+31,x+20,y+43,'#5a6d55');g.line(x+14,y+37,x+25,y+37,'#5a6d55');g.borderedRect(x+40,y+29,17,28,'#655a43');g.rect(x+42,y+32,13,23,'#8d7650');g.dot(x+44,y+44,'#dfc98a');g.rect(x+39,y+57,20,3,'#c5b587');if(library){g.rect(x+53,y-12,8,12,'#818b76');g.rect(x+52,y-13,10,3,'#b1b197');}}
 function ruins(g,x,y){g.ellipse(x-15,y+73,120,22,'#71886e');g.borderedRect(x-12,y+73,121,8,'#9ca38a','#6b8270');g.borderedRect(x-5,y+66,106,8,'#bac0a0','#6b8270');g.borderedRect(x+6,y+18,18,48,'#8eaa92','#566f63');g.rect(x+8,y+20,5,43,'#c0c7a6');g.borderedRect(x+70,y+18,18,48,'#8eaa92','#566f63');g.rect(x+72,y+20,5,43,'#c0c7a6');g.borderedRect(x+1,y+8,92,14,'#9fb59a','#566f63');g.rect(x+4,y+10,85,3,'#d0d0aa');g.line(x+45,y+9,x+40,y+17,'#657d6b');g.line(x+40,y+17,x+48,y+21,'#657d6b');for(const yy of[y+33,y+48]){g.line(x+7,yy,x+22,yy,'#657d6b');g.line(x+71,yy,x+86,yy,'#657d6b');}g.borderedRect(x+34,y+31,27,35,'#516e65','#6f8774');g.rect(x+39,y+37,3,18,'#8ca78d');g.rect(x+51,y+37,3,18,'#8ca78d');g.rect(x+41,y+42,12,2,'#c8cb88');g.ellipse(x+7,y+56,10,5,'#6e925d');g.ellipse(x+80,y+19,8,4,'#7a9c65');}
+function farmScene(){
+ const g=new Grid(640,400),random=seedRandom(11003);
+ g.rect(0,0,640,400,'#87a378');
+ g.poly([[0,250],[110,236],[184,320],[153,400],[0,400]],'#71936c');
+ g.poly([[476,133],[640,114],[640,400],[562,400],[521,291]],'#77976d');
+ for(let i=0;i<600;i++){const x=Math.floor(random()*640),y=Math.floor(random()*400);g.line(x,y,x+2,y-1,i%2?'#a1b982':'#6f9167');}
+ // A sheltered courtyard, with soil on the two reserved plots only.
+ g.rect(291,118,58,282,'#c6b583');g.rect(300,118,5,282,'#dac89a');
+ g.rect(75,178,490,30,'#c6b583');g.rect(77,180,485,3,'#e2cfa3');
+ for(const x of [70,390]){g.borderedRect(x,219,180,101,'#958064','#67734e');g.rect(x+4,223,172,93,'#a29270');g.line(x+3,222,x+175,222,'#c6b98b',2);}
+ // Back fence and a small storage shed, not a second warehouse inventory.
+ for(let x=10;x<640;x+=31){g.borderedRect(x,55,6,38,'#b59766','#5c704c');g.rect(x+1,56,2,34,'#e0c58d');}
+ g.rect(0,66,640,5,'#a88a5e');g.rect(0,80,640,5,'#b99a67');g.line(0,66,639,66,'#e0c58d');
+ building(g,280,51,'#8d6c59','#c0a574',false);
+ // Stone well: dark water, a pulley, and a roof with readable masonry planes.
+ g.ellipse(61,142,83,20,'#617f5f');g.borderedRect(70,110,63,39,'#97a48b','#506b5b');g.ellipse(70,101,63,25,'#aeb89b');g.ellipse(77,105,49,15,'#436c6c');g.ellipse(81,108,40,7,'#80b4a6');
+ for(const y of [128,139]){g.line(71,y,132,y,'#637b65');for(const x of [84,103,123])g.line(x,y-9,x,y,'#637b65');}
+ g.borderedRect(67,68,7,52,'#92704d','#4d604b');g.borderedRect(129,68,7,52,'#92704d','#4d604b');g.poly([[56,71],[75,48],[126,48],[146,71],[145,77],[56,77]],'#4b6150');g.poly([[60,70],[77,51],[124,51],[141,70]],'#b8905e');g.line(77,55,126,55,'#dfbb7c',2);g.rect(99,74,2,42,'#b69761');g.borderedRect(91,108,16,13,'#9b8056','#53634f');g.rect(93,110,12,3,'#d1b887');
+ // Tool rack with fixed decorative silhouettes, outside the private status UI.
+ g.ellipse(475,152,104,16,'#637f5e');g.borderedRect(481,87,8,71,'#98734b','#526648');g.borderedRect(562,87,8,71,'#98734b','#526648');g.borderedRect(478,91,94,32,'#ad8c57','#526648');g.rect(482,95,86,3,'#dbc08a');g.rect(482,117,86,3,'#785d3f');
+ for(const x of [497,520,545])g.rect(x,104,2,36,'#c6a273');g.borderedRect(492,103,13,6,'#8fa49a','#425b52');g.rect(494,104,8,2,'#d2d9bc');g.borderedRect(515,133,12,14,'#a4b2a0','#425b52');g.rect(518,133,1,10,'#697e6e');g.rect(522,133,1,10,'#697e6e');g.borderedRect(537,128,20,15,'#5e8a8b','#425b52');g.rect(539,130,13,4,'#a1c5b7');g.line(556,132,562,126,'#5e8a8b',3);
+ // Border foliage stays clear of the two plot overlays and the centre walkway.
+ for(const[x,y,v]of[[15,43,0],[190,25,1],[405,27,0],[625,45,1],[17,370,0],[622,366,1]])tree(g,x,y,v);
+ for(const[x,y]of[[47,267],[590,245],[168,356],[474,364]])rock(g,x,y);
+ for(const[x,y]of[[207,122],[236,151],[411,129],[444,164],[53,337],[589,329]]){g.line(x,y,x,y-8,'#567447',2);g.ellipse(x-4,y-11,8,7,'#ead49a');g.rect(x-1,y-9,2,2,'#b98b53');}
+ return g;
+}
 function recipe(name,frames,w=48,h=48){
  const palette={},index=new Map();
  for(const f of frames)for(const row of f.g.p)for(const c of row)if(c&&!index.has(c)){
@@ -161,7 +221,7 @@ function recipe(name,frames,w=48,h=48){
    const key=symbols[index.size];index.set(c,key);palette[key]=c;
  }
  const animations={};
- for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','plant','water','harvest','craft'].includes(a)}).frames.push(f.name);}
+ for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','till','plant','water','harvest','craft','repair','upgrade'].includes(a)}).frames.push(f.name);}
  const sourceFrames=frames.map(f=>{
    const ops=[];
    // A still may exceed 256px, but each editable Pixelbolt grid is at most 256².
@@ -170,7 +230,7 @@ function recipe(name,frames,w=48,h=48){
  });
  return {version:1,name,width:w,height:h,palette,frames:sourceFrames,animations,sheet:{columns:Math.min(8,frames.length),padding:0}};
 }
-const manifest={version:1,tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},characters:{},monsters:{},crops:{},equipment:{},accessories:{},effects:{},placements:{campfire:{x:10.1,y:8.3},farm:[{x:12.2,y:9.1},{x:13.4,y:9.1}]}};
+const manifest={version:1,tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},effects:{},placements:{campfire:{x:10.1,y:8.3}}};
 function cli(args){return JSON.parse(execFileSync(process.execPath,[CLI,...args],{encoding:'utf8',maxBuffer:16*1024*1024}));}
 function exportRecipe(r,group,id=r.name){
  const path=join(SOURCE,`${r.name}.pixel.json`);
@@ -201,8 +261,13 @@ for(let i=0;i<8;i++)exportRecipe(recipe(`wanderer_${i+1}`,poses.map(p=>({...p,g:
 for(const id of ['forest_slime','forest_boar','ruins_guardian'])exportRecipe(recipe(id,poses.filter(p=>['idle','walk','attack','hurt'].includes(p.action)).map(p=>({...p,g:monster(id,p.action,p.frame)}))),'monsters');
 for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'equipment');
 for(const id of ['leaf','scarf','ribbon','star'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'accessories');
-for(const id of ['turnip','wheat'])exportRecipe(recipe(id,['empty','seeded','growing','ready'].map(stage=>({name:stage,action:stage,duration:1000,g:crop(id,stage)})),32,32),'crops');
+for(const id of ['turnip','wheat'])exportRecipe(recipe(id,['untilled','tilled','empty','seeded','growing','ready'].map(stage=>({name:stage,action:stage,duration:1000,g:crop(id,stage)})),32,32),'crops');
+for(const id of ['hoe','watering_can'])for(const level of [1,2,3]){
+ exportRecipe(recipe(`${id}_${level}`,poses.map(p=>({...p,g:toolOverlay(id,level,p.action,p.frame)}))),'tools');
+ exportRecipe(recipe(`${id}_${level}_icon`,[{name:'idle',action:'idle',duration:1000,g:toolIcon(id,level)}],32,32),'tool_icons');
+}
 exportRecipe(recipe('scene',[{name:'world',action:'idle',g:scene()}],768,512),null,'scene');
+exportRecipe(recipe('farm_scene',[{name:'farm',action:'idle',g:farmScene()}],640,400),null,'farm_scene');
 if(!only||only==='campfire'){
  const source=JSON.parse(readFileSync(join(TOOL,'examples/campfire.fluid.json'),'utf8'));source.name='campfire';writeFileSync(join(SOURCE,'campfire.fluid.json'),JSON.stringify(source,null,2)+'\n');
  const compiled=join(REVIEW,`campfire-${Date.now()}.pixel.json`);cli(['compile',join(SOURCE,'campfire.fluid.json'),'--out',compiled]);exportRecipe(JSON.parse(readFileSync(compiled,'utf8')),'effects','campfire');

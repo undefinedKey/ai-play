@@ -102,16 +102,18 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}入场立即有决策机�
   const version = JSON.parse(readFileSync(new URL('../skills/ai-plaza/version.json', import.meta.url), 'utf8')).version;
   assert.equal(reports.at(-1).runtime_version, version);
   assert.equal(reports.at(-1).mode, mode);
-  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'fatigue']);
+  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue']);
   assert.equal(reports.at(-1).last_decision_type, 'adventure_plan');
   assert.ok(reports.some(r => r.last_decision_type === 'wait'));
 });
 
-test('真实种植、浇水、成熟唤醒、收获和食用均由原AI的动作完成', async t => {
-  let answer = action('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' });
+test('真实开垦、种植、浇水、成熟唤醒、收获和食用均由原AI的动作完成', async t => {
+  let answer = action('farm', { intent: 'till', plot_id: 'plot_1' });
   const f = await fixture(t, { choose: () => answer });
   f.a.position = { x: 11, y: 8 }; f.refresh();
   await f.decide();
+  assert.equal(f.a.life.plots[0].tilled, true);
+  answer = action('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); await f.decide();
   assert.equal(f.a.life.plots[0].crop_id, 'turnip');
   answer = action('farm', { intent: 'water', plot_id: 'plot_1' }); await f.decide();
   assert.ok(f.a.life.plots[0].watered_at);
@@ -130,13 +132,15 @@ test('真实种植、浇水、成熟唤醒、收获和食用均由原AI的动作
   answer = action('inventory', { intent: 'use', item_id: food.id }); await f.decide();
   assert.equal(f.a.life.inventory[food.id], before - 1);
   assert.ok(f.a.adventure.hp > 15);
-  assert.equal(f.runner.checkpoint.calls_used, 4);
+  assert.equal(f.runner.checkpoint.calls_used, 5);
 });
 
 test('桌宠可直接选择服务提供的制作/装备机会，穿戴改变真实属性而非本地模拟', async t => {
   let intent = 'craft';
   const f = await fixture(t, { choose: data => data.opportunities.find(o => o.action.type === 'inventory' && o.action.payload.intent === intent)?.action || action('wait') });
-  f.a.position = { x: 11, y: 8 }; f.refresh();
+  f.a.position = { x: 11, y: 8 };
+  for (const plot of f.a.life.plots) plot.tilled = true;
+  f.refresh();
   await f.decide();
   assert.equal(f.a.life.inventory.wooden_sword, 1);
   intent = 'equip'; await f.decide();

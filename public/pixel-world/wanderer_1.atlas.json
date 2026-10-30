@@ -754,9 +754,125 @@
         "y": 43
       }
     },
-    "plant_0": {
+    "till_0": {
       "frame": {
         "x": 96,
+        "y": 144,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "till_1": {
+      "frame": {
+        "x": 144,
+        "y": 144,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "till_2": {
+      "frame": {
+        "x": 192,
+        "y": 144,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "till_3": {
+      "frame": {
+        "x": 240,
+        "y": 144,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "plant_0": {
+      "frame": {
+        "x": 288,
         "y": 144,
         "w": 48,
         "h": 48
@@ -785,7 +901,7 @@
     },
     "plant_1": {
       "frame": {
-        "x": 144,
+        "x": 336,
         "y": 144,
         "w": 48,
         "h": 48
@@ -814,8 +930,8 @@
     },
     "plant_2": {
       "frame": {
-        "x": 192,
-        "y": 144,
+        "x": 0,
+        "y": 192,
         "w": 48,
         "h": 48
       },
@@ -843,8 +959,8 @@
     },
     "plant_3": {
       "frame": {
-        "x": 240,
-        "y": 144,
+        "x": 48,
+        "y": 192,
         "w": 48,
         "h": 48
       },
@@ -872,8 +988,8 @@
     },
     "water_0": {
       "frame": {
-        "x": 288,
-        "y": 144,
+        "x": 96,
+        "y": 192,
         "w": 48,
         "h": 48
       },
@@ -901,8 +1017,8 @@
     },
     "water_1": {
       "frame": {
-        "x": 336,
-        "y": 144,
+        "x": 144,
+        "y": 192,
         "w": 48,
         "h": 48
       },
@@ -930,7 +1046,7 @@
     },
     "water_2": {
       "frame": {
-        "x": 0,
+        "x": 192,
         "y": 192,
         "w": 48,
         "h": 48
@@ -959,7 +1075,7 @@
     },
     "water_3": {
       "frame": {
-        "x": 48,
+        "x": 240,
         "y": 192,
         "w": 48,
         "h": 48
@@ -988,7 +1104,7 @@
     },
     "harvest_0": {
       "frame": {
-        "x": 96,
+        "x": 288,
         "y": 192,
         "w": 48,
         "h": 48
@@ -1017,7 +1133,7 @@
     },
     "harvest_1": {
       "frame": {
-        "x": 144,
+        "x": 336,
         "y": 192,
         "w": 48,
         "h": 48
@@ -1046,8 +1162,8 @@
     },
     "harvest_2": {
       "frame": {
-        "x": 192,
-        "y": 192,
+        "x": 0,
+        "y": 240,
         "w": 48,
         "h": 48
       },
@@ -1075,8 +1191,8 @@
     },
     "harvest_3": {
       "frame": {
-        "x": 240,
-        "y": 192,
+        "x": 48,
+        "y": 240,
         "w": 48,
         "h": 48
       },
@@ -1104,8 +1220,8 @@
     },
     "craft_0": {
       "frame": {
-        "x": 288,
-        "y": 192,
+        "x": 96,
+        "y": 240,
         "w": 48,
         "h": 48
       },
@@ -1133,8 +1249,8 @@
     },
     "craft_1": {
       "frame": {
-        "x": 336,
-        "y": 192,
+        "x": 144,
+        "y": 240,
         "w": 48,
         "h": 48
       },
@@ -1162,7 +1278,7 @@
     },
     "craft_2": {
       "frame": {
-        "x": 0,
+        "x": 192,
         "y": 240,
         "w": 48,
         "h": 48
@@ -1191,8 +1307,240 @@
     },
     "craft_3": {
       "frame": {
-        "x": 48,
+        "x": 240,
         "y": 240,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "repair_0": {
+      "frame": {
+        "x": 288,
+        "y": 240,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "repair_1": {
+      "frame": {
+        "x": 336,
+        "y": 240,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "repair_2": {
+      "frame": {
+        "x": 0,
+        "y": 288,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "repair_3": {
+      "frame": {
+        "x": 48,
+        "y": 288,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "upgrade_0": {
+      "frame": {
+        "x": 96,
+        "y": 288,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "upgrade_1": {
+      "frame": {
+        "x": 144,
+        "y": 288,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "upgrade_2": {
+      "frame": {
+        "x": 192,
+        "y": 288,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 180,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "upgrade_3": {
+      "frame": {
+        "x": 240,
+        "y": 288,
         "w": 48,
         "h": 48
       },
@@ -1220,8 +1568,8 @@
     },
     "rest_0": {
       "frame": {
-        "x": 96,
-        "y": 240,
+        "x": 288,
+        "y": 288,
         "w": 48,
         "h": 48
       },
@@ -1249,8 +1597,8 @@
     },
     "rest_1": {
       "frame": {
-        "x": 144,
-        "y": 240,
+        "x": 336,
+        "y": 288,
         "w": 48,
         "h": 48
       },
@@ -1278,8 +1626,8 @@
     },
     "rest_2": {
       "frame": {
-        "x": 192,
-        "y": 240,
+        "x": 0,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1307,8 +1655,8 @@
     },
     "rest_3": {
       "frame": {
-        "x": 240,
-        "y": 240,
+        "x": 48,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1336,8 +1684,8 @@
     },
     "tired_0": {
       "frame": {
-        "x": 288,
-        "y": 240,
+        "x": 96,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1365,8 +1713,8 @@
     },
     "tired_1": {
       "frame": {
-        "x": 336,
-        "y": 240,
+        "x": 144,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1394,8 +1742,8 @@
     },
     "tired_2": {
       "frame": {
-        "x": 0,
-        "y": 288,
+        "x": 192,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1423,8 +1771,8 @@
     },
     "tired_3": {
       "frame": {
-        "x": 48,
-        "y": 288,
+        "x": 240,
+        "y": 336,
         "w": 48,
         "h": 48
       },
@@ -1520,6 +1868,16 @@
       "loop": false,
       "duration": 360
     },
+    "till": {
+      "frames": [
+        "till_0",
+        "till_1",
+        "till_2",
+        "till_3"
+      ],
+      "loop": false,
+      "duration": 720
+    },
     "plant": {
       "frames": [
         "plant_0",
@@ -1560,6 +1918,26 @@
       "loop": false,
       "duration": 720
     },
+    "repair": {
+      "frames": [
+        "repair_0",
+        "repair_1",
+        "repair_2",
+        "repair_3"
+      ],
+      "loop": false,
+      "duration": 720
+    },
+    "upgrade": {
+      "frames": [
+        "upgrade_0",
+        "upgrade_1",
+        "upgrade_2",
+        "upgrade_3"
+      ],
+      "loop": false,
+      "duration": 720
+    },
     "rest": {
       "frames": [
         "rest_0",
@@ -1588,7 +1966,7 @@
     "format": "RGBA8888",
     "size": {
       "w": 384,
-      "h": 336
+      "h": 384
     },
     "scale": "1",
     "frameTags": [
@@ -1635,39 +2013,57 @@
         "direction": "forward"
       },
       {
-        "name": "plant",
+        "name": "till",
         "from": 26,
         "to": 29,
         "direction": "forward"
       },
       {
-        "name": "water",
+        "name": "plant",
         "from": 30,
         "to": 33,
         "direction": "forward"
       },
       {
-        "name": "harvest",
+        "name": "water",
         "from": 34,
         "to": 37,
         "direction": "forward"
       },
       {
-        "name": "craft",
+        "name": "harvest",
         "from": 38,
         "to": 41,
         "direction": "forward"
       },
       {
-        "name": "rest",
+        "name": "craft",
         "from": 42,
         "to": 45,
         "direction": "forward"
       },
       {
-        "name": "tired",
+        "name": "repair",
         "from": 46,
         "to": 49,
+        "direction": "forward"
+      },
+      {
+        "name": "upgrade",
+        "from": 50,
+        "to": 53,
+        "direction": "forward"
+      },
+      {
+        "name": "rest",
+        "from": 54,
+        "to": 57,
+        "direction": "forward"
+      },
+      {
+        "name": "tired",
+        "from": 58,
+        "to": 61,
         "direction": "forward"
       }
     ]

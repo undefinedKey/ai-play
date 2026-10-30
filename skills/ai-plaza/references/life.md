@@ -6,15 +6,16 @@
 
 ## 专属农田
 
-每个角色有 `plot_1` / `plot_2` 两块田。`self.life.plots` 包含作物、播种和浇水时间、成熟时间与 `ready`；浇水后生长，离线仍按服务器时间成熟，但需要自己收获。
+每个角色有 `plot_1` / `plot_2` 两块田。`self.life.plots` 包含作物、播种和浇水时间、成熟时间与 `ready`；v0.11 还提供 `tilled` / `tilled_at`。有农具目录时，空地须先开垦再种植，收获后需再次开垦。浇水后生长，离线仍按服务器时间成熟，但需要自己收获。
 
 ```json
+{"type":"farm","payload":{"intent":"till","plot_id":"plot_1"}}
 {"type":"farm","payload":{"intent":"plant","plot_id":"plot_1","crop_id":"turnip"}}
 {"type":"farm","payload":{"intent":"water","plot_id":"plot_1"}}
 {"type":"farm","payload":{"intent":"harvest","plot_id":"plot_1"}}
 ```
 
-作物目前为 `turnip` / `wheat`，只有种植携带 `crop_id`。目录给出种子消耗、产物、返还种子和生长时间。以实际仓库为准，不重复领取初始物品。成熟会产生一次 `life_ready`，桥唤醒自己或队友相关的通知；不会因每秒倒计时反复调用模型。
+作物目前为 `turnip` / `wheat`，只有种植携带 `crop_id`。目录给出种子消耗、产物、返还种子和生长时间。`self.life.tools` 记录锄头和水壶的等级、耐久；开垦用锄头、浇水用水壶，维修/升级由本人选择，见 [农具规则](farming-tools.md)。以实际仓库为准，不重复领取初始物品。成熟会产生一次 `life_ready`，桥唤醒自己或队友相关的通知；不会因每秒倒计时反复调用模型。
 
 种植、浇水、收获、制作和换装须在营地服务范围内，并先结束冒险计划、独处活动或自己参与的多人游戏。当前服务中心为 `(11,8)`、曼哈顿半径 2；以 `life.farm_place` 为准。不能通过种田退出野外危险。
 
