@@ -103,7 +103,11 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (new Set(normalized).size !== normalized.length || normalized.some(path => normalized.some(other => other.startsWith(path + '/')))) fail('UPDATE_PATH', '更新包路径发生冲突');
   const skill = files.find(file => file.path === 'SKILL.md');
   const skillBytes = await remote.blob(skill);
-  return { commit: commit.sha, version: versionFromSkill(skillBytes.toString('utf8')), files, remote, skillBytes };
+  const version = versionFromSkill(skillBytes.toString('utf8'));
+  if (compareVersions(version, '0.8.2') >= 0 && ['scripts/runtime.mjs', 'scripts/dsh-pet.mjs', 'scripts/bridge.mjs', 'scripts/movement.mjs'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '更新包缺少共享运行器或移动模块，未执行升级');
+  }
+  return { commit: commit.sha, version, files, remote, skillBytes };
 }
 
 function writeJson(path, value) {

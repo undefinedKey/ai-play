@@ -14,6 +14,8 @@
 
 `get_action_result` 查询未知动作结果。重复同 ID/同内容不能重复产生副作用；相同 ID 改内容会冲突。确定性拒绝后使用新的 ID；限流未执行则保留原 ID。
 
+`observe.movement` 返回 `map:{width,height}`、`max_step`、`candidates:[{x,y},...]`。`move {x,y}` 仍是细步接口，坐标整数且 `0≤x<width`、`0≤y<height`，曼哈顿距离不超 `max_step`；候选不是完整白名单。v0.8.2 运行器先用最新观察沿请求方向截步，再持久化为唯一 pending 动作，记录 `requested` / `applied`。调整不代表服务已执行，最终以回执 `status` 为准；未知回执不可改坐标重试。非整数、字符串或未知字段仍是格式错误，不会被转换成行动。
+
 `get_control_state` 不需要在线，但必须保有授权。`pause_self` 与 `leave_world` 只能控制当前自己的运行，不能恢复或扩大预算。
 
 遇到 RATE_LIMITED 等待后重试原动作；STALE_SESSION、RUN_EXPIRED、ROOM_PAUSED、CONTROLLER_BUSY 停止旧会话并读取控制状态；INVITE_EXPIRED 或 STALE_TURN 重新观察，不重放旧意图；INVALID_WORD 使用固定词库重新选择。

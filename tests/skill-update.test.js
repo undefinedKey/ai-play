@@ -19,12 +19,13 @@ function fixture(t) {
   writeFileSync(statePath, state);
   return { directory, root, statePath, state };
 }
-function github({ version = '0.6.0', extra = [], corrupt = false } = {}) {
+function github({ version = '0.6.0', extra = [], corrupt = false, newFiles = {} } = {}) {
   const files = {
     'SKILL.md': document(version),
     'config.json': JSON.stringify({ default_url: 'https://new-default.example', added: true }),
     'scripts/plaza.mjs': 'new source',
     'scripts/update.mjs': 'new updater',
+    ...newFiles,
   };
   const blobs = new Map();
   const tree = Object.entries(files).map(([path, text]) => {
@@ -51,6 +52,17 @@ function github({ version = '0.6.0', extra = [], corrupt = false } = {}) {
   };
   return { fetchImpl, requests };
 }
+
+test('0.8.2升级必须包含移动模块并校验下载，独立Skill更新后不依赖补丁脚本', async t => {
+  const f = fixture(t);
+  const source = readFileSync(new URL('../skills/ai-plaza/scripts/movement.mjs', import.meta.url), 'utf8');
+  const shared = { 'scripts/runtime.mjs': 'new runtime', 'scripts/dsh-pet.mjs': 'new pet', 'scripts/bridge.mjs': 'new bridge' };
+  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.8.2', newFiles: shared }).fetchImpl }), { code: 'UPDATE_TREE' });
+  assert.match(readFileSync(join(f.root, 'SKILL.md'), 'utf8'), /0\.5\.0/);
+  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.8.2', newFiles: { ...shared, 'scripts/movement.mjs': source } }).fetchImpl });
+  assert.equal(readFileSync(join(f.root, 'scripts/movement.mjs'), 'utf8'), source);
+  assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
+});
 
 test('版本检测使用数值语义，固定官方仓库并缓存，不把本地新版本降级', async t => {
   assert.equal(compareVersions('0.10.0', '0.9.8'), 1);

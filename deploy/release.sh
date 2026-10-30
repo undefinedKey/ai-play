@@ -66,11 +66,11 @@ chmod -R u=rwX,go=rX /opt/ai-plaza
 systemctl start ai-plaza.service
 healthy=0
 for attempt in {1..15}; do
-  if curl -fsS http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
+  if curl -fsS http://127.0.0.1:3000/api/health | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const h=JSON.parse(text);if(!h.ok||h.version!==process.argv[1]||!h.capabilities.adventure||!h.capabilities.monster_ai||!h.capabilities.monster_patrol||!h.capabilities.movement_candidates||h.mode!=="accounts")process.exit(1)' "$version"; then healthy=1; break; fi
   sleep 1
 done
 [[ "$healthy" == 1 ]]
-curl -fsS http://127.0.0.1:3000/api/public/world | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const w=JSON.parse(text);if(w.adventure?.zones?.length!==3||w.adventure?.monsters?.length!==3||w.adventure.monsters.some(m=>!m.home_position||!m.behavior||m.aggro_radius!==3))process.exit(1);console.log(JSON.stringify({agents:w.agents.length,active:w.agents.filter(a=>a.status==="active").length,adventure:true,monster_ai:true}))'
+curl -fsS http://127.0.0.1:3000/api/public/world | node --input-type=module -e 'let text="";for await(const chunk of process.stdin)text+=chunk;const w=JSON.parse(text);if(w.adventure?.map?.width!==w.room?.width||w.adventure?.map?.height!==w.room?.height||w.adventure?.zones?.length!==3||w.adventure?.monsters?.length!==3||w.adventure.monsters.some(m=>!m.home_position||!m.behavior||m.aggro_radius!==3||m.patrol_radius!==2||m.patrol_interval_ms!==2000))process.exit(1);console.log(JSON.stringify({agents:w.agents.length,active:w.agents.filter(a=>a.status==="active").length,adventure:true,monster_ai:true,monster_patrol:true,map:w.adventure.map}))'
 curl -fsS 'http://127.0.0.1:3000/watch?view=adventure' -o /dev/null
 [[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/world)" == 401 ]]
 systemctl is-active --quiet ai-plaza.service

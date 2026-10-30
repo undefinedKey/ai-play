@@ -52,7 +52,7 @@ test('冒险地图是真实空场，双视图与移动端可读，无浏览者�
   const initial = await (await request.get(base+'/api/public/world')).json();
   expect(initial.agents).toEqual([]); expect(initial.adventure.monsters).toHaveLength(3);
   await page.goto(base+'/watch?view=adventure');
-  await expect(page.getByTestId('adventure-map')).toContainText('森林已准备好');
+  await expect(page.getByTestId('adventure-empty-banner')).toContainText('森林已准备好');
   await expect(page.getByTestId('adventure-map')).toContainText('星火营地');
   await expect(page.locator('.adventure-agent')).toHaveCount(0);
   await expect(page.locator('.adventure-monster')).toHaveCount(3);
@@ -227,4 +227,46 @@ test('低生命时公开显示反应保护，保护期间停止受击，旁观�
   for(let i=0;i<18&&application.world.agent(a.agent.agent_id).adventure.in_field;i++)step();
   await expect(page.getByTestId('adventure-field-status')).toContainText('营地安全区');
   expect((await a.observe()).self.adventure.hp).toBe(hp);
+});
+
+test('没有角色和观众时怪物仍会巡逻，打开旁观后 SSE 持续显示合法位置且不会新增 AI', async ({page,request}) => {
+  const initial=await (await request.get(base+'/api/public/world')).json();
+  expect(initial.agents).toEqual([]);
+  step(5); // No browser or SSE connection exists yet.
+  const unseen=await (await request.get(base+'/api/public/world')).json();
+  expect(unseen.agents).toEqual([]);
+  expect(unseen.adventure.monsters.some((monster,index)=>JSON.stringify(monster.position)!==JSON.stringify(initial.adventure.monsters[index].position))).toBe(true);
+  expect(unseen.adventure.monsters.every(monster=>monster.behavior==='patrolling')).toBe(true);
+  const eventsBefore=unseen.events.length;
+  await page.goto(base+'/watch?view=adventure');
+  await expect(page.getByText('正在实时观察',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('野外怪物动向')).toContainText('正在巡逻');
+  const monster=unseen.adventure.monsters[0];
+  const marker=page.getByTestId(`monster-${monster.monster_id}`);
+  await expect(marker).toHaveAttribute('data-behavior','patrolling');
+  const before=await marker.getAttribute('style');
+  step(2);
+  await expect(marker).not.toHaveAttribute('style',before);
+  const current=await (await request.get(base+'/api/public/world')).json();
+  expect(current.agents).toEqual([]);expect(current.events.length).toBe(eventsBefore);
+  const {width,height}=current.adventure.map;
+  for(const item of current.adventure.monsters) {
+    expect(Number.isInteger(item.position.x)&&item.position.x>=0&&item.position.x<width).toBe(true);
+    expect(Number.isInteger(item.position.y)&&item.position.y>=0&&item.position.y<height).toBe(true);
+    expect(item.target_agent_id).toBeNull();
+    const element=page.getByTestId(`monster-${item.monster_id}`);
+    const rendered=await element.evaluate(node=>({left:parseFloat(node.style.left),top:parseFloat(node.style.top)}));
+    expect(rendered.left).toBeCloseTo((item.position.x+.5)/width*100,3);
+    expect(rendered.top).toBeCloseTo((item.position.y+.5)/height*100,3);
+  }
+  await expect(page.locator('.adventure-agent')).toHaveCount(0);
+  await expect(page.locator('.adventure-map-scale')).toContainText(`${width} × ${height}`);
+  for(const viewport of [{width:1440,height:900},{width:390,height:844}]) {
+    await page.setViewportSize(viewport);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    const banner=await page.getByTestId('adventure-empty-banner').boundingBox();
+    const map=await page.getByTestId('adventure-map').boundingBox();
+    expect(banner.y+banner.height).toBeLessThanOrEqual(map.y);
+    await page.screenshot({path:`artifacts/adventure-patrol-${viewport.width}.png`,fullPage:true});
+  }
 });

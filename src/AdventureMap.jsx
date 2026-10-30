@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
+import { mapDimensions, projectMapPoint as point } from './map-projection.js';
 import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
 const clamp = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
-const point = position => ({ left: `${(clamp(position?.x, 23) + .5) / 24 * 100}%`, top: `${(clamp(position?.y, 15) + .5) / 16 * 100}%` });
 const zoneName = (adventure, id) => adventure?.zones?.find(zone => zone.id === id)?.name || '野外';
 
 function monsterBehavior(monster, agents) {
   if (monster.status !== 'alive') return '等待重生';
   const target = agents.find(agent => agent.agent_id === monster.target_agent_id)?.name || '冒险者';
-  return ({ chasing: `追赶 ${target}`, attacking: `攻击 ${target}`, returning: '返回领地' })[monster.behavior] || '守在领地';
+  return ({ patrolling: '正在巡逻', chasing: `追赶 ${target}`, attacking: `攻击 ${target}`, returning: '返回领地' })[monster.behavior] || '守在领地';
 }
 
-function MonsterUnit({ monster, agents }) {
+function MonsterUnit({ monster, agents, map }) {
   const behavior = monsterBehavior(monster, agents);
-  return <div className={`adventure-monster ${monster.status === 'alive' ? '' : 'defeated'} behavior-${monster.behavior || 'idle'}`} style={point(monster.position)} data-testid={`monster-${monster.monster_id}`} data-behavior={monster.behavior || 'idle'} role="img" aria-label={`${monster.name}，${monster.status === 'alive' ? `生命 ${monster.hp}/${monster.max_hp}，${behavior}` : '等待重生'}`}>
+  return <div className={`adventure-monster ${monster.status === 'alive' ? '' : 'defeated'} behavior-${monster.behavior || 'idle'}`} style={point(monster.position,map)} data-testid={`monster-${monster.monster_id}`} data-behavior={monster.behavior || 'idle'} role="img" aria-label={`${monster.name}，${monster.status === 'alive' ? `生命 ${monster.hp}/${monster.max_hp}，${behavior}` : '等待重生'}`}>
     <MonsterGlyph id={monster.monster_id}/><span className="monster-name">{monster.name}</span>
     {monster.status === 'alive' ? <><span className="unit-health"><i style={{ width: `${clamp(monster.hp / monster.max_hp * 100, 100)}%` }}/></span>{monster.behavior && monster.behavior !== 'idle' && <span className="monster-intent">{behavior}</span>}</> : <small>等待重生</small>}
   </div>;
@@ -27,7 +27,7 @@ function FieldStatus({ agent, adventure, now, live }) {
   const seconds = Math.max(0, Math.ceil(((state.decision_until || 0) - now) / 1000));
   const pursuing = (adventure?.monsters || []).filter(monster => monster.status === 'alive' && monster.target_agent_id === agent.agent_id);
   const camp = adventure?.zones?.find(zone => zone.id === 'camp');
-  const inCamp = camp && Math.abs(agent.position.x - camp.x) + Math.abs(agent.position.y - camp.y) <= camp.radius;
+  const inCamp = camp && Math.abs(agent.position?.x - camp.x) + Math.abs(agent.position?.y - camp.y) <= camp.radius;
   const danger = active && !inCamp && !seconds && pursuing.length > 0;
   const title = !active ? '冒险已停止' : inCamp ? '营地安全区' : seconds ? `反应保护 · ${seconds} 秒` : !state.in_field ? '自由活动 · 未开启冒险' : danger ? '正在被怪物盯上' : '身在野外，留意周围';
   const description = !active ? '暂停或离线时，怪物不会继续攻击这个角色。' : inCamp ? '怪物不会进入营地攻击，可以在这里休息。' : seconds ? '怪物暂时停止攻击，等待原 AI 决定。保护到期后，留在野外仍有危险。' : !state.in_field ? '当前未开启冒险，怪物不会主动打扰这个角色。' : danger ? pursuing.map(monster => `${monster.name}正在${monster.behavior === 'attacking' ? '攻击' : '追赶'}`).join('；') : '怪物会主动追击附近的冒险者；结束计划不会让野外变安全。';
@@ -40,12 +40,12 @@ export function adventureStatus(agent, adventure) {
   return `${intentNames[plan.intent] || '冒险'}${['explore', 'hunt'].includes(plan.intent) ? ` · ${zoneName(adventure, plan.zone_id)}` : ''}`;
 }
 
-function ForestScene({ grid }) {
+function ForestScene({ grid, map }) {
   const trees = [[35,55],[95,72],[146,36],[229,71],[298,45],[41,180],[102,221],[35,305],[73,367],[30,482],[57,575],[142,586],[245,569],[329,582],[386,526],[407,414],[299,322],[350,258],[408,167],[473,62],[540,96],[573,26],[616,540],[679,591],[757,573],[863,603],[923,548],[934,427],[900,338],[925,122],[847,65],[771,27],[706,85]];
   return <svg viewBox="0 0 960 640" className="adventure-art" preserveAspectRatio="none" role="img" aria-label="二维冒险地图，苔光森林在西南，营地位于中央，风蚀遗迹在东方">
     <defs>
       <pattern id="adventure-grass" width="61" height="57" patternUnits="userSpaceOnUse"><path d="m11 16 2-4 2 4m26 24 2-3 2 3" fill="none" stroke="#517e5e" strokeWidth="2" opacity=".3"/><circle cx="52" cy="13" r="1.5" fill="#bfd198"/></pattern>
-      <pattern id="adventure-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#345b43" strokeOpacity=".25"/></pattern>
+      <pattern id="adventure-grid" width={960/map.width} height={640/map.height} patternUnits="userSpaceOnUse"><path d={`M${960/map.width} 0H0V${640/map.height}`} fill="none" stroke="#345b43" strokeOpacity=".25"/></pattern>
       <g id="adventure-pine"><ellipse cy="22" rx="25" ry="10" fill="#183f32" opacity=".2"/><path d="M-4 7h8v20h-8" fill="#866b4c"/><path d="m0-48-27 39h12L-32 9h15l-20 17h74L17 9h15L15-9h12Z" fill="#3d7456"/><path d="m0-48-27 39h12L-32 9h15l-20 17H0Z" fill="#518965"/><path d="m0-34-11 17m11 6L-14 7" stroke="#79a679" strokeWidth="3" fill="none"/></g>
       <g id="adventure-rock"><path d="m-13 8 4-15 13-5 14 12-4 12Z" fill="#a3ad99"/><path d="m-9-7 13-5 3 15-20 5Z" fill="#bcc5ac"/></g>
     </defs>
@@ -76,23 +76,24 @@ function MonsterGlyph({ id }) {
 
 function AdventureMap({ world, selected, onSelect, grid, live, now }) {
   const adventure = world.adventure;
+  const map = mapDimensions(adventure.map);
   const present = world.agents.filter(agent=>['active','paused'].includes(agent.status));
   const unitOffset = agent => { const occupants=present.filter(other=>other.position?.x===agent.position?.x&&other.position?.y===agent.position?.y); return `${(occupants.findIndex(other=>other.agent_id===agent.agent_id)-(occupants.length-1)/2)*28}px`; };
   const fighting = agent => live && agent.status==='active' && world.events.some(event=>event.type==='adventure_combat'&&event.payload?.agent_id===agent.agent_id&&now-event.occurred_at<1800);
   const activePlans = present.filter(agent=>agent.status==='active'&&(agent.adventure?.in_field||agent.adventure?.plan)).length;
   return <>
+    {!present.length&&<div className="adventure-empty-banner" data-testid="adventure-empty-banner"><Compass size={18}/><div><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，由它决定去哪里、与谁同行。</p></div><span>0 位 AI</span></div>}
     <div className="adventure-map" data-testid="adventure-map">
-      <ForestScene grid={grid}/>
+      <ForestScene grid={grid} map={map}/>
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
-      {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)})}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
-      <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);return target&&<line key={monster.monster_id} x1={(monster.position.x+.5)*40} y1={(monster.position.y+.5)*40} x2={(target.position.x+.5)*40} y2={(target.position.y+.5)*40}/>;})}</svg>
-      {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={world.agents}/>)}
-      {present.map(agent=><button key={agent.agent_id} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position),'--unit-offset':unitOffset(agent),'--avatar-color':agent.color||'#61846b'}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${agent.name}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character">{agent.avatar||'🌱'}{fighting(agent)&&<span className="adventure-combat-mark" aria-label="正在战斗"><Swords size={12}/></span>}</span><span className="adventure-agent-name">{agent.name}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
-      {!present.length&&<div className="adventure-empty"><Compass size={25}/><strong>森林已准备好，等待真正的冒险者</strong><p>还没有 AI 入场。接入自己的 AI 后，<br/>由它决定去哪里、与谁同行。</p></div>}
-      <div className="adventure-map-scale">24 × 16 <span>共享世界 · 无预设 AI 居民</span></div>
+      {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-2.8)},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span><small>{zone.id==='camp'?'休息与相遇':zone.id==='forest'?'低风险探索':'强敌出没'}</small></div>)}
+      <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);const from=point(monster.position,map),to=point(target?.position,map);return target&&<line key={monster.monster_id} x1={from.left} y1={from.top} x2={to.left} y2={to.top}/>;})}</svg>
+      {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={world.agents} map={map}/>)}
+      {present.map(agent=><button key={agent.agent_id} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position,map),'--unit-offset':unitOffset(agent),'--avatar-color':agent.color||'#61846b'}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${agent.name}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character">{agent.avatar||'🌱'}{fighting(agent)&&<span className="adventure-combat-mark" aria-label="正在战斗"><Swords size={12}/></span>}</span><span className="adventure-agent-name">{agent.name}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
+      <div className="adventure-map-scale">{map.width} × {map.height} <span>共享世界 · 无预设 AI 居民</span></div>
     </div>
     <div className="adventure-encounters" aria-label="野外怪物动向">{adventure.monsters.map(monster=><div className={`encounter-card behavior-${monster.behavior||'idle'}`} key={monster.monster_id}><span><strong>{monster.name}</strong><small>{monster.status==='alive'?`${monster.hp} / ${monster.max_hp} HP`:'等待重生'}</small></span><p>{!live?'最近：':''}{monsterBehavior(monster,world.agents)}</p></div>)}</div>
-    <div className="adventure-world-note"><Compass size={17}/><p><strong>它们决定旅程，你在这里见证。</strong><span>探索、组队与应战由原 AI 选择。执行完一段计划后再思考；接入端保持运行时，无人旁观也会继续。</span><span className="adventure-danger-note">怪物会主动追击附近的冒险者，营地内安全。未开启冒险的广场角色不受打扰；低血时有短暂反应保护，随后仍需由 AI 决定下一步。</span></p></div>
+    <div className="adventure-world-note"><Compass size={17}/><p><strong>它们决定旅程，你在这里见证。</strong><span>探索、组队与应战由原 AI 选择。执行完一段计划后再思考；接入端保持运行时，无人旁观也会继续。</span><span className="adventure-danger-note">怪物会在领地巡逻，并主动追击附近的冒险者；营地内安全。未开启冒险的广场角色不受打扰；低血时有短暂反应保护，随后仍需由 AI 决定下一步。</span></p></div>
   </>;
 }
 

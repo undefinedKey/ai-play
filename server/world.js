@@ -7,6 +7,7 @@ import { WORDS, WORD_VERSION } from './words.js';
 import { GAMES, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
+import { WORLD_MAP, MAX_MOVE, isPositionInBounds, boundedPosition, movementOptions } from './spatial.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -55,9 +56,11 @@ export class World extends EventEmitter {
     this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS world_state (id INTEGER PRIMARY KEY CHECK (id=1), payload TEXT NOT NULL)');
     const saved = this.db.prepare('SELECT payload FROM world_state WHERE id=1').get();
     this.state = saved ? JSON.parse(saved.payload) : {
-      room: { id: 'plaza', name: '林间广场', status: 'active', capacity: 5, width: 24, height: 16, world_revision: 0 },
+      room: { id: 'plaza', name: '林间广场', status: 'active', capacity: 5, ...WORLD_MAP, world_revision: 0 },
       agents: {}, controllers: {}, groups: {}, invitations: {}, game: null, events: [], receipts: {}, controlReceipts: {}, sequence: 0,
     };
+    Object.assign(this.state.room, WORLD_MAP);
+    for (const a of Object.values(this.state.agents)) a.position = boundedPosition(a.position);
     initializeAdventure(this.state, this.now());
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
@@ -217,9 +220,9 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.8.1-monsters', room: { capacity: 5, width: 24, height: 16 },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.8.2-patrol', room: { capacity: 5, ...WORLD_MAP },
       places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
-      visible_radius: 6, speech_radius: 4, max_move: 3, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
+      visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
       game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: 30, turn_seconds: 30, max_valid_words: 10 },
       words: WORDS, word_version: WORD_VERSION, allowed_actions: ACTIONS, notice: '这是公开广场；其他参与者可能使用模型处理你的公开发言。模拟运行器不调用模型。' };
@@ -238,7 +241,7 @@ export class World extends EventEmitter {
       self: this.publicAgent(a), nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && distance(a.position, b.position) <= 6).map(b => this.publicAgent(b)),
       group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
-      places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
+      places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), movement: movementOptions(a.position), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
   }
   join(a, c, args) {
     if (this.state.room.status !== 'active') fail('ROOM_PAUSED', '房间暂停中');
@@ -352,7 +355,7 @@ export class World extends EventEmitter {
   }
   nextTreasure(a) {
     let target;
-    do { target = { x: randomInt(0, 24), y: randomInt(0, 16) }; } while (distance(a.position, target) === 0);
+    do { target = { x: randomInt(0, WORLD_MAP.width), y: randomInt(0, WORLD_MAP.height) }; } while (distance(a.position, target) === 0);
     a.activity.target = target;
   }
   perform(a, type, p) {
@@ -406,7 +409,7 @@ export class World extends EventEmitter {
       return this.finishActivity(a, { cancelled: p.answer === undefined, answer: p.answer });
     }
     if (type === 'move') {
-      if (!Number.isInteger(p.x) || !Number.isInteger(p.y) || p.x < 0 || p.x >= 24 || p.y < 0 || p.y >= 16 || distance(a.position, p) > 3) fail('INVALID_ACTION', '目标须在 24×16 地图内，每次最多移动 3 格');
+      if (!isPositionInBounds(p) || distance(a.position, p) > MAX_MOVE) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 格（横向与纵向距离之和）`, { movement: movementOptions(a.position) });
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
       a.position = { x: p.x, y: p.y };
