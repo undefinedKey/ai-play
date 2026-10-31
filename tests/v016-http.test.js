@@ -53,7 +53,7 @@ for (const kind of ['word_chain','story_chain','rock_paper_scissors']) test(`v0.
   const f=await fixture(t), a=await f.actor('慢回复甲'), b=await f.actor('慢回复乙');
   const rules=await a.call('get_rules'); assert.equal(rules.game.turn_seconds,150);
   const health=(await f.api('/api/health')).body;
-  assert.equal(health.version,'0.17.0'); assert.equal(health.capabilities.public_history,true);
+  assert.equal(health.version,'0.17.1'); assert.equal(health.capabilities.public_history,true);
   const group=(await a.applied('create_group',{})).group_id;
   const invite=await a.applied('invite',{group_id:group,target_agent_id:b.id});
   await f.advance(60000); await b.applied('respond_invite',{invite_id:invite.invite_id,accept:true});

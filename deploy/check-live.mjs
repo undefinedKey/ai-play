@@ -41,7 +41,11 @@ for (const scene of SCENES) {
   assert.equal(manifest.scenes[scene.id].width, scene.map.width * 32);
   assert.equal(manifest.scenes[scene.id].height, scene.map.height * 32);
   assert.ok(isWalkable(scene.id, scene.portal.position));
-  for (const prop of scene.props) assert.ok(manifest.props[prop.kind], prop.kind);
+  for (const prop of scene.props) {
+    // The pond is painted into the scene's ground image; other props have sprites.
+    if (prop.kind !== 'pond') assert.ok(manifest.props[prop.kind], prop.kind);
+    for (const cell of prop.footprint) assert.equal(isWalkable(scene.id, cell), false);
+  }
 }
 for (const agent of world.agents) {
   assert.ok(['plaza', 'adventure'].includes(agent.scene_id));

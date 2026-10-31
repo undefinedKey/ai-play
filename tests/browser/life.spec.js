@@ -147,8 +147,8 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.17 独立场景版本');
   await a.report({runtime_version:'0.11.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue'],last_decision_type:'wait'});
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('早于 0.17 独立场景版本');
-  await a.report({runtime_version:'0.17.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.17.0');
+  await a.report({runtime_version:'0.17.1',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.17.1');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('原宠物桥接');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报决定等待');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 已执行');
