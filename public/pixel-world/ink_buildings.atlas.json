@@ -1,0 +1,156 @@
+{
+  "frames": {
+    "bookshop": {
+      "frame": {
+        "x": 42,
+        "y": 0,
+        "w": 301,
+        "h": 384,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 150,
+        "y": 373
+      }
+    },
+    "cottage": {
+      "frame": {
+        "x": 406,
+        "y": 5,
+        "w": 368,
+        "h": 380,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 181,
+        "y": 369
+      }
+    },
+    "shed": {
+      "frame": {
+        "x": 794,
+        "y": 124,
+        "w": 401,
+        "h": 252,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 198,
+        "y": 242
+      }
+    },
+    "well": {
+      "frame": {
+        "x": 1222,
+        "y": 39,
+        "w": 272,
+        "h": 342,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 136,
+        "y": 332
+      }
+    },
+    "game_table": {
+      "frame": {
+        "x": 400,
+        "y": 472,
+        "w": 368,
+        "h": 226,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 182,
+        "y": 215
+      }
+    },
+    "portal": {
+      "frame": {
+        "x": 789,
+        "y": 386,
+        "w": 378,
+        "h": 302,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 188,
+        "y": 291
+      }
+    },
+    "ruin_arch": {
+      "frame": {
+        "x": 1184,
+        "y": 394,
+        "w": 338,
+        "h": 304,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 170,
+        "y": 293
+      }
+    },
+    "ruin_column": {
+      "frame": {
+        "x": 20,
+        "y": 678,
+        "w": 291,
+        "h": 336,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 146,
+        "y": 325
+      }
+    },
+    "ruin_wall": {
+      "frame": {
+        "x": 370,
+        "y": 800,
+        "w": 404,
+        "h": 198,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 202,
+        "y": 188
+      }
+    },
+    "kitchen": {
+      "frame": {
+        "x": 791,
+        "y": 724,
+        "w": 369,
+        "h": 284,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 185,
+        "y": 273
+      }
+    },
+    "supply": {
+      "frame": {
+        "x": 1191,
+        "y": 699,
+        "w": 327,
+        "h": 308,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 164,
+        "y": 297
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_buildings.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink"
+  }
+}

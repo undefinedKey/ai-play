@@ -1,0 +1,85 @@
+{
+  "frames": {
+    "wanderer_3_south": {
+      "frame": {
+        "x": 107,
+        "y": 3,
+        "w": 329,
+        "h": 505
+      },
+      "anchor": {
+        "x": 164,
+        "y": 501
+      }
+    },
+    "wanderer_3_north": {
+      "frame": {
+        "x": 611,
+        "y": 6,
+        "w": 319,
+        "h": 502
+      },
+      "anchor": {
+        "x": 159,
+        "y": 498
+      }
+    },
+    "wanderer_3_east": {
+      "frame": {
+        "x": 1130,
+        "y": 3,
+        "w": 340,
+        "h": 506
+      },
+      "anchor": {
+        "x": 154.5,
+        "y": 502
+      }
+    },
+    "wanderer_4_south": {
+      "frame": {
+        "x": 101,
+        "y": 514,
+        "w": 348,
+        "h": 498
+      },
+      "anchor": {
+        "x": 171.5,
+        "y": 494
+      }
+    },
+    "wanderer_4_north": {
+      "frame": {
+        "x": 602,
+        "y": 516,
+        "w": 340,
+        "h": 496
+      },
+      "anchor": {
+        "x": 169.5,
+        "y": 492
+      }
+    },
+    "wanderer_4_east": {
+      "frame": {
+        "x": 1127,
+        "y": 520,
+        "w": 342,
+        "h": 493
+      },
+      "anchor": {
+        "x": 170.5,
+        "y": 489
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_actor_preparation.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink"
+  }
+}

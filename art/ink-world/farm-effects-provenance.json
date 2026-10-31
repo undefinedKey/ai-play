@@ -1,0 +1,57 @@
+{
+  "generator": "built-in image_gen",
+  "transparent_request": true,
+  "pixel_processing": "none; original PNG copied byte-for-byte",
+  "prompts": "farm-effects-prompts.md",
+  "generated": {
+    "crops-props.png": "exec-6e3515e6-9e73-435c-9c69-231cb45d1b4e.png",
+    "farm-effects.png": "exec-82161c8d-3236-4770-ad85-b0b7a93582ad.png",
+    "farm-ground.png": "exec-f81ed237-1594-49af-a9b0-a2ffc4d6bfcf.png"
+  },
+  "sources": [
+    {
+      "source": "art/ink-world/crops-props.png",
+      "sha256": "47f5895ca8a5b79562cc26c14bd4b92c09b6aa5a999cfd6088e7fd4058ed0a73"
+    },
+    {
+      "source": "art/ink-world/farm-effects.png",
+      "sha256": "a224c72952c45396cddbca0c464f02b6cf7d6c39369d788bd751c77e14407b9e"
+    },
+    {
+      "source": "art/ink-world/farm-ground.png",
+      "sha256": "53d911cb1b27db4281da649e711746a0530c64170ae3f564f79ef3078c899686"
+    }
+  ],
+  "alpha_validation": {
+    "crops-props": {
+      "mode": "RGBA",
+      "width": 1536,
+      "height": 1024,
+      "transparent_pixels": 857833,
+      "total_pixels": 1572864,
+      "min": 0,
+      "max": 254
+    },
+    "farm-effects": {
+      "mode": "RGBA",
+      "width": 1536,
+      "height": 1024,
+      "transparent_pixels": 959611,
+      "total_pixels": 1572864,
+      "min": 0,
+      "max": 254
+    },
+    "farm-ground": {
+      "mode": "RGB",
+      "width": 1536,
+      "height": 1024,
+      "background": "intentionally opaque"
+    }
+  },
+  "notes": [
+    "Source pixels are not recolored or resized. Atlas sampling rectangles may cross notional cell boundaries but never include adjacent solid objects.",
+    "Bench x808..1185 and column x1258..1497 are disjoint and preserve complete feet.",
+    "Crops show four decorative patches per true plot; patch count does not represent inventory quantity.",
+    "Visited spring remains water; actual completion state is communicated by existing discovery state."
+  ]
+}

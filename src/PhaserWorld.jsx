@@ -32,7 +32,7 @@ export default function PhaserWorld({sceneId,live,children,cycle,survival}) {
   const phase=['day','dusk','night','dawn'].includes(cycle?.phase)?cycle.phase:'day';
   const notice=status==='loading'?<span className="renderer-notice" role="status">游戏画布载入中…</span>:status==='fallback'?<div className="renderer-notice renderer-fallback" role="status"><span>游戏画布暂不可用 · 当前为兼容图层显示</span><button onClick={()=>importFailed?location.reload():setRetry(value=>value+1)}>重试游戏画布</button></div>:partial?<span className="renderer-notice" role="status">部分场景素材未载入 · 已保留可用画面和真实位置</span>:null;
   const camera=host.current?.closest('.world-camera');
-  return <WorldRenderContext.Provider value={context}><div className={`phaser-world renderer-${status} wilderness-phase-${phase}`} data-testid="phaser-world" data-renderer-state={status} data-renderer-scene={sceneId} data-day-phase={cycle?.phase||'unknown'}>
+  return <WorldRenderContext.Provider value={context}><div className={`phaser-world renderer-${status} wilderness-phase-${phase}`} data-art-style={assets?.render_style||'pixel'} data-testid="phaser-world" data-renderer-state={status} data-renderer-scene={sceneId} data-day-phase={cycle?.phase||'unknown'}>
     <div ref={host} className="phaser-canvas-host" aria-hidden="true"/>
     {children}
     <NightLighting phase={phase} survival={survival} sceneId={sceneId}/>

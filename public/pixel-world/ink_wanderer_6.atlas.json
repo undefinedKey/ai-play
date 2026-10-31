@@ -1,0 +1,3074 @@
+{
+  "frames": {
+    "idle_south_0": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_south_1": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "idle_south_2": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "idle_north_0": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_north_1": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "idle_north_2": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "idle_east_0": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_east_1": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "idle_east_2": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 700
+    },
+    "idle_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "walk_south_0": {
+      "frame": {
+        "x": 152,
+        "y": 197,
+        "w": 107,
+        "h": 189
+      },
+      "anchor": {
+        "x": 55.5,
+        "y": 187
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_south_1": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_south_2": {
+      "frame": {
+        "x": 158,
+        "y": 386,
+        "w": 110,
+        "h": 200
+      },
+      "anchor": {
+        "x": 54.5,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_north_0": {
+      "frame": {
+        "x": 464,
+        "y": 197,
+        "w": 97,
+        "h": 190
+      },
+      "anchor": {
+        "x": 43.5,
+        "y": 186
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_north_1": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_north_2": {
+      "frame": {
+        "x": 462,
+        "y": 385,
+        "w": 99,
+        "h": 197
+      },
+      "anchor": {
+        "x": 47,
+        "y": 193
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 198,
+        "w": 114,
+        "h": 189
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_east_1": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_east_2": {
+      "frame": {
+        "x": 754,
+        "y": 388,
+        "w": 118,
+        "h": 196
+      },
+      "anchor": {
+        "x": 50,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "walk_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "run_south_0": {
+      "frame": {
+        "x": 169,
+        "y": 589,
+        "w": 116,
+        "h": 195
+      },
+      "anchor": {
+        "x": 41,
+        "y": 191
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_south_1": {
+      "frame": {
+        "x": 152,
+        "y": 197,
+        "w": 107,
+        "h": 189
+      },
+      "anchor": {
+        "x": 55.5,
+        "y": 187
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_south_2": {
+      "frame": {
+        "x": 169,
+        "y": 589,
+        "w": 116,
+        "h": 195
+      },
+      "anchor": {
+        "x": 41,
+        "y": 191
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_south_3": {
+      "frame": {
+        "x": 158,
+        "y": 386,
+        "w": 110,
+        "h": 200
+      },
+      "anchor": {
+        "x": 54.5,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_north_0": {
+      "frame": {
+        "x": 463,
+        "y": 581,
+        "w": 105,
+        "h": 201
+      },
+      "anchor": {
+        "x": 42,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_north_1": {
+      "frame": {
+        "x": 464,
+        "y": 197,
+        "w": 97,
+        "h": 190
+      },
+      "anchor": {
+        "x": 43.5,
+        "y": 186
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_north_2": {
+      "frame": {
+        "x": 463,
+        "y": 581,
+        "w": 105,
+        "h": 201
+      },
+      "anchor": {
+        "x": 42,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_north_3": {
+      "frame": {
+        "x": 462,
+        "y": 385,
+        "w": 99,
+        "h": 197
+      },
+      "anchor": {
+        "x": 47,
+        "y": 193
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_east_0": {
+      "frame": {
+        "x": 731,
+        "y": 593,
+        "w": 168,
+        "h": 186
+      },
+      "anchor": {
+        "x": 77,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 198,
+        "w": 114,
+        "h": 189
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_east_2": {
+      "frame": {
+        "x": 731,
+        "y": 593,
+        "w": 168,
+        "h": 186
+      },
+      "anchor": {
+        "x": 77,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "run_east_3": {
+      "frame": {
+        "x": 754,
+        "y": 388,
+        "w": 118,
+        "h": 196
+      },
+      "anchor": {
+        "x": 50,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 105
+    },
+    "attack_south_0": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "attack_south_1": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "attack_south_2": {
+      "frame": {
+        "x": 135,
+        "y": 986,
+        "w": 188,
+        "h": 201
+      },
+      "anchor": {
+        "x": 63,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "attack_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 240
+    },
+    "attack_north_0": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "attack_north_1": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "attack_north_2": {
+      "frame": {
+        "x": 439,
+        "y": 986,
+        "w": 165,
+        "h": 196
+      },
+      "anchor": {
+        "x": 60,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "attack_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 240
+    },
+    "attack_east_0": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 180
+    },
+    "attack_east_1": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "attack_east_2": {
+      "frame": {
+        "x": 725,
+        "y": 984,
+        "w": 219,
+        "h": 200
+      },
+      "anchor": {
+        "x": 63.5,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 140
+    },
+    "attack_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 240
+    },
+    "hurt_south_0": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_south_2": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_north_0": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_north_2": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_east_2": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "hurt_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 100
+    },
+    "till_south_0": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_south_1": {
+      "frame": {
+        "x": 135,
+        "y": 986,
+        "w": 188,
+        "h": 201
+      },
+      "anchor": {
+        "x": 63,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_south_3": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_north_0": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_north_1": {
+      "frame": {
+        "x": 439,
+        "y": 986,
+        "w": 165,
+        "h": 196
+      },
+      "anchor": {
+        "x": 60,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_north_3": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_east_0": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_east_1": {
+      "frame": {
+        "x": 725,
+        "y": 984,
+        "w": 219,
+        "h": 200
+      },
+      "anchor": {
+        "x": 63.5,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "till_east_3": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_south_0": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_north_0": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "plant_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_south_0": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_north_0": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_east_0": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "water_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_south_0": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_north_0": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "harvest_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_south_0": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_north_0": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "craft_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_south_0": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_north_0": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_east_0": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "repair_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_south_0": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_north_0": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_east_0": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "upgrade_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_south_0": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_south_1": {
+      "frame": {
+        "x": 135,
+        "y": 986,
+        "w": 188,
+        "h": 201
+      },
+      "anchor": {
+        "x": 63,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_south_3": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_north_0": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_north_1": {
+      "frame": {
+        "x": 439,
+        "y": 986,
+        "w": 165,
+        "h": 196
+      },
+      "anchor": {
+        "x": 60,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_north_3": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_east_0": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_east_1": {
+      "frame": {
+        "x": 725,
+        "y": 984,
+        "w": 219,
+        "h": 200
+      },
+      "anchor": {
+        "x": 63.5,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "gather_east_3": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_south_0": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_south_1": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_south_2": {
+      "frame": {
+        "x": 149,
+        "y": 1198,
+        "w": 118,
+        "h": 155
+      },
+      "anchor": {
+        "x": 59.5,
+        "y": 151
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_north_0": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_north_1": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_north_2": {
+      "frame": {
+        "x": 457,
+        "y": 1209,
+        "w": 107,
+        "h": 143
+      },
+      "anchor": {
+        "x": 53.5,
+        "y": 139
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_east_0": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_east_1": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_east_2": {
+      "frame": {
+        "x": 756,
+        "y": 1205,
+        "w": 142,
+        "h": 146
+      },
+      "anchor": {
+        "x": 50.5,
+        "y": 142
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "cook_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_south_0": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_south_1": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_south_2": {
+      "frame": {
+        "x": 151,
+        "y": 783,
+        "w": 139,
+        "h": 201
+      },
+      "anchor": {
+        "x": 62.5,
+        "y": 199
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_north_0": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_north_1": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_north_2": {
+      "frame": {
+        "x": 453,
+        "y": 784,
+        "w": 119,
+        "h": 199
+      },
+      "anchor": {
+        "x": 61.5,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_east_0": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_east_1": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_east_2": {
+      "frame": {
+        "x": 734,
+        "y": 784,
+        "w": 145,
+        "h": 201
+      },
+      "anchor": {
+        "x": 56.5,
+        "y": 198
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "eat_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 150
+    },
+    "rest_south_0": {
+      "frame": {
+        "x": 161,
+        "y": 1363,
+        "w": 122,
+        "h": 163
+      },
+      "anchor": {
+        "x": 60.5,
+        "y": 159
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_south_1": {
+      "frame": {
+        "x": 161,
+        "y": 1363,
+        "w": 122,
+        "h": 163
+      },
+      "anchor": {
+        "x": 60.5,
+        "y": 159
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.28529731649999995,
+      "duration": 500
+    },
+    "rest_south_2": {
+      "frame": {
+        "x": 161,
+        "y": 1363,
+        "w": 122,
+        "h": 163
+      },
+      "anchor": {
+        "x": 60.5,
+        "y": 159
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_south_3": {
+      "frame": {
+        "x": 161,
+        "y": 1363,
+        "w": 122,
+        "h": 163
+      },
+      "anchor": {
+        "x": 60.5,
+        "y": 159
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.27827028899999995,
+      "duration": 500
+    },
+    "rest_north_0": {
+      "frame": {
+        "x": 443,
+        "y": 1360,
+        "w": 129,
+        "h": 164
+      },
+      "anchor": {
+        "x": 65.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_north_1": {
+      "frame": {
+        "x": 443,
+        "y": 1360,
+        "w": 129,
+        "h": 164
+      },
+      "anchor": {
+        "x": 65.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.28529731649999995,
+      "duration": 500
+    },
+    "rest_north_2": {
+      "frame": {
+        "x": 443,
+        "y": 1360,
+        "w": 129,
+        "h": 164
+      },
+      "anchor": {
+        "x": 65.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_north_3": {
+      "frame": {
+        "x": 443,
+        "y": 1360,
+        "w": 129,
+        "h": 164
+      },
+      "anchor": {
+        "x": 65.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.27827028899999995,
+      "duration": 500
+    },
+    "rest_east_0": {
+      "frame": {
+        "x": 739,
+        "y": 1363,
+        "w": 136,
+        "h": 160
+      },
+      "anchor": {
+        "x": 67.5,
+        "y": 156
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_east_1": {
+      "frame": {
+        "x": 739,
+        "y": 1363,
+        "w": 136,
+        "h": 160
+      },
+      "anchor": {
+        "x": 67.5,
+        "y": 156
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.28529731649999995,
+      "duration": 500
+    },
+    "rest_east_2": {
+      "frame": {
+        "x": 739,
+        "y": 1363,
+        "w": 136,
+        "h": 160
+      },
+      "anchor": {
+        "x": 67.5,
+        "y": 156
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 500
+    },
+    "rest_east_3": {
+      "frame": {
+        "x": 739,
+        "y": 1363,
+        "w": 136,
+        "h": 160
+      },
+      "anchor": {
+        "x": 67.5,
+        "y": 156
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.27827028899999995,
+      "duration": 500
+    },
+    "tired_south_0": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_south_1": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_south_2": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_south_3": {
+      "frame": {
+        "x": 157,
+        "y": 7,
+        "w": 103,
+        "h": 189
+      },
+      "anchor": {
+        "x": 54,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_north_0": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_north_1": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_north_2": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_north_3": {
+      "frame": {
+        "x": 461,
+        "y": 7,
+        "w": 96,
+        "h": 189
+      },
+      "anchor": {
+        "x": 43,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_east_0": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_east_1": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_east_2": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    },
+    "tired_east_3": {
+      "frame": {
+        "x": 763,
+        "y": 8,
+        "w": 110,
+        "h": 189
+      },
+      "anchor": {
+        "x": 51.5,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_wanderer_6.png",
+      "native_scale": 0.2810811,
+      "duration": 340
+    }
+  },
+  "meta": {
+    "image": "ink_wanderer_6.png",
+    "size": {
+      "w": 1024,
+      "h": 1536
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink",
+    "alpha_zero_fraction": 0.74959
+  }
+}

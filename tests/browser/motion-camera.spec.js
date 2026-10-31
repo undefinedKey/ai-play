@@ -1,8 +1,10 @@
 import {test,expect} from '@playwright/test';
+import {assertCanvasResolution} from './canvas-assertions.js';
 import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {createApp} from '../../server/index.js';
+import {drawInkContactSheet} from './ink-contact-sheet.js';
 let app,server,base,clock,clients;
 test.beforeEach(async()=>{app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});clock=Date.now();app.world.now=()=>clock;app.world.actionIntervalMs=0;clients=[];({server,url:base}=await app.start(0));});
 test.afterEach(async()=>{for(const client of clients)await client.close();await app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
@@ -16,7 +18,7 @@ async function actor(request,name='动作镜头验证旅人'){
  const joined=await call('join_world'),observe=()=>call('observe',{run_id:joined.run_id,session_epoch:joined.session_epoch});
  return{agent,api,observe,act:async(type,payload={})=>{const seen=await observe();const result=await call('act',{run_id:joined.run_id,session_epoch:joined.session_epoch,action_id:seen.next_action_id,type,payload});expect(result.status,JSON.stringify(result)).toBe('applied');return result;}};
 }
-async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveCount(1);}
+async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveCount(1);await assertCanvasResolution(page);}
 async function pixels(page){return page.getByTestId('phaser-canvas').evaluate(canvas=>{const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;const ctx=c.getContext('2d');ctx.drawImage(canvas,0,0);let hash=2166136261,opaque=0;const colors=new Set(),data=ctx.getImageData(0,0,c.width,c.height).data;for(let i=0;i<data.length;i+=4){hash=Math.imul(hash^data[i]^data[i+1]<<8^data[i+2]<<16,16777619);if(data[i+3])opaque++;colors.add(`${data[i]},${data[i+1]},${data[i+2]}`);}return{hash,opaque,colors:colors.size};});}
 
 test('v019镜头可缩放拖动跟随复位全屏，手机键盘操作与匿名只读',async({page,request})=>{
@@ -26,7 +28,7 @@ test('v019镜头可缩放拖动跟随复位全屏，手机键盘操作与匿名�
  const raw=app.world.agent(a.agent.agent_id);raw.position={x:10,y:10};raw.position_at=clock;app.world.agent(b.agent.agent_id).position={x:11,y:10};app.world.commit();
  const writes=[],errors=[];page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'/watch?view=plaza');await ready(page);const camera=page.getByTestId('world-camera');
- expect((await pixels(page)).opaque).toBe(1536*1024);expect((await pixels(page)).colors).toBeGreaterThan(50);
+ expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));expect((await pixels(page)).colors).toBeGreaterThan(50);
  await page.getByTestId(`map-agent-${a.agent.agent_id}`).focus();await page.keyboard.press('Enter');await page.getByRole('button',{name:'关注角色',exact:true}).click();await expect(camera).toHaveAttribute('data-camera-mode','following');
  await page.getByRole('button',{name:'放大地图',exact:true}).click();await expect(camera).toHaveAttribute('data-camera-mode','manual');await expect(camera).toHaveAttribute('data-camera-zoom','2.50');
  const prior=Number(await camera.getAttribute('data-camera-x')),rect=await camera.boundingBox();
@@ -63,16 +65,10 @@ test('v019真实走跑与镜头名牌同位置，断线和减少动态效果停�
 
 test('v019真实图集方向、攻击关键姿势、装备同锚点与怪物场景截图',async({page,request})=>{
  const a=await actor(request),raw=app.world.agent(a.agent.agent_id);raw.scene_id='adventure';raw.position={x:11,y:8};raw.position_at=clock;raw.life.inventory.iron_sword=1;raw.life.inventory.iron_armor=1;raw.life.equipment={weapon:'iron_sword',armor:'iron_armor'};app.world.commit();
- await page.goto(base+'/watch?view=adventure');await ready(page);expect((await pixels(page)).opaque).toBe(1536*1024);await expect(page.locator('.adventure-monster')).toHaveCount(3);await page.screenshot({path:'artifacts/v019-adventure-monsters.png'});
- // Contact sheet uses the very same shipped textures/atlas and directional mirrors.
- await page.evaluate(async()=>{
-   const m=await(await fetch('/pixel-world/manifest.json')).json(),cache=new Map();
-   async function load(def){if(!cache.has(def.image)){const img=new Image();img.src=def.image;await img.decode();cache.set(def.image,img);}return cache.get(def.image);}
-   const canvas=document.createElement('canvas');canvas.id='v019-contact-sheet';canvas.width=1120;canvas.height=1170;canvas.style='position:fixed;inset:0;z-index:99999;width:1120px;height:1170px;background:#e9e4cd';document.body.append(canvas);const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.fillStyle='#e9e4cd';ctx.fillRect(0,0,1120,1170);ctx.font='16px sans-serif';ctx.fillStyle='#294638';ctx.fillText('v0.19 shipped atlas · body + armor + sword · same foot/hand anchors',20,26);
-   const dirs=['south','north','east','west'],rows=[['idle',0],['walk',0],['walk',2],['run',0],['run',1],['run',2],['attack',0],['attack',1],['attack',2],['attack',3],['hurt',1],['water',2]];
-   async function draw(def,action,direction,index,x,y){const frames=(def.animations[`${action}_${direction==='west'?'east':direction}`]||def.animations[action]).frames,f=frames[index%frames.length],img=await load(def);ctx.save();ctx.translate(x+(direction==='west'?96:0),y);ctx.scale(direction==='west'?-2:2,2);ctx.drawImage(img,f.x,f.y,f.w,f.h,0,0,48,48);ctx.restore();}
-   for(let row=0;row<rows.length;row++){const[action,index]=rows[row],y=43+row*88;ctx.fillStyle='#294638';ctx.fillText(`${action} ${index}`,15,y+40);for(let col=0;col<4;col++){const d=dirs[col],x=150+col*210;ctx.fillText(d,x+100,y+40);if(d==='north')await draw(m.equipment.iron_sword,action,d,index,x,y);await draw(m.characters.wanderer_1,action,d,index,x,y);await draw(m.equipment.iron_armor,action,d,index,x,y);if(d!=='north')await draw(m.equipment.iron_sword,action,d,index,x,y);if(action==='water')await draw(m.tools.watering_can_2,action,d,index,x,y);}}
- });
+ await page.goto(base+'/watch?view=adventure');await ready(page);expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));await expect(page.locator('.adventure-monster')).toHaveCount(3);await page.screenshot({path:'artifacts/v019-adventure-monsters.png'});
+ // Uses the same shipped source feet, native scales, held-item attachments and
+ // supplemental frame images as both game renderers.
+ await page.evaluate(drawInkContactSheet,{id:'v019-contact-sheet'});
  await page.locator('#v019-contact-sheet').screenshot({path:'artifacts/v019-motion-contact.png'});
 });
 

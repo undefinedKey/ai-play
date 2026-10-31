@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {assertCanvasResolution} from './canvas-assertions.js';
 import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -15,7 +16,7 @@ async function actor(request,name='荒野旅行者'){
 }
 async function until(a,predicate){for(let i=0;i<1200&&!predicate();i++){clock+=100;app.world.tick();if(i%10===0)await a.observe();}expect(predicate()).toBe(true);}
 async function advanceTo(a,time){while(clock<time){clock=Math.min(time,clock+10000);await a.observe();app.world.tick();}}
-async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveJSProperty('width',1536);await expect(page.getByTestId('phaser-canvas')).toHaveJSProperty('height',1024);}
+async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await assertCanvasResolution(page);}
 async function hash(page){return page.getByTestId('phaser-canvas').evaluate(canvas=>{const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;const g=c.getContext('2d');g.drawImage(canvas,0,0);let hash=2166136261;for(const v of g.getImageData(0,0,c.width,c.height).data)hash=Math.imul(hash^v,16777619);return hash;});}
 
 

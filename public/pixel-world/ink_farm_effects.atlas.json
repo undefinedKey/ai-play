@@ -1,0 +1,200 @@
+{
+  "frames": {
+    "fire_1": {
+      "frame": {
+        "x": 40,
+        "y": 5,
+        "w": 310,
+        "h": 355,
+        "duration": 1000,
+        "anchor": {
+          "x": 154,
+          "y": 345
+        }
+      },
+      "anchor": {
+        "x": 154,
+        "y": 345
+      }
+    },
+    "fire_2": {
+      "frame": {
+        "x": 434,
+        "y": 5,
+        "w": 310,
+        "h": 355,
+        "duration": 1000,
+        "anchor": {
+          "x": 154,
+          "y": 345
+        }
+      },
+      "anchor": {
+        "x": 154,
+        "y": 345
+      }
+    },
+    "fire_3": {
+      "frame": {
+        "x": 808,
+        "y": 5,
+        "w": 310,
+        "h": 355,
+        "duration": 1000,
+        "anchor": {
+          "x": 154,
+          "y": 345
+        }
+      },
+      "anchor": {
+        "x": 154,
+        "y": 345
+      }
+    },
+    "fire_4": {
+      "frame": {
+        "x": 1192,
+        "y": 5,
+        "w": 310,
+        "h": 355,
+        "duration": 1000,
+        "anchor": {
+          "x": 154,
+          "y": 345
+        }
+      },
+      "anchor": {
+        "x": 154,
+        "y": 345
+      }
+    },
+    "campfire_ashes": {
+      "frame": {
+        "x": 41,
+        "y": 503,
+        "w": 313,
+        "h": 173,
+        "duration": 1000,
+        "anchor": {
+          "x": 156,
+          "y": 159
+        }
+      },
+      "anchor": {
+        "x": 156,
+        "y": 159
+      }
+    },
+    "supply_cache_idle": {
+      "frame": {
+        "x": 421,
+        "y": 420,
+        "w": 342,
+        "h": 263,
+        "duration": 1000,
+        "anchor": {
+          "x": 171,
+          "y": 248
+        }
+      },
+      "anchor": {
+        "x": 171,
+        "y": 248
+      }
+    },
+    "supply_cache_resolved": {
+      "frame": {
+        "x": 790,
+        "y": 366,
+        "w": 335,
+        "h": 318,
+        "duration": 1000,
+        "anchor": {
+          "x": 168,
+          "y": 302
+        }
+      },
+      "anchor": {
+        "x": 168,
+        "y": 302
+      }
+    },
+    "wild_garden_idle": {
+      "frame": {
+        "x": 1149,
+        "y": 392,
+        "w": 379,
+        "h": 291,
+        "duration": 1000,
+        "anchor": {
+          "x": 190,
+          "y": 276
+        }
+      },
+      "anchor": {
+        "x": 190,
+        "y": 276
+      }
+    },
+    "wild_garden_resolved": {
+      "frame": {
+        "x": 16,
+        "y": 799,
+        "w": 364,
+        "h": 200,
+        "duration": 1000,
+        "anchor": {
+          "x": 182,
+          "y": 187
+        }
+      },
+      "anchor": {
+        "x": 182,
+        "y": 187
+      }
+    },
+    "spring_idle": {
+      "frame": {
+        "x": 400,
+        "y": 690,
+        "w": 364,
+        "h": 317,
+        "duration": 1000,
+        "anchor": {
+          "x": 182,
+          "y": 299
+        }
+      },
+      "anchor": {
+        "x": 182,
+        "y": 299
+      }
+    },
+    "spring_resolved": {
+      "frame": {
+        "x": 781,
+        "y": 690,
+        "w": 366,
+        "h": 317,
+        "duration": 1000,
+        "anchor": {
+          "x": 183,
+          "y": 299
+        }
+      },
+      "anchor": {
+        "x": 183,
+        "y": 299
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_farm_effects.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink"
+  }
+}

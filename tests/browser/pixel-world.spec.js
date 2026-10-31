@@ -148,12 +148,15 @@ test('怪物真实攻击显示受伤，原 AI 应战后才播放攻击动画',as
   await expect(sprite).toHaveAttribute('data-action','hurt');
   await expect(page.getByTestId(`monster-${combat.payload.monster_id}`).locator('.pixel-sprite')).toHaveAttribute('data-pixel-action','attack');
   await a.act('adventure_plan',{intent:'hunt',monster_id:combat.payload.monster_id});
-  let attack;
-  for(let i=0;i<12&&!attack;i++){
-    tick(1001);
+  let attack;const raw=application.world.agent(a.agent.agent_id);
+  const currentAttack=()=>attack&&raw.action?.phase==='prepare'&&clock<raw.action.impact_at&&(!raw.hurt||clock>=raw.hurt.ends_at);
+  // An old combat receipt is not the current action. Small authoritative steps
+  // stop on a real unhurt preparation phase instead of skipping it by 1001ms.
+  for(let i=0;i<120&&!currentAttack();i++){
+    tick(100);await a.observe();
     attack=[...application.world.state.events].reverse().find(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.attacker==='agent');
   }
-  expect(attack).toBeTruthy();
+  expect(attack).toBeTruthy();expect(currentAttack()).toBeTruthy();
   await expect(sprite).toHaveAttribute('data-action','attack');
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
 });
@@ -168,7 +171,9 @@ test('连续三个真实攻击周期中，准备、实际命中受击和恢复�
   const monster=page.getByTestId('monster-forest_boar').locator('.pixel-sprite');
   const seen=new Set();
   async function until(predicate){
-    for(let i=0;i<900&&!predicate();i++){tick(100);await a.observe();await page.clock.runFor(100);}
+    // Advance presentation before publishing the next sample. Doing this after
+    // observe extrapolates 100ms beyond a held phase with only 60ms remaining.
+    for(let i=0;i<900&&!predicate();i++){await page.clock.runFor(100);tick(100);await a.observe();}
     expect(predicate()).toBe(true);
     // Let the real 200ms transport deliver this held authoritative phase; then
     // draw one presentation frame without inventing another simulation step.

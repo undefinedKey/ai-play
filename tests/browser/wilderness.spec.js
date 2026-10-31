@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {assertCanvasResolution} from './canvas-assertions.js';
 import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -15,7 +16,7 @@ async function actor(request,name='荒野旅行者'){
 }
 async function until(a,predicate){for(let i=0;i<1200&&!predicate();i++){clock+=100;app.world.tick();if(i%10===0)await a.observe();}expect(predicate()).toBe(true);}
 async function advanceTo(a,time){while(clock<time){clock=Math.min(time,clock+10000);await a.observe();app.world.tick();}}
-async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveJSProperty('width',1536);await expect(page.getByTestId('phaser-canvas')).toHaveJSProperty('height',1024);}
+async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await assertCanvasResolution(page);}
 async function hash(page){return page.getByTestId('phaser-canvas').evaluate(canvas=>{const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;const g=c.getContext('2d');g.drawImage(canvas,0,0);let hash=2166136261;for(const v of g.getImageData(0,0,c.width,c.height).data)hash=Math.imul(hash^v,16777619);return hash;});}
 
 test('v020四倍真实世界保留角色尺寸，墨线荒野昼夜、全景与三视口可读',async({page,request})=>{
@@ -45,8 +46,8 @@ test('v020原AI走到扩展林区才用斧头工作，真实共享库存耗尽�
 
 test('v020昼夜断线不跳阶段，素材缺失和兼容图层保留资源只读入口',async({page,request})=>{
  await actor(request);clock=app.world.state.day_cycle.epoch_at+370000;app.world.tick();await page.route('**/api/public/events*',r=>r.abort());await page.goto(base+'/watch?view=adventure');await ready(page);await expect(page.locator('.spectator-stale')).toBeVisible();await expect(page.getByTestId('world-time')).toContainText('最近记录');const before=await hash(page);await page.waitForTimeout(500);expect(await hash(page)).toBe(before);await page.screenshot({path:'artifacts/v020-disconnected.png'});
- await page.unroute('**/api/public/events*');await page.route('**/pixel-world/props_ink.png',r=>r.abort());await page.reload();await ready(page);await expect(page.locator('.renderer-notice')).toContainText('部分场景素材未载入');await page.getByRole('button',{name:'查看全景',exact:true}).click();await page.getByTestId('resource-ridge_ore').click();await expect(page.getByTestId('resource-inspector')).toContainText('山脊矿脉');await page.screenshot({path:'artifacts/v020-partial.png'});
- await page.unroute('**/pixel-world/props_ink.png');await page.route('**/assets/phaser-renderer-*.js',r=>r.abort());await page.reload();await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await page.getByRole('button',{name:'查看全景',exact:true}).click();await page.getByTestId('resource-ridge_ore').click();await expect(page.getByTestId('resource-inspector')).toBeVisible();expect(await page.getByTestId('resource-deep_berries').evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.screenshot({path:'artifacts/v020-fallback.png'});
+ await page.unroute('**/api/public/events*');await page.route('**/pixel-world/ink_environment.png',r=>r.abort());await page.reload();await ready(page);await expect(page.locator('.renderer-notice')).toContainText('部分场景素材未载入');await page.getByRole('button',{name:'查看全景',exact:true}).click();await page.getByTestId('resource-ridge_ore').click();await expect(page.getByTestId('resource-inspector')).toContainText('山脊矿脉');await page.screenshot({path:'artifacts/v020-partial.png'});
+ await page.unroute('**/pixel-world/ink_environment.png');await page.route('**/assets/phaser-renderer-*.js',r=>r.abort());await page.reload();await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await page.getByRole('button',{name:'查看全景',exact:true}).click();await page.getByTestId('resource-ridge_ore').click();await expect(page.getByTestId('resource-inspector')).toBeVisible();expect(await page.getByTestId('resource-deep_berries').evaluate(el=>getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.screenshot({path:'artifacts/v020-fallback.png'});
 });
 
 

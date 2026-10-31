@@ -1,0 +1,914 @@
+{
+  "frames": {
+    "idle_south_0": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_south_1": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "idle_south_2": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_south_3": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "idle_north_0": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_north_1": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "idle_north_2": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_north_3": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "idle_east_0": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_east_1": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "idle_east_2": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 700
+    },
+    "idle_east_3": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "walk_south_0": {
+      "frame": {
+        "x": 104,
+        "y": 233,
+        "w": 178,
+        "h": 216
+      },
+      "anchor": {
+        "x": 93.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_south_1": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_south_2": {
+      "frame": {
+        "x": 103,
+        "y": 454,
+        "w": 177,
+        "h": 217
+      },
+      "anchor": {
+        "x": 88.5,
+        "y": 213
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_south_3": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_north_0": {
+      "frame": {
+        "x": 399,
+        "y": 239,
+        "w": 169,
+        "h": 210
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_north_1": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_north_2": {
+      "frame": {
+        "x": 400,
+        "y": 456,
+        "w": 175,
+        "h": 218
+      },
+      "anchor": {
+        "x": 94.5,
+        "y": 214
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_north_3": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_east_0": {
+      "frame": {
+        "x": 644,
+        "y": 233,
+        "w": 341,
+        "h": 212
+      },
+      "anchor": {
+        "x": 133.5,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_east_1": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_east_2": {
+      "frame": {
+        "x": 644,
+        "y": 456,
+        "w": 346,
+        "h": 215
+      },
+      "anchor": {
+        "x": 136.5,
+        "y": 211
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "walk_east_3": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 150
+    },
+    "run_south_0": {
+      "frame": {
+        "x": 104,
+        "y": 677,
+        "w": 186,
+        "h": 233
+      },
+      "anchor": {
+        "x": 94,
+        "y": 229
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_south_1": {
+      "frame": {
+        "x": 104,
+        "y": 233,
+        "w": 178,
+        "h": 216
+      },
+      "anchor": {
+        "x": 93.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_south_2": {
+      "frame": {
+        "x": 104,
+        "y": 677,
+        "w": 186,
+        "h": 233
+      },
+      "anchor": {
+        "x": 94,
+        "y": 229
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_south_3": {
+      "frame": {
+        "x": 103,
+        "y": 454,
+        "w": 177,
+        "h": 217
+      },
+      "anchor": {
+        "x": 88.5,
+        "y": 213
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_north_0": {
+      "frame": {
+        "x": 396,
+        "y": 683,
+        "w": 176,
+        "h": 223
+      },
+      "anchor": {
+        "x": 95.5,
+        "y": 219
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_north_1": {
+      "frame": {
+        "x": 399,
+        "y": 239,
+        "w": 169,
+        "h": 210
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_north_2": {
+      "frame": {
+        "x": 396,
+        "y": 683,
+        "w": 176,
+        "h": 223
+      },
+      "anchor": {
+        "x": 95.5,
+        "y": 219
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_north_3": {
+      "frame": {
+        "x": 400,
+        "y": 456,
+        "w": 175,
+        "h": 218
+      },
+      "anchor": {
+        "x": 94.5,
+        "y": 214
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_east_0": {
+      "frame": {
+        "x": 616,
+        "y": 684,
+        "w": 387,
+        "h": 212
+      },
+      "anchor": {
+        "x": 161.5,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_east_1": {
+      "frame": {
+        "x": 644,
+        "y": 233,
+        "w": 341,
+        "h": 212
+      },
+      "anchor": {
+        "x": 133.5,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_east_2": {
+      "frame": {
+        "x": 616,
+        "y": 684,
+        "w": 387,
+        "h": 212
+      },
+      "anchor": {
+        "x": 161.5,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "run_east_3": {
+      "frame": {
+        "x": 644,
+        "y": 456,
+        "w": 346,
+        "h": 215
+      },
+      "anchor": {
+        "x": 136.5,
+        "y": 211
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 105
+    },
+    "attack_south_0": {
+      "frame": {
+        "x": 80,
+        "y": 909,
+        "w": 235,
+        "h": 194
+      },
+      "anchor": {
+        "x": 117,
+        "y": 190
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "attack_south_1": {
+      "frame": {
+        "x": 80,
+        "y": 909,
+        "w": 235,
+        "h": 194
+      },
+      "anchor": {
+        "x": 117,
+        "y": 190
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "attack_south_2": {
+      "frame": {
+        "x": 96,
+        "y": 1111,
+        "w": 189,
+        "h": 193
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 189
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "attack_south_3": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 240
+    },
+    "attack_north_0": {
+      "frame": {
+        "x": 373,
+        "y": 916,
+        "w": 213,
+        "h": 189
+      },
+      "anchor": {
+        "x": 106,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "attack_north_1": {
+      "frame": {
+        "x": 373,
+        "y": 916,
+        "w": 213,
+        "h": 189
+      },
+      "anchor": {
+        "x": 106,
+        "y": 185
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "attack_north_2": {
+      "frame": {
+        "x": 363,
+        "y": 1112,
+        "w": 232,
+        "h": 192
+      },
+      "anchor": {
+        "x": 115.5,
+        "y": 188
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "attack_north_3": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 240
+    },
+    "attack_east_0": {
+      "frame": {
+        "x": 651,
+        "y": 910,
+        "w": 329,
+        "h": 197
+      },
+      "anchor": {
+        "x": 162.5,
+        "y": 193
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 180
+    },
+    "attack_east_1": {
+      "frame": {
+        "x": 651,
+        "y": 910,
+        "w": 329,
+        "h": 197
+      },
+      "anchor": {
+        "x": 162.5,
+        "y": 193
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "attack_east_2": {
+      "frame": {
+        "x": 635,
+        "y": 1114,
+        "w": 338,
+        "h": 194
+      },
+      "anchor": {
+        "x": 165,
+        "y": 192
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 140
+    },
+    "attack_east_3": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 240
+    },
+    "hurt_south_0": {
+      "frame": {
+        "x": 109,
+        "y": 1303,
+        "w": 176,
+        "h": 223
+      },
+      "anchor": {
+        "x": 83.5,
+        "y": 219
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_south_1": {
+      "frame": {
+        "x": 109,
+        "y": 1303,
+        "w": 176,
+        "h": 223
+      },
+      "anchor": {
+        "x": 83.5,
+        "y": 219
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_south_2": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_south_3": {
+      "frame": {
+        "x": 103,
+        "y": 13,
+        "w": 174,
+        "h": 213
+      },
+      "anchor": {
+        "x": 87.5,
+        "y": 209
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_north_0": {
+      "frame": {
+        "x": 398,
+        "y": 1306,
+        "w": 211,
+        "h": 219
+      },
+      "anchor": {
+        "x": 76.5,
+        "y": 215
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_north_1": {
+      "frame": {
+        "x": 398,
+        "y": 1306,
+        "w": 211,
+        "h": 219
+      },
+      "anchor": {
+        "x": 76.5,
+        "y": 215
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_north_2": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_north_3": {
+      "frame": {
+        "x": 402,
+        "y": 17,
+        "w": 176,
+        "h": 210
+      },
+      "anchor": {
+        "x": 85,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_east_0": {
+      "frame": {
+        "x": 660,
+        "y": 1316,
+        "w": 258,
+        "h": 210
+      },
+      "anchor": {
+        "x": 132,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_east_1": {
+      "frame": {
+        "x": 660,
+        "y": 1316,
+        "w": 258,
+        "h": 210
+      },
+      "anchor": {
+        "x": 132,
+        "y": 206
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_east_2": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    },
+    "hurt_east_3": {
+      "frame": {
+        "x": 643,
+        "y": 9,
+        "w": 320,
+        "h": 216
+      },
+      "anchor": {
+        "x": 158.5,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_boar.png",
+      "native_scale": 0.2057416,
+      "duration": 100
+    }
+  },
+  "meta": {
+    "image": "ink_forest_boar.png",
+    "size": {
+      "w": 1024,
+      "h": 1536
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink",
+    "alpha_zero_fraction": 0.53542
+  }
+}

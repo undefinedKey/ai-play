@@ -5,23 +5,16 @@ import {RenderSpace} from './world-render-context.jsx';
 import {projectMapPoint} from './map-projection.js';
 import {resourceState,cycleState,phaseNames} from './wilderness-state.js';
 import {treePresentation,treeStageNames} from './survival-state.js';
+import {resourceArtwork} from './scene-art.js';
 
 export const ResourceSelection=createContext({selected:null,select:()=>{}});
 const tools={axe:'斧头',pickaxe:'镐',hoe:'锄头',watering_can:'水壶'};
-const art={tree:'pine',ore_vein:'ore',berry_bush:'berries',herb:'herb'};
-const definitions=new WeakMap();
-function resourceArt(assets,node){
- if(!assets)return null;let cache=definitions.get(assets);if(!cache){cache=new Map();definitions.set(assets,cache);}
- const stage=node.kind==='tree'?treePresentation(node):null,key=`${node.kind}:${stage?.stage||''}`;if(cache.has(key))return cache.get(key);
- const item={branches:'item_wood',stones:'item_ore',grass:'item_grass'}[node.kind],base=item?assets.items?.[item]:assets.wilderness?.[stage?.art||art[node.kind]];
- const result=base?{...base,native_scale:item?(node.kind==='grass'?1.25:1.1):(base.native_scale||1)*(stage?.scale||1)}:null;cache.set(key,result);return result;
-}
 export function ResourceLayer({world,sceneId,map,now,live}){
   const assets=usePixelManifest(),selection=useContext(ResourceSelection);
   const nodes=(world.resources?.nodes||[]).filter(n=>n.scene_id===sceneId);
   const time=live?now:Number(world.server_time)||now;
   return <div className="resource-layer" aria-label="真实荒野资源">{nodes.map(node=>{
-    const state=resourceState(node,world.agents,time),definition=resourceArt(assets,node),scale=definition?.native_scale||1,anchor=definition?[definition.anchor.x*scale,definition.anchor.y*scale]:[16,32],chosen=selection.selected===node.id;
+    const state=resourceState(node,world.agents,time),definition=resourceArtwork(assets,node),scale=definition?.native_scale||1,anchor=definition?[definition.anchor.x*scale,definition.anchor.y*scale]:[16,32],chosen=selection.selected===node.id;
     return <button key={node.id} className={`world-resource resource-${state.key} ${chosen?'selected':''} resource-kind-${node.kind}`} data-testid={`resource-${node.id}`} data-resource-state={state.key} data-ecology-stage={node.ecology?.stage} data-stock={node.stock} aria-label={`查看${node.name}，${state.label}，剩余${node.stock}份，只读`} aria-pressed={chosen} onClick={()=>selection.select(node.id)} style={{...projectMapPoint(node.position,map),zIndex:100+node.position.y*10,'--resource-height':`${anchor[1]}px`,'--resource-anchor-x':`${anchor[0]}px`,'--resource-anchor-y':`${anchor[1]}px`}}>
       <RenderSpace position={node.position} depth={100+node.position.y*10} anchor={anchor} alpha={node.kind==='tree'?treePresentation(node).alpha:state.key==='dormant'?.5:state.key==='depleted'?.38:1}><span className="resource-art"><PixelSprite definition={definition}/></span></RenderSpace>
       <span className="resource-ring"/><span className="resource-state-mark" aria-hidden="true">{state.key==='working'?'…':state.key==='reserved'?'↗':state.key==='depleted'?'·':state.key==='dormant'?'☾':'◇'}</span>

@@ -1,62 +1,130 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { SCENES, WORLD_MAP, isWalkable } from '../shared/world-layout.js';
+import {readFileSync,readdirSync} from 'node:fs';
+import {resolve,dirname,extname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
+import {SCENES,WORLD_MAP,isWalkable} from '../shared/world-layout.js';
 
-// Validate the shipped files as well as Vite's copy; the server never needs Pixelbolt.
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-for (const directory of ['public', 'dist']) {
-  const read = name => readFileSync(resolve(root, directory, 'pixel-world', name));
-  const manifest = JSON.parse(read('manifest.json'));
-  assert.equal(manifest.tool.name, 'Pixelbolt');
-  assert.match(manifest.tool.commit, /^[a-f0-9]{40}$/);
-  assert.equal(manifest.tile_size, 32);
-  assert.deepEqual(manifest.map, WORLD_MAP);
-  assert.match(read('PIXELBOLT-LICENSE.txt').toString(), /MIT License/);
-  const images = new Set();
-  function visit(value) {
-    if (!value || typeof value !== 'object') return;
-    if (value.image) {
-      assert.match(value.image, /^\/pixel-world\/[a-z0-9_]+\.png$/);
-      const filename = value.image.split('/').at(-1), bytes = read(filename);
-      assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
-      const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
-      assert.equal(width, value.sheet_width ?? value.width, filename);
-      assert.equal(height, value.sheet_height ?? value.height, filename);
-      const atlas = JSON.parse(read(filename.replace('.png', '.atlas.json')));
-      assert.ok(atlas && typeof atlas === 'object');
-      assert.equal(atlas.meta.image,filename);
-      for (const animation of Object.values(value.animations || {})) {
-        assert.ok(animation.frames.length > 0);
-        for (const frame of animation.frames) {
-          assert.ok([frame.x, frame.y, frame.w, frame.h, frame.duration].every(Number.isInteger));
-          assert.ok(frame.x >= 0 && frame.y >= 0 && frame.w > 0 && frame.h > 0 && frame.duration > 0);
-          assert.ok(frame.x + frame.w <= width && frame.y + frame.h <= height, `${filename}: frame outside atlas`);
-        }
-      }
-      images.add(filename);
+// Check shipped originals and Vite's copy without an image authoring runtime.
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const version=JSON.parse(readFileSync(resolve(root,'package.json'))).version;
+const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
+const sourceDir=resolve(root,'art/ink-world');
+const originalHashes=new Set(readdirSync(sourceDir).filter(name=>extname(name)==='.png').map(name=>digest(readFileSync(resolve(sourceDir,name)))));
+const actions=['idle','walk','run','attack','hurt','till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','rest','tired'];
+const directions=['south','north','east'];
+const rectKey=frame=>[frame.x,frame.y,frame.w,frame.h].join(',');
+
+for(const directory of ['public','dist']){
+  const read=name=>readFileSync(resolve(root,directory,'pixel-world',name));
+  const manifest=JSON.parse(read('manifest.json'));
+  assert.equal(manifest.release,version,`${directory}: stale art release`);
+  assert.equal(manifest.render_style,'ink');
+  assert.equal(manifest.tile_size,32);
+  assert.deepEqual(manifest.map,WORLD_MAP);
+  // Keep notices for the legacy authoring pipeline and retained source assets.
+  assert.equal(manifest.tool.name,'Pixelbolt');
+  assert.match(manifest.tool.commit,/^[a-f0-9]{40}$/);
+  assert.match(read('PIXELBOLT-LICENSE.txt').toString(),/MIT License/);
+  const images=new Map(),definitions=[];
+  const collect=(value,path='manifest')=>{
+    if(!value||typeof value!=='object')return;
+    if(typeof value.image==='string'){
+      definitions.push({path,definition:value});return;
     }
-    for (const child of Object.values(value)) visit(child);
+    for(const[key,child]of Object.entries(value))collect(child,`${path}.${key}`);
+  };
+  collect(manifest);
+  function texture(image){
+    assert.match(image,/^\/pixel-world\/[a-z0-9_]+\.png$/);
+    if(images.has(image))return images.get(image);
+    const filename=image.split('/').at(-1),bytes=read(filename);
+    assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a',filename);
+    const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
+    assert.ok(width>0&&height>0&&width<=4096&&height<=4096,`${filename}: texture outside supported size`);
+    assert.ok(originalHashes.has(digest(bytes)),`${filename}: PNG differs from every original ink source`);
+    const atlas=JSON.parse(read(filename.replace(/\.png$/,'.atlas.json')));
+    assert.equal(atlas.meta.image,filename);
+    assert.deepEqual(atlas.meta.size,{w:width,h:height},`${filename}: atlas size differs from PNG`);
+    assert.equal(atlas.meta.render_style,'ink',`${filename}: stale atlas style`);
+    assert.ok(Object.keys(atlas.frames||{}).length>0,`${filename}: empty atlas`);
+    const result={width,height,atlas};images.set(image,result);return result;
   }
-  visit(manifest);
-  assert.equal(Object.keys(manifest.characters).length, 8);
-  assert.deepEqual({ width: manifest.farm_scene.width, height: manifest.farm_scene.height }, { width: 640, height: 400 });
-  for (const id of ['hoe', 'watering_can','axe','pickaxe']) for (const level of [1, 2, 3]) {
-    assert.ok(manifest.tools[`${id}_${level}`]);
-    assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
+  function bounds(frame,image,label){
+    assert.ok([frame.x,frame.y,frame.w,frame.h].every(Number.isInteger),`${label}: noninteger source rectangle`);
+    assert.ok(frame.x>=0&&frame.y>=0&&frame.w>0&&frame.h>0,`${label}: invalid source rectangle`);
+    assert.ok(frame.x+frame.w<=image.width&&frame.y+frame.h<=image.height,`${label}: frame outside source image`);
   }
-  for (const character of Object.values(manifest.characters)) {
-    for (const action of ['idle', 'walk_north', 'walk_south', 'walk_east', 'attack', 'hurt', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'gather', 'cook', 'eat', 'rest', 'tired']) assert.ok(character.animations[action], action);
+  function point(value,frame,label){
+    assert.ok(value&&Number.isFinite(value.x)&&Number.isFinite(value.y),`${label}: missing source point`);
+    assert.ok(value.x>=0&&value.y>=0&&value.x<=frame.w&&value.y<=frame.h,`${label}: point outside source frame`);
+    if(value.rotation!==undefined)assert.ok(Number.isFinite(value.rotation),`${label}: invalid rotation`);
+  }
+  for(const{path,definition:d}of definitions){
+    assert.equal(d.render_style,'ink',`${path}: pixel artwork is still reachable`);
+    const base=texture(d.image);
+    assert.equal(d.sheet_width??d.width,base.width,`${path}: incorrect source width`);
+    assert.equal(d.sheet_height??d.height,base.height,`${path}: incorrect source height`);
+    for(const[action,animation]of Object.entries(d.animations||{})){
+      assert.ok(animation.frames?.length>0,`${path}.${action}: no frames`);
+      for(const frame of animation.frames){
+        const label=`${path}.${action}`,source=frame.image||d.image,image=texture(source);
+        const width=frame.sheet_width??(frame.image?undefined:d.sheet_width),height=frame.sheet_height??(frame.image?undefined:d.sheet_height);
+        assert.equal(width,image.width,`${label}: frame source width`);
+        assert.equal(height,image.height,`${label}: frame source height`);
+        bounds(frame,image,label);
+        assert.ok(Number.isInteger(frame.duration)&&frame.duration>0,`${label}: frame duration`);
+        assert.ok(Number.isFinite(frame.native_scale??d.native_scale)&&(frame.native_scale??d.native_scale)>0,`${label}: logical scale`);
+        assert.equal(d.anchor_mode,'source',`${label}: anchor must use measured source pixels`);
+        point(frame.anchor??d.anchor,frame,`${label}.anchor`);
+        for(const[slot,target]of Object.entries(frame.attachments||{}))point(target,frame,`${label}.${slot}`);
+        const matches=Object.values(image.atlas.frames).filter(entry=>(entry.image||source)===source&&rectKey(entry.frame)===rectKey(frame));
+        assert.ok(matches.length,`${label}: source frame is absent from its atlas`);
+      }
+    }
+  }
+  // Named entries may refer to another original sheet for a supplemental pose.
+  for(const[image,data]of images)for(const[name,entry]of Object.entries(data.atlas.frames)){
+    const actual=texture(entry.image||image);
+    bounds(entry.frame,actual,`${image}:${name}`);
+    point(entry.anchor||entry.frame.anchor,entry.frame,`${image}:${name}.anchor`);
+  }
+  const body=manifest.characters.wanderer_1;
+  assert.equal(Object.keys(manifest.characters).length,8);
+  for(let i=1;i<=8;i++)assert.ok(manifest.characters[`wanderer_${i}`],`persisted wanderer_${i}`);
+  for(const[group,ids]of Object.entries({equipment:['wooden_sword','iron_sword','wooden_shield','iron_armor','hunter_bow','heavy_hammer','heavy_armor'],accessories:['leaf','scarf','ribbon','star']}))for(const id of ids)assert.ok(manifest[group]?.[id],`${group}.${id}`);
+  for(const id of ['hoe','watering_can','axe','pickaxe'])for(const level of [1,2,3]){
+    assert.ok(manifest.tools[`${id}_${level}`]);assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
+  }
+  for(const group of ['characters','equipment','accessories','tools'])for(const[id,sprite]of Object.entries(manifest[group]))for(const action of actions){
+    assert.ok(sprite.animations[action],`${group}.${id}.${action}`);
+    for(const direction of directions){
+      const key=`${action}_${direction}`,animation=sprite.animations[key],baseline=body.animations[key];
+      assert.ok(animation,`${group}.${id}.${key}`);
+      assert.equal(animation.frames.length,4,`${group}.${id}.${key}: four action phases`);
+      assert.deepEqual(animation.frames.map(frame=>frame.duration),baseline.frames.map(frame=>frame.duration),`${group}.${id}.${key}: layer timing differs`);
+      assert.equal(animation.loop,baseline.loop,`${group}.${id}.${key}: layer looping differs`);
+      if(group==='characters')for(const frame of animation.frames)for(const slot of ['hand','head','chest'])point(frame.attachments?.[slot],frame,`${id}.${key}.${slot}`);
+    }
+  }
+  for(const character of Object.values(manifest.characters)){
     assert.equal(character.animations.gather.loop,true);
-    assert.equal(character.animations.cook.loop,false);
-    assert.equal(character.animations.eat.loop,false);
+    for(const action of ['attack','hurt','cook','eat'])assert.equal(character.animations[action].loop,false);
+    assert.notDeepEqual(character.animations.walk.frames,character.animations.run.frames);
+    assert.notDeepEqual(character.animations.attack_north.frames,character.animations.attack_south.frames);
   }
-  for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold'])assert.ok(manifest.items[`item_${id}`]);
+  for(const group of ['equipment','accessories','tools'])for(const sprite of Object.values(manifest[group]))assert.ok(['hand','head','chest'].includes(sprite.attachment_slot),`${group}: missing attachment slot`);
+  for(const id of ['forest_slime','forest_boar','ruins_guardian']){
+    const monster=manifest.monsters[id];assert.ok(monster,id);
+    for(const action of actions.slice(0,5))for(const direction of directions){const animation=monster.animations[`${action}_${direction}`];assert.equal(animation.frames.length,4);assert.deepEqual(animation.frames.map(f=>f.duration),body.animations[`${action}_${direction}`].frames.map(f=>f.duration));}
+  }
+  for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew','grass','pine_cone','torch','roasted_berry'])assert.ok(manifest.items[`item_${id}`]);
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
-  for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
-  for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
-  assert.equal(manifest.release,'0.21.0');
+  for(const id of ['supply_cache','wild_garden','spring'])assert.equal(manifest.discoveries[id].animations.resolved.loop,false);
+  assert.ok(manifest.farm_scene?.image);
+  for(const id of ['turnip','wheat'])for(const stage of ['untilled','tilled','seeded','growing','ready'])assert.ok(manifest.crops[id].animations[stage]?.frames.length,`${id}.${stage}`);
+  for(const id of ['campfire','campfire_ashes'])assert.ok(manifest.effects[id]?.animations.idle.frames.length,id);
+  assert.notDeepEqual(manifest.effects.campfire.animations.idle.frames,manifest.effects.campfire_ashes.animations.idle.frames);
   for(const scene of SCENES){
     assert.deepEqual(scene.map,WORLD_MAP);
     assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);
@@ -67,19 +135,21 @@ for (const directory of ['public', 'dist']) {
     for(const prop of scene.props){
       if(prop.kind!=='pond'){
         const sprite=manifest.props[prop.kind];assert.ok(sprite,prop.kind);
-        assert.deepEqual(sprite.anchor,{x:64,y:120});
-        const atlas=JSON.parse(read(sprite.image.split('/').at(-1).replace('.png','.atlas.json')));
-        assert.deepEqual(atlas.frames.idle.anchor,sprite.anchor,`${prop.kind} contact anchor differs`);
+        const frame=sprite.animations.idle.frames[0],image=texture(frame.image||sprite.image),anchor=frame.anchor||sprite.anchor;
+        const matches=Object.values(image.atlas.frames).filter(entry=>rectKey(entry.frame)===rectKey(frame));
+        assert.ok(matches.some(entry=>entry.anchor.x===anchor.x&&entry.anchor.y===anchor.y),`${prop.kind}: contact anchor differs from authored source`);
       }
       assert.ok(prop.position.x>=0&&prop.position.x<WORLD_MAP.width&&prop.position.y>=0&&prop.position.y<WORLD_MAP.height);
       for(const cell of prop.footprint)assert.ok(!isWalkable(scene.id,cell));
     }
-    // Flood fill: every legal tile is reachable from its portal.
+    // Every legal tile must remain reachable from its portal.
     const seen=new Set(),todo=[scene.portal.position];
-    while(todo.length){const p=todo.pop(),key=`${p.x},${p.y}`;if(seen.has(key)||!isWalkable(scene.id,p))continue;seen.add(key);for(const[dx,dy]of[[0,1],[1,0],[0,-1],[-1,0]])todo.push({x:p.x+dx,y:p.y+dy});}
-    assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id} isolated walkable cell`);
+    while(todo.length){const p=todo.pop(),key=`${p.x},${p.y}`;if(seen.has(key)||!isWalkable(scene.id,p))continue;seen.add(key);for(const[dx,dy]of [[0,1],[1,0],[0,-1],[-1,0]])todo.push({x:p.x+dx,y:p.y+dy});}
+    assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id}: isolated walkable cell`);
   }
-  for(const id of ['pine','oak','ore','berries','stump','herb']){const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<1);assert.ok(asset.anchor.x<asset.width&&asset.anchor.y<asset.height);assert.equal(asset.image,'/pixel-world/props_ink.png');}
-  assert.equal(images.size, 95);
-  console.log(`${directory}: ${images.size} Pixelbolt and original ink images, frames, scene footprints, portals and reachability verified.`);
+  for(const id of ['pine','oak','ore','berries','stump','herb','tree_sapling','tree_young','tree_mature','tree_stump']){
+    const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<1,id);
+    point(asset.anchor,asset.animations.idle.frames[0],`${id}.anchor`);
+  }
+  console.log(`${directory}: ${images.size} unchanged ink textures, source frames, action attachments, scene footprints, portals and reachability verified.`);
 }

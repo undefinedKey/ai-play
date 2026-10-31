@@ -1,0 +1,25 @@
+{
+  "frames": {
+    "farm": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1536,
+        "h": 1024
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_farm_ground.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-farm-background",
+    "render_style": "ink"
+  }
+}

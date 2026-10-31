@@ -1,0 +1,169 @@
+{
+  "frames": {
+    "pine": {
+      "frame": {
+        "x": 54,
+        "y": 0,
+        "w": 308,
+        "h": 408,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 156,
+        "y": 400
+      }
+    },
+    "oak": {
+      "frame": {
+        "x": 408,
+        "y": 8,
+        "w": 380,
+        "h": 400,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 188,
+        "y": 392
+      }
+    },
+    "ore": {
+      "frame": {
+        "x": 810,
+        "y": 130,
+        "w": 335,
+        "h": 280,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 167,
+        "y": 271
+      }
+    },
+    "berries": {
+      "frame": {
+        "x": 1190,
+        "y": 98,
+        "w": 325,
+        "h": 312,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 160,
+        "y": 302
+      }
+    },
+    "stump": {
+      "frame": {
+        "x": 34,
+        "y": 428,
+        "w": 364,
+        "h": 288,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 179,
+        "y": 276
+      }
+    },
+    "herb": {
+      "frame": {
+        "x": 499,
+        "y": 424,
+        "w": 239,
+        "h": 273,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 119,
+        "y": 264
+      }
+    },
+    "grass": {
+      "frame": {
+        "x": 854,
+        "y": 429,
+        "w": 236,
+        "h": 266,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 116,
+        "y": 258
+      }
+    },
+    "branches": {
+      "frame": {
+        "x": 1211,
+        "y": 491,
+        "w": 288,
+        "h": 204,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 139,
+        "y": 195
+      }
+    },
+    "stones": {
+      "frame": {
+        "x": 48,
+        "y": 830,
+        "w": 325,
+        "h": 170,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 163,
+        "y": 157
+      }
+    },
+    "tree_sapling": {
+      "frame": {
+        "x": 509,
+        "y": 774,
+        "w": 185,
+        "h": 232,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 93,
+        "y": 222
+      }
+    },
+    "tree_young": {
+      "frame": {
+        "x": 879,
+        "y": 708,
+        "w": 191,
+        "h": 301,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 95,
+        "y": 291
+      }
+    },
+    "dead_tree": {
+      "frame": {
+        "x": 1234,
+        "y": 698,
+        "w": 265,
+        "h": 316,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 130,
+        "y": 306
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_environment.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink"
+  }
+}

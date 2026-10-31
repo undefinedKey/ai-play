@@ -1,0 +1,914 @@
+{
+  "frames": {
+    "idle_south_0": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_south_1": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "idle_south_2": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_south_3": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "idle_north_0": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_north_1": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "idle_north_2": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_north_3": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "idle_east_0": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_east_1": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "idle_east_2": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 700
+    },
+    "idle_east_3": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "walk_south_0": {
+      "frame": {
+        "x": 72,
+        "y": 207,
+        "w": 246,
+        "h": 199
+      },
+      "anchor": {
+        "x": 147.5,
+        "y": 195
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_south_1": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_south_2": {
+      "frame": {
+        "x": 74,
+        "y": 418,
+        "w": 243,
+        "h": 194
+      },
+      "anchor": {
+        "x": 94.5,
+        "y": 190
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_south_3": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_north_0": {
+      "frame": {
+        "x": 393,
+        "y": 200,
+        "w": 238,
+        "h": 207
+      },
+      "anchor": {
+        "x": 95,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_north_1": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_north_2": {
+      "frame": {
+        "x": 393,
+        "y": 411,
+        "w": 238,
+        "h": 201
+      },
+      "anchor": {
+        "x": 110,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_north_3": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_east_0": {
+      "frame": {
+        "x": 770,
+        "y": 201,
+        "w": 160,
+        "h": 205
+      },
+      "anchor": {
+        "x": 76.5,
+        "y": 201
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_east_1": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_east_2": {
+      "frame": {
+        "x": 759,
+        "y": 413,
+        "w": 179,
+        "h": 199
+      },
+      "anchor": {
+        "x": 89.5,
+        "y": 195
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "walk_east_3": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 150
+    },
+    "run_south_0": {
+      "frame": {
+        "x": 84,
+        "y": 623,
+        "w": 246,
+        "h": 211
+      },
+      "anchor": {
+        "x": 126.5,
+        "y": 207
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_south_1": {
+      "frame": {
+        "x": 72,
+        "y": 207,
+        "w": 246,
+        "h": 199
+      },
+      "anchor": {
+        "x": 147.5,
+        "y": 195
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_south_2": {
+      "frame": {
+        "x": 84,
+        "y": 623,
+        "w": 246,
+        "h": 211
+      },
+      "anchor": {
+        "x": 126.5,
+        "y": 207
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_south_3": {
+      "frame": {
+        "x": 74,
+        "y": 418,
+        "w": 243,
+        "h": 194
+      },
+      "anchor": {
+        "x": 94.5,
+        "y": 190
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_north_0": {
+      "frame": {
+        "x": 379,
+        "y": 621,
+        "w": 259,
+        "h": 215
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 211
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_north_1": {
+      "frame": {
+        "x": 393,
+        "y": 200,
+        "w": 238,
+        "h": 207
+      },
+      "anchor": {
+        "x": 95,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_north_2": {
+      "frame": {
+        "x": 379,
+        "y": 621,
+        "w": 259,
+        "h": 215
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 211
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_north_3": {
+      "frame": {
+        "x": 393,
+        "y": 411,
+        "w": 238,
+        "h": 201
+      },
+      "anchor": {
+        "x": 110,
+        "y": 197
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_east_0": {
+      "frame": {
+        "x": 716,
+        "y": 624,
+        "w": 272,
+        "h": 212
+      },
+      "anchor": {
+        "x": 113,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_east_1": {
+      "frame": {
+        "x": 770,
+        "y": 201,
+        "w": 160,
+        "h": 205
+      },
+      "anchor": {
+        "x": 76.5,
+        "y": 201
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_east_2": {
+      "frame": {
+        "x": 716,
+        "y": 624,
+        "w": 272,
+        "h": 212
+      },
+      "anchor": {
+        "x": 113,
+        "y": 208
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "run_east_3": {
+      "frame": {
+        "x": 759,
+        "y": 413,
+        "w": 179,
+        "h": 199
+      },
+      "anchor": {
+        "x": 89.5,
+        "y": 195
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 105
+    },
+    "attack_south_0": {
+      "frame": {
+        "x": 58,
+        "y": 844,
+        "w": 260,
+        "h": 200
+      },
+      "anchor": {
+        "x": 136,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "attack_south_1": {
+      "frame": {
+        "x": 58,
+        "y": 844,
+        "w": 260,
+        "h": 200
+      },
+      "anchor": {
+        "x": 136,
+        "y": 196
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "attack_south_2": {
+      "frame": {
+        "x": 29,
+        "y": 1050,
+        "w": 281,
+        "h": 221
+      },
+      "anchor": {
+        "x": 151.5,
+        "y": 217
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "attack_south_3": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 240
+    },
+    "attack_north_0": {
+      "frame": {
+        "x": 396,
+        "y": 846,
+        "w": 232,
+        "h": 207
+      },
+      "anchor": {
+        "x": 134.5,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "attack_north_1": {
+      "frame": {
+        "x": 396,
+        "y": 846,
+        "w": 232,
+        "h": 207
+      },
+      "anchor": {
+        "x": 134.5,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "attack_north_2": {
+      "frame": {
+        "x": 358,
+        "y": 1080,
+        "w": 309,
+        "h": 197
+      },
+      "anchor": {
+        "x": 122.5,
+        "y": 193
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "attack_north_3": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 240
+    },
+    "attack_east_0": {
+      "frame": {
+        "x": 746,
+        "y": 844,
+        "w": 227,
+        "h": 207
+      },
+      "anchor": {
+        "x": 118,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 180
+    },
+    "attack_east_1": {
+      "frame": {
+        "x": 746,
+        "y": 844,
+        "w": 227,
+        "h": 207
+      },
+      "anchor": {
+        "x": 118,
+        "y": 203
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "attack_east_2": {
+      "frame": {
+        "x": 700,
+        "y": 1071,
+        "w": 299,
+        "h": 211
+      },
+      "anchor": {
+        "x": 92,
+        "y": 207
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 140
+    },
+    "attack_east_3": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 240
+    },
+    "hurt_south_0": {
+      "frame": {
+        "x": 55,
+        "y": 1284,
+        "w": 219,
+        "h": 237
+      },
+      "anchor": {
+        "x": 120,
+        "y": 233
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_south_1": {
+      "frame": {
+        "x": 55,
+        "y": 1284,
+        "w": 219,
+        "h": 237
+      },
+      "anchor": {
+        "x": 120,
+        "y": 233
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_south_2": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_south_3": {
+      "frame": {
+        "x": 78,
+        "y": 13,
+        "w": 236,
+        "h": 182
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 178
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_north_0": {
+      "frame": {
+        "x": 400,
+        "y": 1301,
+        "w": 198,
+        "h": 218
+      },
+      "anchor": {
+        "x": 119,
+        "y": 214
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_north_1": {
+      "frame": {
+        "x": 400,
+        "y": 1301,
+        "w": 198,
+        "h": 218
+      },
+      "anchor": {
+        "x": 119,
+        "y": 214
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_north_2": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_north_3": {
+      "frame": {
+        "x": 389,
+        "y": 9,
+        "w": 246,
+        "h": 186
+      },
+      "anchor": {
+        "x": 120,
+        "y": 182
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_east_0": {
+      "frame": {
+        "x": 776,
+        "y": 1292,
+        "w": 181,
+        "h": 226
+      },
+      "anchor": {
+        "x": 69.5,
+        "y": 222
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_east_1": {
+      "frame": {
+        "x": 776,
+        "y": 1292,
+        "w": 181,
+        "h": 226
+      },
+      "anchor": {
+        "x": 69.5,
+        "y": 222
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_east_2": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    },
+    "hurt_east_3": {
+      "frame": {
+        "x": 775,
+        "y": 9,
+        "w": 152,
+        "h": 187
+      },
+      "anchor": {
+        "x": 80.5,
+        "y": 183
+      },
+      "image": "/pixel-world/ink_ruins_guardian.png",
+      "native_scale": 0.320442,
+      "duration": 100
+    }
+  },
+  "meta": {
+    "image": "ink_ruins_guardian.png",
+    "size": {
+      "w": 1024,
+      "h": 1536
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink",
+    "alpha_zero_fraction": 0.53741
+  }
+}

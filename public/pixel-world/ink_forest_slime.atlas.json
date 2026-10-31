@@ -1,0 +1,914 @@
+{
+  "frames": {
+    "idle_south_0": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_south_1": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "idle_south_2": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_south_3": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "idle_north_0": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_north_1": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "idle_north_2": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_north_3": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "idle_east_0": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_east_1": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "idle_east_2": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 700
+    },
+    "idle_east_3": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "walk_south_0": {
+      "frame": {
+        "x": 77,
+        "y": 242,
+        "w": 206,
+        "h": 173
+      },
+      "anchor": {
+        "x": 102.5,
+        "y": 169
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_south_1": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_south_2": {
+      "frame": {
+        "x": 58,
+        "y": 450,
+        "w": 205,
+        "h": 174
+      },
+      "anchor": {
+        "x": 92.5,
+        "y": 170
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_south_3": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_north_0": {
+      "frame": {
+        "x": 404,
+        "y": 243,
+        "w": 224,
+        "h": 170
+      },
+      "anchor": {
+        "x": 111.5,
+        "y": 166
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_north_1": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_north_2": {
+      "frame": {
+        "x": 406,
+        "y": 454,
+        "w": 233,
+        "h": 173
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 169
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_north_3": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_east_0": {
+      "frame": {
+        "x": 743,
+        "y": 257,
+        "w": 220,
+        "h": 158
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 154
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_east_1": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_east_2": {
+      "frame": {
+        "x": 757,
+        "y": 468,
+        "w": 205,
+        "h": 162
+      },
+      "anchor": {
+        "x": 114.5,
+        "y": 158
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "walk_east_3": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 150
+    },
+    "run_south_0": {
+      "frame": {
+        "x": 70,
+        "y": 653,
+        "w": 228,
+        "h": 270
+      },
+      "anchor": {
+        "x": 35,
+        "y": 266
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_south_1": {
+      "frame": {
+        "x": 77,
+        "y": 242,
+        "w": 206,
+        "h": 173
+      },
+      "anchor": {
+        "x": 102.5,
+        "y": 169
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_south_2": {
+      "frame": {
+        "x": 70,
+        "y": 653,
+        "w": 228,
+        "h": 270
+      },
+      "anchor": {
+        "x": 35,
+        "y": 266
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_south_3": {
+      "frame": {
+        "x": 58,
+        "y": 450,
+        "w": 205,
+        "h": 174
+      },
+      "anchor": {
+        "x": 92.5,
+        "y": 170
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_north_0": {
+      "frame": {
+        "x": 422,
+        "y": 680,
+        "w": 222,
+        "h": 250
+      },
+      "anchor": {
+        "x": 187,
+        "y": 246
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_north_1": {
+      "frame": {
+        "x": 404,
+        "y": 243,
+        "w": 224,
+        "h": 170
+      },
+      "anchor": {
+        "x": 111.5,
+        "y": 166
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_north_2": {
+      "frame": {
+        "x": 422,
+        "y": 680,
+        "w": 222,
+        "h": 250
+      },
+      "anchor": {
+        "x": 187,
+        "y": 246
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_north_3": {
+      "frame": {
+        "x": 406,
+        "y": 454,
+        "w": 233,
+        "h": 173
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 169
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_east_0": {
+      "frame": {
+        "x": 758,
+        "y": 697,
+        "w": 238,
+        "h": 216
+      },
+      "anchor": {
+        "x": 23,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_east_1": {
+      "frame": {
+        "x": 743,
+        "y": 257,
+        "w": 220,
+        "h": 158
+      },
+      "anchor": {
+        "x": 109.5,
+        "y": 154
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_east_2": {
+      "frame": {
+        "x": 758,
+        "y": 697,
+        "w": 238,
+        "h": 216
+      },
+      "anchor": {
+        "x": 23,
+        "y": 212
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "run_east_3": {
+      "frame": {
+        "x": 757,
+        "y": 468,
+        "w": 205,
+        "h": 162
+      },
+      "anchor": {
+        "x": 114.5,
+        "y": 158
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 105
+    },
+    "attack_south_0": {
+      "frame": {
+        "x": 72,
+        "y": 976,
+        "w": 212,
+        "h": 140
+      },
+      "anchor": {
+        "x": 110,
+        "y": 136
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "attack_south_1": {
+      "frame": {
+        "x": 72,
+        "y": 976,
+        "w": 212,
+        "h": 140
+      },
+      "anchor": {
+        "x": 110,
+        "y": 136
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "attack_south_2": {
+      "frame": {
+        "x": 55,
+        "y": 1152,
+        "w": 286,
+        "h": 153
+      },
+      "anchor": {
+        "x": 105,
+        "y": 149
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "attack_south_3": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 240
+    },
+    "attack_north_0": {
+      "frame": {
+        "x": 396,
+        "y": 970,
+        "w": 232,
+        "h": 145
+      },
+      "anchor": {
+        "x": 123,
+        "y": 141
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "attack_north_1": {
+      "frame": {
+        "x": 396,
+        "y": 970,
+        "w": 232,
+        "h": 145
+      },
+      "anchor": {
+        "x": 123,
+        "y": 141
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "attack_north_2": {
+      "frame": {
+        "x": 378,
+        "y": 1168,
+        "w": 286,
+        "h": 137
+      },
+      "anchor": {
+        "x": 166,
+        "y": 133
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "attack_north_3": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 240
+    },
+    "attack_east_0": {
+      "frame": {
+        "x": 746,
+        "y": 987,
+        "w": 228,
+        "h": 129
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 125
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 180
+    },
+    "attack_east_1": {
+      "frame": {
+        "x": 746,
+        "y": 987,
+        "w": 228,
+        "h": 129
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 125
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "attack_east_2": {
+      "frame": {
+        "x": 713,
+        "y": 1160,
+        "w": 298,
+        "h": 141
+      },
+      "anchor": {
+        "x": 143,
+        "y": 137
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 140
+    },
+    "attack_east_3": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 240
+    },
+    "hurt_south_0": {
+      "frame": {
+        "x": 45,
+        "y": 1381,
+        "w": 270,
+        "h": 121
+      },
+      "anchor": {
+        "x": 135,
+        "y": 117
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_south_1": {
+      "frame": {
+        "x": 45,
+        "y": 1381,
+        "w": 270,
+        "h": 121
+      },
+      "anchor": {
+        "x": 135,
+        "y": 117
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_south_2": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_south_3": {
+      "frame": {
+        "x": 61,
+        "y": 43,
+        "w": 228,
+        "h": 167
+      },
+      "anchor": {
+        "x": 113.5,
+        "y": 163
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_north_0": {
+      "frame": {
+        "x": 377,
+        "y": 1383,
+        "w": 266,
+        "h": 118
+      },
+      "anchor": {
+        "x": 133.5,
+        "y": 114
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_north_1": {
+      "frame": {
+        "x": 377,
+        "y": 1383,
+        "w": 266,
+        "h": 118
+      },
+      "anchor": {
+        "x": 133.5,
+        "y": 114
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_north_2": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_north_3": {
+      "frame": {
+        "x": 394,
+        "y": 42,
+        "w": 248,
+        "h": 169
+      },
+      "anchor": {
+        "x": 123.5,
+        "y": 165
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_east_0": {
+      "frame": {
+        "x": 727,
+        "y": 1398,
+        "w": 260,
+        "h": 101
+      },
+      "anchor": {
+        "x": 151,
+        "y": 97
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_east_1": {
+      "frame": {
+        "x": 727,
+        "y": 1398,
+        "w": 260,
+        "h": 101
+      },
+      "anchor": {
+        "x": 151,
+        "y": 97
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_east_2": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    },
+    "hurt_east_3": {
+      "frame": {
+        "x": 736,
+        "y": 48,
+        "w": 212,
+        "h": 164
+      },
+      "anchor": {
+        "x": 105.5,
+        "y": 160
+      },
+      "image": "/pixel-world/ink_forest_slime.png",
+      "native_scale": 0.1967213,
+      "duration": 100
+    }
+  },
+  "meta": {
+    "image": "ink_forest_slime.png",
+    "size": {
+      "w": 1024,
+      "h": 1536
+    },
+    "source": "original-imagegen-transparent-atlas",
+    "render_style": "ink",
+    "alpha_zero_fraction": 0.65291
+  }
+}

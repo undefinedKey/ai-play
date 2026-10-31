@@ -6,13 +6,14 @@ import { sampleMotion } from '../shared/motion.js';
 import { confirmedPosition } from './scene-state.js';
 import { publicName } from './observer-state.js';
 import { RenderSpace, useRenderSprite } from './world-render-context.jsx';
-import {wildernessGround,pondGeometry} from './wilderness-art.js';
+import {terrainDrawing} from './wilderness-art.js';
 import {RESOURCE_NODES} from '../shared/resources-layout.js';
+import {spriteAttachment,spriteGeometry,spriteNativeScale} from './render-packet.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.21.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.22.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -25,7 +26,6 @@ export function usePixelManifest() { return useSyncExternalStore(subscribeManife
 
 // One shared clock for all visible sprite layers. Hidden tabs do no frame work.
 let frameClock = 0, frameTimer, motionListening = false;
-const serverAnchors=new Map();
 const frameListeners = new Set();
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function scheduleFrames() {
@@ -50,23 +50,28 @@ const noSubscribe = () => () => {};
 // Action phases must advance between server ticks as well as atlas frames.
 // Only map units subscribe: the rest of the app keeps its one-second clock.
 export function usePixelNow(serverNow, enabled) {
-  if(!serverAnchors.has(serverNow)){serverAnchors.set(serverNow,Date.now());if(serverAnchors.size>12)serverAnchors.delete(serverAnchors.keys().next().value);}
-  const localNow=serverAnchors.get(serverNow);
+  // A corrected snapshot can legitimately repeat an earlier timestamp. Reusing
+  // a process-wide timestamp cache adds the old elapsed time a second time and
+  // can skip a short real hurt/attack phase after a clock correction.
+  const anchor=useRef({serverNow,localNow:Date.now()});
+  if(anchor.current.serverNow!==serverNow)anchor.current={serverNow,localNow:Date.now()};
   const clock = useSyncExternalStore(enabled ? subscribeFrames : noSubscribe, () => enabled ? frameClock : 0, () => 0);
-  return clock > 0 ? serverNow + Math.max(0, clock - localNow) : serverNow;
+  return clock > 0 ? serverNow + Math.max(0, clock - anchor.current.localNow) : serverNow;
 }
 
-export function PixelSprite({ definition, action = 'idle', animate = false, facing = 'south', startedAt, sampledElapsed, poseFrame, className = '', itemId, toolLevel }) {
+export function PixelSprite({ definition, action = 'idle', animate = false, facing = 'south', startedAt, sampledElapsed, poseFrame, className = '', itemId, toolLevel, attachTo }) {
   const clock = useSyncExternalStore(animate ? subscribeFrames : noSubscribe, () => animate ? frameClock : 0, () => 0);
   const started = useRef(Date.now());
   const prior = useRef(action);
   if (prior.current !== action) { prior.current = action; started.current = Date.now(); }
-  const frame = Number.isInteger(poseFrame)?actionFrame(definition,action,facing,poseFrame):animationFrame(definition, action, sampledElapsed??Math.max(0, clock - (startedAt ?? started.current)), sampledElapsed!==undefined?!reducedMotion():animate && clock > 0, facing);
+  const selectFrame=source=>Number.isInteger(poseFrame)?actionFrame(source,action,facing,poseFrame):animationFrame(source, action, sampledElapsed??Math.max(0, clock - (startedAt ?? started.current)), sampledElapsed!==undefined?!reducedMotion():animate && clock > 0, facing);
+  const frame=selectFrame(definition),attachment=attachTo&&definition?.render_style==='ink'?spriteAttachment(attachTo.definition,selectFrame(attachTo.definition),definition.attachment_slot||attachTo.slot,facing):null;
   const layer=className.includes('pixel-tool')?(facing==='north'?-.03:.04):className.includes('pixel-weapon')?(facing==='north'?-.02:.03):className.includes('pixel-armor')?.01:className.includes('pixel-accessory')?.02:0;
-  useRenderSprite(definition,frame,{facing,action,layer});
+  const worldGeometry=useRenderSprite(definition,frame,{facing,action,layer,attachment});
   if (!definition || !frame) return <span className={`pixel-sprite pixel-placeholder ${className}`} aria-hidden="true" data-asset-missing="true"/>;
-  const unit=definition.native_scale||1;
-  return <span aria-hidden="true" className={`pixel-sprite ${definition.native_scale?'ink-sprite':''} ${className}`} data-pixel-action={action} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ '--frame-w': `${frame.w*unit}px`, '--frame-h': `${frame.h*unit}px`, backgroundImage: `url("${definition.image}")`, backgroundSize: `calc(${definition.sheet_width*unit}px * var(--pixel-scale, 1)) calc(${definition.sheet_height*unit}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x*unit}px * var(--pixel-scale, 1)) calc(${-frame.y*unit}px * var(--pixel-scale, 1))`, transform: facing === 'west' ? 'scaleX(-1)' : undefined }}/>
+  const unit=spriteNativeScale(definition,frame),ink=definition.render_style==='ink'||definition.native_scale;
+  const logical=definition.logical_anchor,anchored=!!logical||!!worldGeometry&&['pixel-landmark','pixel-discovery'].includes(className),geometry=worldGeometry||(attachment||logical?spriteGeometry(definition,frame,logical?[logical.x,logical.y]:[24,43],facing,attachment):null);
+  return <span aria-hidden="true" className={`pixel-sprite ${ink?'ink-sprite':''} ${className}`} data-art-style={ink?'ink':'pixel'} data-pixel-action={action} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ position:anchored?'absolute':undefined,left:anchored?0:undefined,top:anchored?0:undefined,'--frame-w': `${frame.w*unit}px`, '--frame-h': `${frame.h*unit}px`, backgroundImage: `url("${frame.image||definition.image}")`, backgroundSize: `calc(${(frame.sheet_width||definition.sheet_width)*unit}px * var(--pixel-scale, 1)) calc(${(frame.sheet_height||definition.sheet_height)*unit}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x*unit}px * var(--pixel-scale, 1)) calc(${-frame.y*unit}px * var(--pixel-scale, 1))`,translate:geometry?`calc(${geometry.offset.x}px * var(--pixel-scale,1)) calc(${geometry.offset.y}px * var(--pixel-scale,1))`:undefined,transformOrigin:geometry?`calc(${geometry.domAnchor[0]*unit}px * var(--pixel-scale,1)) calc(${geometry.domAnchor[1]*unit}px * var(--pixel-scale,1))`:undefined,transform:`rotate(${geometry?.rotation||0}rad) scaleX(${facing==='west'?-1:1})` }}/>
 }
 
 export function CharacterSprite({ agent, events = [], now = Date.now(), live = false, className = '', portrait = false }) {
@@ -93,9 +98,9 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
   return <span className={`pixel-character ${className}`} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
     <PixelSprite definition={sprite} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active && action !== 'idle'}/>
-    {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active && action !== 'idle'}/>}
-    {['armor', 'weapon'].map(slot => equipment[slot] && !(slot === 'weapon' && handsBusy) && <PixelSprite key={slot} className={`pixel-layer pixel-${slot}`} itemId={equipment[slot]} definition={assets?.equipment?.[equipment[slot]]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active && action !== 'idle'}/>)}
-    {tool && <PixelSprite className="pixel-layer pixel-tool" itemId={tool} toolLevel={toolLevel} definition={assets?.tools?.[`${tool}_${toolLevel}`]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active}/>}
+    {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" attachTo={{definition:sprite,slot:'head'}} itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active && action !== 'idle'}/>}
+    {['armor', 'weapon'].map(slot => equipment[slot] && !(slot === 'weapon' && handsBusy) && <PixelSprite key={slot} className={`pixel-layer pixel-${slot}`} attachTo={{definition:sprite,slot:slot==='armor'?'chest':'hand'}} itemId={equipment[slot]} definition={assets?.equipment?.[equipment[slot]]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active && action !== 'idle'}/>)}
+    {tool && <PixelSprite className="pixel-layer pixel-tool" attachTo={{definition:sprite,slot:'hand'}} itemId={tool} toolLevel={toolLevel} definition={assets?.tools?.[`${tool}_${toolLevel}`]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={facing} animate={active}/>}
   </span>;
 }
 
@@ -106,11 +111,15 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
   const dimensions = mapDimensions(map);
   const scene=assets?.scenes?.[sceneId];
   useRenderSprite(scene,scene&&{x:0,y:0,w:scene.width,h:scene.height},{ground:true});
-  const ground=wildernessGround(sceneId),pond=pondGeometry(ground.pond),svgPoints=points=>points.map(p=>p.x+','+p.y).join(' ');
+  const terrain=terrainDrawing(sceneId,assets?.render_style==='ink'),svgPoints=points=>points.map(p=>p.x+','+p.y).join(' ');
   return <div className="pixel-scene" role="img" aria-label={label||`${sceneDefinition(sceneId)?.name}，真实场景地形`} data-testid="pixel-scene" data-scene-id={sceneId} style={{ '--grid-columns': dimensions.width, '--grid-rows': dimensions.height }}>
     {scene?.image && <img src={scene.image} alt="" className="pixel-scene-image" draggable="false" onError={()=>setFailed(true)}/>}
-    <svg className="wilderness-terrain" viewBox={`0 0 ${dimensions.width*32} ${dimensions.height*32}`} aria-hidden="true"><rect width="100%" height="100%" fill="#d6ccae" opacity=".34"/><ellipse cx="368" cy="272" rx="87" ry="60" fill={sceneId==='plaza'?'#d9c5a2':'#a8aa8c'} opacity=".5"/>{ground.trails.map((path,i)=><g key={i}>{[[31,'#736749',.18],[24,'#d0bd97',.52],[2,'#817552',.2]].map(([width,color,opacity])=><polyline key={width} points={svgPoints(path)} fill="none" stroke={color} strokeWidth={width} opacity={opacity}/>)}</g>)}{pond&&<g><polygon points={svgPoints(pond.bank)} fill="#817f62" fillOpacity=".85" stroke="#535d4e" strokeWidth="2"/><polygon points={svgPoints(pond.water)} fill="#7b9790" stroke="#abb6a2" strokeWidth="2"/>{pond.ripples.map((line,i)=><polyline key={i} points={svgPoints(line)} stroke="#d1d5bc" opacity=".65" strokeWidth="1.4"/>)}{pond.reeds.map((p,i)=><path key={i} d={[-3,0,4].map(dx=>`M${p.x},${p.y} L${p.x+dx},${p.y-6-Math.abs(dx)}`).join(' ')} stroke="#4c5a3e" fill="none" strokeWidth="1.4"/>)}</g>}</svg>
-    {!assets && <span className="pixel-scene-loading">像素场景载入中…</span>}
+    {scene?.terrain_overlay!==false&&<svg className="wilderness-terrain" viewBox={`0 0 ${dimensions.width*32} ${dimensions.height*32}`} aria-hidden="true">
+      <rect width="100%" height="100%" fill={terrain.wash[0]} opacity={terrain.wash[1]}/>
+      {terrain.fills.map((paint,i)=><polygon key={i} points={svgPoints(paint.points)} fill={paint.color} fillOpacity={paint.alpha}/>)}
+      {terrain.strokes.map((line,i)=><polyline key={i} points={svgPoints(line.points)} fill="none" stroke={line.color} strokeWidth={line.width} opacity={line.alpha}/>)}
+    </svg>}
+    {!assets && <span className="pixel-scene-loading">荒野场景载入中…</span>}
     {assets&&!scene&&<span className="pixel-scene-loading" role="status">当前场景素材暂不可用</span>}
     {assets&&(failed||sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]))&&<span className="scene-asset-warning" role="status">部分场景素材未载入 · 角色位置仍按服务器记录显示</span>}
     {grid && <span className="pixel-grid"/>}
@@ -120,7 +129,7 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
 export function SceneProps({sceneId,map}){
   const assets=usePixelManifest();
   const scene=sceneDefinition(sceneId);
-  const inkKinds={pine:'pine',pine_tall:'pine',oak:'oak',birch:'oak',apple:'oak',dead_tree:'stump',rock:'ore',rock_large:'ore'};
+  const inkKinds={pine:'pine',pine_tall:'pine',oak:'oak',birch:'oak',apple:'oak',dead_tree:assets?.wilderness?.dead_tree?'dead_tree':'stump',rock:assets?.wilderness?.stones?'stones':'ore',rock_large:'ore'};
   return <>{scene?.props.filter(prop=>prop.kind!=='pond'&&!RESOURCE_NODES.some(n=>n.kind==='tree'&&n.scene_id===sceneId&&n.position.x===prop.position.x&&n.position.y===prop.position.y)).map(prop=>{const kind=['pine','pine_tall','oak','birch','apple'].includes(prop.kind)?'dead_tree':prop.kind;const definition=assets?.wilderness?.[inkKinds[kind]]||assets?.props?.[prop.kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.native_scale?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
 }
 
@@ -139,7 +148,7 @@ export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,s
 
 export function PixelFarmBackdrop() {
   const assets = usePixelManifest();
-  return <div className="pixel-farm-backdrop" role="img" aria-label="营地农作区近景，水井、木篱笆与工具架">
+  return <div className="pixel-farm-backdrop" data-art-style={assets?.farm_scene?.render_style||assets?.render_style||'pixel'} role="img" aria-label="营地农作区近景，木篱笆与工具棚">
     {assets?.farm_scene?.image ? <img className="pixel-scene-image" src={assets.farm_scene.image} alt="" draggable="false"/> : <span className="pixel-scene-loading">农作区载入中…</span>}
   </div>;
 }

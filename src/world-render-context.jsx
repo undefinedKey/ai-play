@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useId, useLayoutEffect} from 'react';
-import {renderSpace} from './render-packet.js';
+import {renderSpace,spriteGeometry,spriteRenderPacket} from './render-packet.js';
 
 // Rendering packets contain only observed positions and selected atlas frames.
 // They do not advance simulation, combat, travel or AI decisions.
@@ -9,14 +9,14 @@ export function RenderSpace({position,depth=0,anchor=[24,43],offset={x:0,y:0},al
   const renderer=useContext(WorldRenderContext);
   return <SpaceContext.Provider value={renderSpace(position,{depth,anchor,offset,alpha,screenSize,viewportScale:renderer?.scale})}>{children}</SpaceContext.Provider>;
 }
-export function useRenderSprite(definition,frame,{facing='south',action='idle',layer=0,ground=false}={}) {
+export function useRenderSprite(definition,frame,{facing='south',action='idle',layer=0,ground=false,attachment}={}) {
   const renderer=useContext(WorldRenderContext),space=useContext(SpaceContext),id=useId();
   const registry=renderer?.registry;
   useLayoutEffect(()=>{
     if(!registry)return;
-    if(!definition||!frame||(!ground&&!space)){registry.delete(id);return;}
-    const nativeScale=definition.native_scale||1;
-    registry.set(id,{definition,frame,x:ground?0:space.x,y:ground?0:space.y,depth:ground?-100:space.depth+layer,anchor:ground?[0,0]:space.anchor.map(n=>n/nativeScale),scale:ground?1:space.scale*nativeScale,alpha:ground?1:space.alpha,flip:facing==='west',action});
-  },[registry,id,definition,frame,space,ground,layer,facing,action]);
+    const packet=spriteRenderPacket(definition,frame,space,{facing,action,layer,ground,attachment});
+    if(packet)registry.set(id,packet);else registry.delete(id);
+  },[registry,id,definition,frame,space,ground,layer,facing,action,attachment]);
   useLayoutEffect(()=>()=>registry?.delete(id),[registry,id]);
+  return space&&!ground&&frame?spriteGeometry(definition,frame,space.anchor,facing,attachment):null;
 }

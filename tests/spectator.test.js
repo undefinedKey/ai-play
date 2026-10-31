@@ -135,7 +135,11 @@ test('合作公开契约投影与增量SSE不含未接受对象、拒绝私信�
 });
 
 test('旁观增量SSE仅发送变化和新事件，重连恢复完整快照', async t => {
-  const f = await fixture(t), c = character(f.world);
+  const f = await fixture(t);
+  // The transport equivalence assertion compares the same world instant;
+  // wall-clock survival drain between HTTP requests is tested separately.
+  const now=f.world.now(); f.world.now=()=>now;
+  const c = character(f.world);
   for (let i = 0; i < 150; i++) f.world.event('message', { agent_id: c.agent.agent_id, name: '公开小芽', channel: 'nearby', text: `历史${i}` });
   const watch = await stream(t, `${f.url}/api/public/events?delta=1`);
   const initial = snapshotFrame(await watch.next());

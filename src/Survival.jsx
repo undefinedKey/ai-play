@@ -7,15 +7,16 @@ import {ResourceSelection} from './Wilderness.jsx';
 import {sceneFireLights,survivalStatus} from './survival-state.js';
 import {WORLD_MAP} from '../shared/world-layout.js';
 import {SURVIVAL_RULES} from '../shared/survival-rules.js';
+import {fireArtwork,artworkAnchor} from './scene-art.js';
 
 const fireNames={campfire:'篝火',firepit:'石围火塘'};
 export function FireLayer({world,sceneId,map,live}){
  const assets=usePixelManifest(),selection=useContext(ResourceSelection);
- const logs=useMemo(()=>{const source=assets?.effects?.campfire;if(!source)return null;const first=source.animations.idle.frames[0];return {...source,animations:{idle:{loop:false,frames:[{...first,y:first.y+38,h:10}]}}};},[assets]);
+ const logs=useMemo(()=>fireArtwork(assets,false),[assets]);
  return <div className="fire-sites" aria-label="真实宿营地">{(world.survival?.sites||[]).filter(s=>s.scene_id===sceneId).map(site=>{
-  const fire=world.survival.fires.find(f=>f.site_id===site.id),lit=fire?.lit&&fire.fuel_seconds>0,id=`fire:${site.id}`;
+  const fire=world.survival.fires.find(f=>f.site_id===site.id),lit=fire?.lit&&fire.fuel_seconds>0,id=`fire:${site.id}`,definition=lit?assets?.effects?.campfire:logs,anchor=artworkAnchor(definition,lit?[16,43]:[16,5]);
   return <button key={site.id} className={`fire-site ${lit?'lit':fire?'unlit':'vacant'} ${selection.selected===id?'selected':''}`} data-testid={`fire-site-${site.id}`} data-lit={!!lit} data-fuel={fire?.fuel_seconds??0} data-fire-id={fire?.fire_id} style={{...projectMapPoint(site.position,map),zIndex:100+site.position.y*10}} aria-label={`查看${site.name}，${lit?`${fireNames[fire.kind]}燃烧中` :fire?'火已熄灭':'尚未建造'}，只读`} aria-pressed={selection.selected===id} onClick={()=>selection.select(id)}>
-   {fire&&<RenderSpace position={site.position} depth={100+site.position.y*10} anchor={lit?[16,43]:[16,5]}><span className={`fire-art ${lit?'flaming':'ashes'}`}><PixelSprite definition={lit?assets?.effects?.campfire:logs} animate={live&&!!lit}/></span></RenderSpace>}
+   {fire&&<RenderSpace position={site.position} depth={100+site.position.y*10} anchor={anchor}><span className={`fire-art ${lit?'flaming':'ashes'}`} style={{'--fire-anchor-x':`${anchor[0]}px`,'--fire-anchor-y':`${anchor[1]}px`}}><PixelSprite definition={definition} animate={live&&!!lit}/></span></RenderSpace>}
    <span className={`fire-bed ${fire?.kind==='firepit'?'stone-ring':''}`} aria-hidden="true"/>
    <span className="fire-site-mark" aria-hidden="true">{lit?'♨':fire?'◌':'⌑'}</span><span className="fire-label">{site.name}<small>{lit?`${Math.ceil(fire.fuel_seconds)}秒燃料` :fire?'已熄灭':'宿营空地'}</small></span>
   </button>;

@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { sceneGround, sceneProp } from '../art/pixel-world/scenes.mjs';
 import { SCENES } from '../shared/world-layout.js';
 import { applyWildernessAssets } from '../art/wilderness/manifest.mjs';
+import { applyInkWorldAssets } from '../art/ink-world/manifest.mjs';
 const ROOT = resolve(import.meta.dirname, '..');
 const TOOL = resolve(process.env.PIXELBOLT_ROOT || join(ROOT, 'data/tools/Pixelbolt'));
 const PIN = 'ce12f75cc524e63e90d4bd183aecc3a46a6b44ee';
@@ -417,4 +418,4 @@ if(!only||only==='campfire'){
  // Public app uses the common idle key for an environmental loop.
  manifest.effects.campfire.animations.idle=Object.values(manifest.effects.campfire.animations)[0];
 }
-if(!only){applyWildernessAssets(manifest,ROOT);publish(join(PUBLIC,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');writeFileSync(join(SOURCE,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');}
+if(!only){applyWildernessAssets(manifest,ROOT);applyInkWorldAssets(manifest,ROOT);publish(join(PUBLIC,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');writeFileSync(join(SOURCE,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');}
