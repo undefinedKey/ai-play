@@ -152,7 +152,7 @@ test('铁剑铁甲材料门槛与属性真实生效，仓库数量上限不溢�
   assert.equal(a.life.inventory.ore, 8);
   assert.equal(f.inventory(p, 'craft', 'iron_sword').status, 'applied'); assert.equal(f.inventory(p, 'craft', 'iron_armor').status, 'applied');
   assert.equal(f.inventory(p, 'equip', 'iron_sword').status, 'applied'); assert.equal(f.inventory(p, 'equip', 'iron_armor').status, 'applied');
-  assert.deepEqual(f.observe(p).self.life.stats, { attack_bonus: 5, defense: 3, attack: 11, effective_attack: 11, attack_multiplier: 1 }); assert.equal(f.observe(p).self.life.inventory.ore, undefined);
+  assert.deepEqual(f.observe(p).self.life.stats, { attack_bonus: 5, defense: 3, attack: 11, effective_attack: 11, attack_multiplier: 1, range: 1, attack_interval_ms: 1000, attack_energy: 3, move_energy_per_tile: 0.15 }); assert.equal(f.observe(p).self.life.inventory.ore, undefined);
   f.raw(p).life.inventory.wooden_sword = Number.MAX_SAFE_INTEGER; f.raw(p).life.inventory.wood = 3;
   const before = f.observe(p).self.life.inventory;
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'INVENTORY_FULL'); assert.deepEqual(f.observe(p).self.life.inventory, before);

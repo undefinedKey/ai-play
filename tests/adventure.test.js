@@ -266,8 +266,9 @@ test('失去原AI心跳后先停止计划，不补算离线期间的移动和攻
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat').length, 0);
 });
 
-test('只探索也会被发现、追击与攻击；不替原AI反击，锁定事件不按秒重复', t => {
+test('发现冷却期间只探索也会被追击攻击；不替原AI反击，锁定事件不按秒重复', t => {
   const f = fixture(t), p = f.make(); f.fighter(p).position = { x: 17, y: 7 };
+  f.fighter(p).adventure.discovery_ready_at = f.now() + 300000;
   f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000);
   const m = f.world.state.adventure.monsters[2], a = f.fighter(p);
   assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'chasing'); assert.deepEqual(m.position, { x: 19, y: 7 }); assert.equal(a.adventure.hp, 40);
@@ -287,8 +288,9 @@ test('未选择过冒险的旧广场角色即使在怪物身边也不会被攻�
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_aggro').length, 0);
 });
 
-test('stop和探索结束不授予野外免疫；无计划低血也会触发有限保护', t => {
+test('发现冷却期间stop和探索结束不授予免疫；无计划低血仍触发有限保护', t => {
   const f = fixture(t), p = f.make(); f.fighter(p).position = { x: 17, y: 7 };
+  f.fighter(p).adventure.discovery_ready_at = f.now() + 300000;
   f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(2000); f.plan(p, 'stop');
   const a = f.fighter(p); assert.equal(a.adventure.plan, null); assert.equal(a.adventure.hp, 32);
   f.advance(1000); assert.equal(a.adventure.hp, 24); assert.equal(a.adventure.in_field, true);
@@ -377,6 +379,7 @@ test('野外停止计划后也不能用旧小游戏或独处活动规避风险�
 test('权限暂停、过期、失联及房间暂停清除仇恨，已完成计划角色也不再受伤', t => {
   for (const operation of ['pause', 'recall', 'expiry', 'offline', 'room']) {
     const f = fixture(t), p = f.make(operation), a = f.fighter(p); a.position = { x: 17, y: 7 };
+    a.adventure.discovery_ready_at = f.now() + 300000;
     f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(3000); assert.equal(a.adventure.plan, null); assert.equal(a.adventure.hp, 24);
     if (operation === 'room') f.world.ownerRoom('pause');
     else if (operation === 'expiry') { a.run.expires_at = f.now(); f.world.tick(); }

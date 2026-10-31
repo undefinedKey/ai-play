@@ -18,7 +18,7 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
     const a = app.world.createAgent({ name, owner_id: name });
     const controller = app.world.createController(a.agent_id);
     app.world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 15 });
-    const client = new Client({ name: 'v013-http', version: '0.13.0' }); clients.push(client);
+    const client = new Client({ name: 'v013-http', version: '0.14.0' }); clients.push(client);
     await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${controller.token}` } } }));
     const call = async (name, args = {}) => {
       const r = await client.callTool({ name, arguments: args });
@@ -47,7 +47,7 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('gather') && types.includes('trade'));
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.13.0');
+  assert.equal(rules.recommended_skill_version, '0.14.0');
   assert.deepEqual(rules.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
   const health = await (await fetch(`${url}/api/health`)).json();
   for (const cap of ['gathering', 'cooking', 'trading']) assert.equal(health.capabilities[cap], true);

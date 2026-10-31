@@ -62,7 +62,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}原AI从零补给自行选
   assert.equal(f.a.adventure.gold, 0); assert.equal(f.a.life.inventory.turnip_seed, 1);
   assert.equal(f.a.adventure.kills, 0); assert.equal(f.runner.checkpoint.calls_used, 4);
   const caps = f.calls.findLast(c => c.name === 'report_status').args.capabilities;
-  assert.equal(caps.length, 12); for (const cap of ['gathering', 'cooking', 'trading']) assert.ok(caps.includes(cap));
+  assert.equal(caps.length, 15); for (const cap of ['gathering', 'cooking', 'trading']) assert.ok(caps.includes(cap));
 });
 
 for (const mode of ['dsh-pet', 'model']) test(`${mode}料理制作和食用由本人选择，满血低体力仍能看见面包，不发送整本流水`, async t => {

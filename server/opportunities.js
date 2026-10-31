@@ -1,6 +1,7 @@
 import { LIFE_RULES, publicLife } from './life.js';
 import { ADVENTURE_ZONES } from './adventure.js';
 import { FATIGUE_RULES, publicFatigue } from './fatigue.js';
+import { combatStats } from './combat.js';
 
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -18,6 +19,14 @@ export function opportunitiesFor(world, a) {
   if (f.hp < f.max_hp || energy < 100) {
     const food = LIFE_RULES.items.find(item => item.kind === 'food' && held(item.id) && (item.heal > 0 && f.hp < f.max_hp || item.energy_restore > 0 && energy < 100));
     if (food) add('eat', `吃${food.name}`, food.energy_restore ? `体力${energy}/100，恢复最多${food.energy_restore}点；野外危险仍在` : `生命${f.hp}/${f.max_hp}，恢复最多${food.heal}点；野外危险仍在`, 'inventory', { intent: 'use', item_id: food.id });
+  }
+  if (f.encounter?.status === 'pending' && f.encounter.expires_at > world.now()) {
+    const e = world.publicAgent(a).adventure.encounter;
+    for (const c of e.choices) if (energy >= c.energy_cost && (!c.heal || f.hp < f.max_hp) && (!c.restore_energy || energy < 100) &&
+      Object.entries(c.items).every(([id, quantity]) => held(id) <= Number.MAX_SAFE_INTEGER - quantity))
+      add(`encounter_${c.choice_id}`, c.name, `本次发现截至${e.expires_at}；体力${c.energy_cost}，结果按目录结算，不自动继续`, 'adventure_event', { event_id: e.event_id, choice_id: c.choice_id });
+    add('retreat', '中断发现并撤回营地', '自愿放弃本次选择并撤退，发现冷却不变', 'adventure_plan', { intent: 'retreat' });
+    return options.slice(0, 6);
   }
   if (life.gathering) {
     add('cancel_gather', '取消当前采集', `工作预计于${life.gathering.ends_at}结束；取消不退已花体力且不领奖，也可以继续等待`, 'gather', { intent: 'cancel' });
@@ -86,15 +95,23 @@ export function opportunitiesFor(world, a) {
     const sell = LIFE_RULES.market.items.find(offer => offer.sell_price && held(offer.item_id) && ['turnip', 'wheat'].includes(offer.item_id)) ||
       (!held('turnip_seed') && !held('wheat_seed') ? LIFE_RULES.market.items.find(offer => offer.sell_price && held(offer.item_id)) : null);
     if (sell && market.sell_remaining > 0 && Number.isSafeInteger(gold + sell.sell_price)) farmAdd(4, `sell_${sell.item_id}`, `交售${LIFE_RULES.items.find(item => item.id === sell.item_id).name}`, `自愿出售1份获得${sell.sell_price}金币；物品也可留作其他用途`, 'trade', { intent: 'sell', item_id: sell.item_id, quantity: 1 });
-    const equipment = LIFE_RULES.items.filter(item => item.kind === 'equipment');
-    const strength = item => (item?.attack_bonus || 0) + (item?.defense || 0);
-    const better = equipment.filter(item => strength(item) > strength(equipment.find(current => current.id === life.equipment[item.slot])));
-    const equip = better.filter(item => held(item.id)).sort((x, y) => strength(y) - strength(x))[0];
-    if (equip) farmAdd(6, 'equip', `装备${equip.name}`, '已有物品，穿戴后实际改变战斗属性', 'inventory', { intent: 'equip', item_id: equip.id });
-    else {
-      const recipe = LIFE_RULES.recipes.filter(recipe => recipe.kind !== 'cooking' && !held(recipe.item_id) && better.some(item => item.id === recipe.item_id) && Object.entries(recipe.ingredients).every(([id, count]) => held(id) >= count))
-        .sort((x, y) => strength(equipment.find(item => item.id === y.item_id)) - strength(equipment.find(item => item.id === x.item_id)))[0];
-      if (recipe && energy >= FATIGUE_RULES.costs.craft) farmAdd(6, 'craft', `制作${equipment.find(item => item.id === recipe.item_id).name}`, '材料足够，制成后还需自己选择穿戴', 'inventory', { intent: 'craft', item_id: recipe.item_id });
+    const current = combatStats(a);
+    const alternatives = LIFE_RULES.items.filter(item => item.kind === 'equipment' && life.equipment[item.slot] !== item.id).map(item => {
+      const stats = combatStats({ ...a, life: { ...a.life, equipment: { ...life.equipment, [item.slot]: item.id }, inventory: { ...inventory, [item.id]: 1 } } });
+      const recipe = LIFE_RULES.recipes.find(recipe => recipe.item_id === item.id);
+      return { item, stats, owned: held(item.id) > 0, craftable: recipe && canPay(recipe.ingredients) && energy >= FATIGUE_RULES.costs.craft };
+    }).filter(({ stats, owned, craftable }) => (owned || craftable) && (stats.attack > current.attack || stats.defense > current.defense || stats.range > current.range ||
+      stats.attack_interval_ms < current.attack_interval_ms || stats.attack_energy < current.attack_energy || stats.move_energy_per_tile < current.move_energy_per_tile))
+      // Prefer showing an already-owned alternative and a different range/cost
+      // profile, not declaring raw attack+defense to be the only best equipment.
+      .sort((x, y) => Number(y.owned) - Number(x.owned) || y.stats.range - x.stats.range || x.stats.attack_energy - y.stats.attack_energy || x.stats.attack_interval_ms - y.stats.attack_interval_ms);
+    const equipmentIds = new Set();
+    for (const slot of ['weapon', 'armor']) {
+      const alternative = alternatives.find(alternative => alternative.item.slot === slot);
+      if (!alternative) continue;
+      const { item, stats, owned } = alternative, intent = owned ? 'equip' : 'craft', id = `${intent}_${item.id}`;
+      equipmentIds.add(id);
+      farmAdd(6, id, `${owned ? '换用' : '制作'}${item.name}`, `穿戴后攻击${stats.attack}、射程${stats.range}、每${stats.attack_interval_ms / 1000}秒一击耗${stats.attack_energy}体力，防御${stats.defense}，每格耗${stats.move_energy_per_tile}；取舍由自己决定${owned ? '' : '，制作后需另行选择穿戴'}`, 'inventory', { intent, item_id: item.id });
     }
     const resources = LIFE_RULES.gathering.resources.filter(resource => distance(a.position, resource) <= resource.radius && energy >= resource.energy_cost &&
       life.gather_ready_at[resource.id] <= world.now() && held(resource.item_id) <= Number.MAX_SAFE_INTEGER - resource.yield_count);
@@ -112,7 +129,11 @@ export function opportunitiesFor(world, a) {
     // Reserve independent choices for gathering, exploration, and legal combat.
     // Absent monsters or low energy release the combat slot for living choices.
     const reserved = 1 + (resource ? 1 : 0) + (target ? 1 : 0);
-    options.push(...distinct.slice(0, Math.max(0, Math.min(3, 6 - reserved - options.length))).map(({ priority, ...option }) => option));
+    const slots = Math.max(0, Math.min(3, 6 - reserved - options.length)), selected = distinct.slice(0, slots);
+    // With two or more living slots, keep one concrete strategy alternative
+    // visible without evicting the highest-priority farm/repair choice.
+    if (slots >= 2 && equipmentIds.size && !selected.some(option => equipmentIds.has(option.id))) selected[selected.length - 1] = distinct.find(option => equipmentIds.has(option.id));
+    options.push(...selected.map(({ priority, ...option }) => option));
     if (resource) add(`gather_${resource.id}`, `徒手采集${resource.item_id === 'wood' ? '木材' : '矿石'}`, `${resource.name}：${resource.duration_seconds}秒、${resource.energy_cost}体力，完成得${resource.yield_count}份；无需工具，可取消`, 'gather', { intent: 'start', resource_id: resource.id });
   } else {
     add('return_camp', '回营地休息或照料农田', '安全区可种植、收获、制作和穿戴装备', 'adventure_plan', { intent: 'rest' });

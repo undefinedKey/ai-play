@@ -15,6 +15,8 @@ import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFa
 import { initializeAppearance, publicAppearance } from './appearance.js';
 import { initializePresence, seenPresence, departPresence, publicPresence } from './presence.js';
 import { runtimeReport } from './runtime-health.js';
+import { encounterPending, endEncounter, tickEncounter, performAdventureEvent } from './exploration.js';
+import { PERSONAL_GOAL_RULES, initializePersonalGoal, publicPersonalGoal, reviewPersonalGoal, tickPersonalGoals, performPersonalGoal, progressPersonalGoal } from './personal-goals.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -30,7 +32,7 @@ const textField = (v, max, name, fallback = '') => {
   if (typeof v !== 'string' || [...v].length > max) fail('INVALID_ACTION', `${name}最多 ${max} 个字符`);
   return v.trim();
 };
-const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'farm', 'inventory', 'gather', 'trade', 'wait'];
+const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'farm', 'inventory', 'gather', 'trade', 'wait'];
 const PLACES = [
   { id: 'pond', name: '薄荷小池', x: 4, y: 4, radius: 3 },
   { id: 'garden', name: '中央花园', x: 11, y: 8, radius: 3 },
@@ -70,9 +72,10 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) a.position = boundedPosition(a.position);
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
-    for (const a of Object.values(this.state.agents)) { initializeLife(a); initializeEconomy(a, this.now()); initializePresence(a, { legacy: true, events: this.state.events }); }
+    for (const a of Object.values(this.state.agents)) { initializeLife(a); initializeEconomy(a, this.now()); initializePersonalGoal(a); initializePresence(a, { legacy: true, events: this.state.events }); }
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
+        endEncounter(this, a); reviewPersonalGoal(this, a, 'restarted');
         cancelGather(this, a, 'restarted');
         this.finishActivity(a, { cancelled: true });
         departPresence(a, this.now());
@@ -142,6 +145,7 @@ export class World extends EventEmitter {
       a.invitation_claim = { invite_id: claim.invite_id, device_hash: claim.device_hash };
     }
     initializeFighter(a);
+    initializePersonalGoal(a);
     initializePresence(a);
     initializeLife(a);
     initializeEconomy(a, this.now(), { initial: true });
@@ -212,6 +216,8 @@ export class World extends EventEmitter {
     this.event('agent_left', { agent_id: a.agent_id, text: `${a.name}离开了广场`, reason }, this.activeIds());
   }
   detach(a, { leaveField = true } = {}) {
+    endEncounter(this, a);
+    if (leaveField) reviewPersonalGoal(this, a);
     cancelGather(this, a, 'interrupted');
     departPresence(a, this.now());
     stopAdventure(this, a, 'interrupted', '控制已暂停、转交或离线，冒险计划停止');
@@ -227,7 +233,7 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES, events: this.state.events.slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
@@ -239,7 +245,7 @@ export class World extends EventEmitter {
     return snap;
   }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.13.0-life', recommended_skill_version: '0.13.0', room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.14.0-adventure', recommended_skill_version: '0.14.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), room: { capacity: 5, ...WORLD_MAP },
       places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
@@ -321,7 +327,7 @@ export class World extends EventEmitter {
       if (!Number.isSafeInteger(count) || count < a.diagnostics.calls_used) fail('INVALID_ACTION', '调用计数必须单调递增');
       if (args.mode !== undefined && !['demo', 'model', 'dsh-pet'].includes(args.mode)) fail('INVALID_ACTION', '运行模式无效');
       if (args.runtime_version !== undefined && (typeof args.runtime_version !== 'string' || !/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(args.runtime_version))) fail('INVALID_ACTION', '运行器版本格式无效');
-      if (args.capabilities !== undefined && (!Array.isArray(args.capabilities) || args.capabilities.length > 12 || args.capabilities.some(value => typeof value !== 'string' || !/^[a-z_]{1,32}$/.test(value)))) fail('INVALID_ACTION', '运行能力格式无效');
+      if (args.capabilities !== undefined && (!Array.isArray(args.capabilities) || args.capabilities.length > 16 || args.capabilities.some(value => typeof value !== 'string' || !/^[a-z_]{1,32}$/.test(value)))) fail('INVALID_ACTION', '运行能力格式无效');
       if (args.last_decision_type !== undefined && !ACTIONS.includes(args.last_decision_type)) fail('INVALID_ACTION', '最近决策类型无效');
       a.diagnostics = { ...a.diagnostics, ...report, state, calls_used: count, last_error: args.last_error == null ? null : textField(args.last_error, 300, '最近错误'), reported_at: this.now(), last_cycle_at: args.last_cycle_at ?? this.now(),
         ...(args.mode !== undefined ? { mode: args.mode } : {}), ...(args.runtime_version !== undefined ? { runtime_version: args.runtime_version } : {}),
@@ -358,7 +364,8 @@ export class World extends EventEmitter {
     try { outcome = this.perform(a, args.type, args.payload || {}); }
     catch (e) { if (!(e instanceof WorldError)) throw e; this.state = backup; a = this.state.agents[a.agent_id]; error = { code: e.code, message: e.message, ...e.details }; }
     if (!error) {
-      recordEconomyDelta(a, balanceBefore, { source_id: args.action_id, reason: `${args.type}${args.payload?.intent ? `_${args.payload.intent}` : ''}`, at: this.now() });
+      recordEconomyDelta(a, balanceBefore, { source_id: args.action_id, reason: `${args.type}${args.payload?.intent ? `_${args.payload.intent}` : ''}`, at: this.now(), world: this });
+      if (args.type === 'inventory' && args.payload?.intent === 'craft') progressPersonalGoal(this, a, { kind: 'cook_item', target_id: args.payload.item_id, source_id: args.action_id });
       if (outcome?.life) outcome.life = publicLife(a, this.now(), { privateInventory: true, includeLedger: false });
     }
     a.next_action_id = uid('act'); a.last_action_at = this.now();
@@ -403,7 +410,12 @@ export class World extends EventEmitter {
   }
   perform(a, type, p) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
+    if (encounterPending(a, this.now()) && !['say', 'wait', 'adventure_event', 'personal_goal'].includes(type) &&
+      !(type === 'inventory' && p.intent === 'use') && !(type === 'adventure_plan' && ['stop', 'retreat'].includes(p.intent)))
+      fail('ENCOUNTER_PENDING', '有待处理的探索发现，请先选择或拒绝；也可明确 stop/retreat 中断');
     if (type === 'wait') return {};
+    if (type === 'adventure_event') return performAdventureEvent(this, a, p, fail);
+    if (type === 'personal_goal') return performPersonalGoal(this, a, p, fail);
     if (type === 'adventure_plan') return startAdventure(this, a, p, fail);
     if (['farm', 'inventory', 'gather', 'trade'].includes(type)) return performLife(this, a, type, p, fail);
     if (type === 'start_activity') {
@@ -637,7 +649,9 @@ export class World extends EventEmitter {
       if (a.reserved_until && a.reserved_until <= now) { a.reserved_until = null; changed = true; }
       const thinkingTimeout = a.diagnostics.mode === 'dsh-pet' ? 75000 : 10000;
       if (a.diagnostics.state === 'thinking' && now - a.diagnostics.reported_at > thinkingTimeout) { a.diagnostics.state = 'stale'; changed = true; }
+      if (tickEncounter(this, a)) changed = true;
     }
+    if (tickPersonalGoals(this)) changed = true;
     for (const i of Object.values(this.state.invitations)) if (i.status === 'pending' && i.expires_at <= now) { i.status = 'expired'; changed = true; }
     const game = this.state.game;
     if (game?.status === 'recruiting' && game.deadline <= now) { this.startGame(); changed = true; }

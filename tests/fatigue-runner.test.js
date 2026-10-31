@@ -144,8 +144,8 @@ for (const activePlan of [false, true]) test(`UTF-16极限${activePlan ? '含进
     events: [{ type: 'fatigue_exhausted', payload: { agent_id: f.a.agent_id, text: '体力不足' } }, { type: 'message', payload: { agent_id: friend, text: message } }] });
   const data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal)); assert.equal(data.events.at(-1).text, message);
-  assert.deepEqual(data.energy, [0, 0.75, 12]); assert.equal(data.adventure.monsters.length, 3);
-  assert.ok(data.adventure.monsters.some(row => row[6] === friend)); assert.ok(data.food.some(row => row[0] === 'turnip'));
+  assert.deepEqual(data.energy, [0, 0.75, 12]); assert.equal(data.adventure.monsters.length, 3); assert.deepEqual(data.combat, [observation.self.life.stats.effective_attack, 0, 1, 1000, 3, 0.15]);
+  assert.ok(data.adventure.monsters.some(row => row[6] === friend || row[6] === 'speaker' && data.events.at(-1).agent_id === friend)); assert.ok(data.food.some(row => row[0] === 'turnip'));
   assert.equal(data.self.adventure.hp, 8); assert.equal(data.self.adventure.decision_seconds, 30);
   if (activePlan) assert.deepEqual({ intent: data.self.adventure.plan.intent, monster_id: data.self.adventure.plan.monster_id }, { intent: 'hunt', monster_id: 'ruins_guardian' });
   assert.deepEqual(data.last_action.requested, feedback.requested); assert.deepEqual(data.last_action.applied, feedback.applied);

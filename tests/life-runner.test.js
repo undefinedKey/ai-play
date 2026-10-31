@@ -102,7 +102,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}入场立即有决策机�
   const version = JSON.parse(readFileSync(new URL('../skills/ai-plaza/version.json', import.meta.url), 'utf8')).version;
   assert.equal(reports.at(-1).runtime_version, version);
   assert.equal(reports.at(-1).mode, mode);
-  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'gathering', 'cooking', 'trading', 'recovery', 'reliable_events', 'runtime_health']);
+  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals', 'recovery', 'reliable_events', 'runtime_health']);
   assert.equal(reports.at(-1).last_decision_type, 'adventure_plan');
   assert.ok(reports.some(r => r.last_decision_type === 'wait'));
 });
@@ -196,7 +196,7 @@ test('拥挤生活机会与三名追击者同时存在时保留关键战况和�
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal));
   assert.equal(data.events.at(-1).text, message);
   assert.equal(data.adventure.monsters.length, 3);
-  assert.ok(data.adventure.monsters.some(row => row[6] === friend));
+  assert.ok(data.adventure.monsters.some(row => row[6] === friend || row[6] === 'speaker' && data.events.at(-1).agent_id === friend));
   assert.equal(data.self.adventure.hp, 8); assert.equal(data.self.adventure.decision_seconds, 30);
   assert.deepEqual(data.last_action.requested, feedback.requested); assert.deepEqual(data.last_action.applied, feedback.applied);
   assert.equal(data.last_action.status, 'applied'); assert.ok(data.movement.candidates.length >= 2);

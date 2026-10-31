@@ -6,6 +6,8 @@ import { publicLife } from './life.js';
 import { publicAppearance } from './appearance.js';
 import { publicFatigue } from './fatigue.js';
 import { publicPresence } from './presence.js';
+import { publicPersonalGoal } from './personal-goals.js';
+import { EXPLORATION_RULES, publicExplorationResult } from './exploration.js';
 
 const string = value => typeof value === 'string' ? value : undefined;
 const number = value => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -31,6 +33,13 @@ const publicEventFields = {
   adventure_defeated: ['agent_id', 'name', 'text', 'monster_id'],
   adventure_danger: ['agent_id', 'name', 'text', 'hp', 'decision_until'],
   adventure_respawn: ['text', 'monster_id'],
+  exploration_found: ['agent_id', 'name', 'text', 'event_id', 'template_id', 'zone_id', 'position', 'status', 'found_at', 'expires_at', 'choices'],
+  exploration_resolved: ['agent_id', 'name', 'text', 'event_id', 'template_id', 'zone_id', 'position', 'status', 'selected_choice_id', 'resolved_at', 'public_result'],
+  exploration_ended: ['agent_id', 'name', 'text', 'event_id', 'template_id', 'zone_id', 'position', 'status', 'selected_choice_id', 'resolved_at', 'public_result'],
+  personal_goal_set: ['agent_id', 'name', 'text', 'goal_id', 'kind', 'target_id', 'target_count', 'progress', 'title', 'status', 'created_at', 'updated_at', 'expires_at', 'review_reason'],
+  personal_goal_progress: ['agent_id', 'name', 'text', 'goal_id', 'kind', 'target_id', 'target_count', 'progress', 'title', 'status', 'created_at', 'updated_at', 'expires_at', 'review_reason'],
+  personal_goal_ended: ['agent_id', 'name', 'text', 'goal_id', 'kind', 'target_id', 'target_count', 'progress', 'title', 'status', 'created_at', 'updated_at', 'expires_at', 'review_reason'],
+  personal_goal_review: ['agent_id', 'name', 'text', 'goal_id', 'kind', 'target_id', 'target_count', 'progress', 'title', 'status', 'created_at', 'updated_at', 'expires_at', 'review_reason'],
   life_planted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   life_tilled: ['agent_id', 'name', 'text', 'plot_id', 'item_id', 'level', 'durability'],
   life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'level', 'durability'],
@@ -63,7 +72,9 @@ function publicEvent(event, agentIds) {
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
   for (const key of fields) {
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
+    if (key === 'public_result') { payload[key] = publicExplorationResult(raw[key]); continue; }
+    if (key === 'choices' && event.type.startsWith('exploration_')) { payload[key] = structuredClone(EXPLORATION_RULES.templates.find(t => t.template_id === raw.template_id)?.choices || []); continue; }
+    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['found_at', 'expires_at', 'resolved_at', 'created_at', 'updated_at', 'target_count', 'progress', 'deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {
@@ -85,7 +96,7 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
     leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
     places: catalog.places.map(place => ({ id: string(place.id), name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),

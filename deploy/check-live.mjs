@@ -11,7 +11,7 @@ const health = await (await response('/api/health')).json();
 assert.equal(health.ok, true);
 assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
-for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading']) assert.equal(health.capabilities[capability], true, capability);
+for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);

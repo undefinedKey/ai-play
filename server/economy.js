@@ -1,3 +1,4 @@
+import { progressPersonalGoal } from './personal-goals.js';
 // The ledger is private, bounded evidence of actual changes, not a public feed.
 export const LEDGER_LIMIT = 100;
 export const MARKET_RULES = {
@@ -25,7 +26,7 @@ export function initializeEconomy(a, now, { initial = false } = {}) {
   if (!a.life.market || !quantity(a.life.market.window_started_at)) a.life.market = { window_started_at: now, bought: 0, sold: 0 };
   for (const key of ['bought', 'sold']) if (!quantity(a.life.market[key])) a.life.market[key] = key === 'bought' ? MARKET_RULES.buy_limit : MARKET_RULES.sell_limit;
 }
-export function recordEconomyDelta(a, before, { source_id, reason, at }) {
+export function recordEconomyDelta(a, before, { source_id, reason, at, world }) {
   const balances = economyBalance(a), items = {};
   for (const id of new Set([...Object.keys(before.inventory), ...Object.keys(balances.inventory)])) {
     const delta = (balances.inventory[id] || 0) - (before.inventory[id] || 0);
@@ -38,6 +39,8 @@ export function recordEconomyDelta(a, before, { source_id, reason, at }) {
   ledger.total_entries = Math.min(Number.MAX_SAFE_INTEGER, ledger.total_entries + 1);
   ledger.entries.push({ entry_id: `ledger_${ledger.total_entries}`, source_id, at, reason, items, gold_delta, balances });
   if (ledger.entries.length > LEDGER_LIMIT) ledger.entries.splice(0, ledger.entries.length - LEDGER_LIMIT);
+  if (world) for (const [target_id, amount] of Object.entries(items)) if (amount > 0)
+    progressPersonalGoal(world, a, { kind: 'collect_item', target_id, amount, source_id });
 }
 export function publicLedger(a, allowedIds) {
   const allowed = new Set(allowedIds), ledger = a.life?.ledger;

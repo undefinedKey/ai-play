@@ -99,7 +99,22 @@ function character(s, action, i) {
 }
 function overlay(kind,action,i){
   const g=new Grid(48,48),p=pose(action,i),b=p.bob,hy=Math.min(42,p.hand[1]+(p.seated?3:b));
-  if(kind==='wooden_sword'||kind==='iron_sword'){
+  if(kind==='hunter_bow'){
+    const x=Math.min(39,p.hand[0]+1),y=hy-6;
+    g.poly([[x-1,y-12],[x+5,y-9],[x+8,y-3],[x+8,y+4],[x+4,y+12],[x-2,y+15],[x+2,y+7],[x+3,y-2]],outline);
+    g.line(x,y-10,x+5,y-4,'#e0b77b',2);g.line(x+5,y-4,x+5,y+4,'#b18b56',2);g.line(x+5,y+4,x,y+12,'#cfaa70',2);
+    const pull=action==='attack'&&i===1?x-7:x;
+    g.line(x,y-10,pull,y+2,'#e5dfbc');g.line(pull,y+2,x,y+12,'#e5dfbc');g.rect(x+2,y+1,4,4,'#63876a');
+    if(action==='attack'){const end=i===2?46:x+9;g.line(Math.max(1,pull-4),y+2,end,y+2,'#d6bf8d');g.poly([[end,y-1],[end+1,y+2],[end,y+5],[end-3,y+2]],'#e3e9d0');}
+  }else if(kind==='heavy_hammer'){
+    const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?[40,hy-2]:action==='attack'&&i===1?[31,8]:[39,hy-14];
+    g.line(...start,...tip,outline,4);g.line(start[0],start[1],tip[0],tip[1],'#b38960',2);g.line(start[0],start[1]-1,tip[0],tip[1],'#e0be86');
+    g.borderedRect(tip[0]-7,tip[1]-5,15,10,'#677f88');g.rect(tip[0]-6,tip[1]-4,12,3,'#b6c9c7');g.rect(tip[0]-5,tip[1],10,3,'#4d6676');g.rect(tip[0]-1,tip[1]-4,3,8,'#aa9667');g.dot(tip[0],tip[1]-3,'#e9d59b');
+  }else if(kind==='heavy_armor'){
+    g.poly([[14,26+b],[21,28+b],[26,28+b],[33,26+b],[36,33+b],[32,37+b],[28,40+b],[18,40+b],[13,36+b],[11,31+b]],outline);
+    g.poly([[16,28+b],[21,30+b],[26,30+b],[31,28+b],[33,34+b],[28,38+b],[18,38+b],[14,34+b]],'#637984');g.rect(17,30+b,5,6,'#9db6b5');g.rect(25,31+b,4,5,'#4a626f');g.line(16,37+b,29,37+b,'#b5a67a',2);
+    g.borderedRect(10,26+b,9,7,'#7c9296');g.rect(11,27+b,7,2,'#c4cebb');g.borderedRect(29,26+b,9,7,'#647d88');g.rect(30,27+b,7,2,'#a8beb8');g.rect(22,30+b,3,7,'#baaa73');
+  }else if(kind==='wooden_sword'||kind==='iron_sword'){
     const metal=kind==='iron_sword',dark=metal?'#4f747d':'#78543b',mid=metal?'#a7c7c5':'#bd9560',lit=metal?'#e5e8ca':'#ebc884';
     const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?[44,hy-1]:action==='attack'&&i===1?[32,8]:[39,hy-13];
     g.line(...start,...tip,outline,3);g.line(...start,...tip,mid,2);g.line(start[0],start[1]-1,tip[0],tip[1],lit);g.line(start[0]-3,start[1]-3,start[0]+4,start[1]-1,dark,2);g.rect(start[0],start[1],2,4,'#765541');
@@ -278,6 +293,23 @@ function landmark(id){
  }
  return g;
 }
+function discovery(id,resolved=false,i=0){
+ const g=new Grid(48,48);g.ellipse(5,36,39,8,'#203d3838');
+ if(id==='supply_cache'){
+  g.borderedRect(8,24,32,17,'#9c724f');g.rect(10,27,28,3,'#c8a16c');g.rect(11,36,26,2,'#775b43');g.rect(13,25,3,15,'#637a70');g.rect(33,25,3,15,'#637a70');
+  if(resolved){g.borderedRect(9,11,31,13,'#b69460');g.rect(11,13,27,8,'#5a5b47');g.ellipse(12,23,25,7,'#514e3b');g.rect(17,23,5,4,'#dfbf7c');g.poly([[27,22],[32,23],[32,27],[25,27]],'#aabcb4');}
+  else {g.poly([[8,24],[11,16],[35,16],[40,24]],outline);g.poly([[10,23],[13,18],[34,18],[37,23]],'#c3a06d');g.rect(13,18,3,7,'#7b8974');g.rect(33,18,3,7,'#7b8974');g.borderedRect(21,25,7,8,'#d6be7c');g.dot(24,29,'#705d40');}
+ }else if(id==='wild_garden'){
+  g.ellipse(5,31,38,11,'#608053');g.ellipse(9,29,30,8,'#8a9e62');
+  for(const[x,y]of[[14,29],[29,32],[23,21]]){g.ellipse(x-4,y,8,9,'#eee0b9');g.line(x,y+7,x-2,y+10,'#bcaa7c');g.poly([[x,y+3],[x-8,y-4],[x-5,y-8],[x,y-3],[x+5,y-10],[x+8,y-6]],'#4e754e');g.line(x,y+2,x+5,y-7,'#b0c77a',2);}
+  g.line(7,33,5,26,'#769957');g.line(38,35,42,29,'#b5bd78',2);
+ }else{
+  g.ellipse(3,27,42,16,'#5e776a');g.ellipse(5,26,38,14,'#a5b59e');g.ellipse(8,27,32,10,'#578b94');g.ellipse(11,28,25,7,'#90c8c1');g.line(14,29,29,29,'#d3e9d1',2);
+  g.poly([[28,28],[29,12],[35,8],[41,15],[41,30]],outline);g.poly([[30,27],[31,14],[35,11],[39,16],[39,28]],'#94aca2');g.line(32,15,35,13,'#d5d6b8',2);g.rect(30,21,6,4,'#4b776e');g.line(32,24,29,29,'#b5dfd2',2);g.ellipse(5,23,8,5,'#8b9e84');
+ }
+ if(resolved&&i>0){const y=12-i*2;g.line(9,y-2,9,y+2,'#eee0a4');g.line(7,y,11,y,'#eee0a4');if(i===2){g.line(40,y+6,40,y+10,'#f3e8b6');g.line(38,y+8,42,y+8,'#f3e8b6');}}
+ return g;
+}
 function recipe(name,frames,w=48,h=48){
  const palette={},index=new Map();
  for(const f of frames)for(const row of f.g.p)for(const c of row)if(c&&!index.has(c)){
@@ -285,7 +317,7 @@ function recipe(name,frames,w=48,h=48){
    const key=symbols[index.size];index.set(c,key);palette[key]=c;
  }
  const animations={};
- for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','till','plant','water','harvest','craft','repair','upgrade','cook','eat'].includes(a)}).frames.push(f.name);}
+ for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','till','plant','water','harvest','craft','repair','upgrade','cook','eat','resolved'].includes(a)}).frames.push(f.name);}
  const sourceFrames=frames.map(f=>{
    const ops=[];
    // A still may exceed 256px, but each editable Pixelbolt grid is at most 256².
@@ -294,7 +326,7 @@ function recipe(name,frames,w=48,h=48){
  });
  return {version:1,name,width:w,height:h,palette,frames:sourceFrames,animations,sheet:{columns:Math.min(8,frames.length),padding:0}};
 }
-const manifest={version:1,release:'0.13.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},effects:{},placements:{campfire:{x:9.1,y:9.3}}};
+const manifest={version:1,release:'0.14.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:9.1,y:9.3}}};
 function cli(args){return JSON.parse(execFileSync(process.execPath,[CLI,...args],{encoding:'utf8',maxBuffer:16*1024*1024}));}
 function exportRecipe(r,group,id=r.name){
  const path=join(SOURCE,`${r.name}.pixel.json`);
@@ -326,7 +358,8 @@ function exportRecipe(r,group,id=r.name){
 }
 for(let i=0;i<8;i++)exportRecipe(recipe(`wanderer_${i+1}`,poses.map(p=>({...p,g:character(specs[i],p.action,p.frame)}))),'characters');
 for(const id of ['forest_slime','forest_boar','ruins_guardian'])exportRecipe(recipe(id,poses.filter(p=>['idle','walk','attack','hurt'].includes(p.action)).map(p=>({...p,g:monster(id,p.action,p.frame)}))),'monsters');
-for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'equipment');
+for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor','hunter_bow','heavy_hammer','heavy_armor'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'equipment');
+for(const id of ['supply_cache','wild_garden','spring'])exportRecipe(recipe(`discovery_${id}`,[{name:'idle',action:'idle',duration:1000,g:discovery(id)},...Array.from({length:4},(_,i)=>({name:`resolved_${i}`,action:'resolved',duration:300,g:discovery(id,true,i)}))]),'discoveries',id);
 for(const id of ['leaf','scarf','ribbon','star'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'accessories');
 for(const id of ['turnip','wheat'])exportRecipe(recipe(id,['untilled','tilled','empty','seeded','growing','ready'].map(stage=>({name:stage,action:stage,duration:1000,g:crop(id,stage)})),32,32),'crops');
 for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold'])exportRecipe(recipe(`item_${id}`,[{name:'idle',action:'idle',duration:1000,g:itemIcon(id)}],32,32),'items',`item_${id}`);

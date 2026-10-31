@@ -1,0 +1,193 @@
+{
+  "frames": {
+    "idle": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 1000,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "resolved_0": {
+      "frame": {
+        "x": 48,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 300,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "resolved_1": {
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 300,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "resolved_2": {
+      "frame": {
+        "x": 144,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 300,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    },
+    "resolved_3": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 48,
+        "h": 48
+      },
+      "duration": 300,
+      "pivot": {
+        "x": 0.5,
+        "y": 0.895833
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true,
+      "duration": 1000
+    },
+    "resolved": {
+      "frames": [
+        "resolved_0",
+        "resolved_1",
+        "resolved_2",
+        "resolved_3"
+      ],
+      "loop": false,
+      "duration": 1200
+    }
+  },
+  "meta": {
+    "app": "Pixelbolt",
+    "version": "1",
+    "image": "wild_garden.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 240,
+      "h": 48
+    },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "idle",
+        "from": 0,
+        "to": 0,
+        "direction": "forward"
+      },
+      {
+        "name": "resolved",
+        "from": 1,
+        "to": 4,
+        "direction": "forward"
+      }
+    ]
+  }
+}

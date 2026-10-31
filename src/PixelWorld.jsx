@@ -5,7 +5,7 @@ import { mapDimensions, projectMapPoint } from './map-projection.js';
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.13.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.14.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -126,4 +126,9 @@ export function PixelItem({ id }) {
 export function PixelLandmark({id}){
   const assets=usePixelManifest();
   return <PixelSprite definition={assets?.landmarks?.[id]} className="pixel-landmark"/>;
+}
+
+export function PixelDiscovery({id,resolved=false,animate=false}){
+  const assets=usePixelManifest();
+  return <PixelSprite definition={assets?.discoveries?.[id]} action={resolved?'resolved':'idle'} animate={animate} className="pixel-discovery"/>;
 }

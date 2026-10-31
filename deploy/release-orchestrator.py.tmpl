@@ -1,0 +1,95 @@
+
+
+import hashlib,json,os,shlex,subprocess,sys,time
+from pathlib import Path
+os.umask(0o077)
+revision=REVISION
+prefix=revision[:7]
+root=Path("/opt/ai-plaza")
+backup=Path("/var/backups/ai-plaza")
+unit=["runuser","-u","dsh","--","env","XDG_RUNTIME_DIR=/run/user/1001","DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1001/bus","systemctl","--user"]
+name="ai-plaza-bridge.service"
+migration_program=MIGRATION
+skill_program=SKILL
+def command(args, timeout=120, check=True):
+    result=subprocess.run(args,capture_output=True,text=True,timeout=timeout)
+    if check and result.returncode: raise RuntimeError("command failed: "+args[0])
+    return result
+def active(): return command(unit+["is-active",name],check=False).stdout.strip()=="active"
+def stopped():
+    pid=command(unit+["show",name,"--property=MainPID","--value"]).stdout.strip()
+    state=command(unit+["show",name,"--property=ActiveState","--value"]).stdout.strip()
+    return pid=="0" and state in {"inactive","failed"}
+def write_json(path,value):
+    temporary=path.with_name(path.name+".tmp")
+    temporary.write_text(json.dumps(value));temporary.replace(path)
+def tree_hashes(path):
+    return {str(p.relative_to(path)):hashlib.sha256(p.read_bytes()).hexdigest() for p in path.rglob("*") if p.is_file()}
+mode=sys.argv[1] if len(sys.argv)>1 else "release"
+if mode=="before-switch":
+    marker=Path(os.environ["PLAZA_RELEASE_BRIDGE_STATE"])
+    state={"was_active":active(),"stop_attempted":False}
+    write_json(marker,state)
+    assert state["was_active"],"original bridge state changed; preserve user's stopped service"
+    state["stop_attempted"]=True;write_json(marker,state)
+    command(unit+["stop",name],timeout=100)
+    assert stopped(),"bridge process has not stopped"
+    assert not Path("/home/dsh/.ai-plaza/client.json.lock").exists(),"bridge did not release lock"
+    cp=json.loads(Path("/home/dsh/.ai-plaza/client.json.bridge.json").read_text())
+    manual=json.loads(Path("/home/dsh/.ai-plaza/client.json").read_text())
+    baseline={"agent_id":manual["agent_id"],"run_id":cp["run_id"],"max_calls":cp["max_calls"],"calls_used":cp["calls_used"],"expires_at":cp["expires_at"],
+      "config_hashes":{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path("/home/dsh/.agents/skills/ai-plaza/config.json"),Path("/home/dsh/.config/ai-plaza/bridge.env"),Path("/etc/ai-plaza/server.env")] if p.exists()}}
+    write_json(backup/("baseline-"+prefix+".json"),baseline)
+    print(json.dumps({"stage":"bridge_stopped_at_cutover","budget_recorded":True}),flush=True)
+    sys.exit(0)
+if mode=="verify-switch":
+    result=command(["python3","-c",migration_program,"--backup",sys.argv[4]])
+    print(result.stdout,flush=True)
+    sys.exit(0)
+assert mode=="release"
+assert json.loads((root/"package.json").read_text())["version"]=="0.13.0"
+assert not command(["git","-C",str(root),"status","--porcelain"]).stdout.strip()
+assert active(),"expected original running bridge"
+command(["git","-C",str(root),"fetch",str(backup/("ai-play-"+prefix+".bundle")),"HEAD"])
+assert command(["git","-C",str(root),"rev-parse","FETCH_HEAD"]).stdout.strip()==revision
+release=backup/("release-"+prefix+".sh")
+release.write_text(command(["git","-C",str(root),"show",revision+":deploy/release.sh"]).stdout);release.chmod(0o700)
+command(["bash","-n",str(release)])
+attempt=prefix+"-"+str(os.getpid())
+status=backup/("release-state-"+attempt+".json")
+marker=backup/("bridge-state-"+attempt+".json")
+env={**os.environ,"PLAZA_RELEASE_STATUS_FILE":str(status),"PLAZA_RELEASE_BRIDGE_STATE":str(marker)}
+for mode,key in [("before-switch","PLAZA_RELEASE_BEFORE_SWITCH_HOOK"),("verify-switch","PLAZA_RELEASE_VERIFY_SWITCH_HOOK")]:
+    hook=backup/(mode+"-"+attempt)
+    hook.write_text("#!/bin/sh\nexec python3 "+shlex.quote(str(Path(__file__).resolve()))+" "+mode+" \"$@\"\n");hook.chmod(0o700)
+    env[key]=str(hook)
+skill_safe=True
+try:
+    # Do not hard-kill the shell: its EXIT/TERM handlers own code/data rollback.
+    with (backup/("release-"+prefix+".log")).open("w") as log:
+        result=subprocess.run(["bash",str(release),revision,"0.14.0"],stdout=log,stderr=subprocess.STDOUT,env=env)
+    phase=json.loads(status.read_text())["phase"] if status.exists() else None
+    assert result.returncode==0 and phase=="committed","release failed; inspect private status/log"
+    old_skill=tree_hashes(Path("/home/dsh/.agents/skills/ai-plaza"))
+    skill_safe=False
+    # The Skill updater has its own atomic staging/rollback. No outer SIGKILL.
+    upgrade=command(["python3","-c",skill_program],timeout=None,check=False)
+    print(upgrade.stdout,flush=True)
+    if upgrade.returncode:
+        skill_safe=tree_hashes(Path("/home/dsh/.agents/skills/ai-plaza"))==old_skill
+        raise RuntimeError("Skill upgrade failed; old package verified" if skill_safe else "Skill rollback requires operator recovery")
+    skill_safe=True
+    assert active()
+    print(json.dumps({"stage":"release_and_skill_complete","commit":revision,"version":"0.14.0"}),flush=True)
+finally:
+    state=json.loads(marker.read_text()) if marker.exists() else {}
+    phase=json.loads(status.read_text()).get("phase") if status.exists() else None
+    if state.get("stop_attempted") and state.get("was_active"):
+        safe=phase in {"committed","rolled_back"} and skill_safe
+        if safe:
+            if not active(): command(unit+["start",name])
+            assert active(),"verified bridge restore failed"
+            print(json.dumps({"stage":"bridge_restored_after_verified_state","release_phase":phase,"active":True}),flush=True)
+        else:
+            command(unit+["stop",name],check=False)
+            print(json.dumps({"stage":"operator_recovery_required","release_phase":phase,"bridge_active":active()}),flush=True)

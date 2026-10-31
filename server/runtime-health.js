@@ -5,7 +5,7 @@ const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const runtimeMetadataSchema = {
   mode: z.enum(['demo', 'model', 'dsh-pet']).optional(),
   runtime_version: z.string().regex(/^\d{1,4}\.\d{1,4}\.\d{1,4}$/).optional(),
-  capabilities: z.array(z.string().regex(/^[a-z_]{1,32}$/)).max(12).optional(),
+  capabilities: z.array(z.string().regex(/^[a-z_]{1,32}$/)).max(16).optional(),
 };
 export const runtimeHealthSchema = z.object({
   world: z.enum(['connected', 'reconnecting', 'incompatible', 'unknown']),

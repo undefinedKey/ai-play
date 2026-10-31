@@ -215,7 +215,13 @@ test('低生命时公开显示反应保护，保护期间停止受击，旁观�
   const api=await owner(request), a=await actor(api,'测试遗迹旅人');
   await a.act('adventure_plan',{intent:'explore',zone_id:'ruins'});
   await page.goto(base+'/watch?view=adventure');
-  for(let i=0;i<25&&!application.world.agent(a.agent.agent_id).adventure.decision_until;i++)step();
+  for(let i=0;i<25&&!application.world.agent(a.agent.agent_id).adventure.decision_until;i++){
+    step();
+    // This regression targets low-HP danger, so the scripted client explicitly
+    // leaves a discovery instead of waiting inside v0.14's choice protection.
+    const encounter=application.world.agent(a.agent.agent_id).adventure.encounter;
+    if(encounter?.status==='pending')await a.act('adventure_event',{event_id:encounter.event_id,choice_id:'decline'});
+  }
   const fighter=(await a.observe()).self.adventure;
   expect(fighter.decision_until).toBeGreaterThan(clock);
   expect(fighter.hp).toBeGreaterThan(0);expect(fighter.hp).toBeLessThanOrEqual(fighter.max_hp*.25);

@@ -2,6 +2,8 @@ import { isPositionInBounds } from './spatial.js';
 import { FATIGUE_RULES, spendEnergy, attackMultiplier } from './fatigue.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_RULES, economyBalance, recordEconomyDelta, marketWindow, publicMarket, publicLedger } from './economy.js';
+import { EQUIPMENT, STRATEGY_EQUIPMENT_RULES, combatStats } from './combat.js';
+export { combatStats } from './combat.js';
 
 const ITEMS = [
   { id: 'turnip_seed', name: '萝卜种子', kind: 'seed' },
@@ -12,10 +14,7 @@ const ITEMS = [
   { id: 'wheat_bread', name: '麦香面包', kind: 'food', heal: 0, energy_restore: 24 },
   { id: 'wood', name: '木材', kind: 'material' },
   { id: 'ore', name: '矿石', kind: 'material' },
-  { id: 'wooden_sword', name: '木剑', kind: 'equipment', slot: 'weapon', attack_bonus: 2 },
-  { id: 'iron_sword', name: '铁剑', kind: 'equipment', slot: 'weapon', attack_bonus: 5 },
-  { id: 'wooden_shield', name: '木盾', kind: 'equipment', slot: 'armor', defense: 1 },
-  { id: 'iron_armor', name: '铁甲', kind: 'equipment', slot: 'armor', defense: 3 },
+  ...EQUIPMENT,
 ];
 const CROPS = [
   { id: 'turnip', name: '萝卜', seed_id: 'turnip_seed', produce_id: 'turnip', grow_seconds: 120, yield_count: 2, seed_return: 1 },
@@ -26,6 +25,9 @@ const RECIPES = [
   { item_id: 'iron_sword', ingredients: { wood: 2, ore: 3 } },
   { item_id: 'wooden_shield', ingredients: { wood: 3 } },
   { item_id: 'iron_armor', ingredients: { ore: 5 } },
+  { item_id: 'hunter_bow', ingredients: { wood: 5, ore: 1 } },
+  { item_id: 'heavy_hammer', ingredients: { wood: 3, ore: 5 } },
+  { item_id: 'heavy_armor', ingredients: { wood: 2, ore: 8 } },
   { item_id: 'turnip_soup', ingredients: { turnip: 2 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'kitchen' },
   { item_id: 'wheat_bread', ingredients: { wheat: 2 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'kitchen' },
 ];
@@ -50,6 +52,7 @@ export const LIFE_RULES = {
   ], description: '徒手安全采集，无工具前置，每次只完成一份。开始预扣体力，完成才领奖；取消、走路、暂停、失联或重启不领奖不退已花体力，不自动继续。资源按本人冷却，不是共享库存。' },
   cooking_place: { id: 'kitchen', name: '营地料理台', x: 10, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
   market: MARKET_RULES,
+  strategy_equipment: STRATEGY_EQUIPMENT_RULES,
   description: '每个角色有两块专属田、个人仓库和持久的锄头/水壶。空地先用锄头开垦，种植消耗1种子，用水壶浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子，收获后需重新开垦。开垦/浇水各耗对应工具1耐久，工具升级降低该动作体力消耗；repair按当前等级repair_cost维修，upgrade消耗下一等级upgrade_cost，均回满耐久、各耗2体力；最高3级。工具独立于战斗装备，不可复制或装备到武器护甲槽。离线仍生长，没人替你耕作。农田、制作、工具维护与换装在营地半径2内进行，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
 };
 const byId = new Map(ITEMS.map(item => [item.id, item]));
@@ -96,14 +99,12 @@ export function initializeLife(a) {
 }
 
 export function equipmentStats(a) {
-  const weapon = byId.get(a.life?.equipment?.weapon), armor = byId.get(a.life?.equipment?.armor);
-  return { attack_bonus: weapon?.slot === 'weapon' && count(a, weapon.id) > 0 ? weapon.attack_bonus || 0 : 0,
-    defense: armor?.slot === 'armor' && count(a, armor.id) > 0 ? armor.defense || 0 : 0 };
+  const { attack_bonus, defense } = combatStats(a);
+  return { attack_bonus, defense };
 }
 
 export function publicLife(a, now, { privateInventory = false, includeLedger = true } = {}) {
-  const life = a.life || {}, stats = equipmentStats(a);
-  const level = Number.isSafeInteger(a.adventure?.level) && a.adventure.level > 0 ? a.adventure.level : 1;
+  const life = a.life || {}, stats = combatStats(a);
   return {
     plots: ['plot_1', 'plot_2'].map(id => {
       const p = normalizedPlot(life.plots?.find(plot => plot.plot_id === id), id);
@@ -114,7 +115,7 @@ export function publicLife(a, now, { privateInventory = false, includeLedger = t
       const item = byId.get(life.equipment?.[slot]);
       return [slot, item?.slot === slot && count(a, item.id) > 0 ? item.id : null];
     })),
-    stats: { ...stats, attack: 4 + level * 2 + stats.attack_bonus, effective_attack: Math.max(1, Math.floor((4 + level * 2 + stats.attack_bonus) * attackMultiplier(a))), attack_multiplier: attackMultiplier(a) },
+    stats: { ...stats, effective_attack: Math.max(1, Math.floor(stats.attack * attackMultiplier(a))), attack_multiplier: attackMultiplier(a) },
     gathering: publicGathering(a), gather_ready_at: Object.fromEntries(['wood', 'ore'].map(id => [id, time(life.gather_ready_at?.[id]) ?? 0])),
     ...(privateInventory ? { inventory: Object.fromEntries(ITEMS.filter(item => count(a, item.id) > 0).map(item => [item.id, count(a, item.id)])),
       market: publicMarket(a, now), ...(includeLedger ? { ledger: publicLedger(a, ITEMS.map(item => item.id)) } : {}) } : {}),
@@ -132,7 +133,7 @@ function campAvailable(world, a, fail) {
   const game = world.state.game;
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏，再照料农田、制作或换装');
 }
-function adjustInventory(a, changes, fail) {
+export function adjustInventory(a, changes, fail) {
   const next = {};
   for (const [id, delta] of Object.entries(changes)) {
     const value = count(a, id) + delta;
@@ -319,7 +320,7 @@ export function tickLife(world) {
           const before = economyBalance(a), published = publicGathering(a);
           a.life.inventory[resource.item_id] = count(a, resource.item_id) + resource.yield_count;
           a.life.gathering = null;
-          recordEconomyDelta(a, before, { source_id: job.job_id, reason: 'gather_finished', at: world.now() });
+          recordEconomyDelta(a, before, { source_id: job.job_id, reason: 'gather_finished', at: world.now(), world });
           announce(world, a, 'life_gather_finished', `${a.name}完成了徒手采集，获得${resource.yield_count}份${byId.get(resource.item_id).name}`, published);
           changed = true;
         }

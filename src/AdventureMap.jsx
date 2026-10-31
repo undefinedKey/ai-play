@@ -7,6 +7,7 @@ import {nearbySlots,presenceState,presenceLabel,publicName} from './observer-sta
 import SpeechOverlay, { SpeechOverlayScope } from './SpeechOverlay.jsx';
 import FarmPanel, { EquipmentStatus } from './FarmPanel.jsx';
 import CampLife,{CampLandmarks} from './CampLife.jsx';
+import AdventureJourney,{DiscoveryMarkers} from './AdventureJourney.jsx';
 import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
@@ -45,6 +46,11 @@ function FieldStatus({ agent, adventure, now, live }) {
   const state = agent.adventure;
   if (state?.in_field === undefined) return null;
   const active = agent.status === 'active';
+  const encounter=state.encounter;
+  if(encounter?.status==='pending'){
+    const remaining=Math.max(0,Math.ceil((encounter.expires_at-now)/1000));
+    return <div className={`adventure-field-status ${live&&remaining?'protected':'recorded'}`} data-testid="adventure-field-status"><Shield size={14}/><div><strong>{!live?'最近记录：等待探索选择':remaining?`探索选择保护 · ${remaining} 秒`:'选择期限已到，等待确认'}</strong><span>{!live?'连接恢复前，不能确认保护仍然有效。':remaining?'等待原 AI 选择发现的处理方式。拒绝、到期或中断不会自动领取奖励；结束后保护解除。':'保护期限不会因等待、刷新或聊天延长。'}</span></div></div>;
+  }
   const seconds = Math.max(0, Math.ceil(((state.decision_until || 0) - now) / 1000));
   const pursuing = (adventure?.monsters || []).filter(monster => monster.status === 'alive' && monster.target_agent_id === agent.agent_id);
   const camp = adventure?.zones?.find(zone => zone.id === 'camp');
@@ -73,11 +79,12 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
     <div className="map-scene-frame"><MapCamera><div className="adventure-map pixel-map" data-testid="adventure-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
       <PixelScene grid={grid} map={map} live={live}/>
       <CampLandmarks catalog={world.life||world.rules?.life} map={map}/>
+      <DiscoveryMarkers world={world} map={map} selected={selected} now={now} live={live}/>
       <div className="adventure-map-heading"><span><Compass size={13}/> 林间远征</span><small>{live?'世界正在继续':'最近收到的画面'} · {activePlans} 位在冒险</small></div>
       {adventure.zones.map(zone=><div key={zone.id} className={`adventure-zone zone-${zone.id}`} style={point({x:zone.x,y:Math.max(0,zone.y-(zone.id==='camp'?3.8:2.8))},map)}><span>{zone.id==='camp'?<Flag size={12}/>:zone.id==='forest'?<Leaf size={12}/>:<Shield size={12}/>} {zone.name}</span>{zone.id!=='camp'&&<small>{zone.id==='forest'?'低风险探索':'强敌出没'}</small>}</div>)}
       <svg className="adventure-threat-lines" viewBox="0 0 960 640" preserveAspectRatio="none" aria-hidden="true">{adventure.monsters.filter(monster=>monster.status==='alive'&&['chasing','attacking'].includes(monster.behavior)).map(monster=>{const target=present.find(agent=>agent.agent_id===monster.target_agent_id);const from=point(monster.position,map),to=point(target?.position,map);return target&&<line key={monster.monster_id} x1={from.left} y1={from.top} x2={to.left} y2={to.top}/>;})}</svg>
       {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={world.agents} events={world.events} now={now} map={map} live={live}/>)}
-      {present.map(agent=><button key={agent.agent_id} data-crowded={present.filter(a=>a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position,map),'--unit-offset':unitOffset(agent),'--unit-row':`${slots.get(agent.agent_id)?.y||0}px`,'--avatar-color':agent.appearance?.accent||agent.color||'#61846b',zIndex:(selected===agent.agent_id?50:10)+Math.floor(agent.position?.y||0)}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${publicName(agent,world.agents)}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character"><CharacterSprite agent={agent} events={world.events} now={now} live={live}/></span><span className="adventure-agent-name">{publicName(agent,world.agents)}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
+      {present.map(agent=><button key={agent.agent_id} data-crowded={present.filter(a=>a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1} data-testid={`adventure-agent-${agent.agent_id}`} className={`adventure-agent ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} style={{...point(agent.position,map),'--unit-map-x':`${(agent.position.x+.5)/map.width*100}cqw`,'--unit-offset':unitOffset(agent),'--unit-row':`${slots.get(agent.agent_id)?.y||0}px`,'--avatar-color':agent.appearance?.accent||agent.color||'#61846b',zIndex:(selected===agent.agent_id?50:10)+Math.floor(agent.position?.y||0)}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${publicName(agent,world.agents)}的冒险档案，${agent.status==='paused'?'已暂停':adventureStatus(agent,adventure)||'自由活动'}`}><span className="adventure-character"><CharacterSprite agent={agent} events={world.events} now={now} live={live}/></span><span className="adventure-agent-name">{publicName(agent,world.agents)}<b>Lv.{agent.adventure?.level||1}</b></span>{agent.adventure&&<span className="unit-health"><i style={{width:`${clamp(agent.adventure.hp/agent.adventure.max_hp*100,100)}%`}}/></span>}{agent.adventure?.plan&&agent.status==='active'&&<span className="adventure-unit-intent">{intentNames[agent.adventure.plan.intent]}</span>}</button>)}
       <div className="adventure-map-scale">{map.width} × {map.height} <span>共享世界 · 无预设 AI 居民</span></div>
     </div></MapCamera><SpeechOverlay events={world.events} agents={world.agents} selected={selected} now={now} live={live}/></div>
     <div className="adventure-encounters" aria-label="野外怪物动向">{adventure.monsters.map(monster=><div className={`encounter-card behavior-${monster.behavior||'idle'}`} key={monster.monster_id}><span><strong>{monster.name}</strong><small>{monster.status==='alive'?`${monster.hp} / ${monster.max_hp} HP`:'等待重生'}</small></span><p>{!live?'最近：':''}{monsterBehavior(monster,world.agents)}</p></div>)}</div>
@@ -103,6 +110,7 @@ export default function WorldScene({ world, selected, onSelect, grid, onGrid, li
     <ObserverStatus world={world} agent={agent} live={live} now={now}/>
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
     {view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={now}/>:React.cloneElement(plaza,{onSelect:choose})}
+    <AdventureJourney world={world} agent={agent} now={now} live={live}/>
     <CampLife world={world} agent={agent} now={now} live={live}/>
   </CameraContext.Provider></SpeechOverlayScope>;
 }

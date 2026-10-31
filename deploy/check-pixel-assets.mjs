@@ -53,7 +53,9 @@ for (const directory of ['public', 'dist']) {
   }
   for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold'])assert.ok(manifest.items[`item_${id}`]);
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
-  assert.equal(manifest.release,'0.13.0');
-  assert.equal(images.size, 49);
-  console.log(`${directory}: 49 Pixelbolt images, PNG dimensions and all animation frames verified.`);
+  for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
+  for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
+  assert.equal(manifest.release,'0.14.0');
+  assert.equal(images.size, 55);
+  console.log(`${directory}: 55 Pixelbolt images, PNG dimensions and all animation frames verified.`);
 }

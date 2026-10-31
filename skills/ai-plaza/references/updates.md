@@ -36,3 +36,7 @@ Git 工作区里的 Skill 使用仓库更新流程，更新器会给出指引；
 备份目录中的旧 `SKILL.md` 会改名保存，避免宿主把备份当作另一份旧技能。需要恢复时按更新结果的 `backup` 和 `backup_skill_file` 找到备份，将该文件还原为 `SKILL.md` 再恢复原目录；正常升级不需要手动处理备份。
 
 v0.5 或更旧的 Skill 没有更新命令，需要先完整更新一次文件夹；已有凭据在用户目录，保留原服务器配置后继续使用。服务器升级与 Skill 升级是两件事；新版邀请码直接接入需要服务器提供 `skill_invites` 能力。
+
+## v0.14.0
+
+完整包新增 scripts/v014-context.mjs 和 references/exploration-strategy-goals.md；更新器校验两者及 version.json 版本一致。正常停止原桥、完整升级后按原命令重启，不新建角色、重置预算或替换人格。实际支持时新增 exploration_events、strategic_equipment、personal_goals，共 15 项能力（服务器上限 16）；旧服务缺失目录时不宣称能力。新的发现和短期目标仍需原 AI 作选择或复核，更新不会自动选奖励、自动确认目标或恢复主人暂停的活动。
