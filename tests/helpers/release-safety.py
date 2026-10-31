@@ -41,8 +41,15 @@ def template():
     return {'agents': {'a': {'life': {'inventory': {'wood': 3}, 'equipment': {}, 'tools': {}, 'plots': [{'plot_id': 'plot_1'}, {'plot_id': 'plot_2'}],
         'ledger': {'entries': []}, 'market': {}, 'gathering': None, 'gather_ready_at': {'wood': 1234}}, 'appearance': {'seed': 'same'},
         'run': {'run_id': 'same-run', 'max_calls': 20, 'expires_at': 9999999999999, 'status': 'active'}, 'goal': 'FIXTURE PRIVATE GOAL',
-        'diagnostics': {'calls_used': 7}, 'presence_record': {'version': 1}, 'adventure': {'level': 1, 'xp': 2, 'gold': 3, 'kills': 0}}},
-        'controllers': {'c': {'fixture_only': True}}}
+        'diagnostics': {'calls_used': 7}, 'presence_record': {'version': 1},
+        'personal_goal': {'goal_id': 'goal_fixture', 'kind': 'collect_item', 'target_id': 'wood', 'target_count': 3, 'progress': 3,
+            'title': 'Fixture completed goal', 'status': 'completed', 'created_at': 100, 'updated_at': 200, 'expires_at': 10000,
+            'review_reason': None, 'sources': ['fixture-reward'], 'run_id': 'same-run', 'session_epoch': 1},
+        'adventure': {'level': 1, 'xp': 2, 'gold': 3, 'kills': 0, 'next_attack_at': 888, 'discovery_ready_at': 300200, 'discovery_sequence': 2,
+            'encounter': {'event_id': 'encounter_fixture', 'template_id': 'supply_cache', 'zone_id': 'forest', 'position': {'x': 4, 'y': 11},
+                'status': 'resolved', 'found_at': 100, 'expires_at': 150100, 'selected_choice_id': 'wood', 'resolved_at': 200,
+                'public_result': {'items': {'wood': 2}, 'hp': 0, 'energy': -4, 'text': 'Fixture reward'}, 'run_id': 'same-run', 'session_epoch': 1}}}},
+        'controllers': {'c': {'fixture_only': True}}, 'events': [], 'sequence': 0}
 
 def remote_literal():
     return (REPO / 'deploy/release-orchestrator.py.tmpl').read_text(encoding='utf-8')
@@ -94,11 +101,10 @@ elif cmd=='systemctl':
             s['server_stop_failed']=True;save();sys.exit(1)
     if 'start' in args:
         s['server']=True;save();log('server:start:'+version())
-        if version()=='0.14.1':
+        if version()=='0.14.2':
             with closing(sqlite3.connect(r/'var/lib/ai-plaza/world.sqlite')) as db, db:
                 v=json.loads(db.execute('SELECT payload FROM world_state').fetchone()[0]);v['migrated_fixture']=True
                 for a in v['agents'].values():
-                    a['personal_goal']=None;a['adventure']['encounter']=None
                     if stage=='migration': a['life']['inventory']['wood']=999
                 db.execute('UPDATE world_state SET payload=?',(json.dumps(v),))
 elif cmd=='stat': print('0' if '%u' in args else '700')
@@ -132,8 +138,13 @@ class RecoveryDrills(unittest.TestCase):
         with self.assertRaises(ValueError): RECOVERY.restore(outside,'outside',r)
 
     def test_plot_loss_and_sqlite_integrity_fail_closed(self):
-        old=template(); new=copy.deepcopy(old); new['agents']['a']['personal_goal']=None; new['agents']['a']['adventure']['encounter']=None
+        old=template(); new=copy.deepcopy(old)
         MIGRATION.compare_states(old,new)
+        for field in ['encounter', 'discovery_ready_at', 'next_attack_at', 'discovery_sequence']:
+            damaged=copy.deepcopy(new);damaged['agents']['a']['adventure'][field]=None
+            with self.assertRaises(AssertionError): MIGRATION.compare_states(old,damaged)
+        damaged=copy.deepcopy(new);damaged['agents']['a']['personal_goal']=None
+        with self.assertRaises(AssertionError): MIGRATION.compare_states(old,damaged)
         new['agents']['a']['life']['plots'].pop()
         with self.assertRaises(AssertionError): MIGRATION.compare_states(old,new)
         r=self.fixture(); bad=r/'bad.sqlite'; bad.write_bytes(b'corrupt fixture')
@@ -147,7 +158,7 @@ class RecoveryDrills(unittest.TestCase):
             return text
         for folder in ['opt/ai-plaza','candidate/deploy','candidate/tests','etc/ai-plaza','home/dsh/.ai-plaza','home/dsh/.agents/skills/ai-plaza','home/dsh/.config/ai-plaza','bin']:
             (r/folder).mkdir(parents=True,exist_ok=True)
-        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.14.0"}'); (r/'candidate/package.json').write_text('{"version":"0.14.1"}')
+        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.14.0"}'); (r/'candidate/package.json').write_text('{"version":"0.14.2"}')
         release=rewrite((REPO/'deploy/release.sh').read_text()).replace('"$EUID" == 0','1 == 1')
         release=release.replace('set -euo pipefail','set -euo pipefail\nexport PATH="'+prefix+'/bin:$PATH"')
         release=release.replace('-C / var/lib/ai-plaza','-C "'+prefix+'" var/lib/ai-plaza')
@@ -167,7 +178,7 @@ class RecoveryDrills(unittest.TestCase):
         python.write_text('#!/usr/bin/env bash\nexec "'+Path(sys.executable).as_posix()+'" "$@"\n',newline='\n');python.chmod(0o755)
         skill_stub="import os,json,subprocess;from pathlib import Path\n"+(
             "raise SystemExit(1)" if failure=='skill' else
-            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.14.1\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
+            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.14.2\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
         source=remote_literal().replace('REVISION',repr('a'*40)).replace('MIGRATION',repr((REPO/'deploy/verify-migration.py').read_text())).replace('SKILL',repr(skill_stub))
         source=rewrite(source).replace('"--backup",sys.argv[4]', '"--backup",sys.argv[4],"--root",'+repr(prefix))
         path=r/'orchestrator.py';path.write_text(source)
@@ -183,10 +194,10 @@ class RecoveryDrills(unittest.TestCase):
             return
         self.assertTrue(state['server'],details);self.assertTrue(state['bridge'],details)
         if failure=='success':
-            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.1')
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.2')
         elif failure=='skill':
             self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((skill/'version.json').read_text())['version'],'0.14.0')
-            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.1')
+            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.2')
         else:
             self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.0')
             self.assertEqual(read_db(r/'var/lib/ai-plaza/world.sqlite'),original)
