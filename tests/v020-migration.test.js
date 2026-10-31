@@ -38,7 +38,11 @@ test('v020 actual SQLite upgrade preserves old identity, physical location and p
     assert.equal(current.room.width, 48); assert.equal(current.room.height, 32);
     assert.equal(verifyResources(before, current).nodes, RESOURCE_NODES.length);
     assert.equal(verifyScenes(before, current).scene_locations_preserved, true);
-    for (const def of RESOURCE_NODES) assert.deepEqual(current.resources.nodes[def.id], { stock: def.max_stock, regrow_at: null, reservation: null });
+    for (const def of RESOURCE_NODES) {
+      const expected = { stock: def.initial_stage === 'empty' ? 0 : def.max_stock, regrow_at: null, reservation: null };
+      if (def.kind === 'tree') expected.ecology = { stage: def.initial_stage || 'mature', stage_started_at: now, next_at: null, generation: 0, origin: def.natural_regrowth ? 'wild' : 'planted' };
+      assert.deepEqual(current.resources.nodes[def.id], expected, def.id);
+    }
     const forged = structuredClone(current); forged.resources.nodes.camp_branches.stock--;
     assert.throws(() => verifyResources(before, forged));
     const badClock = structuredClone(current); badClock.day_cycle.epoch_at = now + 1;
@@ -60,7 +64,7 @@ test('v020 restart keeps world epoch and resources, releases reservations, then 
     world = new World({ dbPath, now: () => now }); world.tick();
     const current = structuredClone(world.state);
     assert.equal(current.day_cycle.epoch_at, epoch);
-    assert.deepEqual(current.resources.nodes.camp_branches, { stock: 1, regrow_at: epoch + 90000, reservation: null });
+    assert.deepEqual(current.resources.nodes.camp_branches, { stock: 1, regrow_at: epoch + 645000, reservation: null }, 'the saved 45s deadline settles once, then uses the new low-yield interval');
     assert.equal(verifyResources(before, current).day_cycle_preserved, true);
     const forged = structuredClone(current); forged.day_cycle.epoch_at++;
     assert.throws(() => verifyResources(before, forged));

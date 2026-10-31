@@ -38,7 +38,8 @@ test('v020原AI走到扩展林区才用斧头工作，真实共享库存耗尽�
  await until(a,()=>!raw.life.gathering);expect(app.world.state.resources.nodes.east_pine.stock).toBe(2);
  for(let i=0;i<2;i++){await a.act('gather',{intent:'start',node_id:'east_pine'});await until(a,()=>!raw.life.gathering);}
  await expect(tree).toHaveAttribute('data-resource-state','depleted');await expect(tree).toHaveAttribute('data-stock','0');await expect(page.getByTestId('resource-inspector')).toContainText('等待恢复');await page.getByTestId('plaza-map').screenshot({path:'artifacts/v020-tree-depleted.png'});
- await advanceTo(a,app.world.state.resources.nodes.east_pine.regrow_at);await expect(tree).toHaveAttribute('data-resource-state','available');await expect(tree).toHaveAttribute('data-stock','1');
+ // v021 trees regrow through ecological stages even while the original AI is offline.
+ clock=app.world.state.resources.nodes.east_pine.regrow_at;app.world.tick();await expect(tree).toHaveAttribute('data-resource-state','available');await expect(tree).toHaveAttribute('data-stock','3');
  await page.getByRole('button',{name:'冒险地图',exact:true}).click();await ready(page);await page.getByRole('button',{name:'查看全景',exact:true}).click();await page.getByTestId('resource-ridge_ore').click();await expect(page.getByTestId('resource-inspector')).toContainText('需要镐');await page.getByTestId('adventure-map').screenshot({path:'artifacts/v020-quarry-overview.png'});
 });
 

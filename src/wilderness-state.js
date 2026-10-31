@@ -1,8 +1,10 @@
+import {treeStageNames} from './survival-state.js';
 export const phaseNames={day:'白昼',dusk:'黄昏',night:'夜晚',dawn:'黎明'};
 export function resourceState(node,agents=[],now=0){
-  if(node.stock<=0)return {key:'depleted',label:'等待恢复',seconds:node.regrow_at?Math.max(0,Math.ceil((node.regrow_at-now)/1000)):null};
   const worker=node.reservation&&agents.find(a=>a.agent_id===node.reservation.agent_id);
-  if(node.reservation)return {key:worker?.life?.gathering?.phase==='working'?'working':'reserved',label:worker?.life?.gathering?.phase==='working'?'正在采集':'已预约 · 正在前往',worker};
+  if(node.reservation)return {key:worker?.life?.gathering?.phase==='working'?'working':'reserved',label:worker?.life?.gathering?.phase==='working'?(worker.life.gathering.intent==='plant'?'正在种树':'正在采集'):'已预约 · 正在前往',worker};
+  if(node.ecology&&node.ecology.stage!=='mature'){const stage=node.ecology.stage;return {key:stage==='stump'?'depleted':stage,label:stage==='empty'?(node.plantable?'空林地 · 可种树':'空林地'):stage==='stump'?'树桩 · 等待恢复':`${treeStageNames[stage]} · 生长中`,seconds:node.ecology.next_at?Math.max(0,Math.ceil((node.ecology.next_at-now)/1000)):null};}
+  if(node.stock<=0)return {key:'depleted',label:'等待恢复',seconds:node.regrow_at?Math.max(0,Math.ceil((node.regrow_at-now)/1000)):null};
   if(node.available===false)return {key:'dormant',label:'当前时段不可采'};
   return {key:'available',label:'可以采集'};
 }

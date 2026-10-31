@@ -9,8 +9,9 @@ import { economyBalance, recordEconomyDelta } from './economy.js';
 import { EXPLORATION_RULES, initializeExploration, publicEncounter, encounterPending, discoverEncounter, endEncounter } from './exploration.js';
 import { progressPersonalGoal } from './personal-goals.js';
 import { progressCooperation } from './cooperation.js';
+import { survivalRecoveryAllowed } from './survival-state.js';
 export const ADVENTURE_ZONES = [
-  { id: 'camp', scene_id: 'plaza', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。主动休息恢复生命与体力，可以聊天并邀请同伴。' },
+  { id: 'camp', scene_id: 'plaza', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '营地免受怪物追击；夜晚仍需要实际光源，饱食归零不能靠休息代替进食。光照和补给满足时主动休息恢复生命与体力，可以聊天并邀请同伴。' },
   { id: 'forest', scene_id: 'adventure', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
   { id: 'ruins', scene_id: 'adventure', name: '风蚀遗迹', x: 19, y: 7, radius: 3, danger: 'high', description: '守卫攻击较强，是否挑战、组队或撤退由你决定。' },
   { id: 'grove', scene_id: 'adventure', name: '松影林缘', x: 28, y: 11, radius: 3, danger: 'low', description: '扩展林区有具体松木和浆果节点；探索抵达不会自动采集，是否使用斧头、采食或继续旅行由你决定。' },
@@ -121,6 +122,8 @@ export function startAdventure(world, a, payload, fail) {
     if (zone && zone !== 'camp') fail('INVALID_ACTION', '休息和撤退的目的地为 camp');
     zone = 'camp';
   }
+  if (intent === 'rest' && !survivalRecoveryAllowed(world, { ...a, scene_id: 'plaza', position: { x: 11, y: 8 } }))
+    fail('REST_NEEDS_SUPPLIES', '休息需要饱食大于0，夜晚营地还需真实火光或个人火把；可选择先补给、建火，或单独retreat返回');
   if (intent === 'hunt') {
     if (publicFatigue(a).energy < Math.max(FATIGUE_RULES.hunt_min_energy, combatStats(a).attack_energy)) fail('FATIGUE_EXHAUSTED', '重新狩猎至少需要12点体力及一次有效攻击的体力；可先返回营地休息，也始终可以走路或撤退');
     if (!zone && !monster_id) fail('INVALID_ACTION', 'hunt 需要 zone_id 或 monster_id');
@@ -149,7 +152,7 @@ function moveToward(a, target, world) {
   else a.position = path[1];
   return true;
 }
-function changeScene(world, a, sceneId, position, reason) {
+export function changeScene(world, a, sceneId, position, reason) {
   const from_scene_id = a.scene_id, from_position = { ...a.position };
   if (a.next_action_id) a.scene_stale_actions = [...(a.scene_stale_actions || []), a.next_action_id].slice(-8);
   a.next_action_id = `act_${randomUUID()}`;
@@ -301,7 +304,7 @@ function moveMonster(m,target,now,radius) {
 }
 /** One bounded intent step per tick. Movement settles continuously; no missed
  * attacks, goals, patrols or plans are manufactured to catch up a stalled loop. */
-export function tickAdventure(world) {
+export function tickAdventure(world, survivalFrames = null) {
   const state=world.state.adventure,now=world.now();
   if(world.state.room.status!=='active' || now-state.last_tick_at<100) return {changed:false,durable:false};
   state.last_tick_at=now;
@@ -370,7 +373,10 @@ export function tickAdventure(world) {
           stopMovement(a,now);
           if(p.intent==='rest') {
             p.phase='resting';const elapsed=Math.min(1000,Math.max(0,now-(p.last_rest_at??now)));p.last_rest_at=now;
-            if(f.hp<f.max_hp && elapsed){f.hp=Math.min(f.max_hp,f.hp+5*elapsed/1000);changed=true;}
+            const frame = survivalFrames?.get(a.agent_id);
+            const validElapsed = frame ? frame.recovery_windows.filter(w => w.allowed).reduce((sum,w) => sum + Math.max(0, Math.min(now,w.until) - Math.max(now-elapsed,w.from)), 0) : survivalRecoveryAllowed(world,a) ? elapsed : 0;
+            if(f.hp<f.max_hp && validElapsed){f.hp=Math.min(f.max_hp,f.hp+5*validElapsed/1000);changed=true;}
+            if (!survivalRecoveryAllowed(world, a)) { stopAdventure(world, a, 'needs_supplies', '休息条件已变化：需要食物或真实光源，下一步由本人决定'); changed=true; durable=true; continue; }
           }
           if(p.intent!=='rest' || f.hp===f.max_hp && publicFatigue(a).energy===100) {
             announce(world,'adventure_arrived',a,`${a.name}${p.intent==='rest'?'在营地恢复了生命与体力':`抵达${target.name}`}`,{zone_id:target.id});

@@ -41,7 +41,7 @@ const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
 
 test('v020 shared authored nodes are reachable and public data excludes private reservations', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p);
-  assert.equal(RESOURCE_NODES.length, 9);
+  assert.equal(RESOURCE_NODES.length, 31);
   for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, { x: 11, y: 8 }, def.interaction_position), def.id); }
   assert.equal(a.life.tools.hoe.durability, 20); assert.equal(a.life.tools.axe.owned, false); assert.equal(a.life.tools.axe.durability, 0);
   gather(f, p, 'camp_branches');
@@ -49,7 +49,7 @@ test('v020 shared authored nodes are reachable and public data excludes private 
   f.world.state.resources.nodes.camp_branches.owner_goal = 'PRIVATE_GOAL';
   assert.doesNotMatch(JSON.stringify(publicResources(f.world.state, f.now())), /PRIVATE_/);
   assert.equal(f.observe(p).resources.nodes.find(n => n.id === 'camp_branches').available, false);
-  assert.equal(spectatorSnapshot(f.world).resources.nodes.length, 9);
+  assert.equal(spectatorSnapshot(f.world).resources.nodes.length, RESOURCE_NODES.length);
   assert.equal(f.world.getRules().life.gathering.version, 2);
 });
 
@@ -86,7 +86,9 @@ test('v020 competing clients share one reservation and one stock, old commands c
   for (let i = 0; i < 2; i++) { gather(f, p, 'camp_branches'); f.advance(12000); }
   assert.equal(f.world.state.resources.nodes.camp_branches.stock, 0);
   assert.equal(f.act(q, 'gather', { intent: 'start', resource_id: 'wood' }).error.code, 'RESOURCE_DEPLETED');
-  const next = f.world.state.resources.nodes.camp_branches.regrow_at; f.advance(next - f.now());
+  const next = f.world.state.resources.nodes.camp_branches.regrow_at;
+  assert.equal(next - f.now(), 576000, 'the first completed bundle starts a 600-second low-yield timer; later harvesting does not reset or shorten it');
+  f.advance(next - f.now());
   assert.equal(f.world.state.resources.nodes.camp_branches.stock, 1);
   gather(f, q, 'camp_branches'); applied(f.act(q, 'gather', { intent: 'cancel' }));
   assert.equal(f.world.state.resources.nodes.camp_branches.stock, 1); assert.equal(f.world.state.resources.nodes.camp_branches.reservation, null);

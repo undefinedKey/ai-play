@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version;
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
 import { initializeEconomy } from '../server/economy.js';
 
 // Real HTTP and MCP, injected game clock. No production records or model calls.
-test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trade without leaking accounts', async t => {
+test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can gather, repair, farm, cook and trade without leaking accounts', async t => {
   const app = await createApp({ dbPath: ':memory:', frontend: false, demo: false });
   let now = Date.now(); app.world.now = () => now; app.world.actionIntervalMs = 0;
   const { server, url } = await app.start(0), clients = [];
@@ -17,7 +19,9 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   const actor = async name => {
     const a = app.world.createAgent({ name, owner_id: name });
     const controller = app.world.createController(a.agent_id);
-    app.world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 15 });
+    // This economic fixture waits for two 600-second branch regrowths. Use a
+    // legal one-hour grant; do not renew an expired session behind the actor.
+    app.world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 60 });
     const client = new Client({ name: 'v013-http', version: '0.14.0' }); clients.push(client);
     await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${controller.token}` } } }));
     const call = async (name, args = {}) => {
@@ -33,13 +37,41 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
     return { id: a.agent_id, client, call, observe, request, act };
   };
   const p = await actor('和平旅人'), raw = app.world.agent(p.id);
-  // Deliberately starved saved-state fixture: no gifts, seed, coins or useful tools.
+  // Resource-poor saved-state fixture: no gifts, seed, coins or useful tools.
   raw.life.inventory = {}; raw.adventure.gold = 0; raw.fatigue.energy = 0;
   raw.life.tools.hoe.durability = 0; raw.life.tools.watering_can.durability = 0;
   delete raw.life.ledger; initializeEconomy(raw, now);
+  // This legacy test verifies the economy, not unaided survival. A neighbouring
+  // owner has an existing, finite firepit and a saved stock of wood. Only that
+  // neighbour receives fixture supplies and explicitly fuels it through MCP.
+  const keeper = await actor('邻居火塘看守'), keeperRaw = app.world.agent(keeper.id);
+  keeperRaw.position = { x: 13, y: 11 };
+  keeperRaw.life.inventory = { wood: 30 };
+  delete keeperRaw.life.ledger; initializeEconomy(keeperRaw, now);
+  const fireId = 'legacy_economy_pit';
+  app.world.state.survival.fires[fireId] = { fire_id: fireId, site_id: 'plaza_hearth', kind: 'firepit', owner_agent_id: keeper.id,
+    lit: true, fuel_seconds: 180, updated_at: now, created_at: now };
+  let fuelUsed = 0;
+  const maintainFire = async () => {
+    const before = await keeper.observe(), fire = before.survival.fires.find(f => f.fire_id === fireId);
+    if (fire.fuel_seconds > 60) return;
+    const quantity = 5, woodBefore = before.self.life.inventory.wood;
+    assert.ok(woodBefore >= quantity, 'the neighbouring owner must use its finite saved wood');
+    const receipt = await keeper.act('survival', { intent: 'fuel', fire_id: fireId, item_id: 'wood', quantity });
+    assert.equal(receipt.status, 'applied', JSON.stringify(receipt.error));
+    const after = await keeper.observe(), fueled = after.survival.fires.find(f => f.fire_id === fireId);
+    assert.equal(after.self.life.inventory.wood, woodBefore - quantity);
+    assert.equal(fueled.fuel_seconds, fire.fuel_seconds + quantity * 60);
+    assert.ok(fueled.fuel_seconds <= fueled.max_fuel_seconds);
+    fuelUsed += quantity;
+  };
   const advance = async ms => {
     const end = now + ms;
-    while (now < end) { now = Math.min(end, now + 10000); app.world.tick(); await p.observe(); }
+    while (now < end) {
+      await maintainFire();
+      now = Math.min(end, now + 10000); app.world.tick();
+      await p.observe(); await keeper.observe();
+    }
   };
   const applied = async (type, payload) => {
     const r = await p.act(type, payload); assert.equal(r.status, 'applied', JSON.stringify(r.error)); return r;
@@ -47,7 +79,7 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('gather') && types.includes('trade'));
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.20.0');
+  assert.equal(rules.recommended_skill_version, packageVersion);
   assert.deepEqual(rules.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
   const health = await (await fetch(`${url}/api/health`)).json();
   for (const cap of ['gathering', 'cooking', 'trading']) assert.equal(health.capabilities[cap], true);
@@ -90,11 +122,18 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   for (const plot_id of ['plot_1', 'plot_2']) await applied('farm', { intent: 'harvest', plot_id });
   await applied('inventory', { intent: 'craft', item_id: 'turnip_soup' });
   await applied('inventory', { intent: 'craft', item_id: 'wheat_bread' });
-  const beforeFood = (await p.observe()).self.fatigue.energy; assert.ok(beforeFood < 100);
+  const foodState = (await p.observe()).self, beforeFood = foodState.fatigue.energy;
+  assert.ok(beforeFood < 100);
   await applied('inventory', { intent: 'use', item_id: 'wheat_bread' });
   assert.equal((await p.observe()).self.fatigue.energy, Math.min(100, beforeFood + 24));
+  assert.equal((await p.observe()).self.survival.satiety, Math.min(100, foodState.survival.satiety + 35));
+  const beforeSoup = (await p.observe()).self;
+  assert.equal(beforeSoup.adventure.hp, beforeSoup.adventure.max_hp);
+  assert.ok(beforeSoup.survival.satiety < 100, 'long economic work leaves room for food even at full health');
   const soup = await p.act('inventory', { intent: 'use', item_id: 'turnip_soup' });
-  assert.equal(soup.status, 'rejected'); assert.equal((await p.observe()).self.life.inventory.turnip_soup, 1);
+  assert.equal(soup.status, 'applied', JSON.stringify(soup.error));
+  assert.equal((await p.observe()).self.life.inventory.turnip_soup || 0, 0);
+  assert.equal((await p.observe()).self.survival.satiety, Math.min(100, beforeSoup.survival.satiety + 35));
   await applied('trade', { intent: 'sell', item_id: 'ore', quantity: 1 });
   await applied('trade', { intent: 'buy', item_id: 'turnip_seed', quantity: 1 });
   const end = (await p.observe()).self;
@@ -102,6 +141,10 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   assert.ok(end.life.ledger.entries.length > 5); assert.ok(end.life.market.buy_remaining < 20);
   assert.equal(end.life.tools.hoe.durability, 18); assert.equal(end.life.tools.watering_can.durability, 18);
   assert.ok(end.life.inventory.turnip_seed > 0 && end.life.inventory.wheat_seed > 0);
+  assert.ok(fuelUsed > 0 && fuelUsed <= 30);
+  assert.equal((await keeper.observe()).self.life.inventory.wood || 0, 30 - fuelUsed);
+  assert.equal(app.world.state.events.some(e => e.type === 'survival_damage' && e.payload.agent_id === p.id), false,
+    'the economic test runs under a real neighbouring fire, with no night or starvation interruptions');
   const other = await actor('其他主人旅人');
   const neighbour = (await other.observe()).nearby_agents.find(a => a.agent_id === p.id);
   assert.ok(neighbour);
@@ -110,6 +153,10 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
     for (const key of ['inventory', 'ledger', 'market']) assert.equal(a.life[key], undefined, key);
     for (const key of ['goal', 'run', 'controllers', 'diagnostics']) assert.equal(a[key], undefined, key);
   }
-  assert.ok(!/"(?:opening_balance|initial_grant|token_hash|source_id)"/.test(JSON.stringify(publicState)), 'private ledger or credential fields leaked');
+  // Only the public light's source is allowed; ledger/reward sources elsewhere
+  // must still fail the original whole-projection check.
+  const withoutLightSources = structuredClone(publicState);
+  for (const a of withoutLightSources.agents) if (a.survival?.light) delete a.survival.light.source_id;
+  assert.ok(!/"(?:opening_balance|initial_grant|token_hash|source_id)"/.test(JSON.stringify(withoutLightSources)), 'private ledger or credential fields leaked');
   assert.equal(publicState.life.market.items.find(i => i.item_id === 'wood').buy_price, 4);
 });

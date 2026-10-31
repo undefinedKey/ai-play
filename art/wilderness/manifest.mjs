@@ -15,6 +15,6 @@ export function applyWildernessAssets(manifest,root) {
   writeFileSync(resolve(directory,'props_ink.atlas.json'),JSON.stringify({frames,meta:{image:'props_ink.png',size:{w:1536,h:1024},source:'original-imagegen-transparent-atlas'}},null,2)+'\n');
   writeFileSync(resolve(directory,'ground_ink.atlas.json'),JSON.stringify({frames:{world:{frame:{x:0,y:0,w:1536,h:1024},anchor:{x:0,y:0}}},meta:{image:'ground_ink.png',size:{w:1536,h:1024},source:'original-imagegen-walkable-ground'}},null,2)+'\n');
   const ground={image:'/pixel-world/ground_ink.png',width:1536,height:1024};
-  Object.assign(manifest,{release:'0.20.0',map:{width:48,height:32},scene:{...ground},scenes:{plaza:{...ground},adventure:{...ground}},wilderness});
+  Object.assign(manifest,{release:'0.21.0',map:{width:48,height:32},scene:{...ground},scenes:{plaza:{...ground},adventure:{...ground}},wilderness});
   return manifest;
 }

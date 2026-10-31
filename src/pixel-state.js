@@ -27,14 +27,14 @@ export function characterAction(agent, events, now, moving = false) {
     if (event.payload?.agent_id !== agent.agent_id) continue;
     if (event.type === 'adventure_combat'&&!Number.isFinite(agent.position_at)) return event.payload.attacker === 'monster' ? 'hurt' : 'attack';
     if (event.type === 'life_consumed') return 'eat';
-    if (event.type === 'life_crafted' && ['turnip_soup','wheat_bread'].includes(event.payload.item_id)) return 'cook';
-    if (event.type === 'life_gather_started' && agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.ends_at > now) return 'gather';
+    if (event.type === 'life_crafted' && ['turnip_soup','wheat_bread','roasted_berry','trail_ration','moon_stew'].includes(event.payload.item_id)) return 'cook';
+    if (event.type === 'life_gather_started' && agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.ends_at > now) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
     if (['agent_moved','moved','move'].includes(event.type)&&!Number.isFinite(agent.position_at)) return 'walk';
     const action = { life_tilled: 'till', life_planted: 'plant', life_watered: 'water', life_harvested: 'harvest', life_crafted: 'craft', life_tool_repaired: 'repair', life_tool_upgraded: 'upgrade' }[event.type];
     if (action) return action;
   }
   if (moving&&!Number.isFinite(agent.position_at)) return 'walk';
-  if (agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.started_at <= now && agent.life.gathering.ends_at > now) return 'gather';
+  if (agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.started_at <= now && agent.life.gathering.ends_at > now) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
   const exertion = agent.fatigue?.recent_exertion;
   if (exertion && recent(exertion.last_at, now, 900) && (Number.isFinite(agent.position_at)?['till','plant','water','harvest','craft','repair','upgrade']:['move','attack','till','plant','water','harvest','craft','repair','upgrade']).includes(exertion.last_kind)) return exertion.last_kind === 'move' ? 'walk' : exertion.last_kind;
   if ((agent.adventure?.plan?.intent === 'rest' && agent.position?.x === 11 && agent.position?.y === 8) || agent.activity?.activity_id === 'relax') return 'rest';
@@ -47,7 +47,7 @@ export function characterActionKey(agent, events, action) {
   if(action==='attack'&&agent.action)return `${action}:${agent.action.action_id}`;
   if(action==='hurt'&&agent.hurt)return `${action}:${agent.hurt.action_id}`;
   if(['walk','run'].includes(action)&&agent.movement?.version===2)return `${action}:${agent.movement.movement_id}`;
-  if(action==='gather')return `gather:${agent.life?.gathering?.job_id||''}`;
+  if(action==='gather'||action==='plant'&&agent.life?.gathering?.intent==='plant')return `gather:${agent.life?.gathering?.job_id||''}`;
   if(action==='cook'||action==='eat'){
     const receipt=[...(events||[])].reverse().find(event=>action==='cook'&&cooperationCook(event,agent.agent_id)||event.payload?.agent_id===agent.agent_id&&event.type===(action==='cook'?'life_crafted':'life_consumed'));
     return `${action}:${receipt?.event_id||receipt?.occurred_at||''}`;

@@ -12,6 +12,9 @@ import { createApp } from '../server/index.js';
 import { initializeEconomy } from '../server/economy.js';
 import { cooperationLoadAction } from './cooperation-soak-policy.mjs';
 import { resourcesLoadAction, recordResourcesReceipt, resourcesLoadSummary } from './resources-soak-policy.mjs';
+import { survivalLoadAction, recordSurvivalReceipt, releaseSurvivalClaim, survivalLoadSummary } from './survival-soak-policy.mjs';
+import { RESOURCE_NODES } from '../shared/resources-layout.js';
+import { publicSurvivor } from '../server/survival-state.js';
 import { seedExperienceCapacity, experienceLoadAction } from './experience-soak-policy.mjs';
 import { publicCooperations } from '../server/cooperation.js';
 import { isWalkable } from '../server/spatial.js';
@@ -24,7 +27,7 @@ const viewerCount = Number(process.argv.find(arg => arg.startsWith('--viewers=')
 assert.ok(Number.isInteger(viewerCount) && viewerCount >= 1 && viewerCount <= 150);
 const scopedViewers = process.argv.includes('--scoped-viewers');
 const patchV2 = process.argv.includes('--patch-v2');
-const PUBLIC_RESOURCE_KEYS = new Set(['id','kind','name','scene_id','position','interaction_position','item_id','radius','max_stock','regrow_seconds','duration_seconds','energy_cost','yield_count','tool_id','available_phases','stock','regrow_at','reservation','available']);
+const PUBLIC_RESOURCE_KEYS = new Set(['id','kind','name','scene_id','position','interaction_position','item_id','radius','max_stock','regrow_seconds','duration_seconds','energy_cost','yield_count','tool_id','available_phases','stock','regrow_at','reservation','available','natural_regrowth','initial_stage','ecology','plantable']);
 function reconstructPublicFrame(previous, message, snapshot) {
   if (snapshot) return message;
   if (message.protocol === 2) {
@@ -40,15 +43,19 @@ function reconstructPublicFrame(previous, message, snapshot) {
 }
 function validatePublicFrame(frame, scene) {
   assert.equal(frame.scope.scene_id, scene); assert.equal(frame.scope.roster, 'world');
-  assert.equal(frame.resources.version,1); assert.ok(frame.resources.nodes.every(n=>!scene||n.scene_id===scene));
+  assert.equal(frame.resources.version,2); assert.ok(frame.resources.nodes.every(n=>!scene||n.scene_id===scene));
   assert.deepEqual(Object.keys(frame.resources).sort(), ['nodes','version']);
   for (const node of frame.resources.nodes) {
     assert.ok(Object.keys(node).every(key=>PUBLIC_RESOURCE_KEYS.has(key)), 'resource projection contains only public fields');
     for (const position of [node.position,node.interaction_position]) assert.deepEqual(Object.keys(position).sort(),['x','y']);
     if(node.reservation) assert.deepEqual(Object.keys(node.reservation).sort(),['agent_id','expires_at','job_id']);
+    if(node.ecology) assert.deepEqual(Object.keys(node.ecology).sort(),['generation','next_at','origin','stage','stage_started_at']);
   }
   assert.ok(['day','dusk','night','dawn'].includes(frame.day_cycle.phase));
   assert.deepEqual(Object.keys(frame.day_cycle).sort(),['cycle_seconds','day_index','next_at','phase','phase_started_at','server_time','version']);
+  assert.deepEqual(Object.keys(frame.survival).sort(),['fires','server_time','sites','version']);
+  assert.ok([...frame.survival.sites,...frame.survival.fires].every(s=>!scene||s.scene_id===scene));
+  for(const fire of frame.survival.fires) assert.deepEqual(Object.keys(fire).sort(),['extinguishes_at','fire_id','fuel_seconds','interaction_position','kind','light_radius','lit','max_fuel_seconds','owner_agent_id','position','scene_id','site_id']);
   assert.ok(frame.room && Array.isArray(frame.scenes) && frame.scenes.length === 2 && frame.life && frame.history && frame.fatigue);
   assert.ok(Array.isArray(frame.agents) && frame.agents.length === 5); assert.ok(Array.isArray(frame.events) && frame.events.length <= 150);
   assert.equal(new Set(frame.agents.map(a=>a.agent_id)).size,5); assert.ok(Number.isFinite(frame.server_time));
@@ -56,6 +63,8 @@ function validatePublicFrame(frame, scene) {
     assert.ok(isWalkable(a.scene_id,a.position)); assert.ok(Number.isFinite(a.adventure.hp));
     assert.ok(!Object.hasOwn(a,'owner_id') && !Object.hasOwn(a,'run') && !Object.hasOwn(a,'diagnostics'));
     assert.ok(!Object.hasOwn(a.life,'inventory') && !Object.hasOwn(a.life,'ledger'));
+    assert.deepEqual(Object.keys(a.survival).sort(),['danger_in_seconds','darkness_seconds','light','max_satiety','protected_until','satiety','satiety_state','torch','travel']);
+    if(a.survival.travel) assert.deepEqual(Object.keys(a.survival.travel).sort(),['expires_at','site_id']);
   }
   if (scene==='plaza') assert.equal(frame.adventure.monsters.length,0);
   if (scene) assert.ok(frame.events.every(e=>e.payload.scene_id===scene || e.type==='day_phase_changed' || (e.type==='scene_changed'&&e.payload.from_scene_id===scene)
@@ -67,6 +76,11 @@ const experienceScenario = process.argv.includes('--experience');
 const cooperationScenario = process.argv.includes('--cooperation');
 const sceneScenario = process.argv.includes('--scenes');
 const resourcesScenario = process.argv.includes('--resources');
+const survivalScenario = process.argv.includes('--survival');
+if (survivalScenario) {
+  assert.ok(sceneScenario, '--survival requires --scenes');
+  assert.ok(!resourcesScenario && !lifeScenario && !explorationScenario && !experienceScenario && !cooperationScenario, '--survival uses only actual starter materials and normal API choices');
+}
 if (resourcesScenario) {
   assert.ok(sceneScenario, '--resources requires --scenes');
   assert.ok(!lifeScenario && !explorationScenario && !experienceScenario && !cooperationScenario, '--resources uses unchanged starter inventories and positions');
@@ -171,6 +185,8 @@ if (process.argv.includes('--worker')) {
   const physicalSamples = { fractional: 0, walk: 0, run: 0, prepare: 0, recovery: 0 };
   const resolvedHits = new Set();
   const resourceSamples = { approaching: 0, working: 0 }, resourceJobs = new Set(), dayPhases = new Set();
+  const survivalSamples = { night_lit_ticks: 0, night_dark_ticks: 0, natural_burnouts: 0, built: 0, fueled: 0, darkness_damage_events: 0 }, survivalActors = new Map(), litActors = new Set(), survivalEventIds = new Set();
+  const dayTransitions = []; let lastPhase = null;
   app.world.tick = (...args) => {
     const unobserved = app.spectator.count === 0 && app.spectator.stats.peak_streams > 0;
     const priorPhysical = unobserved ? physicalState() : null;
@@ -180,11 +196,28 @@ if (process.argv.includes('--worker')) {
     if (times.length < 50000) times.push(ms);
     peakEvents = Math.max(peakEvents, app.world.state.events.length);
     peakReceipts = Math.max(peakReceipts, Object.keys(app.world.state.receipts).length);
-    if (resourcesScenario) {
+    if (resourcesScenario || survivalScenario) {
       dayPhases.add(app.world.state.day_cycle.last_phase);
       for (const a of Object.values(app.world.state.agents)) if (a.life.gathering) {
         const job = a.life.gathering; resourceJobs.add(job.job_id);
         if (Object.hasOwn(resourceSamples, job.phase)) resourceSamples[job.phase]++;
+      }
+    }
+    if (survivalScenario) {
+      const phase = app.world.state.day_cycle.last_phase, day = app.world.state.day_cycle.last_day_index;
+      if(lastPhase!==`${day}:${phase}`) {dayTransitions.push({day_index:day,phase});lastPhase=`${day}:${phase}`;}
+      for(const a of Object.values(app.world.state.agents)) {
+        const s=publicSurvivor(app.world,a), prior=survivalActors.get(a.agent_id)||{initial_satiety:s.satiety,minimum_satiety:s.satiety,night_lit_ticks:0,night_dark_ticks:0};
+        prior.current_satiety=s.satiety;prior.minimum_satiety=Math.min(prior.minimum_satiety,s.satiety);prior.hp=a.adventure.hp;prior.active=a.status==='active';
+        if(phase==='night'&&a.status==='active') {const lit=s.light.lit&&['campfire','firepit'].includes(s.light.kind);prior[lit?'night_lit_ticks':'night_dark_ticks']++;survivalSamples[lit?'night_lit_ticks':'night_dark_ticks']++;if(lit)litActors.add(a.agent_id);}
+        survivalActors.set(a.agent_id,prior);
+      }
+      for(const event of app.world.state.events) if(!survivalEventIds.has(event.cursor)) {
+        survivalEventIds.add(event.cursor);
+        if(event.type==='fire_built')survivalSamples.built++;
+        if(event.type==='fire_fueled')survivalSamples.fueled++;
+        if(event.type==='fire_extinguished'&&event.payload.fuel_seconds===0)survivalSamples.natural_burnouts++;
+        if(event.type==='survival_damage'&&event.payload.kind==='darkness')survivalSamples.darkness_damage_events++;
       }
     }
     if (sceneScenario) for (const a of Object.values(app.world.state.agents)) {
@@ -228,12 +261,13 @@ if (process.argv.includes('--worker')) {
       active: app.world.activeIds().length, living: Object.values(app.world.state.agents).filter(a=>a.adventure.hp>0).length,
       spectator: app.spectator.stats, unobserved_physical_steps:unobservedPhysicalSteps,
       world_cycle: app.world.publicSnapshot().day_cycle, resource_nodes: app.world.publicSnapshot().resources.nodes.length,
-      ...(resourcesScenario ? { resource_samples: { ...resourceSamples }, resource_jobs: resourceJobs.size, observed_day_phases: [...dayPhases] } : {}),
+      ...((resourcesScenario || survivalScenario) ? { resource_samples: { ...resourceSamples }, resource_jobs: resourceJobs.size, observed_day_phases: [...dayPhases] } : {}),
+      ...(survivalScenario ? { survival_samples:{...survivalSamples},survival_actors:[...survivalActors.values()],shared_light_actors:litActors.size,day_transitions:dayTransitions } : {}),
       ...(sceneScenario ? { scene_crossings: sceneCrossings, physical_samples: { ...physicalSamples }, unique_resolved_hits: resolvedHits.size, scenes: Object.values(app.world.state.agents).map(a => a.scene_id) } : {}),
       ...(experienceScenario ? { history_entries:app.world.state.history.entries.length, history_cooperations:app.world.state.history.entries.filter(e=>e.category==='cooperation').length, completed_games:app.world.state.history.entries.filter(e=>e.type==='game_finished'&&e.outcome==='completed').length, live_meal_completed:publicCooperations(app.world).some(p=>p.status==='completed'&&p.template_id==='camp_meal') } : {}),
       ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
       ...(explorationScenario ? {encounters: Object.values(app.world.state.agents).filter(a=>a.adventure.encounter).length, goals:Object.values(app.world.state.agents).filter(a=>a.personal_goal).length, exploration_events:app.world.state.events.filter(e=>e.type.startsWith('exploration_')).length, expired_encounters:app.world.state.events.filter(e=>e.type==='exploration_ended' && e.payload.status==='expired').length} : {}),
-      ...((resourcesScenario || lifeScenario || explorationScenario || cooperationScenario) ? { ledger_entries: Object.values(app.world.state.agents).map(a => a.life.ledger?.entries?.length || 0),
+      ...((survivalScenario || resourcesScenario || lifeScenario || explorationScenario || cooperationScenario) ? { ledger_entries: Object.values(app.world.state.agents).map(a => a.life.ledger?.entries?.length || 0),
         life_events: ['life_gather_finished','life_crafted','life_traded'].map(type => ({ type, retained: app.world.state.events.filter(e => e.type === type).length })) } : {}) };
   };
   process.send({ type: 'ready', url, people });
@@ -248,11 +282,12 @@ if (process.argv.includes('--worker')) {
   const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.split('=')[1] || 1800);
   assert.ok(Number.isInteger(seconds) && seconds >= 10 && seconds <= 3600);
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'plaza-soak-'));
-  const worker = fork(fileURLToPath(import.meta.url), ['--worker', `--viewers=${viewerCount}`, ...(patchV2 ? ['--patch-v2'] : []), ...(scopedViewers ? ['--scoped-viewers'] : []), ...(sceneScenario ? ['--scenes'] : []), ...(resourcesScenario ? ['--resources'] : []), ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+  const worker = fork(fileURLToPath(import.meta.url), ['--worker', `--viewers=${viewerCount}`, ...(patchV2 ? ['--patch-v2'] : []), ...(scopedViewers ? ['--scoped-viewers'] : []), ...(sceneScenario ? ['--scenes'] : []), ...(survivalScenario ? ['--survival'] : []), ...(resourcesScenario ? ['--resources'] : []), ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
   const samples = [], latencies = [], viewers = [], clients = [], abort = new AbortController();
   const updateAges = [], clientCpu = process.cpuUsage();
   let final, applied = 0, failures = 0, frames = 0, validatedFrames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
   const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map(),words:['气球','球场','场地','地球','球迷','迷人','人民','民族','族群','群山']};
+  const survivalShared = {};
   let historyReads=0, historyFailures=0; const historyLatencies=[];
   const exit = new Promise(resolveExit => worker.once('exit', code => { exited = true; resolveExit(code); }));
   worker.on('message', message => { if (message.type === 'metrics') samples.push(message); if (message.type === 'final') final = message; });
@@ -323,11 +358,13 @@ if (process.argv.includes('--worker')) {
             }
           } else if (sceneScenario || lifeScenario || explorationScenario || cooperationScenario) {
             const resourceTurn = resourcesScenario && i === 0 && !policy.resources?.completed;
-            const decision = resourceTurn ? resourcesLoadAction(observation, policy) : sceneScenario ? sceneAction(observation, i, policy) : cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
+            const survivalDecision = survivalScenario ? survivalLoadAction(observation,i,policy,survivalShared) : undefined;
+            const decision = survivalScenario && survivalDecision!==undefined ? survivalDecision : resourceTurn ? resourcesLoadAction(observation, policy) : sceneScenario ? sceneAction(observation, i, policy) : cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
             if (decision) {
               const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, ...decision });
               assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
               if (resourceTurn) recordResourcesReceipt(policy, decision, observation, result, await call(client, 'observe', { run_id: session.run_id, session_epoch: session.session_epoch }));
+              if (survivalScenario) recordSurvivalReceipt(i,policy,survivalShared,decision,observation,result,await call(client,'observe',{run_id:session.run_id,session_epoch:session.session_epoch}));
               const key = `${decision.type}:${decision.payload.intent === 'respond' ? 'respond_'+decision.payload.accept : decision.payload.intent || decision.payload.choice_id || 'apply'}`; actionCounts[key] = (actionCounts[key] || 0) + 1;
             }
           } else if (!a.adventure.plan && a.adventure.encounter?.status !== 'pending') {
@@ -337,7 +374,7 @@ if (process.argv.includes('--worker')) {
             assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
           }
           await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.17.0', mode: 'demo', capabilities: sceneScenario || explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
-        } catch (error) { failures++; console.error(error.message); }
+        } catch (error) { if(survivalScenario)releaseSurvivalClaim(survivalShared,i); failures++; console.error(error.message); }
       }));
       if(experienceScenario) await Promise.all(Array.from({length:4},async(_,i)=>{
         const before=performance.now();
@@ -349,7 +386,7 @@ if (process.argv.includes('--worker')) {
         } catch(error) {historyFailures++;console.error(error.message);}
       }));
       round++;
-      if (round % 6 === 0) console.log(JSON.stringify({ type: 'progress', elapsed_seconds: Math.round((performance.now() - start) / 1000), applied, failures, frames, ...(resourcesScenario ? { resource_cycle: resourcesLoadSummary(clients[0].policy) } : {}), app: samples.at(-1) }));
+      if (round % 6 === 0) console.log(JSON.stringify({ type: 'progress', elapsed_seconds: Math.round((performance.now() - start) / 1000), applied, failures, frames, ...(survivalScenario ? { survival_cycle: survivalLoadSummary(clients.map(c=>c.policy),survivalShared) } : {}), ...(resourcesScenario ? { resource_cycle: resourcesLoadSummary(clients[0].policy) } : {}), app: samples.at(-1) }));
       await sleep(Math.min(sceneScenario || experienceScenario || lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
     } while (performance.now() - start < seconds * 1000);
     const elapsed = performance.now() - start;
@@ -379,7 +416,8 @@ if (process.argv.includes('--worker')) {
     const clientUsed=process.cpuUsage(clientCpu);
     const result = { type: 'result', scope: `Isolated real HTTP: 5 scripted controllers, ${viewerCount} public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.`,
       environment: { platform: process.platform, node: process.version, cores: cpus().length, total_memory_mb: Math.round(totalmem() / 1048576) },
-      scenario: resourcesScenario ? 'resources-then-independent-scenes' : sceneScenario ? 'independent-scene-round-trips' : experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      scenario: survivalScenario ? 'shared-survival-day-and-independent-scenes' : resourcesScenario ? 'resources-then-independent-scenes' : sceneScenario ? 'independent-scene-round-trips' : experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      ...(survivalScenario ? { survival_cycle: survivalLoadSummary(clients.map(c=>c.policy),survivalShared) } : {}),
       ...(resourcesScenario ? { resource_cycle: resourcesLoadSummary(clients[0].policy) } : {}),
       history_reads:historyReads,history_failures:historyFailures,history_query_p95_ms:+percentile(historyLatencies).toFixed(2),
       requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: viewerCount, scoped_viewers:scopedViewers, delta_protocol:patchV2?2:1, applied, failures, viewer_errors: viewerErrors, frames, validated_frames:validatedFrames,
@@ -393,7 +431,12 @@ if (process.argv.includes('--worker')) {
         shared_delta_encoding:viewerCount<10||final.spectator.delta_frames_written>final.spectator.delta_encodes*5,
         every_frame_reconstructed:validatedFrames===frames,
         world_continues_without_viewers:unobserved.streams_before===0&&unobserved.streams_after===0&&unobserved.simulation_ticks>=5&&unobserved.physical_steps>0&&unobserved.active===5,
-        ...(resourcesScenario ? { bounded_ledgers: final.ledger_entries.every(n=>n<=100), resources_and_day_observed: final.resource_nodes===9&&final.observed_day_phases.length>0,
+        ...(survivalScenario ? { bounded_ledgers:final.ledger_entries.every(n=>n<=100),real_personal_hunger:final.survival_actors.length===5&&final.survival_actors.every(s=>s.minimum_satiety<s.initial_satiety),
+          ...(seconds>=60 ? { real_shared_fire_built:final.survival_samples.built===1&&clients[0].policy.survival?.gathered_grass===1,real_grass_work:final.resource_samples.approaching>0&&final.resource_samples.working>0 } : {}),
+          ...(seconds>=600 ? { whole_survival_day:final.observed_day_phases.length===4&&final.world_cycle.day_index>=2,all_five_shared_light:final.shared_light_actors===5,
+            no_darkness_harm_at_fire:final.survival_samples.darkness_damage_events===0,explicit_fuel_after_burnout:final.survival_samples.natural_burnouts>=1&&survivalShared.saw_burnout&&survivalShared.first_relight,
+            real_shared_fuel_costs:final.survival_samples.fueled>=1&&clients.some(c=>c.policy.survival.fuel>0) } : {}) } : {}),
+        ...(resourcesScenario ? { bounded_ledgers: final.ledger_entries.every(n=>n<=100), resources_and_day_observed: final.resource_nodes===RESOURCE_NODES.length&&final.observed_day_phases.length>0,
           ...(seconds>=300 ? { resource_cycle_completed: clients[0].policy.resources?.completed===true,
             resource_gather_craft_use: ['accepted','gathered','crafted','consumed'].every(key=>clients[0].policy.resources?.[key]===1),
             resource_real_work: final.resource_samples.approaching>0&&final.resource_samples.working>0&&final.resource_jobs===1,

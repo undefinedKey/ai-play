@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "0.20.0",
+  "release": "0.21.0",
   "tool": {
     "name": "Pixelbolt",
     "version": "0.10.0",
@@ -73283,6 +73283,106 @@
     },
     "item_moon_stew": {
       "image": "/pixel-world/item_moon_stew.png",
+      "width": 32,
+      "height": 32,
+      "sheet_width": 32,
+      "sheet_height": 32,
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 32,
+              "h": 32,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "item_grass": {
+      "image": "/pixel-world/item_grass.png",
+      "width": 32,
+      "height": 32,
+      "sheet_width": 32,
+      "sheet_height": 32,
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 32,
+              "h": 32,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "item_pine_cone": {
+      "image": "/pixel-world/item_pine_cone.png",
+      "width": 32,
+      "height": 32,
+      "sheet_width": 32,
+      "sheet_height": 32,
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 32,
+              "h": 32,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "item_torch": {
+      "image": "/pixel-world/item_torch.png",
+      "width": 32,
+      "height": 32,
+      "sheet_width": 32,
+      "sheet_height": 32,
+      "anchor": {
+        "x": 16,
+        "y": 32
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 32,
+              "h": 32,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "item_roasted_berry": {
+      "image": "/pixel-world/item_roasted_berry.png",
       "width": 32,
       "height": 32,
       "sheet_width": 32,

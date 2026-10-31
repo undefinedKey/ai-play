@@ -44,7 +44,7 @@ test('v0.13目录明确所有成本/价格；节点交互范围处于安全区�
   }
   for (const item of MARKET_RULES.items) if (item.buy_price && item.sell_price) assert.ok(item.buy_price > item.sell_price);
   assert.equal(MARKET_RULES.max_quantity, 10); assert.equal(MARKET_RULES.window_seconds, 300);
-  assert.deepEqual(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew']);
+  assert.deepEqual(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry']);
 });
 
 test('真实动作开始只扣一次体力，工作期间不恢复，完成只发一次且写同job来源账本', t => {
@@ -187,14 +187,23 @@ test('经济账本有来源/余额，超过100条截断；动作回执不复制�
 test('公开状态仅展示采集/作品/购销，库存/额度/账本和任意内部字段继续私有', t => {
   const f = fixture(t), p = f.make('甲', 'owner-a'), other = f.make('乙', 'owner-b');
   applied(f.act(p, 'gather', { intent: 'start', resource_id: 'wood' }));
-  f.raw(p).life.gathering.private_note = 'PRIVATE_JOB'; f.raw(p).life.market.private_note = 'PRIVATE_QUOTA'; f.raw(p).life.ledger.private_note = 'PRIVATE_LEDGER';
+  f.raw(p).life.gathering.private_note = 'PRIVATE_JOB'; f.raw(p).life.gathering.source_id = 'PRIVATE_SOURCE'; f.raw(p).life.market.private_note = 'PRIVATE_QUOTA'; f.raw(p).life.ledger.private_note = 'PRIVATE_LEDGER';
   const self = f.observe(p).self; assert.ok(self.life.ledger.entries.length); assert.ok(self.life.market);
   const neighbour = f.observe(other).nearby_agents.find(a => a.agent_id === p.id), publicState = spectatorSnapshot(f.world);
   for (const agent of [neighbour, ...publicState.agents, f.world.snapshotFor({ id: 'owner-b' }).agents.find(a => a.agent_id === p.id)]) {
     for (const key of ['inventory', 'market', 'ledger']) assert.equal(agent.life[key], undefined);
     if (agent.life.gathering) for (const key of ['private_note', 'run_id', 'session_epoch']) assert.equal(agent.life.gathering[key], undefined);
   }
-  assert.equal(/PRIVATE_|opening_balance|initial_grant|"source_id"/.test(JSON.stringify(publicState)), false, '公开投影不能含内部哨兵、流水或来源字段');
+  assert.equal(/PRIVATE_|opening_balance|initial_grant/.test(JSON.stringify(publicState)), false, '公开投影不能含内部哨兵或流水');
+  const checkSources = (value, path = '') => {
+    if (!value || typeof value !== 'object') return;
+    for (const [key, child] of Object.entries(value)) {
+      const at = path ? `${path}.${key}` : key;
+      if (key === 'source_id') assert.match(at, /^agents\.\d+\.survival\.light\.source_id$/, '只公开实际光源标识，不公开账本/奖励来源');
+      checkSources(child, at);
+    }
+  };
+  checkSources(publicState);
   assert.ok(publicState.events.some(event => event.type === 'life_gather_started' && Number.isInteger(event.payload.ends_at)));
 });
 

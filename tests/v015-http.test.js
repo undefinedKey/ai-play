@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version;
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
@@ -55,7 +57,7 @@ test('v0.15 HTTP: two AIs consent, explicitly escrow/cook, and receive the agree
   supplier.raw.life.inventory.turnip = 8;
   for (const p of [supplier, chef]) { delete p.raw.life.ledger; initializeEconomy(p.raw, f.time()); }
   const rules = await supplier.call('get_rules'), tools = await supplier.client.listTools();
-  assert.equal(rules.recommended_skill_version, '0.20.0'); assert.equal(rules.max_capabilities, 16);
+  assert.equal(rules.recommended_skill_version, packageVersion); assert.equal(rules.max_capabilities, 16);
   assert.ok(tools.tools.find(t => t.name === 'act').inputSchema.properties.type.enum.includes('cooperation'));
   assert.equal((await f.api('/api/health')).body.capabilities.cooperation, true);
   const invite = await f.propose(supplier, chef, 'camp_meal', 'supplier');
@@ -85,7 +87,9 @@ test('v0.15 HTTP: two AIs consent, explicitly escrow/cook, and receive the agree
   assert.deepEqual(await chef.call('act', cook), cooked);
   assert.deepEqual([supplier.raw.life.ledger.total_entries, chef.raw.life.ledger.total_entries], ledgers);
   for (const p of [supplier, chef]) assert.ok(p.raw.life.ledger.entries.some(e => e.items.turnip_soup === 1));
-  const visible = JSON.stringify(await f.publicWorld());
+  const publicState = await f.publicWorld(), withoutLightSources = structuredClone(publicState);
+  for (const actor of withoutLightSources.agents) if (actor.survival?.light) delete actor.survival.light.source_id;
+  const visible = JSON.stringify(withoutLightSources);
   for (const secret of ['PRIVATE_供菜者', 'PRIVATE_厨师', supplier.token, chef.token, 'source_id', 'token_hash', 'cooperation_return']) assert.ok(!visible.includes(secret), secret);
 });
 

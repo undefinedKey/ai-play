@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "name": "item_pine_cone",
+  "width": 32,
+  "height": 32,
+  "palette": {
+    "A": "#71613b",
+    "B": "#4e3d2b",
+    "C": "#ad8051",
+    "D": "#d0ac70",
+    "E": "#203d382e"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            ".................AA.............",
+            ".................AA.............",
+            ".................AA.............",
+            "..............BBAAA.............",
+            "............BBBBAABB............",
+            "...........BBBBBAABBB...........",
+            "..........CCCCBBBCCCCB..........",
+            "........CDDDDDCCDDDDDCC.........",
+            ".........BCCCCCBBCCCCCB.........",
+            ".........BBCCCBBBBCCCBB.........",
+            ".........BBBBBBBBBBBBBB.........",
+            "........BBBBCCCCBCCCCBBB........",
+            "........BBCDDDDCDDDDDCCB........",
+            "........BBBBCCCCCCCCCCBB........",
+            "........BBBBBCCCBBCCCBBB........",
+            "........BBBBBBBBBBBBBBBB........",
+            "........BBCCCCBBBCCCCBBB........",
+            "........CDDDDDCCDDDDDCCB........",
+            "........BBCCCCCBBCCCCCBB........",
+            ".........BBCCCBBBBCCCBB.........",
+            ".........BBBBBBBBBBBBBB.........",
+            ".........BBBCCCCBCCCCBB.........",
+            "..........CDDDDCDDDDDCC.........",
+            "..........BBCCCCCCCCCC..........",
+            "...........BBCCCBBCCC...........",
+            ".......EEEEEBBBBBBBBEEEEEE......",
+            "....EEEEEEEEEEBBBBEEEEEEEEEEE...",
+            ".......EEEEEEEEEEEEEEEEEEE......",
+            "................................",
+            "................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

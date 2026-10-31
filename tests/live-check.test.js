@@ -37,7 +37,10 @@ test('release live check accepts the ground-painted pond and still rejects a mis
   });
   const { stdout } = await check();
   const result = JSON.parse(stdout);
-  assert.equal(result.pixel_images, 91);
+  const images = new Set();
+  const collect = value => { if (!value || typeof value !== 'object') return; if (value.image) images.add(value.image); for (const child of Object.values(value)) collect(child); };
+  collect(manifest);
+  assert.equal(result.pixel_images, images.size);
   assert.equal(result.scene_locations_valid, true);
   assert.equal(result.agents, 2);
   missingSprite = true;

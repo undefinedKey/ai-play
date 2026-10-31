@@ -11,6 +11,7 @@ const types = new Map([
   ['message', 'speech'], ['activity_finished', 'activity'], ['game_finished', 'game'],
   ['exploration_resolved', 'exploration'], ['exploration_ended', 'exploration'], ['personal_goal_ended', 'goal'],
   ...['life_gather_finished', 'life_traded', 'life_harvested', 'life_crafted', 'life_equipped', 'life_tool_upgraded', 'life_tool_repaired', 'life_consumed'].map(type => [type, 'life']),
+  ...['fire_built', 'fire_fueled', 'fire_extinguished', 'survival_rescued'].map(type => [type, 'life']),
   ['cooperation_completed', 'cooperation'], ['cooperation_ended', 'cooperation'],
 ]);
 const time = n => Number.isSafeInteger(n) && n >= 0;

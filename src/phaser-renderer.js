@@ -4,14 +4,24 @@ import {wildernessGround,pondGeometry} from './wilderness-art.js';
 
 // Retained Phaser objects: React sends confirmed geometry/atlas frames. No DOM
 // measurements in the render loop and no independent copy of world simulation.
-export function createWorldRenderer({parent,assets,registry,sceneId,phase='day',onReady,onPartial,onError}) {
-  let game,disposed=false,scene,dirty=true,ready=false,scheduled,daylight;
+export function createWorldRenderer({parent,assets,registry,sceneId,phase='day',lights=[],onReady,onPartial,onError}) {
+  let game,disposed=false,scene,dirty=true,ready=false,scheduled,daylight,lightTexture;
   const images=new Map(),definitions=new Map();
   function visit(value){if(!value||typeof value!=='object')return;if(value.image)definitions.set(value.image,value);for(const child of Object.values(value))visit(child);}
   visit(assets);
   const key=image=>`world:${image}`;
   const fail=()=>{if(!disposed){onError();destroy();}};
-  function setPhase(next){phase=next;if(!daylight)return;daylight.clear();const tone={day:[0,0],dusk:[0x875c40,.16],night:[0x182b49,.3],dawn:[0xad9d8b,.1]}[phase]||[0,0];daylight.fillStyle(...tone).fillRect(0,0,WORLD_MAP.width*32,WORLD_MAP.height*32);if(phase==='night'){daylight.fillStyle(0xf6ce87,.09).fillCircle(368,272,66);daylight.fillStyle(0xffe4a9,.12).fillCircle(368,272,34);}invalidate();}
+  function redrawLighting(){
+    if(disposed||!lightTexture)return;const g=lightTexture.getContext(),w=WORLD_MAP.width*32,h=WORLD_MAP.height*32;
+    g.clearRect(0,0,w,h);g.globalCompositeOperation='source-over';g.fillStyle={day:'rgba(0,0,0,0)',dusk:'rgba(135,92,64,.16)',night:'rgba(18,31,47,.48)',dawn:'rgba(173,157,139,.1)'}[phase]||'transparent';g.fillRect(0,0,w,h);
+    if(phase==='night'){
+      g.globalCompositeOperation='destination-out';for(const l of lights){const glow=g.createRadialGradient(l.x,l.y,0,l.x,l.y,l.radius);glow.addColorStop(0,'rgba(0,0,0,1)');glow.addColorStop(.7,'rgba(0,0,0,.8)');glow.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=glow;g.beginPath();g.arc(l.x,l.y,l.radius,0,Math.PI*2);g.fill();}
+      g.globalCompositeOperation='source-over';g.strokeStyle='rgba(233,196,126,.55)';g.lineWidth=1.5;for(const l of lights){g.beginPath();g.arc(l.x,l.y,l.radius,0,Math.PI*2);g.stroke();}
+    }
+    lightTexture.refresh();invalidate();
+  }
+  function setPhase(next){phase=next;redrawLighting();}
+  function setLighting(next){lights=next;redrawLighting();}
   function terrain(){
     const data=wildernessGround(sceneId),g=scene.add.graphics().setDepth(-90);
     g.fillStyle(0xd6ccae,.34).fillRect(0,0,WORLD_MAP.width*32,WORLD_MAP.height*32);
@@ -24,7 +34,7 @@ export function createWorldRenderer({parent,assets,registry,sceneId,phase='day',
       g.lineStyle(1.4,0xd1d5bc,.65);for(const line of pond.ripples){g.beginPath();g.moveTo(line[0].x,line[0].y);g.lineTo(line[1].x,line[1].y);g.strokePath();}
       g.lineStyle(1.4,0x4c5a3e,.9);for(const p of pond.reeds){for(const dx of[-3,0,4]){g.beginPath();g.moveTo(p.x,p.y);g.lineTo(p.x+dx,p.y-6-Math.abs(dx));g.strokePath();}}
     }
-    daylight=scene.add.graphics().setDepth(10000);setPhase(phase);
+    lightTexture=scene.textures.createCanvas('authoritative-night-lighting',WORLD_MAP.width*32,WORLD_MAP.height*32);daylight=scene.add.image(0,0,'authoritative-night-lighting').setOrigin(0,0).setDepth(10000);redrawLighting();
   }
   function draw(){
     if(disposed||!scene||!dirty)return;
@@ -56,5 +66,5 @@ export function createWorldRenderer({parent,assets,registry,sceneId,phase='day',
     }});
     document.addEventListener('visibilitychange',visibility);
   }catch{fail();}
-  return{invalidate,destroy,setPhase};
+  return{invalidate,destroy,setPhase,setLighting};
 }

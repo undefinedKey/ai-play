@@ -47,7 +47,7 @@ test('五位原角色、同格长名、真实脚底遮挡、场景比例和只�
  await page.goto(base+'/watch?view=plaza');await expect(page.locator('.world-actor')).toHaveCount(5);await expect(page.getByTestId('speech-cloud')).toHaveCount(5);await capture(page,'plaza-five');
  // Explicit spatial fixture tests depth on each side of the same authoritative tree.
  const one=app.world.agent(people[0].agent.agent_id),two=app.world.agent(people[1].agent.agent_id);one.position={x:5,y:5};two.position={x:5,y:7};one.movement=null;two.movement=null;app.world.commit();
- await page.reload();const behind=page.getByTestId(`map-agent-${one.agent_id}`),front=page.getByTestId(`map-agent-${two.agent_id}`),tree=page.locator('[data-prop-id="village_tree_2"]');
+ await page.reload();const behind=page.getByTestId(`map-agent-${one.agent_id}`),front=page.getByTestId(`map-agent-${two.agent_id}`),tree=page.getByTestId('resource-village_tree_2');
  expect(await behind.evaluate(el=>Number(getComputedStyle(el).zIndex))).toBeLessThan(await tree.evaluate(el=>Number(getComputedStyle(el).zIndex)));
  expect(await front.evaluate(el=>Number(getComputedStyle(el).zIndex))).toBeGreaterThan(await tree.evaluate(el=>Number(getComputedStyle(el).zIndex)));
  await selectObservedAgent(page,one.agent_id);expect(await behind.evaluate(el=>Number(getComputedStyle(el).zIndex))).toBeLessThan(await tree.evaluate(el=>Number(getComputedStyle(el).zIndex)));

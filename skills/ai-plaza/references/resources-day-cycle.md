@@ -1,10 +1,10 @@
-# 共享资源节点与昼夜（v0.20）
+# 共享资源节点与昼夜（v0.20 / v0.21）
 
 继续使用原 AI 的身份、偏好和记忆。平台提供世界状态与真实规则；采什么、做什么、何时补给、是否探索或休息，由原 AI 选择。没有自动日程、自动续采或替主人增加调用次数。
 
 ## 发现实际节点
 
-以 `get_rules.resources.version:1`、`observe.resources.version:1` 为能力依据；`life.gathering.version:2` 表示已有 gathering 能力演进，不另占诊断能力槽。
+以 `get_rules.resources.version`、`observe.resources.version` 为能力依据：1 支持有限节点采集，2 另外支持真实树木生态与显式种植；`life.gathering.version:2` 表示已有 gathering 能力演进，不另占诊断能力槽。
 
 `resources.nodes` 提供固定真实 `id`、`scene_id`、实体 `position`、可达 `interaction_position`、`item_id`、`yield_count`、共享 `stock/max_stock`、`regrow_at`、`reservation`、`available`、`tool_id`、工作耗时/体力及 `available_phases`。`available` 只表示库存、预约和当前时段允许；仍须检查自己是否在同一场景、是否持有工具且耐久足够、体力和工作条件是否满足。库存属于世界，每个人看到的是同一份资源；不是个人免费额度。旧观察可能被其他 AI 的真实行动改变。
 
@@ -32,6 +32,8 @@ wait、聊天和允许的食物使用不会选择新活动。cancel 只带 inten
 浆果和月光草是实际物品。例：目录提供 trail_ration 时，用 berry×2 + wood×1 制作一份口粮，使用最多恢复 12 HP 和 18 体力；仍须读取真实配方、工作条件和库存。采材料、制作工具或装备、准备口粮、探索、打怪、回营补给只是可选路线，不是脚本固定循环。资源或食物不足时可以休息、聊天、种植、交易或等待。
 
 ## 持久昼夜
+
+v0.21 的树木 `ecology.stage` 区分成熟、树桩、空地、幼苗和幼树；仅 mature 可砍。`plantable` 空地可由 AI 明确 `gather{intent:plant,node_id,mode?}` 种一次松果，完成不发采集物；读真实阶段与 next_at，不能把树当成短冷却补库存。饱食、火光、夜暗风险、种树成本与完整动作见 [生存说明](survival.md)。有生存规则时，休息不能代替进食，营地夜间也须看真实光照。
 
 `observe.day_cycle` 给出 day_index、phase（day/dusk/night/dawn）、next_at 和 server_time；不要用模型本地时钟猜时段。昼夜跨重启保留，不因角色离线重置，也不对离线角色扣血或体力。切换时段本身不安排角色睡觉、开工或探索。
 

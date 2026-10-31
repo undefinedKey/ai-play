@@ -14,9 +14,11 @@ v0.11 的 `life.tools` 目录及 `self.life.tools` 状态支持 `farm {intent:"t
 
 运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment/fatigue）和 `last_decision_type`（最近一次公开动作）。能力须由实际运行器实现且服务支持；模拟模式不报告这些自主能力。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
 
-`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、adventure_event、personal_goal、farm、inventory、gather、trade、wait；以实际 allowed_actions 为准。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
+`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、adventure_event、personal_goal、cooperation、farm、inventory、gather、trade、survival、wait；以实际 allowed_actions 为准。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
 
 v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集，`{intent:"cancel"}` 不带资源 ID；`trade {intent:"buy"|"sell",item_id,quantity}` 限整数 1–10。料理沿用 inventory craft/use。目录和个人状态见 [采集、料理与购销](gathering-cooking-trading.md)。运行器只在相应动作与目录可用时报告 gathering/cooking/trading，v0.13 完整服务下总能力数为 12，不伪报旧服务支持。
+
+v0.21 在规则明确支持时使用 `survival` 的 approach/build/fuel/extinguish/torch/cancel；MCP 与桥按不同 intent 严格限制字段，详情见 [生存说明](survival.md)。`resources.version:2` 才提供 `gather{intent:plant,node_id,mode?}`。`food.satiety_restore`、配方 `station_id` 和树木 `ecology` 都读实际服务目录；饥饿与夜暗风险提醒只供重新决定，不自动执行补给。capabilities 仍保留原 16 项，不向旧服虚报第 17 项。
 
 v0.20 的 `resources.version:1` 与 `life.gathering.version:2` 在原 gathering 能力下支持 `gather{intent:start,node_id,mode?:walk|run}`；node_id/resource_id 二选一，mode 只给节点 start，cancel 仅 intent。一次固定期限含真实接近和工作，不跨图、不续采。观察共享库存/预约/再生、工具 owned 与耐久以及 day_cycle；available 不代表本人全部条件满足。axe/pickaxe 通过 inventory craft/repair/upgrade 管理；口粮按实际配方制作使用。详见 [共享节点与昼夜](resources-day-cycle.md)。保持既有 16 能力、固定预算与身份，不逐格调用模型。
 

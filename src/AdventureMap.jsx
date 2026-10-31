@@ -8,6 +8,7 @@ import {RenderSpace} from './world-render-context.jsx';
 import {sampleMotion} from '../shared/motion.js';
 import {useWorldAudio} from './world-audio.js';
 import {ResourceLayer,ResourceSelection,ResourceInspector,DayCycle} from './Wilderness.jsx';
+import {FireLayer,FireInspector,SurvivalStatus} from './Survival.jsx';
 import {CameraContext,MapCamera,ObserverStatus} from './Observer.jsx';
 import {nearbySlots,presenceState,presenceLabel,publicName} from './observer-state.js';
 import SpeechOverlay, { SpeechOverlayScope } from './SpeechOverlay.jsx';
@@ -81,9 +82,9 @@ export function adventureStatus(agent, adventure) {
 function AdventureMap({ world, selected, onSelect, grid, live, now }) {
   const adventure=world.adventure,map=mapDimensions(adventure.map),present=sceneActors(world.agents,'adventure'),slots=nearbySlots(present);
   return <div className="map-scene-frame"><MapCamera status={!present.length&&<div className="scene-empty" data-testid="adventure-empty-banner" role="status">0 位 AI · 林地等待冒险者，怪物仍在自己的领地</div>} speech={{events:world.events,agents:present,selected,now,live,sceneId:'adventure'}}><div className="adventure-map pixel-map" data-testid="adventure-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
-    <PhaserWorld sceneId="adventure" live={live} cycle={world.day_cycle}>
+    <PhaserWorld sceneId="adventure" live={live} cycle={world.day_cycle} survival={world.survival}>
     <PixelScene sceneId="adventure" grid={grid} map={map} live={live}/><SceneProps sceneId="adventure" map={map}/>
-    <ResourceLayer world={world} sceneId="adventure" map={map} now={now} live={live}/>
+    <ResourceLayer world={world} sceneId="adventure" map={map} now={now} live={live}/><FireLayer world={world} sceneId="adventure" map={map} live={live}/>
     <DiscoveryMarkers world={{...world,agents:present}} map={map} selected={selected} now={now} live={live}/>
     <div className="scene-caption"><strong>林地冒险</strong><span>{present.length} 位在场 · 入口通往生活广场</span></div>
     {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={present} events={world.events} now={now} map={map} live={live}/>)}
@@ -119,9 +120,9 @@ export default function WorldScene({ world, selected, onSelect, grid, onGrid, li
     {sound.unavailable&&<p className="camera-status" role="status">当前浏览器暂时无法播放音效，画面仍正常显示。</p>}
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
     {view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={displayNow}/>:React.cloneElement(plaza,{onSelect:choose,now:displayNow})}
-    <ResourceInspector world={world} selected={selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/>
+    <ResourceInspector world={world} selected={selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/><FireInspector world={world} selected={selectedResource} onClose={()=>setSelectedResource(null)} live={live}/>
     {scopeControls}
-    <ObserverStatus world={world} agent={agent} live={live} now={now}/>
+    <ObserverStatus world={world} agent={agent} live={live} now={now}/><SurvivalStatus world={world} agent={agent} live={live}/>
     <CooperationPanel world={world} agent={agent} now={now} live={live}/>
     <HistoryPanel world={world} selected={selected} onSelect={onSelect} now={now}/>
     <AdventureJourney world={world} agent={agent} now={now} live={live}/>

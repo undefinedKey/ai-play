@@ -7,11 +7,12 @@ import { confirmedPosition } from './scene-state.js';
 import { publicName } from './observer-state.js';
 import { RenderSpace, useRenderSprite } from './world-render-context.jsx';
 import {wildernessGround,pondGeometry} from './wilderness-art.js';
+import {RESOURCE_NODES} from '../shared/resources-layout.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.20.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.21.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -120,7 +121,7 @@ export function SceneProps({sceneId,map}){
   const assets=usePixelManifest();
   const scene=sceneDefinition(sceneId);
   const inkKinds={pine:'pine',pine_tall:'pine',oak:'oak',birch:'oak',apple:'oak',dead_tree:'stump',rock:'ore',rock_large:'ore'};
-  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=>{const definition=assets?.wilderness?.[inkKinds[prop.kind]]||assets?.props?.[prop.kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.native_scale?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
+  return <>{scene?.props.filter(prop=>prop.kind!=='pond'&&!RESOURCE_NODES.some(n=>n.kind==='tree'&&n.scene_id===sceneId&&n.position.x===prop.position.x&&n.position.y===prop.position.y)).map(prop=>{const kind=['pine','pine_tall','oak','birch','apple'].includes(prop.kind)?'dead_tree':prop.kind;const definition=assets?.wilderness?.[inkKinds[kind]]||assets?.props?.[prop.kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.native_scale?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
 }
 
 export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){

@@ -39,7 +39,7 @@ function observed(t) {
 
 test('真实节点库存/预约/工具和时段进入提示；共享available不冒充本人能开工', t => {
   const f = observed(t), o = f.o, rules = f.rules;
-  assert.equal(o.resources.version, 1); assert.equal(rules.life.gathering.version, 2);
+  assert.equal(o.resources.version, 2); assert.equal(rules.life.gathering.version, 2);
   const pine = o.resources.nodes.find(n => n.id === 'east_pine');
   pine.stock = 0; pine.available = false; pine.regrow_at = f.now + 45000;
   pine.reservation = { agent_id: 'other', job_id: 'job', expires_at: f.now + 10000 };
@@ -120,7 +120,7 @@ for (const mode of ['model', 'dsh-pet']) test(`${mode}原AI一次选择节点后
   assert.equal(a.life.inventory.berry, 2); assert.equal(runner.checkpoint.calls_used, 1); assert.equal(calls.filter(c => c.name === 'act').length, 1);
   assert.equal(a.agent_id, identity); assert.deepEqual({ id: a.run.run_id, expires: a.run.expires_at, max: a.run.max_calls }, run);
   assert.equal(runner.capabilities().length, 16); assert.ok(runner.capabilities().includes('gathering'));
-  if (mode === 'model') { assert.match(prompts[0].messages[0].content, /node_id/); assert.equal(JSON.parse(prompts[0].messages[1].content).observation.resources.version, 1); }
+  if (mode === 'model') { assert.match(prompts[0].messages[0].content, /node_id/); assert.equal(JSON.parse(prompts[0].messages[1].content).observation.resources.version, 2); }
   else assert.ok(prompts[0].length <= 2000);
   selected = action('wait'); await runner.decide(); assert.equal(a.life.gathering, null); assert.equal(calls.filter(c => c.name === 'act').length, 1);
 });

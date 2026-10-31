@@ -275,7 +275,15 @@ function farmScene(){
 }
 function itemIcon(id){
  const g=new Grid(32,32);g.ellipse(4,27,25,3,'#203d382e');
- if(id==='berry'){
+ if(id==='grass'){
+  for(const[x,y]of[[6,9],[10,4],[16,7],[22,3],[27,12]]){g.line(16,28,x,y,'#3e513a',3);g.line(16,27,x,y,'#8b985e');}g.line(8,21,23,21,'#c1af73',2);
+ }else if(id==='pine_cone'){
+  g.ellipse(8,5,16,24,'#4e3d2b');for(let y=7;y<27;y+=5)for(const x of[y%2?11:13,18]){g.poly([[x,y],[x+5,y+2],[x+1,y+5],[x-3,y+2]],'#ad8051');g.line(x-2,y+2,x+2,y+2,'#d0ac70');}g.line(16,6,17,2,'#71613b',2);
+ }else if(id==='torch'){
+  g.line(12,28,18,12,'#493a29',6);g.line(12,27,18,12,'#a77a44',3);g.poly([[11,12],[14,3],[17,7],[20,1],[25,10],[22,17],[15,19]],'#a94d29');g.poly([[15,12],[19,5],[23,12],[20,17],[16,17]],'#f2a542');g.poly([[17,13],[20,9],[21,15],[18,17]],'#ffe6a1');
+ }else if(id==='roasted_berry'){
+  g.line(5,27,25,5,'#655038',3);for(const[x,y]of[[10,20],[16,14],[22,8]]){g.ellipse(x-4,y-4,9,9,'#432b27');g.ellipse(x-3,y-3,7,7,'#9b5b38');g.line(x-2,y+1,x+2,y-1,'#d09852',2);}
+ }else if(id==='berry'){
   g.line(9,24,22,7,outline,2);g.line(17,14,10,7,'#6a8350',3);g.line(18,14,27,10,'#789259',3);for(const[x,y]of[[9,18],[16,22],[21,16],[13,13]]){g.ellipse(x-4,y-4,9,9,'#493c35');g.ellipse(x-3,y-3,7,7,'#a86550');g.dot(x-1,y-2,'#e0ae7e');}
  }else if(id==='moon_herb'){
   g.line(15,28,16,8,'#556b46',2);g.line(15,24,8,15,'#7b9159',3);g.line(15,21,24,13,'#899b65',3);for(const[x,y]of[[14,7],[10,10],[19,10],[15,13]])g.ellipse(x-3,y-3,6,6,'#e7dbac');g.ellipse(13,8,5,5,'#a48b53');
@@ -389,7 +397,7 @@ for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor','hunte
 for(const id of ['supply_cache','wild_garden','spring'])exportRecipe(recipe(`discovery_${id}`,[{name:'idle',action:'idle',duration:1000,g:discovery(id)},...Array.from({length:4},(_,i)=>({name:`resolved_${i}`,action:'resolved',duration:300,g:discovery(id,true,i)}))]),'discoveries',id);
 for(const id of ['leaf','scarf','ribbon','star'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'accessories');
 for(const id of ['turnip','wheat'])exportRecipe(recipe(id,['untilled','tilled','empty','seeded','growing','ready'].map(stage=>({name:stage,action:stage,duration:1000,g:crop(id,stage)})),32,32),'crops');
-for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew'])exportRecipe(recipe(`item_${id}`,[{name:'idle',action:'idle',duration:1000,g:itemIcon(id)}],32,32),'items',`item_${id}`);
+for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew','grass','pine_cone','torch','roasted_berry'])exportRecipe(recipe(`item_${id}`,[{name:'idle',action:'idle',duration:1000,g:itemIcon(id)}],32,32),'items',`item_${id}`);
 for(const id of ['wood','ore','kitchen','supply'])exportRecipe(recipe(`landmark_${id}`,[{name:'idle',action:'idle',duration:1000,g:landmark(id)}],64,64),'landmarks',id);
 for(const id of ['hoe','watering_can','axe','pickaxe'])for(const level of [1,2,3]){
  exportRecipe(recipe(`${id}_${level}`,poses.map(p=>({...p,g:toolOverlay(id,level,p.action,p.frame)}))),'tools');

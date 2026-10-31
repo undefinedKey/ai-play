@@ -154,7 +154,7 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
         for field in ['inventory', 'equipment', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
             assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
         expected_tools = deepcopy(expected_agents[key]['life'].get('tools'))
-        if new.get('resources', {}).get('version') == 1 and isinstance(expected_tools, dict):
+        if new.get('resources', {}).get('version') in [1, 2] and isinstance(expected_tools, dict):
             for tool_id in ['axe', 'pickaxe']:
                 if tool_id not in expected_tools:
                     assert not a['life']['inventory'].get(tool_id, 0), 'legacy resource tool cannot be silently granted'
@@ -194,6 +194,19 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
             text=True, encoding='utf-8', timeout=60)
         assert result.returncode == 0, 'resource and day-cycle preservation verification failed'
         assert json.loads(result.stdout).get('resource_state_preserved') is True
+    if 'survival' in old or 'survival' in new or any('survival' in a for a in [*old['agents'].values(), *new['agents'].values()]):
+        if project_root is None:
+            assert '__file__' in globals(), 'explicit application root required for embedded migration verification'
+            project_root = Path(__file__).resolve().parent.parent
+        helper = Path(project_root).resolve() / 'deploy/verify-survival.mjs'
+        assert helper.is_file(), 'tracked survival verification helper required'
+        # Legal cooperative escrow refunds were independently proved above.
+        # Reuse only that expected asset baseline; survival itself grants nothing.
+        survival_old = {**old, 'agents': expected_agents}
+        result = subprocess.run(['node', str(helper)], input=json.dumps({'old': survival_old, 'new': new}), capture_output=True,
+            text=True, encoding='utf-8', timeout=60)
+        assert result.returncode == 0, 'survival state/fuel/ownership preservation verification failed'
+        assert json.loads(result.stdout).get('survival_state_preserved') is True
     if require_history or 'history' in old or 'history' in new:
         assert 'history' in new, 'existing public history must not disappear'
         if project_root is None:
@@ -231,6 +244,7 @@ def verify(path, root=Path('/')):
         'cooperations_consents_escrow_returns_preserved': True,
         'public_history_preserved': True,
         'scene_locations_preserved': True,
+        'survival_state_preserved': True,
         'sqlite_integrity': 'ok', 'backup': str(path)}
 
 if __name__ == '__main__':

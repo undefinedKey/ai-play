@@ -3,21 +3,26 @@ import { FATIGUE_RULES, spendEnergy, attackMultiplier } from './fatigue.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_RULES, economyBalance, recordEconomyDelta, marketWindow, publicMarket, publicLedger } from './economy.js';
 import { EQUIPMENT, STRATEGY_EQUIPMENT_RULES, combatStats } from './combat.js';
-import { RESOURCE_RULES, resourceDefinition, reserveResource, ownsResource, releaseResource, consumeResource } from './resources.js';
+import { RESOURCE_RULES, TREE_RULES, resourceDefinition, reserveResource, resourceWorkAvailable, resourceHarvestItems, releaseResource, consumeResource, plantResource } from './resources.js';
 import { DAY_RULES, publicDayCycle } from './day-cycle.js';
+import { foodWouldRestoreSatiety, applyFoodSatiety, litCampfireNear } from './survival-state.js';
 export { combatStats } from './combat.js';
 
 const ITEMS = [
   { id: 'turnip_seed', name: '萝卜种子', kind: 'seed' },
   { id: 'wheat_seed', name: '小麦种子', kind: 'seed' },
-  { id: 'turnip', name: '萝卜', kind: 'food', heal: 12 },
-  { id: 'wheat', name: '小麦', kind: 'food', heal: 18 },
-  { id: 'turnip_soup', name: '萝卜浓汤', kind: 'food', heal: 32, energy_restore: 0 },
-  { id: 'wheat_bread', name: '麦香面包', kind: 'food', heal: 0, energy_restore: 24 },
-  { id: 'berry', name: '野生浆果', kind: 'food', heal: 4, energy_restore: 2 },
+  { id: 'turnip', name: '萝卜', kind: 'food', heal: 12, satiety_restore: 15 },
+  { id: 'wheat', name: '小麦', kind: 'food', heal: 18, satiety_restore: 10 },
+  { id: 'turnip_soup', name: '萝卜浓汤', kind: 'food', heal: 32, energy_restore: 0, satiety_restore: 35 },
+  { id: 'wheat_bread', name: '麦香面包', kind: 'food', heal: 0, energy_restore: 24, satiety_restore: 35 },
+  { id: 'berry', name: '野生浆果', kind: 'food', heal: 4, energy_restore: 2, satiety_restore: 12 },
+  { id: 'roasted_berry', name: '篝火烤浆果', kind: 'food', heal: 4, energy_restore: 5, satiety_restore: 18 },
   { id: 'moon_herb', name: '月光草', kind: 'food', heal: 0, energy_restore: 12 },
-  { id: 'trail_ration', name: '烤浆果口粮', kind: 'food', heal: 12, energy_restore: 18 },
-  { id: 'moon_stew', name: '月草炖果', kind: 'food', heal: 20, energy_restore: 25 },
+  { id: 'trail_ration', name: '烤浆果口粮', kind: 'food', heal: 12, energy_restore: 18, satiety_restore: 30 },
+  { id: 'moon_stew', name: '月草炖果', kind: 'food', heal: 20, energy_restore: 25, satiety_restore: 30 },
+  { id: 'pine_cone', name: '松果', kind: 'seed' },
+  { id: 'grass', name: '干草', kind: 'material' },
+  { id: 'torch', name: '火把', kind: 'light' },
   { id: 'axe', name: '斧头', kind: 'tool' },
   { id: 'pickaxe', name: '镐', kind: 'tool' },
   { id: 'wood', scene_id: 'plaza', name: '木材', kind: 'material' },
@@ -40,6 +45,8 @@ const RECIPES = [
   { item_id: 'wheat_bread', ingredients: { wheat: 2 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'kitchen' },
   { item_id: 'trail_ration', ingredients: { berry: 2, wood: 1 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'kitchen' },
   { item_id: 'moon_stew', ingredients: { berry: 1, moon_herb: 1 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'kitchen' },
+  { item_id: 'roasted_berry', ingredients: { berry: 1 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'lit_campfire' },
+  { item_id: 'torch', ingredients: { wood: 1, grass: 2 }, kind: 'light', energy_cost: 2, duration_seconds: 0, station_id: 'portable' },
   { item_id: 'axe', ingredients: { wood: 2, ore: 1 }, kind: 'tool' },
   { item_id: 'pickaxe', ingredients: { wood: 2, ore: 2 }, kind: 'tool' },
 ];
@@ -66,7 +73,7 @@ export const LIFE_RULES = {
   gathering: { version: 2, max_job_seconds: RESOURCE_RULES.max_job_seconds, stock_policy: 'global_shared', tool_required: false, resources: [
     { id: 'wood', scene_id: 'plaza', item_id: 'wood', name: '营地拾枝处', x: 10, y: 8, radius: 1, duration_seconds: 12, energy_cost: 4, yield_count: 1, cooldown_seconds: 8 },
     { id: 'ore', scene_id: 'plaza', item_id: 'ore', name: '营地碎矿堆', x: 12, y: 8, radius: 1, duration_seconds: 18, energy_cost: 6, yield_count: 1, cooldown_seconds: 12 },
-  ], description: '旧wood/ore指令分别使用共享camp_branches/camp_stones库存，需已在交互范围且保留本人冷却。新node_id明确选择同场景资源，一次预约、真实走到后开工，仅完成一份工作；树木用斧头、矿脉用镐，开始工作耗工具1耐久，开工才扣工作体力；取消或中断不退已花体力/耐久，不自动续采或换资源。昼夜和工具等级影响开工时锁定的成本。' },
+  ], planting: TREE_RULES.planting, description: '旧wood/ore指令使用共享营地库存。start加node_id选择同场景资源，一次预约、真实走到开工，仅完成一份工作；成熟树最后一段另得松果，幼树/树桩不可砍。plant加node_id明确选择空林地，走到后工作4秒、2体力，完成扣1松果，不需斧头；cancel可中断。砍伐/采矿开工耗对应工具1耐久，夜间和等级影响采集成本；种树成本固定。任何完成不自动续采、换树或种植。' },
   cooking_place: { id: 'kitchen', scene_id: 'plaza', name: '营地料理台', x: 10, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
   market: MARKET_RULES,
   strategy_equipment: STRATEGY_EQUIPMENT_RULES,
@@ -146,10 +153,18 @@ export function campAvailable(world, a, fail) {
   if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
   const farm = LIFE_RULES.farm_place, position = a.position;
   if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
-  if (a.adventure?.plan || a.adventure?.in_field || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、移动或活动，并返回安全营地');
+  if (a.adventure?.plan || a.adventure?.in_field || a.survival?.travel || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、移动或活动，并返回安全营地');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');
   const game = world.state.game;
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏，再照料农田、制作或换装');
+}
+function craftAvailable(world, a, recipe, fail) {
+  if (!['portable', 'lit_campfire'].includes(recipe.station_id)) return campAvailable(world, a, fail);
+  if (a.adventure?.plan || a.survival?.travel || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、活动或移动再制作');
+  if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');
+  const game = world.state.game;
+  if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏再制作');
+  if (recipe.station_id === 'lit_campfire' && !litCampfireNear(world, a)) fail('FIRE_REQUIRED', '请实际走到同场景燃烧篝火的2格交互范围内再烹饪');
 }
 export function adjustInventory(a, changes, fail) {
   const next = {};
@@ -237,9 +252,9 @@ export function performLife(world, a, type, payload, fail) {
     if (payload.slot !== undefined || typeof payload.item_id !== 'string' || !byId.has(payload.item_id)) fail('INVALID_ACTION', '请选择仓库目录中的 item_id');
     const item = byId.get(payload.item_id);
     if (payload.intent === 'craft') {
-      campAvailable(world, a, fail);
       const recipe = RECIPES.find(recipe => recipe.item_id === item.id);
       if (!recipe) fail('INVALID_ACTION', '这件物品没有制作配方');
+      craftAvailable(world, a, recipe, fail);
       if (item.kind === 'tool' && count(a, item.id) > 0) fail('ALREADY_CRAFTED', '已经拥有这件工具，可选择维修或升级');
       if (!spendEnergy(world, a, 'craft')) fail('FATIGUE_EXHAUSTED', '体力不足以制作装备，可在营地休息后再试');
       adjustInventory(a, { ...Object.fromEntries(Object.entries(recipe.ingredients).map(([id, amount]) => [id, -amount])), [item.id]: 1 }, fail);
@@ -256,15 +271,16 @@ export function performLife(world, a, type, payload, fail) {
       if (item.kind !== 'food') fail('INVALID_ACTION', '只有食物可以使用');
       if (!count(a, item.id)) fail('INSUFFICIENT_ITEMS', '仓库中没有这份食物');
       if (!a.adventure || !Number.isFinite(a.adventure.hp) || !Number.isFinite(a.adventure.max_hp)) fail('INVALID_ACTION', '角色生命状态不可用');
-      if (!(item.heal > 0 && a.adventure.hp < a.adventure.max_hp || item.energy_restore > 0 && a.fatigue.energy < 100)) fail(item.energy_restore ? 'FULL_ENERGY' : 'FULL_HEALTH', '这份食物能恢复的状态已满，未消耗食物');
+      if (!(item.heal > 0 && a.adventure.hp < a.adventure.max_hp || item.energy_restore > 0 && a.fatigue.energy < 100 || foodWouldRestoreSatiety(a, item))) fail(item.energy_restore ? 'FULL_ENERGY' : 'FULL_HEALTH', '这份食物能恢复的生命、体力和饱食状态均已满，未消耗食物');
       adjustInventory(a, { [item.id]: -1 }, fail);
+      applyFoodSatiety(a, item.satiety_restore, world.now());
       a.adventure.hp = Math.min(a.adventure.max_hp, a.adventure.hp + (item.heal || 0));
       if (item.energy_restore) {
         a.fatigue.energy = Math.min(100, a.fatigue.energy + item.energy_restore);
         a.fatigue.updated_at = Math.max(a.fatigue.updated_at, world.now());
         if (a.fatigue.energy >= FATIGUE_RULES.rearm_at) a.fatigue.tired_notified = false;
       }
-      announce(world, a, 'life_consumed', `${a.name}吃了${item.name}，恢复${item.energy_restore ? '体力' : '生命'}`, { item_id: item.id, quantity: 1, hp: a.adventure.hp, energy: a.fatigue.energy });
+      announce(world, a, 'life_consumed', `${a.name}吃了${item.name}，补充身体所需`, { item_id: item.id, quantity: 1, hp: a.adventure.hp, energy: a.fatigue.energy, satiety: a.survival.satiety });
     }
   }
   return { life: publicLife(a, world.now(), { privateInventory: true, includeLedger: false }), hp: a.adventure?.hp };
@@ -275,12 +291,12 @@ const legacyNode = id => ({ wood: 'camp_branches', ore: 'camp_stones' })[id];
 export function publicGathering(a) {
   const job = a.life?.gathering, resource = resourceDefinition(job?.node_id || legacyNode(job?.resource_id));
   if (!resource || typeof job.job_id !== 'string' || time(job.started_at) === null) return null;
-  const phase = job.phase === 'approaching' ? 'approaching' : 'working';
-  return { job_id: job.job_id, node_id: resource.id, resource_id: ['wood', 'ore'].includes(job.resource_id) ? job.resource_id : resource.item_id,
-    item_id: resource.item_id, quantity: resource.yield_count, yield_count: resource.yield_count, scene_id: resource.scene_id, position: { ...resource.position },
+  const phase = job.phase === 'approaching' ? 'approaching' : 'working', planting = job.intent === 'plant';
+  return { job_id: job.job_id, node_id: resource.id, intent: planting ? 'plant' : 'harvest', resource_id: planting ? 'pine_cone' : ['wood', 'ore'].includes(job.resource_id) ? job.resource_id : resource.item_id,
+    item_id: planting ? 'pine_cone' : resource.item_id, quantity: planting ? 0 : resource.yield_count, yield_count: planting ? 0 : resource.yield_count, scene_id: resource.scene_id, position: { ...resource.position },
     phase, mode: job.mode === 'run' ? 'run' : 'walk', started_at: job.started_at, work_started_at: time(job.work_started_at), ends_at: time(job.ends_at), expires_at: time(job.expires_at),
-    duration_seconds: Number.isFinite(job.duration_seconds) ? job.duration_seconds : resource.duration_seconds,
-    energy_cost: Number.isFinite(job.energy_cost) ? job.energy_cost : resource.energy_cost, tool_id: resource.tool_id,
+    duration_seconds: Number.isFinite(job.duration_seconds) ? job.duration_seconds : planting ? TREE_RULES.planting.duration_seconds : resource.duration_seconds,
+    energy_cost: Number.isFinite(job.energy_cost) ? job.energy_cost : planting ? TREE_RULES.planting.energy_cost : resource.energy_cost, tool_id: planting ? null : resource.tool_id,
     day_phase: ['day', 'dusk', 'night', 'dawn'].includes(job.day_phase) ? job.day_phase : null };
 }
 export function cancelGather(world, a, reason = 'cancelled') {
@@ -292,9 +308,9 @@ export function cancelGather(world, a, reason = 'cancelled') {
   if (a.life) a.life.gathering = null;
   if (!job) return !!raw;
   const reasons = { cancelled: '本人取消', moved: '离开采集位置', interrupted: '控制已停止或中断', restarted: '服务重启', inventory_full: '仓库达到上限',
-    expired: '本次有限采集期限已到', exhausted: '体力不足', hurt: '受到攻击', unavailable: '资源预约或时段已变化', unreachable: '交互位置不可达', tool_broken: '工具不可用' };
+    expired: '本次有限采集期限已到', exhausted: '体力不足', hurt: '受到攻击', unavailable: '资源预约或时段已变化', unreachable: '交互位置不可达', tool_broken: '工具不可用', seed_missing: '松果已不足' };
   if (!Object.hasOwn(reasons, reason)) reason = 'interrupted';
-  announce(world, a, 'life_gather_cancelled', `${a.name}停止了采集：${reasons[reason]}，本次未获得材料`, { job_id: job.job_id, node_id: job.node_id, resource_id: job.resource_id, reason });
+  announce(world, a, 'life_gather_cancelled', `${a.name}停止了${job.intent === 'plant' ? '种树' : '采集'}：${reasons[reason]}，本次未完成`, { job_id: job.job_id, node_id: job.node_id, resource_id: job.resource_id, intent: job.intent, reason });
   return true;
 }
 function gatherTool(a, def) {
@@ -302,13 +318,14 @@ function gatherTool(a, def) {
   return definition && tool?.owned && tool.durability > 0 ? { tool, level: definition.levels.find(l => l.level === tool.level), definition } : null;
 }
 function beginGatherWork(world, a, job, announceWork = true) {
-  const def = resourceDefinition(job.node_id), current = publicDayCycle(world.state, world.now()), tool = def.tool_id ? gatherTool(a, def) : null;
-  if (!ownsResource(world, a, job) || !def.available_phases.includes(current.phase)) return 'unavailable';
-  if (def.tool_id && !tool) return 'tool_broken';
+  const def = resourceDefinition(job.node_id), current = publicDayCycle(world.state, world.now()), planting = job.intent === 'plant', tool = !planting && def.tool_id ? gatherTool(a, def) : null;
+  if (!resourceWorkAvailable(world, a, job) || !def.available_phases.includes(current.phase)) return 'unavailable';
+  if (planting && count(a, 'pine_cone') < 1) return 'seed_missing';
+  if (!planting && def.tool_id && !tool) return 'tool_broken';
   const night = current.phase === 'night';
   const multiplier = tool ? tool.level.energy_cost / tool.definition.levels[0].energy_cost : 1;
-  const energyCost = Math.round(def.energy_cost * multiplier * (night ? DAY_RULES.night_work_energy_multiplier : 1) * 100) / 100;
-  const duration = Math.ceil(def.duration_seconds * (tool?.level.duration_multiplier || 1) * (night ? DAY_RULES.night_work_duration_multiplier : 1) * 1000);
+  const energyCost = planting ? TREE_RULES.planting.energy_cost : Math.round(def.energy_cost * multiplier * (night ? DAY_RULES.night_work_energy_multiplier : 1) * 100) / 100;
+  const duration = planting ? TREE_RULES.planting.duration_seconds * 1000 : Math.ceil(def.duration_seconds * (tool?.level.duration_multiplier || 1) * (night ? DAY_RULES.night_work_duration_multiplier : 1) * 1000);
   if (world.now() + duration >= job.expires_at) return 'expired';
   if (!spendEnergy(world, a, 'gather', energyCost)) return 'exhausted';
   if (tool) tool.tool.durability--;
@@ -336,13 +353,13 @@ function advanceGatherApproach(world, a, job) {
 }
 function performGather(world, a, payload, fail) {
   exact(payload, ['intent', 'resource_id', 'node_id', 'mode'], fail);
-  if (!['start', 'cancel'].includes(payload.intent)) fail('INVALID_ACTION', '采集只支持 start 或 cancel');
+  if (!['start', 'plant', 'cancel'].includes(payload.intent)) fail('INVALID_ACTION', '采集支持 start、plant 或 cancel');
   if (payload.intent === 'cancel') {
     if (payload.resource_id !== undefined || payload.node_id !== undefined || payload.mode !== undefined) fail('INVALID_ACTION', '取消采集只接受 intent');
     if (!a.life.gathering) fail('NO_GATHERING', '当前没有采集工作');
     cancelGather(world, a); return { life: publicLife(a, world.now(), { privateInventory: true, includeLedger: false }) };
   }
-  const legacy = payload.node_id === undefined;
+  const planting = payload.intent === 'plant', legacy = !planting && payload.node_id === undefined;
   if (legacy ? !['wood', 'ore'].includes(payload.resource_id) || payload.mode !== undefined : payload.resource_id !== undefined || typeof payload.node_id !== 'string') fail('INVALID_ACTION', '请选择一个 node_id；旧 wood/ore 与 node_id 不可混用');
   if (payload.mode !== undefined && !['walk', 'run'].includes(payload.mode)) fail('INVALID_ACTION', 'mode 只接受 walk 或 run');
   const resource = resourceDefinition(legacy ? legacyNode(payload.resource_id) : payload.node_id);
@@ -350,27 +367,28 @@ function performGather(world, a, payload, fail) {
   if (legacy) campAvailable(world, a, fail);
   else {
     if (a.scene_id !== resource.scene_id) fail('SCENE_REQUIRED', '请先自行选择探索或撤退进入该资源所在场景');
-    if (a.life.gathering || a.adventure?.plan || a.activity || a.movement || a.adventure?.encounter?.status === 'pending') fail('ACTIVITY_BUSY', '请先结束当前计划、移动、发现或采集');
+    if (a.life.gathering || a.adventure?.plan || a.survival?.travel || a.activity || a.movement || a.adventure?.encounter?.status === 'pending') fail('ACTIVITY_BUSY', '请先结束当前计划、移动、发现或采集');
     const game = world.state.game;
     if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前游戏');
   }
   if (legacy && resourceDistance(a.position, resource.position) > resource.radius) fail('NOT_AT_RESOURCE', '请先走到该资源点交互范围内');
   if (legacy && a.life.gather_ready_at[payload.resource_id] > world.now()) fail('GATHER_COOLDOWN', '采集冷却尚未结束', { retry_after_ms: a.life.gather_ready_at[payload.resource_id] - world.now() });
-  if (resource.tool_id && !gatherTool(a, resource)) fail('TOOL_REQUIRED', '请先制作并维护对应工具');
-  if (count(a, resource.item_id) > Number.MAX_SAFE_INTEGER - resource.yield_count) fail('INVENTORY_FULL', '仓库数量已达安全上限');
+  if (planting && count(a, 'pine_cone') < 1) fail('INSUFFICIENT_ITEMS', '种树需要自己的1颗松果');
+  if (!planting && resource.tool_id && !gatherTool(a, resource)) fail('TOOL_REQUIRED', '请先制作并维护对应工具');
+  if (!planting && Object.entries(resourceHarvestItems(world.state, resource.id) || { [resource.item_id]: resource.yield_count }).some(([id, quantity]) => count(a, id) > Number.MAX_SAFE_INTEGER - quantity)) fail('INVENTORY_FULL', '本次采集或砍倒树的产物将超出仓库上限');
   if (payload.mode === 'run' && a.fatigue.energy <= 0) fail('FATIGUE_EXHAUSTED', '体力不足以奔跑，可自行选择步行');
   if (!findPath(a.scene_id, a.position, resource.interaction_position)) fail('UNREACHABLE', '资源交互位置暂不可达');
-  const job = { job_id: `gather_${randomUUID()}`, node_id: resource.id, resource_id: legacy ? payload.resource_id : resource.item_id, legacy,
+  const job = { job_id: `gather_${randomUUID()}`, node_id: resource.id, intent: planting ? 'plant' : 'harvest', resource_id: planting ? 'pine_cone' : legacy ? payload.resource_id : resource.item_id, legacy,
     scene_id: a.scene_id, phase: 'approaching', mode: payload.mode || 'walk', started_at: world.now(), work_started_at: null, ends_at: null,
     expires_at: Math.min(a.run.expires_at, world.now() + RESOURCE_RULES.max_job_seconds * 1000), run_id: a.run.run_id, session_epoch: a.session_epoch,
     hp_at_start: a.adventure.hp, hurt_id_at_start: a.hurt?.action_id || null, movement_id: null };
-  reserveResource(world, a, resource.id, job.job_id, job.expires_at, fail); a.life.gathering = job;
+  reserveResource(world, a, resource.id, job.job_id, job.expires_at, fail, job.intent); a.life.gathering = job;
   if (a.scene_id === 'adventure' && resourceDistance(a.position, LIFE_RULES.farm_place.service_center) > 2) a.adventure.in_field = true;
   if (resourceDistance(a.position, resource.position) <= resource.radius) {
     const reason = beginGatherWork(world, a, job, false);
     if (reason) fail(reason === 'exhausted' ? 'FATIGUE_EXHAUSTED' : 'GATHER_UNAVAILABLE', '当前无法开始这次工作，请重新观察');
   } else advanceGatherApproach(world, a, job);
-  announce(world, a, 'life_gather_started', `${a.name}选择${resource.name}，${job.phase === 'working' ? '开始一次工作' : '正在前往交互位置'}，完成后等待自己决定下一步`, publicGathering(a));
+  announce(world, a, 'life_gather_started', `${a.name}选择在${resource.name}${planting ? '种树' : '采集'}，${job.phase === 'working' ? '开始一次工作' : '正在前往交互位置'}，完成后等待自己决定下一步`, publicGathering(a));
   return { life: publicLife(a, world.now(), { privateInventory: true, includeLedger: false }) };
 }
 function performTrade(world, a, payload, fail) {
@@ -401,7 +419,7 @@ export function tickLife(world) {
       const resource = resourceDefinition(job.node_id);
       const authorized = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active' && a.run.expires_at > world.now() &&
         a.run.run_id === job.run_id && a.session_epoch === job.session_epoch && a.last_contact_at !== null && world.now() - a.last_contact_at < 45000;
-      let reason = !authorized ? 'interrupted' : job.expires_at <= world.now() ? 'expired' : !resource || !ownsResource(world, a, job) ? 'unavailable' :
+      let reason = !authorized ? 'interrupted' : job.expires_at <= world.now() ? 'expired' : !resource || !resourceWorkAvailable(world, a, job) ? 'unavailable' :
         a.scene_id !== resource.scene_id ? 'moved' : a.adventure.hp < job.hp_at_start || a.hurt && a.hurt.action_id !== job.hurt_id_at_start ? 'hurt' : null;
       if (reason) { changed = cancelGather(world, a, reason) || changed; durable = true; }
       else {
@@ -412,15 +430,17 @@ export function tickLife(world) {
         const progress = advanceGatherApproach(world, a, job); changed = progress.changed || changed; durable = progress.durable || durable;
       } else if (a.movement || resourceDistance(a.position, resource.position) > resource.radius) { changed = cancelGather(world, a, 'moved') || changed; durable = true; }
       else if (job.ends_at <= world.now()) {
-        if (count(a, resource.item_id) > Number.MAX_SAFE_INTEGER - resource.yield_count) cancelGather(world, a, 'inventory_full');
+        const planting = job.intent === 'plant', items = planting ? { pine_cone: -1 } : resourceHarvestItems(world.state, job.node_id);
+        if (!items) cancelGather(world, a, 'unavailable');
+        else if (Object.entries(items).some(([id, delta]) => !Number.isSafeInteger(count(a, id) + delta) || count(a, id) + delta < 0)) cancelGather(world, a, planting ? 'seed_missing' : 'inventory_full');
         else {
           const before = economyBalance(a), published = publicGathering(a);
-          if (!consumeResource(world, a, job)) cancelGather(world, a, 'unavailable');
+          if (!(planting ? plantResource(world, a, job) : consumeResource(world, a, job))) cancelGather(world, a, 'unavailable');
           else {
-            a.life.inventory[resource.item_id] = count(a, resource.item_id) + resource.yield_count;
+            for (const [id, delta] of Object.entries(items)) a.life.inventory[id] = count(a, id) + delta;
             a.life.gathering = null;
-            recordEconomyDelta(a, before, { source_id: job.job_id, reason: 'gather_finished', at: world.now(), world });
-            announce(world, a, 'life_gather_finished', `${a.name}完成一次采集，获得${resource.yield_count}份${byId.get(resource.item_id).name}`, published);
+            recordEconomyDelta(a, before, { source_id: job.job_id, reason: planting ? 'tree_planted' : 'gather_finished', at: world.now(), world });
+            announce(world, a, 'life_gather_finished', planting ? `${a.name}用1颗松果种下树苗，等待自然生长` : `${a.name}完成一次采集，获得${resource.yield_count}份${byId.get(resource.item_id).name}${items.pine_cone ? '和1颗松果，树木已砍倒' : ''}`, published);
           }
         }
         changed = true; durable = true;

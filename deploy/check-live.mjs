@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { SCENES, isWalkable } from '../shared/world-layout.js';
+import { RESOURCE_NODES } from '../shared/resources-layout.js';
+import { CAMP_SITES, SURVIVAL_RULES } from '../shared/survival-rules.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -28,14 +30,32 @@ assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 
 for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), ['axe', 'pickaxe'].includes(tool.id) ? [12, 24, 36] : [20, 40, 60]);
 assert.equal(world.life.gathering.tool_required, false);
 assert.deepEqual(world.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
-assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew']);
+assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry']);
 assert.equal(health.capabilities.resource_nodes, true); assert.equal(health.capabilities.day_cycle, true);
-assert.equal(world.resources.version, 1); assert.equal(world.resources.nodes.length, 9);
+assert.equal(health.capabilities.survival, true); assert.equal(health.capabilities.tree_ecology, true);
+assert.equal(world.resources.version, 2); assert.deepEqual(world.resources.nodes.map(n => n.id), RESOURCE_NODES.map(n => n.id));
+assert.equal(world.survival.version, 1);
+assert.deepEqual(world.survival.sites, CAMP_SITES);
+const fireSites = new Set();
+for (const fire of world.survival.fires) {
+  const site = CAMP_SITES.find(s => s.id === fire.site_id), def = SURVIVAL_RULES.structures.find(s => s.id === fire.kind);
+  assert.ok(site && def && !fireSites.has(site.id)); fireSites.add(site.id);
+  assert.equal(fire.scene_id, site.scene_id); assert.deepEqual(fire.position, site.position);
+  assert.ok(fire.fuel_seconds >= 0 && fire.fuel_seconds <= def.max_fuel_seconds);
+  assert.equal(fire.max_fuel_seconds, def.max_fuel_seconds);
+  assert.equal(fire.light_radius, fire.lit ? def.light_radius : 0);
+  assert.equal(fire.updated_at, undefined); assert.equal(fire.low_notified, undefined);
+}
+for (const site of CAMP_SITES) { assert.ok(isWalkable(site.scene_id, site.position)); assert.ok(isWalkable(site.scene_id, site.interaction_position)); }
 assert.ok(['day', 'dusk', 'night', 'dawn'].includes(world.day_cycle.phase));
 assert.equal(world.day_cycle.cycle_seconds, 600);
 for (const node of world.resources.nodes) {
   assert.ok(node.stock >= 0 && node.stock <= node.max_stock);
   assert.ok(isWalkable(node.scene_id, node.interaction_position));
+  if (node.kind === 'tree') {
+    assert.ok(['empty', 'sapling', 'young', 'mature', 'stump'].includes(node.ecology.stage));
+    if (node.ecology.stage !== 'mature') assert.equal(node.stock, 0);
+  }
 }
 assert.equal(world.life.market.stock_policy, 'per_agent_window');
 assert.ok(world.life.market.items.some(i => i.buy_price > 0) && world.life.market.items.some(i => i.sell_price > 0));
@@ -80,7 +100,7 @@ for (const agent of world.agents) {
   for (const id of ['wood', 'ore']) assert.ok(Number.isSafeInteger(agent.life.gather_ready_at[id]));
   if (agent.life.gathering) {
     const job = agent.life.gathering, node = world.resources.nodes.find(n => n.id === job.node_id);
-    assert.ok(node ? node.item_id === job.resource_id : ['wood', 'ore'].includes(job.resource_id));
+    assert.ok(node ? job.intent === 'plant' ? node.kind === 'tree' && job.resource_id === 'pine_cone' : node.item_id === job.resource_id : ['wood', 'ore'].includes(job.resource_id));
     assert.equal(agent.life.gathering.run_id, undefined);
     assert.equal(agent.life.gathering.session_epoch, undefined);
   }
@@ -90,6 +110,9 @@ for (const agent of world.agents) {
   for (const field of ['first_joined_at', 'last_seen_at', 'last_departed_at']) assert.ok(agent.presence[field] === null || Number.isSafeInteger(agent.presence[field]));
   assert.ok(agent.life.stats.attack > 0 && agent.life.stats.effective_attack > 0);
   assert.ok(Number.isFinite(agent.fatigue.energy) && agent.fatigue.energy >= 0 && agent.fatigue.energy <= 100);
+  assert.ok(Number.isFinite(agent.survival.satiety) && agent.survival.satiety >= 0 && agent.survival.satiety <= 100);
+  for (const key of ['last_at', 'dark_hits', 'hunger_hits', 'warning_day', 'hungry_notified', 'starving_notified']) assert.equal(agent.survival[key], undefined);
+  if (agent.survival.travel) assert.deepEqual(Object.keys(agent.survival.travel).sort(), ['expires_at', 'site_id']);
   assert.equal(agent.appearance.version, 1);
   assert.ok(manifest.characters[agent.appearance.sprite_id]);
   assert.ok(manifest.accessories[agent.appearance.accessory_id]);

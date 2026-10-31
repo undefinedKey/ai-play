@@ -16,6 +16,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[2]
 BASH = sys.argv.pop(1)
@@ -68,6 +69,9 @@ if cmd=='git':
     if 'clone' in args: shutil.copytree(r/'candidate',Path(args[-1]))
     elif 'rev-parse' in args: print('a'*40)
     elif 'show' in args: print((r/'candidate/deploy/release.sh').read_text())
+    elif 'cat-file' in args:
+        log('bundle:validate')
+        if stage=='bundle' and args[-1].endswith(':deploy/verify-survival.mjs'): sys.exit(1)
 elif cmd=='npm':
     assert s['bridge']; log('prepare:npm')
 elif cmd=='node':
@@ -88,6 +92,12 @@ elif cmd=='node':
     elif 'verify-scenes.mjs' in ' '.join(args):
         # Real scene migration runs separately against Node and SQLite.
         print(json.dumps({'scene_locations_preserved':True}))
+    elif 'verify-survival.mjs' in ' '.join(args):
+        # The real helper's state checks run in the migration tests. This drill
+        # verifies that a failing mandatory helper triggers code/data rollback.
+        log('new:survival-verifier')
+        if stage=='survival-verifier': sys.exit(1)
+        print(json.dumps({'survival_state_preserved':True}))
     else: log('prepare:node')
 elif cmd=='curl': print(json.dumps({'ok':s['server'],'version':version(),'mode':'accounts'}))
 elif cmd=='runuser':
@@ -108,9 +118,10 @@ elif cmd=='systemctl':
             s['server_stop_failed']=True;save();sys.exit(1)
     if 'start' in args:
         s['server']=True;save();log('server:start:'+version())
-        if version()=='0.20.0':
+        if version()=='0.21.0':
             with closing(sqlite3.connect(r/'var/lib/ai-plaza/world.sqlite')) as db, db:
                 v=json.loads(db.execute('SELECT payload FROM world_state').fetchone()[0]);v['migrated_fixture']=True
+                v['survival']={'version':1,'fires':{}}
                 v['history']={'version':1,'archive_id':'archive_00000000-0000-0000-0000-000000000000','started_at':1000,'next_sequence':1,'revision':0,'imported_count':0,'entries':[]}
                 for a in v['agents'].values():
                     if stage=='migration': a['life']['inventory']['wood']=999
@@ -159,6 +170,28 @@ class RecoveryDrills(unittest.TestCase):
         r=self.fixture(); bad=r/'bad.sqlite'; bad.write_bytes(b'corrupt fixture')
         with self.assertRaises(sqlite3.DatabaseError): MIGRATION.read_database(bad)
 
+    def test_survival_verifier_is_required_and_fails_closed(self):
+        r=self.fixture(); (r/'deploy').mkdir()
+        helper=r/'deploy/verify-survival.mjs'
+        old=template(); new=copy.deepcopy(old); new['survival']={'version':1,'fires':{}}
+        # A missing tracked helper must fail before any child process can run.
+        with patch.object(MIGRATION.subprocess, 'run') as invoked:
+            with self.assertRaises(AssertionError): MIGRATION.compare_states(old,new,project_root=r)
+            invoked.assert_not_called()
+        helper.write_text('// Dispatch/failure test only; real verifier runs separately.\n')
+        for status, body, accepted in [(1,'',False),(0,'{}',False),(0,'{"survival_state_preserved":true}',True)]:
+            with self.subTest(status=status,body=body):
+                result=subprocess.CompletedProcess(['node',str(helper)],status,stdout=body,stderr='fixture failure' if status else '')
+                with patch.object(MIGRATION.subprocess,'run',return_value=result) as invoked:
+                    if accepted: MIGRATION.compare_states(old,new,project_root=r)
+                    else:
+                        with self.assertRaises((AssertionError, json.JSONDecodeError)): MIGRATION.compare_states(old,new,project_root=r)
+                    invoked.assert_called_once()
+                    self.assertEqual(invoked.call_args.args[0],['node',str(helper)])
+                    supplied=json.loads(invoked.call_args.kwargs['input'])
+                    self.assertEqual(supplied['new'],new)
+                    self.assertEqual(supplied['old']['agents']['a']['run'],old['agents']['a']['run'])
+
     def run_release(self, failure):
         r=self.fixture(); prefix=r.as_posix()
         def rewrite(text):
@@ -167,7 +200,7 @@ class RecoveryDrills(unittest.TestCase):
             return text
         for folder in ['opt/ai-plaza','candidate/deploy','candidate/tests','etc/ai-plaza','home/dsh/.ai-plaza','home/dsh/.agents/skills/ai-plaza','home/dsh/.config/ai-plaza','bin']:
             (r/folder).mkdir(parents=True,exist_ok=True)
-        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.19.0"}'); (r/'candidate/package.json').write_text('{"version":"0.20.0"}')
+        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.20.0"}'); (r/'candidate/package.json').write_text('{"version":"0.21.0"}')
         release=rewrite((REPO/'deploy/release.sh').read_text()).replace('"$EUID" == 0','1 == 1')
         release=release.replace('set -euo pipefail','set -euo pipefail\nexport PATH="'+prefix+'/bin:$PATH"')
         release=release.replace('-C / var/lib/ai-plaza','-C "'+prefix+'" var/lib/ai-plaza')
@@ -176,9 +209,10 @@ class RecoveryDrills(unittest.TestCase):
         shutil.copyfile(REPO/'deploy/release-data.py',r/'candidate/deploy/release-data.py')
         (r/'candidate/deploy/verify-history.mjs').write_text('// Simulated only in this release fault drill.\n')
         (r/'candidate/deploy/verify-scenes.mjs').write_text('// Real locations are checked by migration-v017.test.js.\n')
+        (r/'candidate/deploy/verify-survival.mjs').write_text('// Real survival migration is checked separately.\n')
         (r/'etc/ai-plaza/server.env').write_text('FIXTURE_ONLY=true\n')
         (r/'home/dsh/.config/ai-plaza/bridge.env').write_text('FIXTURE_ONLY=true\n')
-        skill=r/'home/dsh/.agents/skills/ai-plaza'; (skill/'config.json').write_text('{}'); (skill/'version.json').write_text('{"version":"0.19.0"}')
+        skill=r/'home/dsh/.agents/skills/ai-plaza'; (skill/'config.json').write_text('{}'); (skill/'version.json').write_text('{"version":"0.20.0"}')
         cp={'run_id':'same-run','max_calls':20,'calls_used':7,'expires_at':9999999999999}
         (r/'home/dsh/.ai-plaza/client.json.bridge.json').write_text(json.dumps(cp)); (r/'home/dsh/.ai-plaza/client.json').write_text('{"agent_id":"a"}')
         original=template();write_db(r/'var/lib/ai-plaza/world.sqlite',original)
@@ -189,7 +223,7 @@ class RecoveryDrills(unittest.TestCase):
         python.write_text('#!/usr/bin/env bash\nexec "'+Path(sys.executable).as_posix()+'" "$@"\n',newline='\n');python.chmod(0o755)
         skill_stub="import os,json,subprocess;from pathlib import Path\n"+(
             "raise SystemExit(1)" if failure=='skill' else
-            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.20.0\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
+            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.21.0\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
         source=remote_literal().replace('REVISION',repr('a'*40)).replace('MIGRATION',repr((REPO/'deploy/verify-migration.py').read_text())).replace('SKILL',repr(skill_stub))
         source=rewrite(source).replace('"--backup",sys.argv[4]', '"--backup",sys.argv[4],"--root",'+repr(prefix))
         path=r/'orchestrator.py';path.write_text(source)
@@ -197,7 +231,8 @@ class RecoveryDrills(unittest.TestCase):
         result=subprocess.run([sys.executable,str(path)],env=env,capture_output=True,text=True,timeout=90)
         state=json.loads((r/'services.json').read_text());trace=(r/'trace.log').read_text() if (r/'trace.log').exists() else ''
         details=result.stdout+result.stderr+'\n'.join(p.read_text() for p in (r/'var/backups/ai-plaza').glob('*.log'))
-        self.assertIn('prepare:',trace,details)
+        if failure=='bundle': self.assertNotIn('prepare:',trace,details)
+        else: self.assertIn('prepare:',trace,details)
         if failure=='lingering':
             self.assertFalse(state['bridge'],details);self.assertFalse(state['server'],details)
             self.assertEqual(read_db(r/'var/lib/ai-plaza/world.sqlite'),original)
@@ -205,21 +240,22 @@ class RecoveryDrills(unittest.TestCase):
             return
         self.assertTrue(state['server'],details);self.assertTrue(state['bridge'],details)
         if failure=='success':
-            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.20.0')
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.21.0')
         elif failure=='skill':
-            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((skill/'version.json').read_text())['version'],'0.19.0')
-            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.20.0')
+            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((skill/'version.json').read_text())['version'],'0.20.0')
+            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.21.0')
         else:
-            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.19.0')
+            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.20.0')
             self.assertEqual(read_db(r/'var/lib/ai-plaza/world.sqlite'),original)
-        if failure=='prepare': self.assertNotIn('bridge:stop',trace)
+        if failure in ['prepare','bundle']: self.assertNotIn('bridge:stop',trace)
         else: self.assertLess(trace.index('prepare:tests'),trace.index('bridge:stop'))
-        if failure in ['migration','health']:
+        if failure in ['migration','health','survival-verifier']:
             self.assertTrue(list((r/'var/backups/ai-plaza').glob('failed-data-*/world.sqlite')))
-            self.assertLess(trace.index('server:start:0.19.0'),trace.rindex('bridge:start'))
+            self.assertLess(trace.index('server:start:0.20.0'),trace.rindex('bridge:start'))
+        if failure in ['success','skill','survival-verifier']: self.assertIn('new:survival-verifier',trace)
 
     def test_release_faults(self):
-        for failure in ['prepare','bridge-stop','server-stop','lingering','health','migration','skill','success']:
+        for failure in ['bundle','prepare','bridge-stop','server-stop','lingering','health','migration','survival-verifier','skill','success']:
             with self.subTest(failure=failure): self.run_release(failure)
 
 if __name__=='__main__': unittest.main()

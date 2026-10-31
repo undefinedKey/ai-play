@@ -76,7 +76,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}料理制作和食用由�
   f.a.adventure.hp = f.a.adventure.max_hp; f.a.fatigue.energy = 1; f.refresh();
   await f.decide(action('inventory', { intent: 'use', item_id: 'wheat_bread' }));
   assert.equal(f.a.life.inventory.wheat_bread || 0, 0); assert.ok(f.a.fatigue.energy >= 25);
-  if (mode === 'dsh-pet') assert.deepEqual(f.contexts.at(-1).food.find(row => row[0] === 'wheat_bread'), ['wheat_bread', 0, 1, 24]);
+  if (mode === 'dsh-pet') assert.deepEqual(f.contexts.at(-1).food.find(row => row[0] === 'wheat_bread'), ['wheat_bread', 0, 1, 24, 35]);
   else { assert.equal(f.contexts.at(-1).observation.self.life.ledger, undefined); assert.match(f.systems.at(-1), /trade\{intent:buy\|sell/); }
   assert.ok(!JSON.stringify(f.contexts).includes('"ledger":'));
   f.a.adventure.hp = 1; f.refresh(); await f.decide(action('inventory', { intent: 'use', item_id: 'turnip_soup' }));

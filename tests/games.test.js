@@ -112,11 +112,30 @@ test('地图寻宝按真实坐标依次收集三件，移动继续、重试不�
 test('寻宝限时保留实际分数，暂停立即清除活动', t => {
   const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 11, y: 8 });
   const activity = f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).activity;
-  f.go(p, activity.target); f.act(p, 'finish_activity'); f.advance(900000);
+  f.go(p, activity.target); f.act(p, 'finish_activity'); f.go(p, { x: 11, y: 8 });
+  // Controlled timing fixture: an actual finite firepit covers camp throughout
+  // the intervening night. It burns normally; this test isolates timeout score.
+  const now = f.world.now();
+  f.world.state.survival.fires.fixture_pit = { fire_id: 'fixture_pit', site_id: 'plaza_hearth', kind: 'firepit', owner_agent_id: p.id,
+    lit: true, fuel_seconds: 600, updated_at: now, created_at: now };
+  f.advance(900000);
   const result = f.world.state.events.filter(event => event.type === 'activity_finished').at(-1).payload.result;
   assert.deepEqual({ score: result.score, max_score: result.max_score }, { score: 1, max_score: 3 });
+  assert.equal(f.world.state.events.some(event => event.type === 'survival_damage' && event.payload.agent_id === p.id), false);
   f.go(p, { x: 11, y: 8 }); f.act(p, 'start_activity', { activity_id: 'treasure_hunt' });
   f.world.ownerControl(p.id, 'pause'); assert.equal(f.world.agent(p.id).activity, null);
+});
+
+test('夜晚暗处的真实伤害中断寻宝，记录环境原因而不伪造超时成绩', t => {
+  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 11, y: 8 });
+  assert.equal(f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).status, 'applied');
+  f.advance(460000);
+  assert.equal(f.observe(p).self.activity, null);
+  const ended = f.world.state.events.filter(event => event.type === 'activity_finished' && event.payload.agent_id === p.id).at(-1);
+  assert.equal(ended.payload.outcome, 'cancelled'); assert.equal(ended.payload.interrupted, true); assert.equal(ended.payload.result, undefined);
+  const damage = f.world.state.events.find(event => event.type === 'survival_damage' && event.payload.agent_id === p.id);
+  assert.ok(damage); assert.equal(damage.payload.kind, 'darkness'); assert.ok(damage.payload.damage > 0);
+  assert.equal(f.world.state.events.some(event => event.type === 'treasure_collected'), false);
 });
 
 test('双人石头剪刀布暗选不泄露到观察、事件、其他主人、旁观和动作回执', t => {

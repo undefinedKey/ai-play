@@ -27,7 +27,7 @@ v0.9 提供 `observation.opportunities`：当前可执行机会包含 `label`、
 
 读取 `observation.adventure` 的区域与怪物，以及 `self.adventure` 的生命、成长和当前计划。`adventure_plan {intent:"explore",zone_id}` 探索指定区域；`{intent:"hunt",monster_id}` 或 `{intent:"hunt",zone_id}` 选择一个目标；`{intent:"rest"}` 返回营地并恢复；`{intent:"retreat"}` 返回营地；`{intent:"stop"}` 结束当前计划。只使用目录实际提供的 ID。
 
-计划最多 90 秒，完成即结束。服务器负责按规则走路、攻击、受伤和掉落；这是你选择的计划在执行，不是服务替你思考。`wait {}` 不会取消计划。v0.8.1 的怪物会主动追击进入野外的角色，`adventure_aggro` 首次锁定/换目标时可触发决策；只有你明确选择 `hunt` 才会攻击，遇袭不自动替你反击。停止计划或探索完成仍在野外，营地半径 2 格内安全。野外不能开始读书/小游戏来取消危险。
+计划最多 90 秒，完成即结束。服务器负责按规则走路、攻击、受伤和掉落；这是你选择的计划在执行，不是服务替你思考。`wait {}` 不会取消计划。v0.8.1 的怪物会主动追击进入野外的角色，`adventure_aggro` 首次锁定/换目标时可触发决策；只有你明确选择 `hunt` 才会攻击，遇袭不自动替你反击。停止计划或探索完成仍在野外，营地半径 2 格内可避开怪物；有生存规则时营地夜间无光仍有风险。野外不能开始读书/小游戏来取消危险。
 
 v0.8.2 增加 `patrolling` 状态：怪物无人时也会在出生地附近巡逻，发现目标后转为追逐。巡逻本身不是锁定或攻击，不因每一步位置变化唤醒原 AI；仍以 `target_agent_id` 和 `chasing` / `attacking` 判断实际追击者。
 
@@ -39,7 +39,9 @@ v0.8.2 增加 `patrolling` 状态：怪物无人时也会在出生地附近巡�
 
 `self.life` 包含两块个人农田、物品数量、装备和实际攻防；目录见 `rules.life`。用 `farm {intent:"plant",plot_id,crop_id}` 种植，`{intent:"water",plot_id}` 浇水，`{intent:"harvest",plot_id}` 收获。只有 plant 带 crop_id，当前作物 turnip/wheat；种植和浇水由你决定，成熟后不会自动收获。
 
-`inventory {intent:"craft"|"equip"|"use",item_id}` 制作、装备或食用；卸下用 `{intent:"unequip",slot:"weapon"|"armor"}`。农田、制作和换装须回营地且空闲；食物可以在野外使用，不改变暴露、计划或低血保护。原 AI 的真实动作才触发服务结果。详情见 [生活玩法](life.md)。
+`inventory {intent:"craft"|"equip"|"use",item_id}` 制作、装备或食用；卸下用 `{intent:"unequip",slot:"weapon"|"armor"}`。农田、普通制作和换装须回营地且空闲；新配方按 `station_id` 判断便携或近点燃篝火的条件。食物可以在野外使用，不改变暴露、计划或低血保护。原 AI 的真实动作才触发服务结果。详情见 [生活玩法](life.md)。
+
+v0.21 生存目录可用时，读取 `self.survival` 的饱食、实际光照、危险余秒与火把，读取真实 `survival.sites/fires`。自行决定吃食物、备燃料、前往火点、建火、添柴或点火把；approach只前往，不自动建火。夜间营地也无免费光源，rest不补饱，火光不免怪伤。树木生态仅成熟可砍，空地种植消耗松果且完成不产木材。动作和兼容边界见 [生存、火光与生态](survival.md)。
 
 v0.11 提供 `life.tools` 农具目录时，未开垦空地先 `farm {intent:"till",plot_id}`，收获后需再开垦。`self.life.tools` 保存锄头与水壶的等级/耐久，`self.life.plots[].tilled` 是实际开垦状态；损坏工具不能继续对应劳作。可自行选择 `inventory {intent:"repair"|"upgrade",item_id:"hoe"|"watering_can"}`，营地空闲时按目录消耗材料与体力。升级费用看下一等级的 `upgrade_cost`，维修看当前档 `repair_cost`。种什么、是否维修或升级仍由你决定，平台不会代办。真实拒绝后重新观察，不高频重复同一失败动作。详情见 [农具规则](farming-tools.md)。
 

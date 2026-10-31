@@ -80,6 +80,24 @@ test('v0.19走跑说明与极限合作条款兼容，多邀约短ID压缩保持�
   }
 });
 
+test('v0.21极限生存风险与合作复核、探索选择、三追击者并存仍完整保留', () => {
+  for (const torch of [false, true]) {
+    const c = cooperationFixture(), o = c.observation;
+    c.rules.allowed_actions.push('survival'); c.rules.survival = { version: 1 };
+    c.rules.movement = { version: 2, modes: { walk: { speed: 2, energy_multiplier: 1 }, run: { speed: 3.5, energy_multiplier: 2 } } };
+    o.survival = { version: 1, sites: [], fires: [], server_time: o.server_time };
+    o.self.survival = { satiety: 0, max_satiety: 100, light: { lit: false }, darkness_seconds: 89, danger_in_seconds: 1, torch: null, travel: null };
+    if (torch) o.self.life.inventory.torch = 1;
+    o.life.items.forEach(item => { item.satiety_restore = 10; });
+    const p = prepareDecisionPrompt(c), data = decode(p.text), actual = v => p.references?.[v] || v;
+    assert.ok(p.text.length <= 2000); assert.ok(p.text.includes(c.ownerGoal)); assert.equal(data.msg[1], c.events[0].payload.text);
+    assert.match(p.text, /0,false,89,1,null/); assert.equal(data.foes.length, 3);
+    assert.equal(actual(data.event[0]), o.self.adventure.encounter.event_id); assert.equal(actual(data.coop[0]), o.cooperation.cooperation_id);
+    assert.ok(p.text.includes('4萝卜')); assert.ok(p.text.includes('各得1')); assert.match(p.text, /confirm/);
+    if (torch) assert.match(p.text, /intent:torch,lit:true/);
+  }
+});
+
 for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active', 'return', 'discovery', 'game', 'recruiting', 'solo', 'gather']) test(`2000字符合作 ${phase} 路径与纠正提示`, () => {
   const c = cooperationFixture(), o = c.observation, self = o.self;
   const invite = { cooperation_id: 'cooperation_' + 'i'.repeat(36), revision: 1, template_id: 'camp_meal', from_agent_id: o.nearby_agents[0].agent_id,

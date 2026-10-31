@@ -107,15 +107,24 @@ export function captureFatigueRecovery(world) {
     return [a.agent_id, { rate, until, after: idle }];
   }));
 }
-export function tickFatigue(world, recovery = captureFatigueRecovery(world)) {
+export function tickFatigue(world, recovery = captureFatigueRecovery(world), survival = null) {
   let changed = false;
   for (const a of Object.values(world.state.agents)) {
     if (!a.fatigue) initializeFatigue(a, world.now());
     const interval = recovery.get(a.agent_id);
     if (!interval) continue;
     const before = a.fatigue.energy;
-    settle(a, interval.until, interval.rate);
-    settle(a, world.now(), interval.after);
+    const frame = survival?.get(a.agent_id);
+    const apply = (until, rate) => {
+      for (const window of frame?.recovery_windows || []) {
+        if (window.until <= a.fatigue.updated_at || window.from >= until) continue;
+        if (window.from > a.fatigue.updated_at) settle(a, Math.min(until, window.from), rate);
+        settle(a, Math.min(until, window.until), window.allowed ? rate : 0);
+      }
+      settle(a, until, rate);
+    };
+    apply(interval.until, interval.rate);
+    apply(world.now(), interval.after);
     if (a.fatigue.energy !== before) changed = true;
   }
   if (changed) world.state.room.world_revision++;

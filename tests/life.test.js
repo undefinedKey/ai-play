@@ -159,8 +159,10 @@ test('铁剑铁甲材料门槛与属性真实生效，仓库数量上限不溢�
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'INVENTORY_FULL'); assert.deepEqual(f.observe(p).self.life.inventory, before);
 });
 
-test('食物可在野外使用但不结束计划、不退出危险、不刷新反应保护，满血不消耗', t => {
+test('食物可在野外使用但不结束计划、不退出危险、不刷新反应保护，满血满饱不消耗', t => {
   const f = fixture(t), p = f.make(); f.farm(p, 'till'); f.farm(p, 'plant', 'plot_1', 'turnip'); f.farm(p, 'water'); f.advance(120000); f.farm(p, 'harvest');
+  // This branch tests no useful recovery; farming time otherwise lowers satiety.
+  f.raw(p).survival.satiety = 100;
   assert.equal(f.inventory(p, 'use', 'turnip').error.code, 'FULL_HEALTH'); assert.equal(f.observe(p).self.life.inventory.turnip, 2);
   f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   const a = f.raw(p); a.scene_id = 'adventure'; a.position = { x: 4, y: 11 }; a.adventure.in_field = true; a.adventure.hp = 8; a.adventure.decision_until = f.now() + 30000;

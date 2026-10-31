@@ -5,6 +5,7 @@ import { combatStats } from './combat.js';
 import { cooperationOpportunities } from './cooperation.js';
 import { publicResources } from './resources.js';
 import { publicDayCycle, DAY_RULES } from './day-cycle.js';
+import { foodWouldRestoreSatiety, litCampfireNear } from './survival-state.js';
 
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -19,9 +20,9 @@ function ordinaryOpportunities(world, a) {
   const inventory = life.inventory || {};
   const held = id => inventory[id] || 0;
   const atCamp = a.scene_id === 'plaza' && distance(a.position, ADVENTURE_ZONES[0]) <= ADVENTURE_ZONES[0].radius;
-  if (f.hp < f.max_hp || energy < 100) {
-    const food = LIFE_RULES.items.find(item => item.kind === 'food' && held(item.id) && (item.heal > 0 && f.hp < f.max_hp || item.energy_restore > 0 && energy < 100));
-    if (food) add('eat', `吃${food.name}`, food.energy_restore ? `体力${energy}/100，恢复最多${food.energy_restore}点；野外危险仍在` : `生命${f.hp}/${f.max_hp}，恢复最多${food.heal}点；野外危险仍在`, 'inventory', { intent: 'use', item_id: food.id });
+  if (f.hp < f.max_hp || energy < 100 || (a.survival?.satiety ?? 100) < 100) {
+    const food = LIFE_RULES.items.find(item => item.kind === 'food' && held(item.id) && (item.heal > 0 && f.hp < f.max_hp || item.energy_restore > 0 && energy < 100 || foodWouldRestoreSatiety(a, item)));
+    if (food) add('eat', `吃${food.name}`, `生命${f.hp}/${f.max_hp}、体力${energy}/100、饱食${a.survival?.satiety ?? 100}/100；本食物最多恢复生命${food.heal || 0}、体力${food.energy_restore || 0}、饱食${food.satiety_restore || 0}，野外危险仍在`, 'inventory', { intent: 'use', item_id: food.id });
   }
   if (f.encounter?.status === 'pending' && f.encounter.expires_at > world.now()) {
     const e = world.publicAgent(a).adventure.encounter;
@@ -32,9 +33,10 @@ function ordinaryOpportunities(world, a) {
     return options.slice(0, 6);
   }
   if (life.gathering) {
-    add('cancel_gather', '取消当前采集', `${life.gathering.phase === 'approaching' ? '正在真实前往所选资源，尚未扣工作体力/耐久' : `工作预计于${life.gathering.ends_at}结束`}；本次期限${life.gathering.expires_at}，可取消或继续等待，完成不自动续采`, 'gather', { intent: 'cancel' });
+    add('cancel_gather', life.gathering.intent === 'plant' ? '取消当前种树' : '取消当前采集', `${life.gathering.phase === 'approaching' ? '正在真实前往所选地点，尚未扣工作体力/耐久' : `工作预计于${life.gathering.ends_at}结束`}；本次期限${life.gathering.expires_at}，可取消或继续等待，完成不自动续采或种树`, 'gather', { intent: 'cancel' });
     return options;
   }
+  if (a.survival?.travel) return options;
   if(a.movement && !f.plan) {
     add('stop_moving','在当前位置停下','也可以等待到达；移动完成后再决定下一步','adventure_plan',{intent:'stop'});
     return options;
@@ -56,7 +58,11 @@ function ordinaryOpportunities(world, a) {
   }
 
   const night = publicDayCycle(world.state, world.now()).phase === 'night';
-  const resourceChoices = publicResources(world.state, world.now()).nodes.map(node => {
+  const resources = publicResources(world.state, world.now()).nodes;
+  const planting = held('pine_cone') > 0 && energy >= LIFE_RULES.gathering.planting.energy_cost ? resources.filter(node => node.scene_id === a.scene_id && node.plantable)
+    .sort((x, y) => distance(a.position, x.interaction_position) - distance(a.position, y.interaction_position))[0] : null;
+  const addPlant = () => add(`plant_tree_${planting.id}`, `在${planting.name}种树`, '先真正走到空林地，工作4秒耗2体力，完成扣自己的1颗松果；树苗180秒、幼树420秒后成熟，种好不自动种下一棵', 'gather', { intent: 'plant', node_id: planting.id });
+  const resourceChoices = resources.map(node => {
     const definition = LIFE_RULES.tools.find(t => t.id === node.tool_id), level = definition?.levels.find(l => l.level === life.tools[node.tool_id]?.level);
     return { ...node, current_energy_cost: Math.round(node.energy_cost * (level ? level.energy_cost / definition.levels[0].energy_cost : 1) * (night ? DAY_RULES.night_work_energy_multiplier : 1) * 100) / 100,
       current_duration_seconds: Math.ceil(node.duration_seconds * (level?.duration_multiplier || 1) * (night ? DAY_RULES.night_work_duration_multiplier : 1) * 1000) / 1000 };
@@ -68,6 +74,13 @@ function ordinaryOpportunities(world, a) {
     const legacy = node.id === 'camp_branches' ? 'wood' : node.id === 'camp_stones' ? 'ore' : null;
     const localLegacy = legacy && distance(a.position, node.position) <= node.radius && life.gather_ready_at[legacy] <= world.now();
     add(`gather_${localLegacy ? legacy : node.id}`, `采集${node.name}`, `共享库存${node.stock}/${node.max_stock}，${node.tool_id ? `需要${node.tool_id}并耗1耐久` : '可徒手'}；先实际到达再工作，每次获得${node.yield_count}份${node.item_id}，当前工具/时段开工${node.current_duration_seconds}秒/${node.current_energy_cost}体力${night ? '，已计入夜间体力×1.2、时间×1.25' : ''}；到达时重新核算成本，一次完成后自己决定下一步`, 'gather', { intent: 'start', ...(localLegacy ? { resource_id: legacy } : { node_id: node.id }) });
+  };
+  const canCraft = recipe => energy >= (recipe.energy_cost ?? 2) && Object.entries(recipe.ingredients).every(([id, quantity]) => held(id) >= quantity) &&
+    (!held(recipe.item_id)) && (recipe.station_id !== 'lit_campfire' || litCampfireNear(world, a));
+  const portableRecipes = LIFE_RULES.recipes.filter(recipe => ['portable', 'lit_campfire'].includes(recipe.station_id) && canCraft(recipe));
+  const craftChoice = recipe => {
+    const item = LIFE_RULES.items.find(i => i.id === recipe.item_id);
+    return { id: `craft_${item.id}`, label: `制作${item.name}`, reason: `消耗${JSON.stringify(recipe.ingredients)}及2体力；${recipe.station_id === 'lit_campfire' ? '必须在实际燃烧的同场景篝火旁' : '可在当前地点制作，制作后仍需自己选择使用'}`, action: { type: 'inventory', payload: { intent: 'craft', item_id: item.id } } };
   };
 
   if (atCamp && (f.hp < f.max_hp || energy < 100)) add('rest', '营地休息', `体力${energy}/100，主动休息同时恢复生命和体力；不自动切换下一项`, 'adventure_plan', { intent: 'rest' });
@@ -111,10 +124,13 @@ function ordinaryOpportunities(world, a) {
     if (empty && energy >= FATIGUE_RULES.costs.plant) for (const crop of LIFE_RULES.crops) if (held(crop.seed_id)) {
       farmAdd(4, `plant_${crop.id}`, `种${crop.name}`, '使用已开垦田和自己的种子，之后需要用水壶浇水', 'farm', { intent: 'plant', plot_id: empty.plot_id, crop_id: crop.id });
     }
-    const cooking = LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking' && !held(recipe.item_id) && canPay(recipe.ingredients) && energy >= recipe.energy_cost);
+    const cooking = LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking' && canCraft(recipe));
     for (const recipe of cooking) {
       const item = LIFE_RULES.items.find(item => item.id === recipe.item_id);
       farmAdd(4, `cook_${item.id}`, `烹制${item.name}`, `消耗${JSON.stringify(recipe.ingredients)}与${recipe.energy_cost}体力，瞬时完成；${item.energy_restore ? `使用恢复${item.energy_restore}体力` : `使用恢复${item.heal}生命`}`, 'inventory', { intent: 'craft', item_id: item.id });
+    }
+    for (const recipe of portableRecipes.filter(r => r.kind !== 'cooking')) {
+      const choice = craftChoice(recipe); farmOptions.push({ priority: 4, ...choice });
     }
     const market = life.market, gold = f.gold;
     const buySeed = LIFE_RULES.market.items.find(offer => offer.item_id.endsWith('_seed') && !held(offer.item_id) && offer.buy_price <= gold && market.buy_remaining > 0);
@@ -153,16 +169,22 @@ function ordinaryOpportunities(world, a) {
     });
     // Reserve independent choices for gathering, exploration, and legal combat.
     // Absent monsters or low energy release the combat slot for living choices.
-    const reserved = 1 + (resource ? 1 : 0) + (target ? 1 : 0);
+    const reserved = 1 + (resource ? 1 : 0) + (target ? 1 : 0) + (planting ? 1 : 0);
     const slots = Math.max(0, Math.min(3, 6 - reserved - options.length)), selected = distinct.slice(0, slots);
     // With two or more living slots, keep one concrete strategy alternative
     // visible without evicting the highest-priority farm/repair choice.
     if (slots >= 2 && equipmentIds.size && !selected.some(option => equipmentIds.has(option.id))) selected[selected.length - 1] = distinct.find(option => equipmentIds.has(option.id));
     options.push(...selected.map(({ priority, ...option }) => option));
     if (resource) addResource(resource);
+    if (planting) addPlant();
   } else {
     add('return_camp', '回营地休息或照料农田', '安全区可种植、收获、制作和穿戴装备', 'adventure_plan', { intent: 'rest' });
-    for (const resource of resourceChoices.slice(0, 2)) addResource(resource);
+    // Keep a concrete resource and optional replanting/crafting choice while
+    // reserving one slot for exploration; none of these suggestions is queued.
+    if (planting && options.length < 5) addPlant();
+    if (resourceChoices[0] && options.length < 5) addResource(resourceChoices[0]);
+    for (const recipe of portableRecipes) if (options.length < 5) options.push(craftChoice(recipe));
+    if (resourceChoices[1] && options.length < 5) addResource(resourceChoices[1]);
   }
   add('explore_forest', '探索苔光森林', '自由探索；走出安全区可能遇到巡逻怪物', 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   if (target) add('hunt', `挑战${target.name}`, `目标生命${target.hp}、攻击${target.attack}；击败可获得经验、金币和材料${energy <= 25 ? '；当前体力较低，攻击效率75%' : ''}`, 'adventure_plan', { intent: 'hunt', monster_id: target.monster_id });

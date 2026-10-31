@@ -56,7 +56,7 @@ for (const directory of ['public', 'dist']) {
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
   for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
-  assert.equal(manifest.release,'0.20.0');
+  assert.equal(manifest.release,'0.21.0');
   for(const scene of SCENES){
     assert.deepEqual(scene.map,WORLD_MAP);
     assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);
@@ -80,6 +80,6 @@ for (const directory of ['public', 'dist']) {
     assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id} isolated walkable cell`);
   }
   for(const id of ['pine','oak','ore','berries','stump','herb']){const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<1);assert.ok(asset.anchor.x<asset.width&&asset.anchor.y<asset.height);assert.equal(asset.image,'/pixel-world/props_ink.png');}
-  assert.equal(images.size, 91);
+  assert.equal(images.size, 95);
   console.log(`${directory}: ${images.size} Pixelbolt and original ink images, frames, scene footprints, portals and reachability verified.`);
 }

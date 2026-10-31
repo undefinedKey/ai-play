@@ -40,7 +40,7 @@ test('Phaser真实画布绘制地面物件人物装备，真实移动改变像�
 });
 
 test('画布加载、网络失败、兼容图层重试及缺失纹理均明确反馈',async({page,request})=>{
- await actor(request,'等待画布的原角色');
+ const pageErrors=[];page.on('pageerror',error=>pageErrors.push(error.message));await actor(request,'等待画布的原角色');
  let release;await page.route('**/assets/phaser-renderer-*.js',async route=>{await new Promise(resolve=>{release=resolve;});await route.abort();});
  await page.goto(base+'/watch?view=plaza');await expect(page.getByText('游戏画布载入中…',{exact:true})).toBeVisible();await page.screenshot({path:'artifacts/phaser-v018-loading.png'});release();
  await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await expect(page.getByText(/当前为兼容图层显示/)).toBeVisible();await expect(page.getByTestId('phaser-canvas')).toHaveCount(0);await page.screenshot({path:'artifacts/phaser-v018-fallback.png'});
@@ -48,7 +48,7 @@ test('画布加载、网络失败、兼容图层重试及缺失纹理均明确�
  await page.route('**/pixel-world/bookshop.png',route=>route.abort());await page.reload();await ready(page);await expect(page.getByText('部分场景素材未载入 · 已保留可用画面和真实位置')).toBeVisible();expect((await pixels(page)).opaque).toBe(1536*1024);await page.screenshot({path:'artifacts/phaser-v018-partial.png'});
  await page.unroute('**/pixel-world/bookshop.png');await page.reload();await ready(page);
  await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.dispatchEvent(new Event('webglcontextlost')));await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await page.getByRole('button',{name:'重试游戏画布'}).click();await ready(page);
- await page.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/i.test(type)?null:original.call(this,type,...args);};});await page.reload();await ready(page);expect(await page.getByTestId('phaser-canvas').evaluate(canvas=>!!canvas.getContext('2d'))).toBe(true);expect((await pixels(page)).opaque).toBe(1536*1024);
+ await page.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/i.test(type)?null:original.call(this,type,...args);};});await page.reload();await ready(page);expect(await page.getByTestId('phaser-canvas').evaluate(canvas=>!!canvas.getContext('2d'))).toBe(true);expect((await pixels(page)).opaque).toBe(1536*1024);expect(pageErrors).toEqual([]);
 });
 
 test('当前场景和整个世界同步可切换，公开名册仍完整，重连取得对应场景新快照',async({page,request})=>{

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
@@ -100,7 +101,7 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
   const initial = await p.observe();
   assert.deepEqual(initial.self.position, { x: 9, y: 7 }, 'keep the ordinary spawn, no teleport fixture');
   assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 }, 'only normal first-join supplies');
-  const grant = structuredClone(p.raw.run), health = await f.api('/api/health'); assert.equal(health.body.version, '0.20.0');
+  const grant = structuredClone(p.raw.run), health = await f.api('/api/health'); assert.equal(health.body.version, JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version);
   const types = (await p.client.listTools()).tools.find(tool => tool.name === 'act').inputSchema.properties.type.enum; assert.ok(types.includes('gather'));
 
   const request = await p.request('gather', { intent: 'start', node_id: 'camp_branches' });

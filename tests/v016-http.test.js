@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version;
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
@@ -51,9 +53,12 @@ async function fixture(t, accounts = false) {
 
 for (const kind of ['word_chain','story_chain','rock_paper_scissors']) test(`v0.16 HTTP/MCP: ${kind} completes with 40–60 second decisions and durable factual result`, async t=>{
   const f=await fixture(t), a=await f.actor('慢回复甲'), b=await f.actor('慢回复乙');
+  // Finite, real camp light isolates slow game timing from unrelated night harm.
+  f.app.world.state.survival.fires.timing_pit = { fire_id: 'timing_pit', site_id: 'plaza_hearth', kind: 'firepit', owner_agent_id: a.id,
+    lit: true, fuel_seconds: 600, updated_at: f.time(), created_at: f.time() };
   const rules=await a.call('get_rules'); assert.equal(rules.game.turn_seconds,150);
   const health=(await f.api('/api/health')).body;
-  assert.equal(health.version,'0.20.0'); assert.equal(health.capabilities.public_history,true);
+  assert.equal(health.version,packageVersion); assert.equal(health.capabilities.public_history,true);
   const group=(await a.applied('create_group',{})).group_id;
   const invite=await a.applied('invite',{group_id:group,target_agent_id:b.id});
   await f.advance(60000); await b.applied('respond_invite',{invite_id:invite.invite_id,accept:true});
@@ -96,6 +101,13 @@ for (const kind of ['word_chain','story_chain','rock_paper_scissors']) test(`v0.
 
 test('v0.16 HTTP/MCP: slow solo answers and three explicit nearby treasure collections fit finite windows',async t=>{
   const f=await fixture(t), p=await f.actor('独自游玩');
+  // Test-only supply, then explicit real MCP torch choices. The clock, finite
+  // fuel and survival simulation remain active while this test checks games.
+  p.raw.life.inventory.torch = 12;
+  const litWait = async ms => {
+    if (!p.raw.survival.torch?.lit) await p.applied('survival', { intent: 'torch', lit: true });
+    await f.advance(ms);
+  };
   for(const kind of ['solo_game','riddle','sequence']) {
     const catalog=f.app.world.getRules().activities.find(x=>x.id===kind);
     const place=f.app.world.getRules().places.find(x=>x.id===catalog.place_id);
@@ -103,7 +115,7 @@ test('v0.16 HTTP/MCP: slow solo answers and three explicit nearby treasure colle
     await p.applied('start_activity',{activity_id:kind});
     // This tests timing, transport and settlement; the answer is a controlled fixture.
     const answer=Array.isArray(p.raw.activity_answer)?p.raw.activity_answer[0]:p.raw.activity_answer;
-    const end=p.raw.activity.ends_at; await f.advance(60000);
+    const end=p.raw.activity.ends_at; await litWait(60000);
     assert.equal(p.raw.activity.ends_at,end); await p.applied('finish_activity',{answer});
   }
   p.raw.position={x:11,y:8}; await p.applied('start_activity',{activity_id:'treasure_hunt'});
@@ -114,9 +126,9 @@ test('v0.16 HTTP/MCP: slow solo answers and three explicit nearby treasure colle
     while(a.position.x!==target.x||a.position.y!==target.y) {
       const path=findPath('plaza',a.position,target);assert.ok(path, 'treasure target is reachable');
       const next=path[Math.min(3,path.length-1)];
-      await f.advance(40000); await p.applied('move',next);a=(await p.observe()).self;
+      await litWait(40000); await p.applied('move',next);a=(await p.observe()).self;
     }
-    await f.advance(40000); assert.equal(p.raw.activity.ends_at,deadline);await p.applied('finish_activity',{});
+    await litWait(40000); assert.equal(p.raw.activity.ends_at,deadline);await p.applied('finish_activity',{});
   }
   assert.equal(p.raw.activity,null);
   const history=(await f.api('/api/public/history?category=activity')).body.items;
