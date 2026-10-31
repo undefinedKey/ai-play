@@ -1,3 +1,4 @@
+import {advanceToArrival} from './motion-fixture.js';
 import {selectObservedAgent} from './observer-navigation.js';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -72,7 +73,7 @@ test('历史快速切换人物忽略迟到响应，错误可重试，离线旧�
 });
 
 test('合作终态清出即时列表后双方仍可回顾同一成果，拒绝对象不出现在公开档案',async({page,request})=>{
-  const a=await actor(request,'共同供菜者'),b=await actor(request,'共同厨师');await a.act('move',{x:11,y:8});await b.act('move',{x:11,y:8});application.world.agent(a.agent.agent_id).life.inventory.turnip=4;
+  const a=await actor(request,'共同供菜者'),b=await actor(request,'共同厨师');await a.act('move',{x:11,y:8});await b.act('move',{x:11,y:8});advanceToArrival(application.world,a.agent.agent_id,{x:11,y:8},ms=>clock+=ms);advanceToArrival(application.world,b.agent.agent_id,{x:11,y:8},ms=>clock+=ms);application.world.agent(a.agent.agent_id).life.inventory.turnip=4;
   await a.act('cooperation',{intent:'propose',template_id:'camp_meal',target_agent_id:b.agent.agent_id,role_id:'supplier'});let p=Object.values(application.world.state.cooperations).find(p=>p.status==='proposed');await b.act('cooperation',{intent:'respond',cooperation_id:p.cooperation_id,revision:p.revision,accept:true,role_id:'cook'});await a.act('cooperation',{intent:'contribute',cooperation_id:p.cooperation_id,revision:p.revision});await b.act('cooperation',{intent:'cook',cooperation_id:p.cooperation_id,revision:p.revision});
   application.world.state.cooperations={};application.world.state.events=[];application.world.commit();
   await page.goto(base+'/watch?view=farm');await selectObservedAgent(page,a.agent.agent_id);await expect(page.getByTestId('cooperation-panel')).toHaveCount(0);const panel=await openHistory(page);await panel.getByRole('button',{name:'查看合作成果'}).click();await expect(panel.locator('.history-list > li')).toHaveCount(1);const id=await panel.locator('.history-list > li').getAttribute('data-entry-id');await panel.locator('.history-list > li > details > summary').click();await expect(panel.getByTestId('cooperation-result')).toContainText('浓汤');await expect(panel.locator('.history-entry-body')).toContainText('共同供菜者');await expect(panel.locator('.history-entry-body')).toContainText('共同厨师');

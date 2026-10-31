@@ -6,10 +6,10 @@ import { createApp } from '../../server/index.js';
 
 // Real HTTP, MCP, SSE and world simulation. The clock is advanced explicitly;
 // these clients exercise decisions without pretending to be an actual LLM.
-let application, server, base, clock, clients, actors;
+let application, server, base, clock, clients, actors, heartbeatAt;
 test.beforeEach(async () => {
   application = await createApp({ dbPath: ':memory:', authDbPath: ':memory:', authMode: 'local', production: true });
-  clock = Date.now(); clients = []; actors = [];
+  clock = Date.now(); heartbeatAt = clock; clients = []; actors = [];
   application.world.now = () => clock;
   application.world.actionIntervalMs = 0;
   ({ server, url: base } = await application.start(0));
@@ -47,12 +47,16 @@ async function actor(api, name) {
     expect(result.status,JSON.stringify(result)).toBe('applied');actionId=result.next_action_id;return result;
   } }; actors.push(person); return person;
 }
-async function step(count=1) {
-  for(let i=0;i<count;i++) {
-    clock+=1001;application.world.tick();
-    for(const p of actors)if(application.world.agent(p.agent.agent_id).status==='active')await p.observe();
+async function advance(ms) {
+  for(let elapsed=0;elapsed<ms;) {
+    const dt=Math.min(100,ms-elapsed);elapsed+=dt;clock+=dt;application.world.tick();
+    if(clock-heartbeatAt>=1000) {
+      for(const p of actors)if(application.world.agent(p.agent.agent_id).status==='active')await p.observe();
+      heartbeatAt=clock;
+    }
   }
 }
+async function step(count=1) { await advance(count*1000); }
 async function until(predicate, limit=80) { for(let i=0;i<limit&&!predicate();i++)await step(); expect(predicate()).toBe(true); }
 async function declinePending(person) { const e=application.world.agent(person.agent.agent_id).adventure.encounter; if(e?.status==='pending')await person.act('adventure_event',{event_id:e.event_id,choice_id:'decline'}); }
 
@@ -188,10 +192,11 @@ test('只探索的 AI 会被怪物主动追击与攻击，返回营地或主人�
   await expect(page.getByTestId('adventure-field-status')).toContainText('广场营地安全区');
   await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
   let chasing;
-  for(let i=0;i<60&&!chasing;i++) {
-    await step();
+  for(let i=0;i<600&&!chasing;i++) {
+    await advance(100);
     await declinePending(a);
-    chasing=application.world.state.adventure.monsters.find(monster=>monster.target_agent_id===a.agent.agent_id&&monster.behavior==='chasing');
+    chasing=application.world.state.adventure.monsters.find(monster=>monster.target_agent_id===a.agent.agent_id&&monster.behavior==='chasing'&&
+      (monster.position.x!==monster.home_position.x||monster.position.y!==monster.home_position.y));
   }
   expect(chasing).toBeTruthy();
   expect(chasing.position).not.toEqual(chasing.home_position);

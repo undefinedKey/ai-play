@@ -39,6 +39,8 @@ async function actor(request, name) {
   } };
 }
 
+function arrive(a){const raw=application.world.agent(a.agent.agent_id),movement=raw.movement;if(!movement)return;clock=Math.max(clock,movement.ends_at);application.world.tick();expect(raw.position).toEqual(movement.path.at(-1));}
+
 test('真实公开发言仅在所在场景显示，关闭跨视图保留，新发言重新出现', async ({ page, request }) => {
   const a = await actor(request, '碎碎念旅人');
   await page.goto(base + '/watch?view=plaza');
@@ -116,7 +118,7 @@ test('断线只标记最近收到的公开发言，不生成新台词', async ({
 
 
 test('五人真实发言同时挂在头顶，三尺寸同格、边角、移动和关注缩放保持锚点',async({page,request})=>{
-  const actors=[];for(let i=0;i<5;i++){const a=await actor(request,i<2?'同名很长的说话同伴':'讲话同伴'+i);await a.act('move',{x:11,y:8});actors.push(a);}
+  const actors=[];for(let i=0;i<5;i++){const a=await actor(request,i<2?'同名很长的说话同伴':'讲话同伴'+i);await a.act('move',{x:11,y:8});arrive(a);actors.push(a);}
   await page.goto(base+'/watch?view=plaza');
   for(let i=0;i<5;i++)await actors[i].act('say',{channel:'nearby',text:`第${i+1}位的真实公开话语，想在这里一起聊天。`});
   const clouds=page.getByTestId('speech-cloud');await expect(clouds).toHaveCount(5);
@@ -132,11 +134,11 @@ test('五人真实发言同时挂在头顶，三尺寸同格、边角、移动�
   }}
   await inspect('five-crowded');
   // Edge positions are isolated fixture geometry; speech and movement still use MCP.
-  for(const a of actors)application.world.agent(a.agent.agent_id).position={x:0,y:1};application.world.commit();await inspect('five-edge');
+  for(const a of actors){const raw=application.world.agent(a.agent.agent_id);raw.position={x:0,y:1};raw.position_at=clock;raw.movement=null;}application.world.commit();await inspect('five-edge');
   for(const a of actors.slice(1))await a.api(`/api/agents/${a.agent.agent_id}/control`,{operation:'pause'});
   const a=actors[0],cloud=page.locator(`[data-testid="speech-cloud"][data-agent-id="${a.agent.agent_id}"]`);
   await selectObservedAgent(page,a.agent.agent_id);
-  const before=Number(await cloud.getAttribute('data-head-x'));await a.act('move',{x:3,y:1});await expect.poll(async()=>Number(await cloud.getAttribute('data-head-x'))).toBeGreaterThan(before+20);
+  const before=Number(await cloud.getAttribute('data-head-x'));await a.act('move',{x:3,y:1});arrive(a);await expect.poll(async()=>Number(await cloud.getAttribute('data-head-x'))).toBeGreaterThan(before+20);
   await page.getByRole('button',{name:'关注角色',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','following');
   await expect.poll(async()=>cloud.evaluate(el=>{const f=el.parentElement.getBoundingClientRect(),id=el.dataset.agentId,a=[...el.parentElement.parentElement.querySelectorAll('[data-speech-agent]')].find(x=>x.dataset.speechAgent===id).querySelector('.pixel-character').getBoundingClientRect();return Math.abs(Number(el.dataset.headX)-(a.x+a.width/2-f.x));})).toBeLessThan(2);
   expect(await cloud.locator('.cloud-text').evaluate(el=>getComputedStyle(el).fontSize)).toBe('14px');
@@ -144,7 +146,7 @@ test('五人真实发言同时挂在头顶，三尺寸同格、边角、移动�
 });
 
 test('农作近景只显示真实在营地角色气泡，展开保留全文、Escape返回角色且历史不重播',async({page,request})=>{
-  const a=await actor(request,'农田主人'),b=await actor(request,'别处说话者');await a.act('move',{x:11,y:8});
+  const a=await actor(request,'农田主人'),b=await actor(request,'别处说话者');await a.act('move',{x:11,y:8});arrive(a);
   await page.goto(base+'/watch?view=farm');await selectObservedAgent(page,a.agent.agent_id);
   const text='这是我亲口说出的很长一句话。'.repeat(9);await a.act('say',{channel:'nearby',text});await b.act('say',{channel:'nearby',text:'不能挂到别人的头顶。'});
   const clouds=page.getByTestId('speech-cloud');await expect(clouds).toHaveCount(1);await expect(clouds).toHaveAttribute('data-agent-id',a.agent.agent_id);

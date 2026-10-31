@@ -1,4 +1,4 @@
-import { SCENE_IDS, SCENES, publicMovement, publicPath } from './spatial.js';
+import { SCENE_IDS, SCENES, publicMovement, publicPath, publicAction, publicHurt } from './spatial.js';
 import { randomBytes } from 'node:crypto';
 import jsonPatch from 'fast-json-patch';
 import { GAME_END_REASONS, gameName, publicChoices, publicGame } from './games.js';
@@ -25,6 +25,7 @@ const publicEventFields = {
   server_restarted: ['text'], room_state: ['text', 'status'],
   agent_joined: ['agent_id', 'name', 'text'], agent_left: ['agent_id', 'text'], agent_offline: ['agent_id', 'text'],
   agent_moved: ['agent_id', 'text', 'position', 'path'],
+  movement_finished: ['agent_id','text','position','reason'],
   scene_changed: ['agent_id', 'text', 'from_scene_id', 'position', 'from_position', 'reason'],
   activity_started: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text'],
   activity_finished: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text', 'outcome', 'result'],
@@ -32,7 +33,7 @@ const publicEventFields = {
   adventure_started: ['agent_id', 'name', 'text', 'intent', 'zone_id', 'monster_id'],
   adventure_finished: ['agent_id', 'name', 'text', 'kind'],
   adventure_arrived: ['agent_id', 'name', 'text', 'zone_id'],
-  adventure_combat: ['agent_id', 'name', 'text', 'monster_id', 'damage', 'hp', 'attacker'],
+  adventure_combat: ['agent_id', 'name', 'text', 'monster_id', 'damage', 'hp', 'attacker','action_id'],
   adventure_aggro: ['agent_id', 'name', 'target_agent_id', 'monster_id', 'text'],
   adventure_loot: ['agent_id', 'name', 'text', 'monster_id', 'xp', 'gold'],
   adventure_defeated: ['agent_id', 'name', 'text', 'monster_id'],
@@ -109,7 +110,7 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), movement: publicMovement(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent), action:publicAction(agent), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
     scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
     places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
@@ -133,7 +134,7 @@ export function scopeSpectatorSnapshot(snapshot, scene = null) {
 }
 
 export function attachSpectator(app, world, { maxStreams = 150, maxPerIp = 30, heartbeatMs = 15000,
-  maxBufferBytes = 262144, broadcastMs = 50 } = {}) {
+  maxBufferBytes = 262144, broadcastMs = 200 } = {}) {
   const streams = new Map();
   const stats = { snapshot_builds: 0, scope_projections: 0, snapshot_encodes: 0, delta_encodes: 0, v2_delta_encodes: 0,
     encoded_bytes: 0, frames_written: 0, delta_frames_written: 0, bytes_enqueued: 0, broadcasts: 0,

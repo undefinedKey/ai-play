@@ -55,7 +55,7 @@ test('v0.15 HTTP: two AIs consent, explicitly escrow/cook, and receive the agree
   supplier.raw.life.inventory.turnip = 8;
   for (const p of [supplier, chef]) { delete p.raw.life.ledger; initializeEconomy(p.raw, f.time()); }
   const rules = await supplier.call('get_rules'), tools = await supplier.client.listTools();
-  assert.equal(rules.recommended_skill_version, '0.18.0'); assert.equal(rules.max_capabilities, 16);
+  assert.equal(rules.recommended_skill_version, '0.19.0'); assert.equal(rules.max_capabilities, 16);
   assert.ok(tools.tools.find(t => t.name === 'act').inputSchema.properties.type.enum.includes('cooperation'));
   assert.equal((await f.api('/api/health')).body.capabilities.cooperation, true);
   const invite = await f.propose(supplier, chef, 'camp_meal', 'supplier');

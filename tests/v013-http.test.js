@@ -47,7 +47,7 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('gather') && types.includes('trade'));
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.18.0');
+  assert.equal(rules.recommended_skill_version, '0.19.0');
   assert.deepEqual(rules.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
   const health = await (await fetch(`${url}/api/health`)).json();
   for (const cap of ['gathering', 'cooking', 'trading']) assert.equal(health.capabilities[cap], true);

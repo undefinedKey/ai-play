@@ -129,7 +129,7 @@ export function campAvailable(world, a, fail) {
   if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
   const farm = LIFE_RULES.farm_place, position = a.position;
   if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
-  if (a.adventure?.plan || a.adventure?.in_field || a.activity) fail('ACTIVITY_BUSY', '请先结束当前计划或活动，并返回安全营地');
+  if (a.adventure?.plan || a.adventure?.in_field || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、移动或活动，并返回安全营地');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');
   const game = world.state.game;
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏，再照料农田、制作或换装');

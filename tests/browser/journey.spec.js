@@ -1,3 +1,4 @@
+import {advanceToArrival} from './motion-fixture.js';
 import {selectObservedAgent} from './observer-navigation.js';
 import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -24,7 +25,7 @@ test('拒绝、到期和暂停只展示真实终态，公开目标复核前不�
 });
 
 test('三种新装备实际制作穿戴后，公开属性、人物层和攻击动作一致',async({page,request})=>{
- const api=await owner(request),a=await actor(api,'装备测试旅人');await a.act('move',{x:11,y:8});
+ const api=await owner(request),a=await actor(api,'装备测试旅人');await a.act('move',{x:11,y:8});advanceToArrival(app.world,a.agent.agent_id,{x:11,y:8},ms=>clock+=ms);
  // Isolated resource fixture only; crafting, wearing and combat still execute through MCP.
  const raw=app.world.agent(a.agent.agent_id);raw.life.inventory.wood=40;raw.life.inventory.ore=40;
  for(const id of['hunter_bow','heavy_hammer','heavy_armor'])await a.act('inventory',{intent:'craft',item_id:id});await a.act('inventory',{intent:'equip',item_id:'hunter_bow'});await a.act('inventory',{intent:'equip',item_id:'heavy_armor'});const identity=(await a.observe()).self.appearance.sprite_id;

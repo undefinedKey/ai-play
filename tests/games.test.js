@@ -28,13 +28,16 @@ function fixture(t, count = 2) {
     }
   };
   const go = (person, target) => {
-    while (true) {
+    for (let leg = 0; ; leg++) {
+      assert.ok(leg < 128, 'bounded movement must reach the game location');
       const self = observe(person).self, pos = self.position;
       if (pos.x === target.x && pos.y === target.y) break;
       const path = findPath(self.scene_id, pos, target);
       assert.ok(path.length > 1, '目标必须有当前场景内的可行道路');
       const next = path[Math.min(3, path.length - 1)];
       assert.equal(act(person, 'move', next).status, 'applied');
+      for (let elapsed = 0; elapsed < 1500; elapsed += 100) advance(100);
+      assert.deepEqual(observe(person).self.position, next, 'physical arrival precedes the next path');
     }
   };
   const group = () => {
@@ -82,7 +85,9 @@ test('数列是真实题面和真实计分，移动取消，超时不补答案',
   f.act(p, 'start_activity', { activity_id: 'sequence' });
   assert.equal(f.act(p, 'finish_activity', { answer: '3' }).error.code, 'INVALID_ACTION');
   f.act(p, 'move', { x: 18, y: 12 }); assert.equal(f.observe(p).self.activity, null);
-  f.act(p, 'start_activity', { activity_id: 'sequence' }); f.advance(150000);
+  assert.equal(f.act(p, 'start_activity', { activity_id: 'sequence' }).error.code, 'MOVEMENT_BUSY');
+  for (let elapsed = 0; elapsed < 500; elapsed += 100) f.advance(100);
+  assert.equal(f.act(p, 'start_activity', { activity_id: 'sequence' }).status, 'applied'); f.advance(150000);
   assert.equal(f.observe(p).self.activity, null);
   assert.equal(f.world.state.events.filter(event => event.type === 'activity_finished').at(-1).payload.result.score, 0);
 });

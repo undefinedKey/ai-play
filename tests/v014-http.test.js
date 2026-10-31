@@ -45,7 +45,7 @@ async function fixture(t) {
 test('v0.14 HTTP: exploration offers real choices, rejects stale movement and settles a public goal once', async t => {
   const f = await fixture(t), p = await f.actor('发现旅人');
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.18.0');
+  assert.equal(rules.recommended_skill_version, '0.19.0');
   assert.equal(rules.max_capabilities, 16);
   assert.equal(rules.adventure.exploration.pending_seconds, 150);
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
@@ -122,7 +122,7 @@ test('v0.14 HTTP: strategy recipes and equipped effective attributes agree throu
   a = (await p.observe()).self;
   assert.equal(a.life.stats.defense, 5); assert.equal(a.life.stats.attack_interval_ms, 3000);
   const energy = a.fatigue.energy;
-  await p.applied('move', { x: 12, y: 8 });
+  await p.applied('move', { x: 12, y: 8 }); await f.advance(500);
   a = (await p.observe()).self;
   assert.ok(Math.abs(energy - a.fatigue.energy - a.life.stats.move_energy_per_tile) < 0.00001);
   await p.applied('inventory', { intent: 'equip', item_id: 'heavy_hammer' });

@@ -56,7 +56,7 @@ for (const directory of ['public', 'dist']) {
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
   for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
-  assert.equal(manifest.release,'0.18.0');
+  assert.equal(manifest.release,'0.19.0');
   for(const scene of SCENES){
     assert.deepEqual(scene.map,WORLD_MAP);
     assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);

@@ -1,12 +1,13 @@
 import { isPositionInBounds } from './spatial.js';
 import { BASE_ATTACK_ENERGY, BASE_MOVE_ENERGY, combatStats } from './combat.js';
+import { samplePath, pathLength } from '../shared/motion.js';
 
 export const FATIGUE_RULES = {
   max_energy: 100, tired_at: 25, rearm_at: 40, hunt_min_energy: 12, tired_attack_multiplier: 0.75,
   costs: { attack: BASE_ATTACK_ENERGY, move_per_tile: BASE_MOVE_ENERGY, till: 3, plant: 2, water: 1, harvest: 2, craft: 2, repair: 2, upgrade: 2, gather: 1, exploration: 1 },
   tool_energy: 'till和water实际体力消耗按life.tools对应工具当前等级的energy_cost；costs中的3和1为基础一级值。维修与升级各消耗2。',
   recovery: { scene_id: 'plaza', idle_per_second: 0.3, rest_per_second: 2, camp_center: { x: 11, y: 8 }, camp_radius: 2 },
-  description: '体力记录实际行动消耗，不代表性格或厌倦。体力不超过25时攻击变为75%；不足装备一次攻击所需体力时停止当前狩猎，重新狩猎至少需要12。走路和撤退始终允许。营地静止、聊天或低强度阅读每秒恢复0.3，主动休息或花园休息每秒恢复2；移动和劳作后1秒不恢复，野外不被动恢复；攻击/移动实际耗能按life.stats装备属性。离线、暂停或服务重启期间仅在营地慢恢复；不会自动开始其他活动。',
+  description: '体力记录实际行动消耗，不代表性格或厌倦。体力不超过25时攻击变为75%；不足装备一次攻击所需体力时停止当前狩猎，重新狩猎至少需要12。步行和步行撤退始终允许；奔跑每格消耗为步行2倍，按真实走过距离扣除，耗尽时原地停止并等待AI选择，不自动改为步行。营地静止、聊天或低强度阅读每秒恢复0.3，主动休息或花园休息每秒恢复2；移动和劳作后1秒不恢复，野外不被动恢复；攻击/移动实际耗能按life.stats装备属性。离线、暂停或服务重启期间仅在营地慢恢复；不会自动开始其他活动。',
 };
 const round = value => Math.round(value * 10000) / 10000;
 const energy = a => Number.isFinite(a.fatigue?.energy) ? Math.max(0, Math.min(100, a.fatigue.energy)) : 100;
@@ -44,7 +45,7 @@ export function announceExhausted(world, a) {
 }
 
 /** False means insufficient energy; walking may always drain down to zero. */
-export function spendEnergy(world, a, kind, units = 1) {
+export function spendEnergy(world, a, kind, units = 1, settledAt = world.now()) {
   if (!a.fatigue) initializeFatigue(a, world.now());
   const cost = (kind === 'move' ? combatStats(a).move_energy_per_tile : kind === 'attack' ? combatStats(a).attack_energy : FATIGUE_RULES.costs[kind]) * units;
   if (!Number.isFinite(cost) || cost < 0) throw new Error('Invalid exertion cost');
@@ -52,8 +53,8 @@ export function spendEnergy(world, a, kind, units = 1) {
   const f = a.fatigue, before = energy(a);
   if (kind !== 'move' && before < cost) return false;
   f.energy = round(Math.max(0, before - cost));
-  f.updated_at = Math.max(f.updated_at, world.now()); f.recover_after = Math.max(f.recover_after, world.now() + 1000);
-  f.last_kind = kind; f.last_at = world.now(); f.actions_count = Math.min(Number.MAX_SAFE_INTEGER, f.actions_count + 1);
+  f.updated_at = Math.max(f.updated_at, settledAt); f.recover_after = Math.max(f.recover_after, settledAt + 1000);
+  f.last_kind = kind; f.last_at = settledAt; f.actions_count = Math.min(Number.MAX_SAFE_INTEGER, f.actions_count + 1);
   if (before > 25 && f.energy <= 25 && !f.tired_notified) {
     f.tired_notified = true;
     announce(world, a, 'fatigue_tired', `${a.name}的体力降至${f.energy}，攻击效率降为75%；是否继续、休息或换活动由本人决定`);
@@ -75,12 +76,23 @@ function settle(a, now, rate) {
 export function captureFatigueRecovery(world) {
   const now = world.now(), { idle_per_second: idle, rest_per_second: rest } = FATIGUE_RULES.recovery;
   return new Map(Object.values(world.state.agents).map(a => {
-    if (!inCamp(a)) return [a.agent_id, { rate: 0, until: now, after: 0 }];
     const active = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
+    if(a.movement?.version===2) {
+      const m=a.movement,previous=m.settled_distance||0;
+      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,m.ends_at):Math.min(now,a.position_at??now);
+      const budget=m.mode==='run'?energy(a)/(combatStats(a).move_energy_per_tile*2):Infinity;
+      const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
+      const stop=samplePath(m.path,progress).position;
+      const until=Math.min(now,cutoff,Math.round(m.started_at+progress/m.speed*1000));
+      return [a.agent_id,{rate:0,until,after:inCamp({...a,position:stop})?idle:0}];
+    }
+    if (!inCamp(a)) return [a.agent_id, { rate: 0, until: now, after: 0 }];
     if (!active) return [a.agent_id, { rate: idle, until: now, after: idle }];
     let until = Math.min(now, timestamp(a.run.expires_at) ? a.run.expires_at : now, timestamp(a.last_contact_at) ? a.last_contact_at + 45000 : now), rate = idle;
     const plan = a.adventure?.plan, activity = a.activity, gathering = a.life?.gathering, game = world.state.game;
-    if (gathering) {
+    if (a.movement) {
+      rate = 0;
+    } else if (gathering) {
       until = Math.min(until, timestamp(gathering.ends_at) ? gathering.ends_at : now);
       rate = 0;
     } else if (plan) {

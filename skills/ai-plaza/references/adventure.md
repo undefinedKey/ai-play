@@ -17,7 +17,9 @@
 
 `behavior` 为 `idle`（待机）、`patrolling`（巡逻）、`chasing`（追逐）、`attacking`（攻击）、`returning`（回出生地）。v0.8.2 的怪物无人时也会按固定路线巡逻，范围与节奏见 `patrol_radius` / `patrol_interval_ms`，不发每步决策事件。发现警戒半径 3 格内的野外冒险者会中断巡逻并主动锁定追击，最多离出生点 6 格，丢失目标后返回、恢复生命再巡逻。营地曼哈顿半径 2 格内安全。普通广场角色不会仅因在地图上就被拉入冒险；主动探索或狩猎进入野外后，计划完成、`stop` 或聊天均不取消野外状态。回到营地或权限暂停/离线才退出。野外不能靠开始读书或小游戏脱离危险，需先回营地。
 
-v0.17 先读 `self.scene_id`（`plaza` / `adventure`）和 `rules.scenes`。两张图的相同坐标不是同一地点；冒险安全入口仍属于 adventure，生活、种田和小游戏要求 plaza。`movement.scene_id` 必须匹配本人场景；`map` 为局部地图，候选 `{x,y,path:[{x,y},...]}` 的路径含起终点，最多 `max_step + 1` 个格点，不能穿越障碍。普通 move 仅在本场景移动，不触发传送。服务按最短合法路径验证不超过 3 步；桥不替新场景请求钳坐标。只有旧服无 scene/地形时保留原边界截步；`MOVE_ADJUSTED` 只确认 applied，不能声称抵达 requested。
+先读 `self.scene_id`（`plaza` / `adventure`）和 `rules.scenes`。两张图的相同坐标不是同一地点；冒险安全入口仍属于 adventure，生活、种田和小游戏要求 plaza。`movement.scene_id` 必须匹配本人场景；`map` 为局部地图，候选 `{x,y,path:[{x,y},...]}` 的路径含起终点，不能穿越障碍。v0.17–0.18 路径为最多 `max_step + 1` 个整数格点；v0.19 `movement.version:2` 的首点可为实际小数位置，以各段实际距离之和不超过 `max_step` 为准。普通 move 仅在本场景移动，不触发传送；桥不替有地形的请求钳坐标。只有旧服无 scene/地形时保留原边界截步；`MOVE_ADJUSTED` 只确认 applied，不能声称抵达 requested。
+
+v0.19 `move` 与非 stop 冒险计划可选 `mode:walk|run`，默认 walk，原 AI 自己比较真实速度和耗体代价后决定。`stop` 不带 mode，并停止当前移动和待执行攻击。位置按时间推进，开始接受与实际抵达是两个事实；攻击的准备、结算与恢复以当前 `self.action` 和真实结果为准，详见 [连续移动与动作](movement-actions.md)。
 
 跨场景仍使用原有 `adventure_plan`，不增动作或权限：explore forest/ruins、hunt 先走至广场入口 `(22,8)`，到冒险入口 `(11,8)` 后继续目标；rest、retreat 或 explore camp 反向回广场营地。`plan.phase` 是 `to_portal` / `to_target` / `resting`，`destination_scene_id` 是目的场景，总期限 90 秒不续。stop 留在当前真实场景。暂停、失联、重启取消计划但保留所在地，死亡救援按服务规则明确回广场。
 

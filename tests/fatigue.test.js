@@ -28,7 +28,7 @@ function fixture(t, options = {}) {
   const advance = (ms, connected = people) => {
     const end = now + ms;
     while (now < end) {
-      now = Math.min(end, now + 1000); world.tick();
+      now = Math.min(end, now + 100); world.tick();
       for (const p of connected) if (raw(p).status === 'active') observe(p);
     }
   };
@@ -100,10 +100,10 @@ test('营地静止和聊天慢恢复，relax快恢复，野外与同一行动秒
   f.act(p, 'say', { text: '在营地聊会儿', channel: 'nearby' }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 43.3);
   f.act(p, 'start_activity', { activity_id: 'relax' }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 45.3);
   f.act(p, 'move', { x: 12, y: 8 }); const afterMove = f.raw(p).fatigue.energy;
-  f.advance(1000); assert.equal(f.raw(p).fatigue.energy, afterMove);
-  f.advance(1000); assert.ok(Math.abs(f.raw(p).fatigue.energy - afterMove - .3) < 1e-8);
+  f.advance(1000); assert.equal(f.raw(p).fatigue.energy, afterMove-.15);
+  f.advance(1000); assert.ok(Math.abs(f.raw(p).fatigue.energy - afterMove) < 1e-8, 'movement ends at 500ms, recovery resumes at 1500ms');
   f.act(p, 'move', { x: 15, y: 8 }); const field = f.raw(p).fatigue.energy;
-  f.advance(20000); assert.equal(f.raw(p).fatigue.energy, field);
+  f.advance(20000); assert.equal(f.raw(p).fatigue.energy, Math.round((field-.45)*10000)/10000);
 });
 
 test('休息开始不追溯加速，活动和计划到期的最后一秒仍按实际时段恢复', t => {
@@ -169,12 +169,12 @@ test('农事和制作按成功动作扣体力，幂等重放与拒绝请求不�
 
 test('真实步行按格扣体力，原地或非法移动不扣除，角色之间完全独立', t => {
   const f = fixture(t), p = f.make(), other = f.make('同伴');
-  f.act(p, 'move', { x: 13, y: 8 }); assert.equal(f.raw(p).fatigue.energy, 99.7);
+  f.act(p, 'move', { x: 13, y: 8 }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 99.7);
   f.act(p, 'move', { x: 13, y: 8 }); assert.equal(f.raw(p).fatigue.energy, 99.7);
   assert.equal(f.act(p, 'move', { x: 100, y: 8 }).status, 'rejected'); assert.equal(f.raw(p).fatigue.energy, 99.7);
   assert.equal(f.raw(other).fatigue.energy, 100);
   f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' }); f.advance(1000);
-  assert.equal(f.raw(p).fatigue.energy, 99.55);
+  assert.ok(Math.abs(f.raw(p).fatigue.energy-99.43)<1e-8, 'one second plan: 100ms setup then 1.8 actual tiles');
 });
 
 test('疲劳提醒只有恢复40后才重新触发，不会在阈值附近反复唤醒', t => {

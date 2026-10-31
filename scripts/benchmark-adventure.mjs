@@ -30,10 +30,11 @@ const people = Array.from({ length: 5 }, (_, index) => {
   return { id: a.agent_id, auth, session: { run_id: joined.run_id, session_epoch: joined.session_epoch } };
 });
 try {
-  for (let second = 0; second < seconds; second++) {
-    if (realTime) { await sleep(1000); now = Date.now(); } else now += 1000;
+  for (let step = 0; step < seconds * 10; step++) {
+    const second = Math.floor(step / 10);
+    if (realTime) { await sleep(100); now = Date.now(); } else now += 100;
     const tickStart = performance.now(); world.tick(); maxTickMs = Math.max(maxTickMs, performance.now() - tickStart);
-    for (const [index, person] of people.entries()) {
+    if (step % 10 === 0) for (const [index, person] of people.entries()) {
       const a = world.agent(person.id);
       if (second % 10 === 0) world.callTool(person.auth, 'observe', person.session);
       if (a.adventure.plan || now - (a.last_action_at || 0) < 2000) continue;
@@ -44,22 +45,25 @@ try {
       }
       const monsters = observation.adventure.monsters.filter(m => m.status === 'alive');
       // This probe's scripted controller observes the same limits as a real AI.
-      const payload = a.adventure.hp < a.adventure.max_hp / 2 || observation.self.fatigue.energy < 25 ? { intent: 'rest' } : monsters.length ? { intent: 'hunt', monster_id: monsters[index % monsters.length].monster_id } : { intent: 'explore', zone_id: index % 2 ? 'forest' : 'ruins' };
+      const mode = index % 2 && observation.self.fatigue.energy >= 25 ? 'run' : 'walk';
+      const payload = a.adventure.hp < a.adventure.max_hp / 2 || observation.self.fatigue.energy < 25 ? { intent: 'rest' } : monsters.length ? { intent: 'hunt', monster_id: monsters[index % monsters.length].monster_id, mode } : { intent: 'explore', zone_id: index % 2 ? 'forest' : 'ruins', mode };
       const result = world.callTool(person.auth, 'act', { ...person.session, action_id: observation.next_action_id, type: 'adventure_plan', payload });
       assert.equal(result.status, 'applied', JSON.stringify(result)); decisions++;
     }
-    const snapshot = spectatorSnapshot(world);
-    const full = JSON.stringify(snapshot), delta = JSON.stringify(previous ? snapshotDelta(previous, snapshot) : snapshot);
-    snapshotBytes += Buffer.byteLength(full); deltaBytes += Buffer.byteLength(delta); previous = snapshot;
+    if (step % 2 === 0) {
+      const snapshot = spectatorSnapshot(world);
+      const full = JSON.stringify(snapshot), delta = JSON.stringify(previous ? snapshotDelta(previous, snapshot) : snapshot);
+      snapshotBytes += Buffer.byteLength(full); deltaBytes += Buffer.byteLength(delta); previous = snapshot;
+    }
     peakEvents = Math.max(peakEvents, world.state.events.length);
-    if (second % 5 === 0) world.save();
-    if (second % 100 === 0) await sleep(0);
+    if (step % 50 === 0) world.save();
+    if (step % 100 === 0) await sleep(0);
   }
   world.save();
   const elapsed = performance.now() - start, used = process.cpuUsage(cpu);
   const result = {
     scope: 'Isolated 5-agent engine simulation with scripted test decisions; no real model or production data. Per-viewer byte estimates exclude HTTP/TCP overhead.',
-    mode: realTime ? 'realtime' : 'accelerated', simulated_seconds: seconds, elapsed_ms: Math.round(elapsed), decisions,
+    mode: realTime ? 'realtime' : 'accelerated', simulation_ms: 100, snapshot_ms: 200, simulated_seconds: seconds, elapsed_ms: Math.round(elapsed), decisions,
     cpu_ms: Math.round((used.user + used.system) / 1000), peak_rss_mb: Math.round(process.resourceUsage().maxRSS / 1024),
     max_tick_ms: +maxTickMs.toFixed(2), event_loop_p99_ms: realTime ? +(delay.percentile(99) / 1e6).toFixed(2) : null,
     retained_events: world.state.events.length, peak_events: peakEvents, retained_action_receipts: Object.keys(world.state.receipts).length,

@@ -30,6 +30,20 @@ async function actor(api,name,existing) {
   const joined=await call('join_world');const session={run_id:joined.run_id,session_epoch:joined.session_epoch};let actionId=joined.next_action_id;
   return {agent,token:controller.token,observe:()=>call('observe',session),report:input=>call('report_status',{...session,state:'waiting',calls_used:0,...input}),act:async(type,payload={},expected='applied')=>{const result=await call('act',{...session,action_id:actionId,type,payload});expect(result.status,JSON.stringify(result)).toBe(expected);actionId=result.next_action_id;return result;}};
 }
+async function moveTo(a,target) {
+  const before=await a.observe();
+  await a.act('move',target);
+  let observed=await a.observe();
+  expect(observed.self.position,'接受移动时仍在实际起点').toEqual(before.self.position);
+  // Advance the authoritative fixture clock in real simulation steps. Poll via
+  // MCP so arrival, lease and public state use the same production contract.
+  for(let step=0;step<30&&observed.self.movement;step++) {
+    clock+=100;application.world.tick();observed=await a.observe();
+  }
+  expect(observed.self.movement).toBeNull();
+  expect(observed.self.scene_id).toBe(before.self.scene_id);
+  expect(observed.self.position).toEqual(target);
+}
 async function audit(page,prefix) {
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:900});
@@ -55,7 +69,7 @@ test('农作区独立于两张世界地图，真实农具使用维修升级可�
   // Local in-memory fixture supplies maintenance materials; all state changes
   // below still go through authenticated MCP commands and public SSE snapshots.
   Object.assign(application.world.agent(a.agent.agent_id).life.inventory,{wood:12,ore:8});
-  await a.act('move',{x:9,y:8}); // Exactly two tiles from service_center (11,8).
+  await moveTo(a,{x:9,y:8}); // Exactly two tiles from service_center (11,8).
   await page.goto(base+'/watch?view=farm');
   await expect(page.getByTestId('farm-view')).toBeVisible();
   await expect(page.getByTestId('farm-present-agent')).toBeVisible();
@@ -84,7 +98,7 @@ test('农作区独立于两张世界地图，真实农具使用维修升级可�
   await expect(page.getByTestId('private-warehouse')).toHaveCount(0);
   await expect(page.locator('[data-asset-missing]')).toHaveCount(0);
   await audit(page,'farm-tools-v011');
-  await a.act('move',{x:12,y:8});await a.act('move',{x:14,y:8});
+  await moveTo(a,{x:12,y:8});await moveTo(a,{x:14,y:8});
   await expect(page.getByTestId('farm-present-agent')).toHaveCount(0);
   await expect(page.getByTestId('farm-presence')).toContainText('正在别处活动');
   await page.getByRole('button',{name:/冒险地图/}).click();
@@ -107,7 +121,7 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   expect(other.ok()).toBe(true);const b=(await other.json()).agent;
   const neighborApi=async(path,data)=>{const response=await request.post(base+path,{headers:{Origin:base,'X-CSRF-Token':neighbor.csrf_token},data});expect(response.ok(),await response.text()).toBe(true);return response.json();};
   const neighborActor=await actor(neighborApi,b.name,b);
-  await a.act('move',{x:11,y:8});
+  await moveTo(a,{x:11,y:8});
   await a.act('farm',{intent:'till',plot_id:'plot_1'});
   await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
   await page.goto(base+'/watch?view=farm');
@@ -150,8 +164,8 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.18 世界框架版本');
   await a.report({runtime_version:'0.11.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue'],last_decision_type:'wait'});
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('早于 0.18 世界框架版本');
-  await a.report({runtime_version:'0.18.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.18.0');
+  await a.report({runtime_version:'0.19.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.19.0');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('原宠物桥接');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报决定等待');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 已执行');

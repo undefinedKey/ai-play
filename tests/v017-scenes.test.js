@@ -30,8 +30,8 @@ test('v017 real bidirectional gateway plan walks each path, retains deadline and
   const stale = { ...p.session, action_id: a.next_action_id, type: 'say', payload: { channel: 'nearby', text: 'old scene answer' } };
   for (let i = 0; a.scene_id === 'plaza' && i < 40; i++) {
     f.tick(); assert.equal(a.adventure.plan.expires_at, deadline);
-    if (scene === a.scene_id) { assert.equal(Math.abs(a.position.x-previous.x)+Math.abs(a.position.y-previous.y), 1); assert.ok(isWalkable(scene, a.position)); }
-    else { assert.deepEqual(previous, { x: 22, y: 8 }); assert.deepEqual(a.position, { x: 11, y: 8 }); }
+    if (scene === a.scene_id) { assert.ok(Math.abs(a.position.x-previous.x)+Math.abs(a.position.y-previous.y)<=2, 'physical speed bound includes initial preparation'); assert.ok(isWalkable(scene, a.position)); }
+    else { assert.deepEqual(f.w.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, { x:22,y:8 }); assert.deepEqual(a.position, { x: 11, y: 8 }); }
     previous = { ...a.position }; scene = a.scene_id;
   }
   assert.equal(a.scene_id, 'adventure'); assert.deepEqual(a.run, run);
@@ -47,7 +47,7 @@ test('v017 real bidirectional gateway plan walks each path, retains deadline and
 
 test('v017 normal move never uses portal; shortest walkable path and blocked terrain are authoritative', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p); a.position = { x: 21, y: 8 };
-  const r = ok(f.act(p, 'move', { x: 22, y: 8 })); assert.equal(a.scene_id, 'plaza'); assert.deepEqual(r.path, [{ x: 21, y: 8 }, { x: 22, y: 8 }]);
+  const r = ok(f.act(p, 'move', { x: 22, y: 8 })); assert.equal(a.scene_id, 'plaza'); assert.deepEqual(r.path, [{ x: 21, y: 8 }, { x: 22, y: 8 }]); f.tick(); assert.deepEqual(a.position,{x:22,y:8});
   a.position = { x: 1, y: 2 }; const oldEnergy = a.fatigue.energy;
   const blocked = f.act(p, 'move', { x: 2, y: 2 }); assert.equal(blocked.status, 'rejected'); assert.equal(f.raw(p).fatigue.energy, oldEnergy);
   f.raw(p).position = { x: 8, y: 5 };
@@ -105,7 +105,7 @@ test('v017 portal arrival never extends plan, lease or grant; deadline and pause
 test('v017 patrols obey shared solid footprints and public paths reject corrupt nested data', t => {
  const f=fixture(t),p=f.make();
  for(let i=0;i<120;i++){f.tick();for(const monster of f.w.state.adventure.monsters)assert.ok(isWalkable('adventure',monster.position));}
- const a=f.raw(p);a.movement={scene_id:'plaza',path:[{x:11,y:8},{x:12,y:8}],started_at:f.now(),duration_ms:600};a.position={x:12,y:8};
+ const a=f.raw(p);a.movement={version:2,movement_id:'public-test',mode:'walk',speed:2,scene_id:'plaza',path:[{x:11,y:8},{x:12,y:8}],started_at:f.now(),ends_at:f.now()+500,duration_ms:500};a.position={x:11,y:8};
  assert.equal(spectatorSnapshot(f.w).agents[0].movement.path.length,2);
  for(const path of [[],[{x:11,y:8},{x:15,y:8}],[{x:11,y:8},{x:{PRIVATE_NESTED:true},y:8}]]) {a.movement.path=path;assert.equal(spectatorSnapshot(f.w).agents[0].movement,null);}
  assert.doesNotMatch(JSON.stringify(spectatorSnapshot(f.w)),/PRIVATE_NESTED/);

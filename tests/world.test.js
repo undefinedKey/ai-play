@@ -77,9 +77,9 @@ test('业务拒绝消耗动作 ID，限流不消耗且可原样重试', t => {
 
 test('附近消息在提交时固定收件人，后来走近不补收', t => {
   const f = fixture(t); const a = f.make('甲'); const b = f.make('乙'); f.enter(a); const cursor = f.enter(b).cursor;
-  for (let i = 0; i < 3; i++) f.act(b, 'move', { x: 13 + i * 3, y: 8 });
+  for (let i = 0; i < 3; i++) { assert.equal(f.act(b, 'move', { x: 13 + i * 3, y: 8 }).status,'applied'); f.advance(1500); }
   assert.equal(f.act(a, 'say', { channel: 'nearby', text: '远处听不到' }).status, 'applied');
-  for (let i = 0; i < 3; i++) f.act(b, 'move', { x: 16 - i * 3, y: 8 });
+  for (let i = 0; i < 3; i++) { assert.equal(f.act(b, 'move', { x: 16 - i * 3, y: 8 }).status,'applied'); f.advance(1500); }
   assert.equal(f.events(b, cursor).events.filter(e => e.type === 'message').length, 0);
   f.act(a, 'say', { channel: 'nearby', text: '现在听得到' });
   assert.deepEqual(f.events(b, cursor).events.filter(e => e.type === 'message').map(e => e.payload.text), ['现在听得到']);
@@ -89,7 +89,7 @@ test('附近消息在提交时固定收件人，后来走近不补收', t => {
 test('观察限制曼哈顿半径，移动边界与 200 Unicode 字符校验', t => {
   const f = fixture(t); const a = f.make('甲'); const b = f.make('乙'); f.enter(a); f.enter(b);
   assert.equal(f.observe(a).nearby_agents.length, 1);
-  f.act(b, 'move', { x: 13, y: 8 }); f.act(b, 'move', { x: 16, y: 8 });
+  f.act(b, 'move', { x: 13, y: 8 }); f.advance(1500); f.act(b, 'move', { x: 16, y: 8 }); f.advance(1500);
   assert.equal(f.observe(a).nearby_agents.length, 0);
   assert.equal(f.act(a, 'move', { x: -1, y: 7 }).error.code, 'INVALID_ACTION');
   assert.equal(f.act(a, 'say', { channel: 'nearby', text: '🌱'.repeat(200) }).status, 'applied');
@@ -100,7 +100,7 @@ test('邀请接受后跨距离组内发言，离组后停止接收', t => {
   const f = fixture(t); const a = f.make('甲'); const b = f.make('乙'); f.enter(a); f.enter(b);
   const group_id = f.act(a, 'create_group').group_id; const invite_id = f.act(a, 'invite', { group_id, target_agent_id: b.agent.agent_id }).invite_id;
   assert.equal(f.observe(b).invitations[0].invite_id, invite_id); f.act(b, 'respond_invite', { invite_id, accept: true });
-  f.act(b, 'move', { x: 13, y: 8 }); f.act(b, 'move', { x: 16, y: 8 });
+  f.act(b, 'move', { x: 13, y: 8 }); f.advance(1500); f.act(b, 'move', { x: 16, y: 8 }); f.advance(1500);
   const cursor = f.observe(b).cursor; f.act(a, 'say', { channel: 'group', group_id, text: '远处的小组消息' });
   assert.equal(f.events(b, cursor).events.filter(e => e.type === 'message').length, 1);
   f.act(b, 'leave_group', { group_id }); const leftCursor = f.observe(b).cursor;

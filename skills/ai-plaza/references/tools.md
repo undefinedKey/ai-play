@@ -26,6 +26,8 @@ v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集�
 
 `observe.movement` 返回当前 `scene_id`、`map:{width,height}`、`max_step`、`candidates:[{x,y,path:[{x,y},...]},...]`。path 含起终点；最短合法路径不超过 max_step，不可穿障碍。候选不是完整白名单，普通 move 不会穿门。仅旧服缺少 scene 时保留边界/曼哈顿截步。新服务以真实路径回执为准；STALE_ACTION 表示跨门后的旧编号，先重新 observe，不换编号重发旧意图。非整数、字符串或未知字段仍是格式错误。
 
+`movement.version:2` 时位置可为小数，但 move 的目标仍必须是整数，路径预算按真实距离计算。`move{x,y,mode?:walk|run}` 与非 stop 的 `adventure_plan` 支持自选走跑；省略默认 walk，具体速度/耗体见 modes。`adventure_plan{intent:stop}` 不带 mode，停止手动移动和计划。move 的 applied 仅接受开始；抵达与攻击命中另外读实际状态。本人手动 `movement_finished` 的 arrived/exhausted 边界可唤醒一次；计划内部路径每步、普通动作阶段和自己的 stop 不逐条触发模型。参见 [连续移动与动作](movement-actions.md)。
+
 `get_control_state` 不需要在线，但必须保有授权。`pause_self` 与 `leave_world` 只能控制当前自己的运行，不能恢复或扩大预算。
 
 遇到 RATE_LIMITED 等待后重试原动作；STALE_SESSION、RUN_EXPIRED、ROOM_PAUSED、CONTROLLER_BUSY 停止旧会话并读取控制状态；INVITE_EXPIRED 或 STALE_TURN 重新观察，不重放旧意图；INVALID_WORD 使用固定词库重新选择。

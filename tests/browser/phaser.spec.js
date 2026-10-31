@@ -66,24 +66,27 @@ test('当前场景和整个世界同步可切换，公开名册仍完整，重�
 });
 
 test('画布像素沿真实折线路径逐段移动，减少动态停止播放且断线不假扮实时活动',async({page,request})=>{
- await page.clock.install({time:new Date(clock)});
+ const a=await actor(request,'路径旅人'),raw=app.world.agent(a.agent.agent_id);raw.position={x:9,y:10};raw.position_at=clock;app.world.commit();
  await page.goto(base+'/watch?view=plaza');await ready(page);
- const baseline=await page.getByTestId('phaser-canvas').evaluate(canvas=>{const c=document.createElement('canvas');c.width=768;c.height=512;const ctx=c.getContext('2d');ctx.drawImage(canvas,0,0);return Array.from(ctx.getImageData(260,270,150,120).data);});
- const a=await actor(request,'折线画布验证者');const raw=app.world.agent(a.agent.agent_id);raw.position={x:9,y:10};raw.movement=null;app.world.commit();
- await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`)).toHaveAttribute('data-foot-y','10');
- await page.waitForTimeout(100);clock=await page.evaluate(()=>Date.now())+10;await page.clock.pauseAt(new Date(clock));
- const bounds=()=>page.getByTestId('phaser-canvas').evaluate((canvas,before)=>{const c=document.createElement('canvas');c.width=768;c.height=512;const ctx=c.getContext('2d');ctx.drawImage(canvas,0,0);const data=ctx.getImageData(260,270,150,120).data;let minX=150,maxX=-1,minY=120,maxY=-1;for(let i=0;i<data.length;i+=4){if(data[i]!==before[i]||data[i+1]!==before[i+1]||data[i+2]!==before[i+2]){const x=i/4%150,y=Math.floor(i/4/150);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);}}return{x:260+(minX+maxX)/2,y:270+(minY+maxY)/2,count:maxX>=0};},baseline);
- const initial=await bounds();expect(initial.count).toBe(true);
- const receipt=await a.act('move',{x:10,y:11});expect(receipt.path).toEqual([{x:9,y:10},{x:10,y:10},{x:10,y:11}]);await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character')).toHaveAttribute('data-action','walk');
- await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`)).toHaveAttribute('data-foot-y','10');
- await page.clock.runFor(100);await expect.poll(()=>page.getByTestId(`map-agent-${a.agent.agent_id}`).evaluate(el=>parseFloat(el.style.left))).toBeGreaterThan(40);await page.clock.runFor(20);const first=await bounds();expect(first.x-initial.x).toBeGreaterThan(8);expect(first.x-initial.x).toBeLessThan(25);expect(Math.abs(first.y-initial.y)).toBeLessThan(5);
- await page.clock.runFor(200);await page.clock.runFor(20);const second=await bounds();expect(second.x-initial.x).toBeGreaterThan(27);expect(second.x-initial.x).toBeLessThan(37);expect(second.y-first.y).toBeGreaterThan(8);
- await page.emulateMedia({reducedMotion:'reduce'});await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');await page.clock.runFor(120);const still=await pixels(page);await page.clock.runFor(400);expect(await pixels(page)).toEqual(still);
- await page.clock.resume();await page.emulateMedia({reducedMotion:'no-preference'});await a.act('move',{x:10,y:9});await a.act('gather',{intent:'start',resource_id:'wood'});
- await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character')).toHaveAttribute('data-action','gather');
- // Drive the browser visibility event without changing server state or time.
+ const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`),before=await pixels(page);
+ const receipt=await a.act('move',{x:10,y:11});expect(receipt.path).toEqual([{x:9,y:10},{x:10,y:10},{x:10,y:11}]);
+ expect(raw.position).toEqual({x:9,y:10});
+ clock+=100;app.world.tick();
+ await expect.poll(()=>unit.getAttribute('data-foot-x').then(Number)).toBeGreaterThan(9);
+ await expect(unit).toHaveAttribute('data-foot-y','10');
+ expect(raw.position.x).toBeCloseTo(9.2,5);expect(raw.position.y).toBe(10);
+ await expect.poll(()=>pixels(page).then(p=>p.hash)).not.toBe(before.hash);
+ clock+=600;app.world.tick();
+ await expect(unit).toHaveAttribute('data-foot-x','10');
+ await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeGreaterThan(10);
+ expect(raw.position.x).toBe(10);expect(raw.position.y).toBeCloseTo(10.4,5);
+ await page.emulateMedia({reducedMotion:'reduce'});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
+ const still=await pixels(page);await page.waitForTimeout(400);expect(await pixels(page)).toEqual(still);
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ clock+=400;app.world.tick();await a.act('move',{x:10,y:9});clock+=1000;app.world.tick();await a.act('gather',{intent:'start',resource_id:'wood'});
+ await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action','gather');
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});const hidden=await pixels(page);await page.waitForTimeout(450);expect(await pixels(page)).toEqual(hidden);
- await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
+ await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
  await page.route('**/api/public/events*',route=>route.abort());await page.reload();await ready(page);await expect(page.locator('.spectator-stale')).toBeVisible();const disconnected=await pixels(page);await page.waitForTimeout(1200);expect(await pixels(page)).toEqual(disconnected);
- await page.screenshot({path:'artifacts/phaser-v018-disconnected.png'});
+ await page.screenshot({path:'artifacts/phaser-v019-disconnected.png'});
 });

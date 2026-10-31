@@ -13,6 +13,12 @@ export function expectedScene(agent) {
 
 export function expectedPosition(agent) {
   const scene = expectedScene(agent), blocked = new Set(SCENES.find(s => s.id === scene).blocked.map(p => `${p.x},${p.y}`));
+  // Independently verify a saved physical point: a centre or a point on one
+  // cardinal edge whose two endpoints are both authored walkable cells.
+  const p = agent.position;
+  const validCell = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < WORLD_MAP.width && y >= 0 && y < WORLD_MAP.height && !blocked.has(`${x},${y}`);
+  if (Number.isFinite(p?.x) && Number.isFinite(p?.y) && (Number.isInteger(p.x) || Number.isInteger(p.y)) &&
+      validCell(Math.floor(p.x), Math.floor(p.y)) && validCell(Math.ceil(p.x), Math.ceil(p.y))) return { x: p.x, y: p.y };
   const clamp = (n, size) => Number.isFinite(n) ? Math.max(0, Math.min(size - 1, Math.floor(n))) : Math.floor(size / 2);
   const origin = { x: clamp(agent.position?.x, WORLD_MAP.width), y: clamp(agent.position?.y, WORLD_MAP.height) };
   let best, bestDistance = Infinity;
@@ -34,6 +40,8 @@ export function verifyScenes(old, current) {
     assert.equal(after.scene_id, scene, 'scene follows only authoritative saved evidence');
     assert.deepEqual(after.position, position, 'coordinates preserved unless authored terrain requires repair');
     assert.equal(after.movement, null, 'restart cannot replay movement');
+    assert.equal(after.action ?? null, null, 'restart cannot replay a pending attack');
+    assert.equal(after.hurt ?? null, null, 'restart cannot replay stale hit effects');
     for (const field of ['agent_id', 'name', 'bio', 'avatar', 'color', 'owner_id', 'is_platform']) assert.deepEqual(after[field], before[field], 'identity unchanged');
     const changed = !SCENE_IDS.includes(before.scene_id) || before.position?.x !== position.x || before.position?.y !== position.y;
     if (!changed) { assert.deepEqual(after.scene_migration, before.scene_migration, 'existing migration record unchanged'); continue; }

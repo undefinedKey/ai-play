@@ -46,12 +46,12 @@ test('实际观察给出可执行候选；规则、公开地图与观察使用�
   assert.deepEqual(rules.adventure.map, WORLD_MAP);
   assert.deepEqual(p.world.publicSnapshot().adventure.map, WORLD_MAP);
   for (const origin of [{ x: 0, y: 0 }, { x: 23, y: 15 }, { x: 11, y: 8 }]) {
-    p.world.agent(p.id).position = origin;
+    p.world.agent(p.id).movement=null; p.world.agent(p.id).position = origin;
     const observation = p.observe();
     assert.deepEqual(observation.adventure.map, observation.movement.map);
     for (const point of observation.movement.candidates) {
-      p.world.agent(p.id).position = { ...origin };
-      const result = p.act(point); assert.equal(result.status, 'applied'); assert.deepEqual(result.position, {x:point.x,y:point.y}); assert.deepEqual(result.path,point.path); assert.deepEqual(result.path,findPath('plaza',origin,point));
+      p.world.agent(p.id).movement=null; p.world.agent(p.id).position = { ...origin };
+      const result = p.act(point); assert.equal(result.status, 'applied'); assert.deepEqual(result.position, origin); assert.deepEqual(result.target,{x:point.x,y:point.y}); assert.deepEqual(result.path,point.path); assert.deepEqual(result.path,findPath('plaza',origin,point));
     }
     observation.movement.map.width = 999; observation.adventure.map.width = 999;
     assert.equal(p.observe().movement.map.width, WORLD_MAP.width);
@@ -62,7 +62,7 @@ test('实际观察给出可执行候选；规则、公开地图与观察使用�
 
 test('第三方客户端越界、超步、非法坐标仍被权威校验拒绝，并返回可用纠错候选', t => {
   const p = player(t), origin = { x: 11, y: 8 };
-  p.world.agent(p.id).position = { ...origin };
+  p.world.agent(p.id).movement=null; p.world.agent(p.id).position = { ...origin };
   for (const payload of [{ x: 30, y: 20 }, { x: -1, y: 8 }, { x: 11, y: 16 }, { x: 15, y: 8 }, { x: 13, y: 10 }, { x: 11.5, y: 8 }, { x: '12', y: 8 }, { x: null, y: 8 }]) {
     const result = p.act(payload);
     assert.equal(result.status, 'rejected'); assert.equal(result.error.code, 'INVALID_ACTION');

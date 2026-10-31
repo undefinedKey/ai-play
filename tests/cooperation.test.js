@@ -27,7 +27,8 @@ function fixture(t, persisted = false) {
   const advance = (ms, heartbeat = true) => {
     const end = now + ms;
     while (now < end) {
-      now = Math.min(end, now + 1000); world.tick();
+      const step = Object.values(world.state.agents).some(a => a.adventure?.plan || a.movement || a.action?.outcome === null) ? 100 : 1000;
+      now = Math.min(end, now + step); world.tick();
       if (heartbeat) for (const p of people) if (raw(p).status === 'active') observe(p);
     }
   };

@@ -25,7 +25,7 @@ function fixture(t) {
   const act = (p, type, payload = {}) => world.callTool(p.auth, 'act', req(p, type, payload));
   const advance = (ms, connected = people) => {
     const end = now + ms;
-    while (now < end) { now = Math.min(end, now + 1000); world.tick(); for (const p of connected) if (raw(p).status === 'active') observe(p); }
+    while (now < end) { now = Math.min(end, now + 100); world.tick(); for (const p of connected) if (raw(p).status === 'active') observe(p); }
   };
   const discover = (p, sequence = 0, zone_id = 'forest') => {
     raw(p).adventure.discovery_sequence = sequence;
@@ -42,7 +42,7 @@ const resources = a => structuredClone({ life: a.life, fatigue: a.fatigue, adven
 
 test('v0.14目录、固定选择、策略装备与目标边界实际公开；新角色不自动接目标', t => {
   const f = fixture(t), p = f.make(), rules = f.world.getRules(), publicState = spectatorSnapshot(f.world);
-  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.17.0-scenes');
+  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.19.0-motion');
   assert.ok(['adventure_event', 'personal_goal'].every(x => rules.allowed_actions.includes(x)));
   assert.equal(rules.adventure.exploration.pending_seconds, 150); assert.equal(rules.adventure.exploration.discovery_cooldown_seconds, 300);
   assert.deepEqual(publicState.adventure.exploration, rules.adventure.exploration);
@@ -205,8 +205,8 @@ test('新装备真实配方/有效属性统一，旧装备默认不变，重型�
   ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'hunter_bow' }));
   assert.equal(combatStats(f.raw(p)).range, 3); assert.equal(combatStats(f.raw(p)).attack_interval_ms, 2000); assert.equal(combatStats(f.raw(p)).attack_energy, 2);
   ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'heavy_armor' })); assert.equal(combatStats(f.raw(p)).defense, 5); assert.equal(combatStats(f.raw(p)).attack_interval_ms, 3000);
-  let energy = f.raw(p).fatigue.energy; ok(f.act(p, 'move', { x: 14, y: 8 })); assert.equal(f.raw(p).fatigue.energy, Math.round((energy - .9) * 10000) / 10000);
-  energy = f.raw(p).fatigue.energy; ok(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.advance(3000); assert.equal(f.raw(p).fatigue.energy, Math.round((energy - .9) * 10000) / 10000);
+  let energy = f.raw(p).fatigue.energy; ok(f.act(p, 'move', { x: 14, y: 8 })); f.advance(1500); assert.equal(f.raw(p).fatigue.energy, Math.round((energy - .9) * 10000) / 10000);
+  energy = f.raw(p).fatigue.energy; ok(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.advance(1600); assert.equal(f.raw(p).fatigue.energy, Math.round((energy - .9) * 10000) / 10000);
   assert.equal(f.observe(p).self.life.stats.move_energy_per_tile, .3);
 });
 
@@ -266,12 +266,13 @@ test('重锤/护甲实际攻击间隔、耗能与伤害；重发hunt和迟到tic
   const a = f.raw(p); a.scene_id = 'adventure'; a.position = { x: 19, y: 7 };
   ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' })); f.advance(1000);
   assert.equal(f.raw(p).fatigue.energy, 95); assert.equal(f.raw(p).adventure.hp, 37);
-  const firstAt = f.now(), deadline = f.raw(p).adventure.next_attack_at; assert.equal(deadline, firstAt + 3000);
+  const deadline = f.raw(p).adventure.next_attack_at; assert.equal(deadline, f.raw(p).action.started_at + 3000);
   for (let i = 0; i < 2; i++) { ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' })); f.advance(1000); assert.equal(f.raw(p).adventure.next_attack_at, deadline); }
   const attacks = () => f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent');
   assert.equal(attacks().length, 1); assert.equal(attacks()[0].payload.damage, 14); f.advance(1000); assert.equal(attacks().length, 2);
-  f.jump(10000); assert.equal(attacks().length, 3); assert.equal(f.raw(p).fatigue.energy, 85);
-  assert.equal(f.raw(p).adventure.next_attack_at, f.now() + 3000);
+  f.jump(10000); assert.equal(attacks().length, 2); assert.equal(f.raw(p).fatigue.energy, 90); // A fresh preparation starts; no damage is caught up.
+  f.advance(700); assert.equal(attacks().length, 3); assert.equal(f.raw(p).fatigue.energy, 85);
+  assert.equal(f.raw(p).adventure.next_attack_at, f.raw(p).action.started_at + 3000);
 });
 
 test('有效每击成本决定耗尽边界；低体力伤害只折算一次；营地不能远程射击', t => {
@@ -282,8 +283,8 @@ test('有效每击成本决定耗尽边界；低体力伤害只折算一次；�
   f.raw(p).fatigue.energy = 4.99; f.advance(1000); assert.equal(f.raw(p).adventure.plan, null); assert.equal(f.raw(p).adventure.last_result.kind, 'exhausted');
   assert.equal(f.raw(p).fatigue.energy, 4.99);
   f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false; ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'hunter_bow' }));
-  f.raw(p).fatigue.energy = 100; f.raw(p).scene_id = 'adventure'; const m = f.world.state.adventure.monsters[0]; m.position = { x: 14, y: 8 }; m.home_position = { ...m.position };
-  ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: m.monster_id })); f.advance(2000); assert.equal(m.hp, 18); assert.deepEqual(f.raw(p).position, { x: 13, y: 8 });
+  f.raw(p).fatigue.energy = 100; f.raw(p).scene_id = 'adventure'; const m = f.world.state.adventure.monsters[0]; m.movement=null; m.position = { x: 14, y: 8 }; m.home_position = { ...m.position };
+  ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: m.monster_id })); f.advance(1000); assert.equal(m.hp, 18); assert.ok(Math.abs(f.raw(p).position.x-11)+Math.abs(f.raw(p).position.y-8)<=2, 'still in safe entrance, no ranged hit');
 });
 
 test('公开投影只含显式目标和事件实际结果，不含来源会话/私有库存/主人目标', t => {

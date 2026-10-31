@@ -74,18 +74,18 @@ test('0.9.0完整升级要求版本文件与Skill一致，保留已有身份和�
   assert.equal(readFileSync(f.statePath, 'utf8'), f.state);
 });
 
-test('0.18.0独立升级包含生活规则与恢复锁，实际桥可脱离仓库加载并报告真实版本与能力', async t => {
+test('0.19.0独立升级包含生活规则与恢复锁，实际桥可脱离仓库加载并报告真实版本与能力', async t => {
   const f = fixture(t);
-  const files = Object.fromEntries(['SKILL.md', 'version.json', 'references/play.md', 'references/web-world.md', 'references/adventure.md', 'references/tools.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md', 'references/gathering-cooking-trading.md', 'references/exploration-strategy-goals.md', 'scripts/v014-context.mjs', 'scripts/cooperation.mjs', 'references/cooperation.md', 'scripts/timing.mjs', 'references/games.md',
+  const files = Object.fromEntries(['SKILL.md', 'version.json', 'references/play.md', 'references/web-world.md', 'references/movement-actions.md', 'references/adventure.md', 'references/tools.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md', 'references/gathering-cooking-trading.md', 'references/exploration-strategy-goals.md', 'scripts/v014-context.mjs', 'scripts/cooperation.mjs', 'references/cooperation.md', 'scripts/timing.mjs', 'references/games.md',
     ...['runtime', 'dsh-pet', 'bridge', 'movement', 'plaza', 'update', 'process-lock'].map(name => `scripts/${name}.mjs`)]
     .map(path => [path, readFileSync(new URL(`../skills/ai-plaza/${path}`, import.meta.url), 'utf8')]));
-  for (const missing of ['references/play.md', 'references/web-world.md', 'references/adventure.md', 'references/tools.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md', 'references/gathering-cooking-trading.md', 'references/exploration-strategy-goals.md', 'scripts/v014-context.mjs', 'scripts/cooperation.mjs', 'references/cooperation.md', 'scripts/timing.mjs', 'references/games.md', 'scripts/process-lock.mjs']) {
+  for (const missing of ['references/play.md', 'references/web-world.md', 'references/movement-actions.md', 'references/adventure.md', 'references/tools.md', 'references/fatigue.md', 'references/farming-tools.md', 'references/recovery.md', 'references/gathering-cooking-trading.md', 'references/exploration-strategy-goals.md', 'scripts/v014-context.mjs', 'scripts/cooperation.mjs', 'references/cooperation.md', 'scripts/timing.mjs', 'references/games.md', 'scripts/process-lock.mjs']) {
     const incomplete = { ...files }; delete incomplete[missing];
-    await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.18.0', newFiles: incomplete }).fetchImpl }), { code: 'UPDATE_TREE' });
+    await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.19.0', newFiles: incomplete }).fetchImpl }), { code: 'UPDATE_TREE' });
     assert.match(readFileSync(join(f.root, 'SKILL.md'), 'utf8'), /0\.5\.0/);
   }
-  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.18.0', newFiles: { ...files, 'version.json': '{"version":"0.12.0"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
-  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.18.0', newFiles: files }).fetchImpl });
+  await assert.rejects(updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.19.0', newFiles: { ...files, 'version.json': '{"version":"0.12.0"}' } }).fetchImpl }), { code: 'UPDATE_VERSION' });
+  await updateSkill({ skillRoot: f.root, statePath: f.statePath, fetchImpl: github({ version: '0.19.0', newFiles: files }).fetchImpl });
   const { PlazaRunner } = await import(pathToFileURL(join(f.root, 'scripts/runtime.mjs')).href);
   const { createBridge } = await import(pathToFileURL(join(f.root, 'scripts/bridge.mjs')).href);
   assert.equal(typeof createBridge, 'function');
@@ -95,7 +95,7 @@ test('0.18.0独立升级包含生活规则与恢复锁，实际桥可脱离仓�
   runner.rules = { fatigue: {} }; runner.active = true;
   runner.checkpoint = { run_id: 'same-run', session_epoch: 1, calls_used: 37 };
   await runner.report('waiting');
-  assert.equal(reports.at(-1).runtime_version, '0.18.0');
+  assert.equal(reports.at(-1).runtime_version, '0.19.0');
   assert.deepEqual(reports.at(-1).capabilities, ['fatigue', 'recovery', 'reliable_events']);
   runner.rules = { allowed_actions: ['farm', 'inventory'], life: { tools: ['hoe', 'watering_can'].map(id => ({ id, levels: [{ level: 1 }] })) } };
   await runner.report('waiting'); assert.deepEqual(reports.at(-1).capabilities, ['farming', 'inventory', 'equipment', 'farm_tools', 'recovery', 'reliable_events']);

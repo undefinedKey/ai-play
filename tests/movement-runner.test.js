@@ -109,12 +109,13 @@ async function fixture(t, { mode = 'model', choose = () => move(100, -100), duri
 }
 
 for (const mode of ['model', 'dsh-pet']) test(`${mode}新场景交给服务校验原目标，不再直线截步穿过障碍`, async t => {
-  const f = await fixture(t, { mode, duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
+  let actualWhileThinking;
+  const f = await fixture(t, { mode, duringModel: ({ world, a, advance }) => { advance(2000); world.tick(); actualWhileThinking = structuredClone(a.position); } });
   f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'ruins' });
   await f.runner.decide();
   const submitted = f.tools.find(call => call.name === 'act').args;
   assert.deepEqual(submitted.payload, { x: 100, y: -100 }, '新地形不能用旧曼哈顿钳制伪造合法步点');
-  assert.deepEqual(f.a.position, { x: 10, y: 7 });
+  assert.deepEqual(f.a.position, actualWhileThinking, '非法请求不能改变模型思考期间服务实际推进的位置');
   assert.equal(f.runner.checkpoint.last_action_feedback.status, 'rejected');
   assert.equal(f.runner.checkpoint.last_action_feedback.code, 'INVALID_ACTION');
   assert.equal(f.runner.checkpoint.calls_used, 1); assert.equal(f.runner.checkpoint.pending_movement, undefined);

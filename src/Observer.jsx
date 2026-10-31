@@ -1,23 +1,15 @@
-import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
+import React from 'react';
 import {CharacterSprite} from './PixelWorld.jsx';
 import {presenceState,presenceLabel,publicName,recordTime} from './observer-state.js';
-import {mapDimensions,projectMapPoint} from './map-projection.js';
 import {gatheringState} from './life-state.js';
 import {encounterState,goalState} from './journey-state.js';
 import {cooperationSummary} from './cooperation-state.js';
-import {SpeechBubbles} from './SpeechOverlay.jsx';
 import {sceneName} from './scene-state.js';
+import WorldCamera from './WorldCamera.jsx';
 
-export const CameraContext=createContext(null);
+export {CameraContext} from './camera-context.js';
 export function MapCamera({children,speech}){
-  const frame=useRef(null),[scale,setScale]=useState(1);
-  useEffect(()=>{const observer=new ResizeObserver(entries=>setScale(entries[0].contentRect.width/768));if(frame.current)observer.observe(frame.current);return()=>observer.disconnect();},[]);
-  const camera=useContext(CameraContext);
-  const point=camera?.point;
-  const position=point?projectMapPoint(point,mapDimensions(camera.map)):null;
-  const x=position?Math.max(25,Math.min(75,parseFloat(position.left))):50;
-  const y=position?Math.max(25,Math.min(75,parseFloat(position.top))):50;
-  return <div ref={frame} className={`world-camera ${point?'focused':''}`} data-testid="world-camera" data-camera-mode={camera?.mode||'overview'} style={{'--world-scale':scale}}><div className="world-camera-layer" style={point?{transformOrigin:`${x}% ${y}%`,transform:`translate(${50-x}%,${50-y}%) scale(2)`}:undefined}>{children}</div>{speech&&<SpeechBubbles {...speech}/>}</div>;
+  return <WorldCamera speech={speech}>{children}</WorldCamera>;
 }
 
 export function ObserverStatus({world,agent,live,now}){

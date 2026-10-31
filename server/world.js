@@ -7,7 +7,7 @@ import { WORDS, WORD_VERSION } from './words.js';
 import { GAMES, GAME_TIMING, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
-import { WORLD_MAP, MAX_MOVE, movementOptions, SCENES, sameScene, initializeScene, findPath, recordMovement, publicMovement } from './spatial.js';
+import { WORLD_MAP, MAX_MOVE, MOVEMENT_RULES, movementOptions, SCENES, sameScene, initializeScene, findPath, recordMovement, publicMovement, publicAction, publicHurt, advanceMovement, stopMovement } from './spatial.js';
 import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife, cancelGather } from './life.js';
 import { initializeEconomy, economyBalance, recordEconomyDelta } from './economy.js';
 import { opportunitiesFor } from './opportunities.js';
@@ -15,6 +15,7 @@ import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFa
 import { initializeAppearance, publicAppearance } from './appearance.js';
 import { initializePresence, seenPresence, departPresence, publicPresence } from './presence.js';
 import { runtimeReport } from './runtime-health.js';
+import { combatStats } from './combat.js';
 import { encounterPending, endEncounter, tickEncounter, performAdventureEvent } from './exploration.js';
 import { PERSONAL_GOAL_RULES, initializePersonalGoal, publicPersonalGoal, reviewPersonalGoal, tickPersonalGoals, performPersonalGoal, progressPersonalGoal } from './personal-goals.js';
 import { COOPERATION_RULES, initializeCooperations, publicCooperations, cooperationObservation, reviewCooperations, endCooperations, tickCooperations, performCooperation } from './cooperation.js';
@@ -227,6 +228,7 @@ export class World extends EventEmitter {
     this.tick();
     this.state.room.status = operation === 'pause' ? 'paused' : 'active';
     if (operation === 'pause') {
+      for(const m of this.state.adventure.monsters){stopMovement(m,this.now());m.action=null;m.hurt=null;m.next_patrol_at=this.now()+m.patrol_interval_ms;}
       if (this.state.game && this.state.game.status !== 'finished') this.finishGame('房间暂停');
       for (const a of Object.values(this.state.agents)) if (a.run?.status === 'active') this.pause(a, '房间暂停');
     }
@@ -265,7 +267,7 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, movement: publicMovement(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, position_at:a.position_at, facing:a.facing, movement: publicMovement(a), action:publicAction(a), hurt:publicHurt(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
@@ -281,9 +283,9 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.17.0-scenes', recommended_skill_version: '0.18.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.19.0-motion', recommended_skill_version: '0.19.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
-      visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
+      movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: GAME_TIMING.invitation_seconds, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
       game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: GAME_TIMING.registration_seconds, turn_seconds: GAME_TIMING.turn_seconds, max_valid_words: 10 },
       words: WORDS, word_version: WORD_VERSION, allowed_actions: ACTIONS, notice: '这是公开广场；其他参与者可能使用模型处理你的公开发言。模拟运行器不调用模型。' };
@@ -463,6 +465,7 @@ export class World extends EventEmitter {
     if (type === 'adventure_plan') return startAdventure(this, a, p, fail);
     if (['farm', 'inventory', 'gather', 'trade'].includes(type)) return performLife(this, a, type, p, fail);
     if (type === 'start_activity') {
+      if (a.movement) fail('MOVEMENT_BUSY', '请等待到达或先用 adventure_plan stop 停下');
       if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '广场活动需要返回plaza；可自主选择adventure_plan retreat返回营地');
       if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
       if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，可能受到怪物攻击；请先返回营地再开始独处活动');
@@ -511,15 +514,18 @@ export class World extends EventEmitter {
       return this.finishActivity(a, { cancelled: p.answer === undefined, answer: p.answer });
     }
     if (type === 'move') {
-      const path = findPath(a.scene_id, a.position, p, { maxSteps: MAX_MOVE });
+      // Older bridges submit a whole candidate including its path. Treat that
+      // path as an ignored hint and calculate the authoritative route ourselves.
+      if (Object.keys(p).some(key=>!['x','y','mode','path'].includes(key)) || !Number.isInteger(p.x) || !Number.isInteger(p.y) || p.mode !== undefined && !['walk','run'].includes(p.mode)) fail('INVALID_ACTION','move 接受整数 x、y 和可选 mode:walk|run',{movement:movementOptions(a.position,a.scene_id)});
+      if (p.mode === 'run' && publicFatigue(a).energy <= 0) fail('FATIGUE_EXHAUSTED','体力不足以奔跑，仍可自行选择步行');
+      const path = findPath(a.scene_id, a.position, {x:p.x,y:p.y}, { maxSteps: MAX_MOVE });
       if (!path) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 步，须有不穿地形的合法路径`, { movement: movementOptions(a.position, a.scene_id) });
       cancelGather(this, a, 'moved');
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
-      spendEnergy(this, a, 'move', path.length - 1);
-      recordMovement(a, path, this.now(), Math.max(1, path.length - 1) * 200);
+      recordMovement(a, path, this.now(), p.mode);
       if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
-      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, path };
+      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}开始${p.mode === 'run' ? '跑' : '走'}向 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, target:{x:p.x,y:p.y}, path, movement:publicMovement(a) };
     }
     if (type === 'say') {
       const text = textField(p.text, 200, '发言'); if (!text) fail('INVALID_ACTION', '发言不能为空');
@@ -687,9 +693,29 @@ export class World extends EventEmitter {
   }
   tick() {
     let changed = false; const now = this.now();
+    let motionChanged = false;
     if (now >= this.historyMaintenanceAt) { changed = pruneHistory(this) || changed; this.historyMaintenanceAt = now + 60000; }
     const fatigueRecovery = captureFatigueRecovery(this);
     for (const a of Object.values(this.state.agents)) {
+      if (a.movement) {
+        const permitted = this.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
+        const until = permitted ? Math.min(now,a.run.expires_at,(a.last_contact_at ?? -45000)+45000,a.adventure?.plan?.expires_at ?? Infinity) : a.position_at;
+        const running = a.movement.mode === 'run';
+        const cost = combatStats(a).move_energy_per_tile * (running ? 2 : 1);
+        const maxDistance = running ? publicFatigue(a).energy / cost : Infinity;
+        const wasMoving = a.movement;
+        const manual = !a.adventure?.plan;
+        motionChanged = advanceMovement(a,now,{until,maxDistance,onDistance:(steps,_mode,settledAt)=>spendEnergy(this,a,'move',steps*(running?2:1),settledAt)}) || motionChanged;
+        if(manual && !a.movement && permitted && now<=until) {
+          const arrived=distance(a.position,wasMoving.path.at(-1))<1e-8;
+          this.event('movement_finished',{agent_id:a.agent_id,reason:arrived?'arrived':'exhausted',position:{...a.position},text:`${a.name}${arrived?'已完成移动':'奔跑体力已耗尽，停在途中'}`},[a.agent_id]);changed=true;
+        }
+        if (running && !a.movement && wasMoving.settled_distance + 1e-8 < wasMoving.path.slice(1).reduce((n,p,i)=>n+distance(p,wasMoving.path[i]),0) && publicFatigue(a).energy <= 0) {
+          stopAdventure(this,a,'exhausted','奔跑体力已耗尽，已停下；可自行选择步行、撤退或休息');
+          this.event('fatigue_exhausted',{agent_id:a.agent_id,name:a.name,text:`${a.name}体力不足以继续奔跑，已停下；步行仍可用`,energy:0,fatigue:100},[a.agent_id]); changed=true;
+        }
+        if (!permitted || now >= until && until < now) stopMovement(a,now);
+      }
       if (a.run?.status === 'active' && a.run.expires_at <= now) { this.pause(a, '授权时间已到'); changed = true; }
       else if (a.status === 'active' && a.last_contact_at !== null && now - a.last_contact_at >= 45000) {
         this.detach(a); a.session_epoch++; a.status = 'offline'; a.next_action_id = null; a.reserved_until = null; a.diagnostics.state = 'offline';
@@ -722,7 +748,8 @@ export class World extends EventEmitter {
     const adventureStep = tickAdventure(this);
     const fatigueStep = tickFatigue(this, fatigueRecovery);
     const lifeStep = tickLife(this);
+    if(motionChanged)this.state.room.world_revision++;
     if (changed || adventureStep.durable || lifeStep.changed) this.commit();
-    else if (adventureStep.changed || fatigueStep.changed) this.commit({ deferred: true });
+    else if (adventureStep.changed || fatigueStep.changed || motionChanged) this.commit({ deferred: true });
   }
 }

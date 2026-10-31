@@ -1,3 +1,4 @@
+import {advanceToArrival} from './motion-fixture.js';
 import {selectObservedAgent} from './observer-navigation.js';
 import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -14,7 +15,7 @@ async function actor(api,name){
  const client=new Client({name:'cooperation-browser',version:'1'},{capabilities:{}});await client.connect(new StreamableHTTPClientTransport(new URL(base+'/mcp'),{requestInit:{headers:{Authorization:`Bearer ${controller.token}`}}}));
  const call=async(name,args={})=>{const r=await client.callTool({name,arguments:args});expect(r.isError,JSON.stringify(r.content)).not.toBe(true);return r.structuredContent||JSON.parse(r.content.find(c=>c.type==='text').text);};
  let session;const a={agent,controller,client,join:async()=>{const joined=await call('join_world');session={run_id:joined.run_id,session_epoch:joined.session_epoch};return joined;},observe:()=>call('observe',session),act:async(type,payload={})=>{const o=await a.observe(),r=await call('act',{...session,action_id:o.next_action_id,type,payload});expect(r.status,JSON.stringify(r)).toBe('applied');return r;}};
- actors.push(a);await a.join();await a.act('move',{x:11,y:8});return a;
+ actors.push(a);await a.join();await a.act('move',{x:11,y:8});advanceToArrival(app.world,a.agent.agent_id,{x:11,y:8},ms=>clock+=ms);return a;
 }
 async function advance(ms){while(ms>0){const n=Math.min(ms,20000);clock+=n;for(const a of actors)if(app.world.agent(a.agent.agent_id).status==='active')await a.observe();app.world.tick();ms-=n;}}
 async function propose(a,b,template_id='camp_meal',role_id='supplier'){await a.act('cooperation',{intent:'propose',template_id,target_agent_id:b.agent.agent_id,role_id});return(await a.observe()).cooperation;}

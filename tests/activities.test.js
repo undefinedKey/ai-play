@@ -24,10 +24,14 @@ function fixture(t) {
   const act = (person, type, payload = {}) => world.callTool(person.auth, 'act', request(person, type, payload));
   const walk = (person, x, y) => {
     let position = observe(person).self.position;
-    while (position.x !== x || position.y !== y) {
+    for (let leg = 0; position.x !== x || position.y !== y; leg++) {
+      assert.ok(leg < 128, 'bounded real movement must reach the activity');
       const path = findPath(observe(person).self.scene_id, position, {x,y}); assert.ok(path);
       const target = path[Math.min(3,path.length-1)];
-      assert.equal(act(person, 'move', target).status, 'applied'); position = target;
+      assert.equal(act(person, 'move', target).status, 'applied');
+      for (let elapsed = 0; elapsed < 1500; elapsed += 100) { now += 100; world.tick(); }
+      position = observe(person).self.position;
+      assert.deepEqual(position, target, 'accepted move reaches target only after actual time');
     }
   };
   const advance = (ms, connected = []) => {

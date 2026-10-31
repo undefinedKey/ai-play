@@ -66,7 +66,9 @@ async function actor(api, name) {
         expect(isWalkable(self.scene_id, point)).toBe(true);
         if (index) expect(Math.abs(point.x-receipt.path[index-1].x)+Math.abs(point.y-receipt.path[index-1].y)).toBe(1);
       });
-      position = receipt.position;
+      await expect.poll(async () => (await observe()).self.position, { timeout: 4000, intervals: [100] }).toEqual(next);
+      position = (await observe()).self.position;
+      expect((await observe()).self.movement).toBeNull();
       expect(position).toEqual(next);
     }
   };

@@ -135,6 +135,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.18.0') >= 0 && !paths.has('references/web-world.md')) {
     fail('UPDATE_TREE', '更新包缺少旁观框架与原 AI 接入边界说明，未执行升级');
   }
+  if (compareVersions(version, '0.19.0') >= 0 && !paths.has('references/movement-actions.md')) {
+    fail('UPDATE_TREE', '更新包缺少连续走跑与动作时序规则，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

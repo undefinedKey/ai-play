@@ -51,6 +51,35 @@ test('最坏上下文同时保留合作复核、探索、个人目标、三危�
   assert.ok(prompt.includes('confirm')); assert.ok(prompt.includes('leave')); assert.ok(prompt.includes('4萝卜')); assert.ok(prompt.includes('各得1'));
 });
 
+test('v0.19走跑说明与极限合作条款兼容，多邀约短ID压缩保持原焦点', () => {
+  for (const phase of ['review', 'two_invites', 'story_emoji_group']) {
+    const c = cooperationFixture(), o = c.observation, self = o.self;
+    c.rules.movement = { version: 2, modes: { walk: { speed: 2, energy_multiplier: 1 }, run: { speed: 3.5, energy_multiplier: 2 } } };
+    if (phase === 'two_invites') {
+      o.cooperation = null;
+      o.cooperation_invitations = ['a', 'b'].map(letter => ({ cooperation_id: 'cooperation_' + letter.repeat(36), revision: 1, template_id: 'camp_meal', from_agent_id: o.nearby_agents[0].agent_id,
+        role_id: 'cook', invite_expires_at: o.server_time + 150000, expires_at: o.server_time + 900000 }));
+      c.cooperationFocus = o.cooperation_invitations[1].cooperation_id;
+    }
+    if (phase === 'story_emoji_group') {
+      self.scene_id = 'plaza'; self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = [];
+      o.game = { game_id: 'game-' + 'g'.repeat(36), turn_id: 'turn-' + 't'.repeat(36), deadline: o.server_time + 150000, status: 'active', game_type: 'story_chain', current_agent_id: self.agent_id,
+        participants: [self.agent_id], segments: [{ agent_id: o.nearby_agents[0].agent_id, text: '🐈'.repeat(200) }] };
+      o.group.group_id = 'group_' + 'h'.repeat(36); c.events[0].payload.channel = 'group';
+    }
+    let p; try { p = prepareDecisionPrompt(c); } catch (error) {
+      const focused = phase === 'story_emoji_group' ? cooperationPrompt(c, { energy: [1, .75, 12], food: [['turnip', 12, 1], ['wheat_bread', 0, 1, 24]] }, cooperationContext(o, c.rules, c.events), {}, { deferReview: true }).length : null;
+      error.message = `${phase}: ${error.message}; focused=${focused}`; throw error;
+    }
+    const data = decode(p.text), actual = id => p.references?.[id] || id;
+    assert.ok(p.text.length <= 2000, phase); assert.ok(p.text.includes(c.ownerGoal)); assert.ok(p.text.includes(c.events[0].payload.text)); assert.match(p.text, /mode:walk\|run/);
+    if (phase === 'two_invites') assert.equal(actual(data.invites[0][0]), c.cooperationFocus);
+    else if (!p.cooperationReviewDeferred) { assert.ok(p.text.includes('4萝卜')); assert.ok(p.text.includes('各得1')); }
+    else assert.match(p.text, /结束或退出活动后重看完整复核条款/);
+    if (phase === 'story_emoji_group') assert.ok(p.text.includes('🐈'.repeat(200)));
+  }
+});
+
 for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active', 'return', 'discovery', 'game', 'recruiting', 'solo', 'gather']) test(`2000字符合作 ${phase} 路径与纠正提示`, () => {
   const c = cooperationFixture(), o = c.observation, self = o.self;
   const invite = { cooperation_id: 'cooperation_' + 'i'.repeat(36), revision: 1, template_id: 'camp_meal', from_agent_id: o.nearby_agents[0].agent_id,
@@ -216,7 +245,7 @@ test('双邀约单事件ACK、40秒决策间隔与无事件快照轮换：第二
   assert.notEqual(target.runner.checkpoint.cooperation_focus, first);
 });
 
-test('极端故事帧不标记合作复核已见；本人退出游戏后完整条款恢复并可真实确认', async t => {
+test('极端故事帧只标记实际展示的合作复核，完整条款从未自动确认', async t => {
   const f = await realRunners(t, 'dsh-pet', 3), [a, b, storyteller] = f.peers;
   await f.decide(a, action({ intent: 'propose', template_id: 'camp_meal', target_agent_id: b.id, role_id: 'supplier' }));
   const offer = f.world.observation(b.agent()).cooperation_invitations[0];
@@ -233,13 +262,19 @@ test('极端故事帧不标记合作复核已见；本人退出游戏后完整�
   a.runner.goal = '🐾'.repeat(300); delete a.runner.checkpoint.cooperation_seen;
   const queueChat = id => { a.runner.checkpoint.queue.push({ event_id: id, type: 'message', payload: { agent_id: storyteller.id, text: '🌱'.repeat(200) } }); };
   queueChat('long-chat-1'); await f.decide(a, { type: 'wait', payload: {} });
-  assert.equal(a.contexts.at(-1).deferred, true); assert.equal(a.runner.checkpoint.cooperation_seen, undefined); assert.ok(a.runner.checkpoint.cooperation_review_deferred);
+  const deferred = a.contexts.at(-1).deferred;
+  if (deferred) { assert.equal(a.runner.checkpoint.cooperation_seen, undefined); assert.ok(a.runner.checkpoint.cooperation_review_deferred); }
+  else {
+    assert.ok(a.contexts.at(-1).text.includes('4萝卜')); assert.ok(a.contexts.at(-1).text.includes('各得1'));
+    assert.equal(f.world.observation(a.agent()).cooperation.self_confirmed, false, '完整条款可展示也不是同意');
+    assert.ok(a.runner.checkpoint.cooperation_seen);
+  }
   f.advance(6000); a.runner.observation = f.world.observation(a.agent()); a.runner.observedAt = a.runner.now();
   assert.equal(a.runner.decisionDue(), false, '复核本身不会每5秒重复请求');
   queueChat('long-chat-2'); assert.equal(a.runner.decisionDue(), true, '其他真实消息仍唤醒');
   await f.decide(a, { type: 'leave_game', payload: { game_id: f.world.state.game.game_id } }, 0);
-  assert.equal(a.runner.checkpoint.cooperation_seen, undefined);
-  f.advance(6000); a.runner.observation = f.world.observation(a.agent()); a.runner.observedAt = a.runner.now(); assert.equal(a.runner.decisionDue(), true);
+  if (deferred) assert.equal(a.runner.checkpoint.cooperation_seen, undefined);
+  f.advance(6000); a.runner.observation = f.world.observation(a.agent()); a.runner.observedAt = a.runner.now(); if (deferred) assert.equal(a.runner.decisionDue(), true);
   await f.decide(a, action({ intent: 'confirm', cooperation_id: project.cooperation_id, revision: project.revision }));
   assert.ok(!a.contexts.at(-1).deferred); assert.ok(a.contexts.at(-1).text.includes('4萝卜'));
   const current = f.world.observation(a.agent()).cooperation; assert.equal(current.self_confirmed, true); assert.equal(current.expires_at, deadline);

@@ -20,7 +20,8 @@ function fixture(t) {
     const auth = world.authenticate(controller.token), o = world.callTool(auth, 'join_world');
     const p = { agent, controller, auth, session: { run_id: o.run_id, session_epoch: o.session_epoch } }; people.push(p);
     const moved = world.callTool(auth, 'act', { ...p.session, action_id: o.next_action_id, type: 'move', payload: { x: 11, y: 8 } });
-    assert.equal(moved.status, 'applied'); return p;
+    assert.equal(moved.status, 'applied'); advance(1500);
+    assert.deepEqual(raw(p).position, { x: 11, y: 8 }); return p;
   };
   const observe = p => world.callTool(p.auth, 'observe', p.session);
   const request = (p, type, payload = {}) => ({ ...p.session, action_id: observe(p).next_action_id, type, payload });
@@ -31,7 +32,7 @@ function fixture(t) {
   const advance = (ms, connected = people) => {
     const end = now + ms;
     while (now < end) {
-      now = Math.min(end, now + 1000); world.tick();
+      now = Math.min(end, now + 100); world.tick();
       for (const p of connected) if (raw(p).status === 'active') observe(p);
     }
   };
@@ -119,10 +120,10 @@ test('只能操作自己的田和仓库，不能通过附加主人/数量/装备
 });
 
 test('农田/制作/换装要求营地和空闲，失败不消耗材料', t => {
-  const f = fixture(t), p = f.make(); f.act(p, 'move', { x: 14, y: 8 });
+  const f = fixture(t), p = f.make(); f.act(p, 'move', { x: 14, y: 8 }); f.advance(1500);
   assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'NOT_AT_CAMP');
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'NOT_AT_CAMP');
-  f.act(p, 'move', { x: 11, y: 8 }); f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.act(p, 'move', { x: 11, y: 8 }); f.advance(1500); f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'ACTIVITY_BUSY');
   f.act(p, 'adventure_plan', { intent: 'stop' }); f.act(p, 'start_activity', { activity_id: 'relax' });
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'ACTIVITY_BUSY');
@@ -205,7 +206,11 @@ test('重启保留种子/装备/成长，离线成熟通知只发一次且不重
     const a = world.createAgent({ name: '我的旧 AI' }), c = world.createController(a.agent_id); world.ownerControl(a.agent_id, 'start');
     const auth = world.authenticate(c.token); let o = world.callTool(auth, 'join_world');
     const act = (type, payload) => { o = world.callTool(auth, 'observe', { run_id: o.run_id, session_epoch: o.session_epoch }); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); };
-    act('move', { x: 11, y: 8 }); act('inventory', { intent: 'craft', item_id: 'wooden_sword' }); act('inventory', { intent: 'equip', item_id: 'wooden_sword' });
+    assert.equal(act('move', { x: 11, y: 8 }).status, 'applied');
+    for (let elapsed = 0; elapsed < 1500; elapsed += 100) { now += 100; world.tick(); }
+    assert.deepEqual(world.agent(a.agent_id).position, { x: 11, y: 8 });
+    assert.equal(act('inventory', { intent: 'craft', item_id: 'wooden_sword' }).status, 'applied');
+    assert.equal(act('inventory', { intent: 'equip', item_id: 'wooden_sword' }).status, 'applied');
     act('farm', { intent: 'till', plot_id: 'plot_1' }); act('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); act('farm', { intent: 'water', plot_id: 'plot_1' });
     world.close(); world = undefined; now += 180000;
     world = new World({ dbPath, now: () => now, actionIntervalMs: 0 }); world.tick(); world.tick();
@@ -231,6 +236,14 @@ test('真实HTTP MCP公开生活动作，私有仓库只在本人回应中，匿
   assert.ok(types.includes('farm') && types.includes('inventory'));
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
   const move = await call('act', { ...session, action_id: joined.next_action_id, type: 'move', payload: { x: 11, y: 8 } });
+  assert.equal(move.status, 'applied');
+  let arrived;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    arrived = await call('observe', session);
+    if (!arrived.self.movement) break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.deepEqual(arrived.self.position, { x: 11, y: 8 }); assert.equal(arrived.self.movement, null);
   const till = await call('act', { ...session, action_id: move.next_action_id, type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } });
   const plant = await call('act', { ...session, action_id: till.next_action_id, type: 'farm', payload: { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' } });
   assert.equal(plant.status, 'applied'); assert.equal(plant.life.inventory.turnip_seed, 2);

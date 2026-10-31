@@ -4,8 +4,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../../server/index.js';
-let app,server,base,clock,clients,actors;
-test.beforeEach(async()=>{app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});clock=Date.now();app.world.now=()=>clock;app.world.actionIntervalMs=0;clients=[];actors=[];({server,url:base}=await app.start(0));});
+let app,server,base,clock,clients,actors,heartbeatAt;
+test.beforeEach(async()=>{app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});clock=Date.now();heartbeatAt=clock;app.world.now=()=>clock;app.world.actionIntervalMs=0;clients=[];actors=[];({server,url:base}=await app.start(0));});
 test.afterEach(async()=>{for(const c of clients)await c.close();await app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
 async function actor(request,name){
  const session=await(await request.get(base+'/api/session')).json();
@@ -17,7 +17,8 @@ async function actor(request,name){
  const joined=await call('join_world');const observe=()=>call('observe',{run_id:joined.run_id,session_epoch:joined.session_epoch});
  const result={agent,api,observe,act:async(type,payload={})=>{const seen=await observe();const r=await call('act',{run_id:joined.run_id,session_epoch:joined.session_epoch,action_id:seen.next_action_id,type,payload});expect(r.status,JSON.stringify(r)).toBe('applied');return r;}};actors.push(result);return result;
 }
-async function stepUntil(predicate,max=80){for(let i=0;i<max&&!predicate();i++){clock+=1000;app.world.tick();for(const a of actors)await a.observe();}expect(predicate()).toBe(true);}
+async function advance(ms){for(let elapsed=0;elapsed<ms;){const dt=Math.min(100,ms-elapsed);elapsed+=dt;clock+=dt;app.world.tick();if(clock-heartbeatAt>=1000){for(const a of actors)if(app.world.agent(a.agent.agent_id).status==='active')await a.observe();heartbeatAt=clock;}}}
+async function stepUntil(predicate,max=80){for(let i=0;i<max*10&&!predicate();i++)await advance(100);expect(predicate()).toBe(true);}
 async function capture(page,name){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');const stage=page.getByTestId('world-camera');const rect=await stage.boundingBox();expect(rect.width/rect.height).toBeCloseTo(1.5,2);expect(rect.y).toBeLessThan(width===390?270:220);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll("body *")].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>[e.className,e.getBoundingClientRect().right]).slice(0,15)))).toBe(true);await expect(page.locator('.pixel-scene-image').first()).toHaveJSProperty('complete',true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}.png`});await stage.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}-map.png`});}}
 
 test('独立场景真实入口往返，旁观切换不移动、空场不宣称世界无人、镜头和发言隔离',async({page,request})=>{
@@ -30,11 +31,13 @@ test('独立场景真实入口往返，旁观切换不移动、空场不宣称�
  await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','overview');await expect(page.locator('.world-actor')).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);await expect(page.locator('.scene-elsewhere')).toContainText('生活广场');await expect(page.getByTestId('adventure-empty-banner')).toContainText('0 位 AI');
  await capture(page,'adventure-empty');
  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});let observedPath=false;
- for(let i=0;i<80&&raw().scene_id!=='adventure';i++){clock+=1000;app.world.tick();await a.observe();if(raw().movement?.path?.length>1)observedPath=true;}
+ for(let i=0;i<800&&raw().scene_id!=='adventure';i++){await advance(100);if(raw().movement?.path?.length>1)observedPath=true;}
  expect(observedPath).toBe(true);expect(raw().scene_id).toBe('adventure');await expect(page.getByTestId(`adventure-agent-${id}`)).toBeVisible();await expect(page.getByTestId('speech-cloud')).toHaveCount(0);
  await a.act('say',{channel:'nearby',text:'穿过入口，终于到林地了。'});await expect(page.getByTestId('speech-cloud')).toContainText('终于到林地');
  await page.getByRole('button',{name:'关注角色',exact:true}).click();await a.act('adventure_plan',{intent:'rest'});await stepUntil(()=>raw().scene_id==='plaza');
- await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','overview');await expect(page.getByTestId(`adventure-agent-${id}`)).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);await page.getByRole('button',{name:'查看所在地',exact:true}).click();await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();
+ // Leaving the watched scene cancels following and preserves the spectator's zoom.
+ await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','manual');await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-zoom','2.00');await expect(page.getByTestId(`adventure-agent-${id}`)).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);
+ await page.getByRole('button',{name:'镜头复位',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','overview');await page.getByRole('button',{name:'查看所在地',exact:true}).click();await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();
  await expect(page.locator('body')).not.toContainText('PRIVATE_SCENE_OWNER_GOAL');
 });
 
@@ -50,7 +53,7 @@ test('五位原角色、同格长名、真实脚底遮挡、场景比例和只�
  await selectObservedAgent(page,one.agent_id);expect(await behind.evaluate(el=>Number(getComputedStyle(el).zIndex))).toBeLessThan(await tree.evaluate(el=>Number(getComputedStyle(el).zIndex)));
  const move=await people[0].act('move',{x:6,y:6});expect(move.path?.length||move.result?.path?.length).toBeGreaterThan(1);await capture(page,'plaza-depth');
  await people[4].act('adventure_plan',{intent:'explore',zone_id:'forest'});await stepUntil(()=>app.world.agent(people[4].agent.agent_id).scene_id==='adventure');
- await selectObservedAgent(page,people[4].agent.agent_id);await page.getByRole('button',{name:'农作区',exact:true}).click();await expect(page.getByTestId('farm-present-agent')).toHaveCount(0);await expect(page.locator('.scene-elsewhere')).toContainText('林地冒险');
+ await page.getByRole('button',{name:'冒险地图',exact:true}).click();const traveler=page.getByTestId(`adventure-agent-${people[4].agent.agent_id}`);await expect(traveler).toBeVisible();await traveler.focus();await page.keyboard.press('Enter');await page.getByRole('button',{name:'农作区',exact:true}).click();await expect(page.getByTestId('farm-present-agent')).toHaveCount(0);await expect(page.locator('.scene-elsewhere')).toContainText('林地冒险');
  await page.getByRole('button',{name:'查看所在地',exact:true}).click();await expect(page.locator('.adventure-agent')).toHaveCount(1);await capture(page,'adventure-active');
 });
 
@@ -64,15 +67,19 @@ test('加载、资源缺失、断线及失败重试均诚实反馈，旁观没�
  await expect(page.getByRole('button',{name:/^(攻击|穿过入口|移动角色|播种|浇水)$/})).toHaveCount(0);await expect(page.locator('footer')).toContainText('旁观只读');await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'关注角色',exact:true}).focus();await page.keyboard.press('Enter');await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','following');expect(await page.locator('.world-camera-layer').evaluate(el=>getComputedStyle(el).transitionDuration)).toBe('0s');
 });
 
-test('真实拐弯回执逐段呈现，不直穿树干；减少动态直接使用确认落点',async({page,request})=>{
+test('真实拐弯逐段推进，不直穿树干；减少动态使用当前确认位置并等待真实到达',async({page,request})=>{
  const a=await actor(request,'沿着道路走的旅人'),raw=app.world.agent(a.agent.agent_id);
  // Only the initial position is an explicit isolated fixture; the route below is server-computed.
- raw.position={x:5,y:5};raw.movement=null;app.world.commit();
- await page.clock.install({time:new Date(clock)});await page.clock.pauseAt(new Date(clock));await page.goto(base+'/watch?view=plaza');
+ raw.position={x:5,y:5};raw.position_at=clock;raw.movement=null;app.world.commit();
+ await page.goto(base+'/watch?view=plaza');
  const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`);await expect(unit).toBeVisible();const receipt=await a.act('move',{x:6,y:6});
  expect(receipt.path).toEqual([{x:5,y:5},{x:6,y:5},{x:6,y:6}]);await expect(unit).toHaveAttribute('data-foot-y','5');
  const point=()=>unit.evaluate(el=>({x:parseFloat(el.style.left)/100*24-.5,y:parseFloat(el.style.top)/100*16-.5}));
- await page.clock.runFor(100);const first=await point();expect(first.x).toBeGreaterThan(5);expect(first.x).toBeLessThan(6);expect(first.y).toBeCloseTo(5,4);
- await page.clock.runFor(200);const second=await point();expect(second.x).toBeCloseTo(6,4);expect(second.y).toBeGreaterThan(5);expect(second.y).toBeLessThan(6);
- await page.emulateMedia({reducedMotion:'reduce'});await expect(unit).toHaveAttribute('data-foot-y','6');await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
+ expect(raw.position).toEqual({x:5,y:5});
+ await advance(100);expect(raw.position.x).toBeCloseTo(5.2,5);expect(raw.position.y).toBe(5);
+ await expect.poll(()=>point().then(p=>p.x)).toBeGreaterThan(5);const first=await point();expect(first.x).toBeLessThan(6);expect(first.y).toBeCloseTo(5,4);
+ await advance(600);expect(raw.position.x).toBe(6);expect(raw.position.y).toBeCloseTo(5.4,5);
+ await expect(unit).toHaveAttribute('data-foot-x','6');await expect.poll(()=>point().then(p=>p.y)).toBeGreaterThan(5);const second=await point();expect(second.y).toBeLessThan(6);
+ await page.emulateMedia({reducedMotion:'reduce'});await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeCloseTo(5.4,5);await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
+ await advance(300);expect(raw.position).toEqual({x:6,y:6});expect(raw.movement).toBeNull();await expect(unit).toHaveAttribute('data-foot-y','6');
 });

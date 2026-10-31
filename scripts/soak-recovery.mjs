@@ -13,7 +13,7 @@ import { initializeEconomy } from '../server/economy.js';
 import { cooperationLoadAction } from './cooperation-soak-policy.mjs';
 import { seedExperienceCapacity, experienceLoadAction } from './experience-soak-policy.mjs';
 import { publicCooperations } from '../server/cooperation.js';
-import { isWalkable } from '../shared/world-layout.js';
+import { isWalkable } from '../server/spatial.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import jsonPatch from 'fast-json-patch';
@@ -94,13 +94,14 @@ function lifeAction(observation) {
 // Deliberately scripted, isolated round trips. This is not a product AI policy.
 function sceneAction(observation, index, policy) {
   const a = observation.self;
+  const mode = index % 2 && a.fatigue.energy >= 25 ? 'run' : 'walk';
   if (a.adventure.encounter?.status === 'pending') return { type: 'adventure_event', payload: { event_id: a.adventure.encounter.event_id, choice_id: 'decline' } };
   if (a.adventure.plan) return null;
-  if (a.scene_id === 'adventure') return { type: 'adventure_plan', payload: { intent: 'retreat' } };
+  if (a.scene_id === 'adventure') return { type: 'adventure_plan', payload: { intent: 'retreat', mode } };
   if (Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) > 2 || a.fatigue.energy < 75 || a.adventure.hp < a.adventure.max_hp) return { type: 'adventure_plan', payload: { intent: 'rest' } };
   if (!policy.tilled) { policy.tilled = true; return { type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } }; }
   const target = observation.adventure.monsters.find(m => m.zone_id === 'forest' && m.status === 'alive');
-  return { type: 'adventure_plan', payload: index % 2 && target ? { intent: 'hunt', monster_id: target.monster_id } : { intent: 'explore', zone_id: index === 4 ? 'ruins' : 'forest' } };
+  return { type: 'adventure_plan', payload: index % 2 && target ? { intent: 'hunt', monster_id: target.monster_id, mode } : { intent: 'explore', zone_id: index === 4 ? 'ruins' : 'forest', mode } };
 }
 // Only used by this isolated load client. It is intentionally deterministic.
 function explorationAction(observation, index, state) {
@@ -151,6 +152,8 @@ if (process.argv.includes('--worker')) {
   const physicalState = () => JSON.stringify({ agents:Object.values(app.world.state.agents).map(a=>[a.scene_id,a.position,a.adventure.hp]),
     monsters:app.world.state.adventure.monsters.map(m=>[m.position,m.hp,m.status]) });
   const sceneCrossings = { plaza: 0, adventure: 0 }, priorScenes = new Map();
+  const physicalSamples = { fractional: 0, walk: 0, run: 0, prepare: 0, recovery: 0 };
+  const resolvedHits = new Set();
   app.world.tick = (...args) => {
     const unobserved = app.spectator.count === 0 && app.spectator.stats.peak_streams > 0;
     const priorPhysical = unobserved ? physicalState() : null;
@@ -165,6 +168,10 @@ if (process.argv.includes('--worker')) {
       assert.ok(isWalkable(a.scene_id, a.position), 'actor stays on a traversable cell');
       if (priorScenes.has(a.agent_id) && priorScenes.get(a.agent_id) !== a.scene_id) sceneCrossings[a.scene_id]++;
       priorScenes.set(a.agent_id, a.scene_id);
+      if (!Number.isInteger(a.position.x) || !Number.isInteger(a.position.y)) physicalSamples.fractional++;
+      if (a.movement?.version === 2 && ['walk','run'].includes(a.movement.mode)) physicalSamples[a.movement.mode]++;
+      if (a.action && ['prepare','recovery'].includes(a.action.phase)) physicalSamples[a.action.phase]++;
+      if (a.action?.outcome === 'hit') resolvedHits.add(a.action.action_id);
     }
     return result;
   };
@@ -196,7 +203,7 @@ if (process.argv.includes('--worker')) {
       retained_receipts: Object.keys(app.world.state.receipts).length, peak_events: peakEvents, peak_receipts: peakReceipts,
       active: app.world.activeIds().length, living: Object.values(app.world.state.agents).filter(a=>a.adventure.hp>0).length,
       spectator: app.spectator.stats, unobserved_physical_steps:unobservedPhysicalSteps,
-      ...(sceneScenario ? { scene_crossings: sceneCrossings, scenes: Object.values(app.world.state.agents).map(a => a.scene_id) } : {}),
+      ...(sceneScenario ? { scene_crossings: sceneCrossings, physical_samples: { ...physicalSamples }, unique_resolved_hits: resolvedHits.size, scenes: Object.values(app.world.state.agents).map(a => a.scene_id) } : {}),
       ...(experienceScenario ? { history_entries:app.world.state.history.entries.length, history_cooperations:app.world.state.history.entries.filter(e=>e.category==='cooperation').length, completed_games:app.world.state.history.entries.filter(e=>e.type==='game_finished'&&e.outcome==='completed').length, live_meal_completed:publicCooperations(app.world).some(p=>p.status==='completed'&&p.template_id==='camp_meal') } : {}),
       ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
       ...(explorationScenario ? {encounters: Object.values(app.world.state.agents).filter(a=>a.adventure.encounter).length, goals:Object.values(app.world.state.agents).filter(a=>a.personal_goal).length, exploration_events:app.world.state.events.filter(e=>e.type.startsWith('exploration_')).length, expired_encounters:app.world.state.events.filter(e=>e.type==='exploration_ended' && e.payload.status==='expired').length} : {}),
@@ -357,7 +364,9 @@ if (process.argv.includes('--worker')) {
         shared_delta_encoding:viewerCount<10||final.spectator.delta_frames_written>final.spectator.delta_encodes*5,
         every_frame_reconstructed:validatedFrames===frames,
         world_continues_without_viewers:unobserved.streams_before===0&&unobserved.streams_after===0&&unobserved.simulation_ticks>=5&&unobserved.physical_steps>0&&unobserved.active===5,
-        ...(sceneScenario && seconds >= 180 ? { entered_adventure: final.scene_crossings.adventure >= 5, returned_to_plaza: final.scene_crossings.plaza >= 5, farm_only_in_plaza: actionCounts['farm:till'] === 5 } : {}),
+        ...(sceneScenario && seconds >= 180 ? { entered_adventure: final.scene_crossings.adventure >= 5, returned_to_plaza: final.scene_crossings.plaza >= 5, farm_only_in_plaza: actionCounts['farm:till'] === 5,
+          continuous_positions:final.physical_samples.fractional>50, walk_and_run:final.physical_samples.walk>0&&final.physical_samples.run>0,
+          staged_combat:final.physical_samples.prepare>0&&final.physical_samples.recovery>0&&final.unique_resolved_hits>0 } : {}),
         ...(experienceScenario ? { bounded_history:final.history_entries===4096,cooperation_quota_preserved:final.history_cooperations===512,history_queries_passed:historyReads>0&&historyFailures===0,...(seconds>=900?{slow_game_completed:final.completed_games>0,slow_cooperation_completed:final.live_meal_completed}: {})} : {}),
         ...(cooperationScenario ? { bounded_cooperations: final.cooperations.length <= 25, bounded_returns: final.pending_returns <= 5, bounded_ledgers: final.ledger_entries.every(n=>n<=100), ...(seconds>=900 ? {meal_completed:final.cooperations.some(p=>p.template_id==='camp_meal'&&p.status==='completed'),patrol_completed:final.cooperations.some(p=>p.template_id==='scout_and_guard'&&p.status==='completed'),refusal_exercised:actionCounts['cooperation:respond_false']>=1,leave_exercised:actionCounts['cooperation:leave']>=1,expiry_exercised:final.cooperations.some(p=>p.status==='ended'&&p.end_reason==='expired')} : {}) } : {}),
         ...(explorationScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100),bounded_encounters:final.encounters<=5,bounded_goals:final.goals<=5, ...(seconds>=600? {exploration_choices_exercised:Object.entries(actionCounts).filter(([k])=>k.startsWith('adventure_event:')).reduce((n,[,v])=>n+v,0)>=10,goals_exercised:actionCounts['personal_goal:set']>=5,strategy_equipped:actionCounts['inventory:equip']>=10,finite_expiry_exercised:final.expired_encounters>0}: {}) } : {}),

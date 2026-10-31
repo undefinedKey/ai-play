@@ -40,11 +40,11 @@ test('v0.17 real HTTP/MCP: viewers do not move residents; portal journeys isolat
   let late, crossed = false, walked = 0;
   for (let i = 0; i < 25; i++) {
     const old = structuredClone(a.raw.position), oldScene = a.raw.scene_id;
-    if (oldScene === 'plaza' && old.x === 22 && old.y === 8) late = { ...a.session, action_id: (await a.observe()).next_action_id, type: 'move', payload: { x: 23, y: 8 } };
+    if (oldScene === 'plaza') late = { ...a.session, action_id: (await a.observe()).next_action_id, type: 'move', payload: { x: 23, y: 8 } };
     await tick();
     assert.ok(isWalkable(a.raw.scene_id, a.raw.position));
     if (a.raw.scene_id !== oldScene) {
-      assert.equal(oldScene, 'plaza'); assert.deepEqual(old, { x: 22, y: 8 });
+      assert.equal(oldScene, 'plaza'); assert.deepEqual(app.world.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, { x: 22, y: 8 });
       assert.equal(a.raw.scene_id, 'adventure'); assert.deepEqual(a.raw.position, { x: 11, y: 8 });
       crossed = true; break;
     }

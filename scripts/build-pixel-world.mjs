@@ -47,17 +47,22 @@ const specs = [
   ['rose', '#aa758b', '#d4a6ad', '#724e68', '#805747', '#b98059', 'buns'],
   ['slate', '#6c8580', '#a2b3a1', '#455b5a', '#c3c7bc', '#f0e7cd', 'hood'],
 ];
-const motionNames = ['idle','walk','walk_south','walk_north','walk_east','attack','hurt','till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','rest','tired'];
+const baseMotions = ['idle','walk','run','attack','hurt','till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','rest','tired'];
+const motionNames = baseMotions.flatMap(action=>[action,...['north','east'].map(direction=>`${action}_${direction}`)]);
 const poses = [];
-for (const action of motionNames) for (let frame = 0; frame < (action === 'hurt' ? 2 : 4); frame++) poses.push({ action, frame, name: `${action}_${frame}`, duration: action === 'idle' ? [700,180,700,140][frame] : action === 'rest' ? 500 : action === 'tired' ? 340 : action === 'attack' ? [180,100,140,240][frame] : 180 });
+for (const action of motionNames) for (let frame = 0; frame < 4; frame++) {const base=action.split('_')[0];poses.push({ action, frame, name: `${action}_${frame}`, duration: base === 'idle' ? [700,180,700,140][frame] : base === 'rest' ? 500 : base === 'tired' ? 340 : base === 'attack' ? [180,100,140,240][frame] : base==='run' ? 105 : base==='hurt'?100:150 });}
 function pose(action, i) {
-  const walking = action.startsWith('walk');
-  return { bob: action === 'idle' && i === 1 ? -1 : walking && i % 2 ? -1 : action === 'tired' ? 2 : action === 'rest' ? 6 : action === 'gather' ? [1,5,3,0][i] : action === 'cook' ? [0,1,1,0][i] : action === 'till' ? [0,-1,3,1][i] : ['plant','water','harvest','craft','repair','upgrade'].includes(action) && i % 3 ? 3 : action === 'attack' && i === 2 ? 1 : 0,
-    stride: walking ? [-2,0,2,0][i] : 0, back: action === 'walk_north', side: action === 'walk_east', seated: action === 'rest', blink: action === 'idle' && i === 3 || action === 'rest' || action === 'tired' && i % 2 === 0,
-    hand: action === 'gather' ? [[32,34],[35,36],[32,33],[28,31]][i] : action === 'cook' ? [[35,27],[32,30],[36,30],[34,27]][i] : action === 'eat' ? [[32,33],[28,27],[27,25],[30,30]][i] : action === 'attack' ? [[31,29],[29,20],[38,31],[32,33]][i] : action === 'till' ? [[30,28],[28,19],[34,35],[31,32]][i] : action === 'water' ? [34,34] : action === 'plant' ? [30+i,37] : action === 'harvest' ? [32,33-(i%2)*3] : ['craft','repair','upgrade'].includes(action) ? [[32,32],[32,25],[35,34],[32,33]][i] : [32,34] };
+  const direction=action.split('_')[1]||'south'; action=action.split('_')[0];
+  const walking = action==='walk'||action==='run',running=action==='run';
+  const result={ direction, bob: running ? [0,-3,-1,-3][i] : action === 'idle' && i === 1 ? -1 : walking && i % 2 ? -1 : action === 'tired' ? 2 : action === 'rest' ? 6 : action === 'gather' ? [1,5,3,0][i] : action === 'cook' ? [0,1,1,0][i] : action === 'till' ? [0,-1,3,1][i] : ['plant','water','harvest','craft','repair','upgrade'].includes(action) && i % 3 ? 3 : action === 'attack' ? [0,-2,3,1][i] : action==='hurt'?[2,-1,1,0][i]:0,
+    stride: running ? [-4,-1,4,1][i] : walking ? [-2,0,2,0][i] : 0, back: direction === 'north', side: direction === 'east', seated: action === 'rest', blink: action === 'idle' && i === 3 || action === 'rest' || action === 'tired' && i % 2 === 0,
+    hand: action === 'gather' ? [[32,34],[35,36],[32,33],[28,31]][i] : action === 'cook' ? [[35,27],[32,30],[36,30],[34,27]][i] : action === 'eat' ? [[32,33],[28,27],[27,25],[30,30]][i] : action === 'attack' ? [[31,29],[29,20],[38,31],[32,33]][i] : action === 'till' ? [[30,28],[28,19],[34,35],[31,32]][i] : action === 'water' ? [34,34] : action === 'plant' ? [30+i,37] : action === 'harvest' ? [32,33-(i%2)*3] : ['craft','repair','upgrade'].includes(action) ? [[32,32],[32,25],[35,34],[32,33]][i] : running ? [[31,29],[35,32],[30,36],[29,33]][i] : walking ? [[31,32],[32,34],[30,36],[32,34]][i] : [32,34] };
+  if(direction==='east')result.hand=[Math.min(40,result.hand[0]+2),result.hand[1]];
+  if(action==='attack'){if(direction==='north')result.hand=[[30,25],[28,15],[27,17],[31,27]][i];else if(direction==='south')result.hand=[[31,29],[29,20],[28,37],[32,33]][i];else result.hand=[[33,29],[31,20],[39,29],[34,33]][i];}
+  return result;
 }
 function character(s, action, i) {
-  const g = new Grid(48,48), p = pose(action,i), b = p.bob, [,coat,light,shade,hair,hairLight,feature] = s;
+  const g = new Grid(48,48), p = pose(action,i), b = p.bob, [,coat,light,shade,hair,hairLight,feature] = s;action=action.split('_')[0];
   g.ellipse(12,41,25,5,'#203d382e');
   // Feet stay on the ground while the body compresses; alternate planted legs.
   if (p.seated) { g.borderedRect(15,37,9,6,shade); g.borderedRect(25,37,9,6,shade); g.rect(16,41,8,2,'#61483e'); g.rect(26,41,8,2,'#61483e'); }
@@ -70,7 +75,8 @@ function character(s, action, i) {
   g.rect(18,28+b,6,7,light); g.rect(28,30+b,3,6,shade); g.rect(17,35+b,14,2,shade);
   g.rect(23,28+b,2,8,'#e6d2a4'); g.dot(24,31+b,'#b69562'); g.dot(24,34+b,'#b69562');
   // Arms and hands, unique contact/release poses.
-  g.line(17,28+b,14,34+b,outline,3); g.line(17,28+b,15,33+b,coat,2); g.borderedRect(13,33+b,4,4,skin);
+  const offhand=action==='run'?[[14,37],[12,33],[16,29],[17,32]][i]:action==='walk'?[[15,35],[14,34],[16,31],[14,34]][i]:[14,34];
+  g.line(17,28+b,offhand[0],offhand[1]+b,outline,3); g.line(17,28+b,offhand[0]+1,offhand[1]-1+b,coat,2); g.borderedRect(offhand[0]-1,offhand[1]-1+b,4,4,skin);
   const hy = Math.min(42,p.hand[1]+(p.seated?3:b)); g.line(29,28+b,p.hand[0],hy,outline,4); g.line(29,28+b,p.hand[0],hy,light,2); g.borderedRect(p.hand[0]-1,hy-1,4,4,skinLight);
   // Rounded, stepped head with shadow plane.
   g.ellipse(13,8+b,23,22,outline); g.ellipse(15,10+b,19,18,hair); g.ellipse(16,14+b,17,14,skinShade); g.ellipse(16,13+b,16,13,skin); g.rect(18,14+b,9,7,skinLight);
@@ -100,16 +106,16 @@ function character(s, action, i) {
   return g;
 }
 function overlay(kind,action,i){
-  const g=new Grid(48,48),p=pose(action,i),b=p.bob,hy=Math.min(42,p.hand[1]+(p.seated?3:b));
+  const g=new Grid(48,48),p=pose(action,i),b=p.bob,hy=Math.min(42,p.hand[1]+(p.seated?3:b));action=action.split('_')[0];
   if(kind==='hunter_bow'){
-    const x=Math.min(39,p.hand[0]+1),y=hy-6;
-    g.poly([[x-1,y-12],[x+5,y-9],[x+8,y-3],[x+8,y+4],[x+4,y+12],[x-2,y+15],[x+2,y+7],[x+3,y-2]],outline);
-    g.line(x,y-10,x+5,y-4,'#e0b77b',2);g.line(x+5,y-4,x+5,y+4,'#b18b56',2);g.line(x+5,y+4,x,y+12,'#cfaa70',2);
-    const pull=action==='attack'&&i===1?x-7:x;
-    g.line(x,y-10,pull,y+2,'#e5dfbc');g.line(pull,y+2,x,y+12,'#e5dfbc');g.rect(x+2,y+1,4,4,'#63876a');
-    if(action==='attack'){const end=i===2?46:x+9;g.line(Math.max(1,pull-4),y+2,end,y+2,'#d6bf8d');g.poly([[end,y-1],[end+1,y+2],[end,y+5],[end-3,y+2]],'#e3e9d0');}
+    const aim=action==='attack'?(p.direction==='north'?[0,-1]:p.direction==='south'?[0,1]:[1,0]):[1,0],side=[-aim[1],aim[0]],hand=[p.hand[0]+1,hy];
+    const q=(forward,lateral)=>[hand[0]+aim[0]*forward+side[0]*lateral,hand[1]+aim[1]*forward+side[1]*lateral];
+    const left=q(0,-10),upper=q(5,-6),mid=q(7,0),lower=q(5,6),right=q(0,10),pull=q(action==='attack'&&i===1?-5:0,0);
+    for(const[a,b]of[[left,upper],[upper,mid],[mid,lower],[lower,right]]){g.line(...a,...b,outline,3);g.line(...a,...b,'#d7ae73',2);}
+    g.line(...left,...pull,'#e5dfbc');g.line(...pull,...right,'#e5dfbc');g.borderedRect(hand[0]-1,hand[1]-1,3,3,'#63876a');
+    if(action==='attack'){const end=q(i===2?14:8,0),tail=q(-5,0),wing1=q(i===2?11:5,-2),wing2=q(i===2?11:5,2);g.line(...tail,...end,'#d6bf8d');g.poly([end,wing1,wing2],'#e3e9d0');}
   }else if(kind==='heavy_hammer'){
-    const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?[40,hy-2]:action==='attack'&&i===1?[31,8]:[39,hy-14];
+    const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?(p.direction==='north'?[25,7]:p.direction==='south'?[25,40]:[40,hy-2]):action==='attack'&&i===1?[31,8]:[39,hy-14];
     g.line(...start,...tip,outline,4);g.line(start[0],start[1],tip[0],tip[1],'#b38960',2);g.line(start[0],start[1]-1,tip[0],tip[1],'#e0be86');
     g.borderedRect(tip[0]-7,tip[1]-5,15,10,'#677f88');g.rect(tip[0]-6,tip[1]-4,12,3,'#b6c9c7');g.rect(tip[0]-5,tip[1],10,3,'#4d6676');g.rect(tip[0]-1,tip[1]-4,3,8,'#aa9667');g.dot(tip[0],tip[1]-3,'#e9d59b');
   }else if(kind==='heavy_armor'){
@@ -118,9 +124,9 @@ function overlay(kind,action,i){
     g.borderedRect(10,26+b,9,7,'#7c9296');g.rect(11,27+b,7,2,'#c4cebb');g.borderedRect(29,26+b,9,7,'#647d88');g.rect(30,27+b,7,2,'#a8beb8');g.rect(22,30+b,3,7,'#baaa73');
   }else if(kind==='wooden_sword'||kind==='iron_sword'){
     const metal=kind==='iron_sword',dark=metal?'#4f747d':'#78543b',mid=metal?'#a7c7c5':'#bd9560',lit=metal?'#e5e8ca':'#ebc884';
-    const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?[44,hy-1]:action==='attack'&&i===1?[32,8]:[39,hy-13];
+    const start=[p.hand[0]+1,hy],tip=action==='attack'&&i===2?(p.direction==='north'?[24,2]:p.direction==='south'?[26,46]:[46,hy-1]):action==='attack'&&i===1?[32,8]:[39,hy-13];
     g.line(...start,...tip,outline,3);g.line(...start,...tip,mid,2);g.line(start[0],start[1]-1,tip[0],tip[1],lit);g.line(start[0]-3,start[1]-3,start[0]+4,start[1]-1,dark,2);g.rect(start[0],start[1],2,4,'#765541');
-    if(action==='attack'&&i===2){g.line(39,18,44,23,'#f2dc9c');g.line(44,23,45,29,'#f2dc9c');}
+    if(action==='attack'&&i===2){if(p.direction==='north'){g.line(17,7,22,3,'#f2dc9c');g.line(22,3,30,4,'#f2dc9c');}else if(p.direction==='south'){g.line(19,41,24,45,'#f2dc9c');g.line(24,45,33,43,'#f2dc9c');}else{g.line(39,18,44,23,'#f2dc9c');g.line(44,23,45,29,'#f2dc9c');}}
   }else if(kind==='wooden_shield'){
     g.poly([[10,29+b],[17,28+b],[19,36+b],[14,40+b],[9,36+b]],outline);g.poly([[11,30+b],[16,29+b],[17,35+b],[14,38+b],[10,35+b]],'#aa7d4c');g.line(13,30+b,13,36+b,'#dfb879');g.dot(14,33+b,'#e9d297');
   }else if(kind==='iron_armor'){
@@ -133,7 +139,7 @@ function overlay(kind,action,i){
 }
 const toolPalette = level => level===3 ? {body:'#c6a45d',light:'#f3dc91',shade:'#876d43',edge:'#4f5a4c'} : level===2 ? {body:'#829ea6',light:'#d2e0d1',shade:'#4d707d',edge:'#304e58'} : {body:'#a17b57',light:'#dfbc82',shade:'#6d5640',edge:'#34483e'};
 function toolOverlay(id,level,action,i){
- const g=new Grid(48,48),p=pose(action,i),b=p.bob,c=toolPalette(level),maintenance=['repair','upgrade'].includes(action);
+ const g=new Grid(48,48),p=pose(action,i),b=p.bob,c=toolPalette(level);action=action.split('_')[0];const maintenance=['repair','upgrade'].includes(action);
  const hy=Math.min(42,p.hand[1]+(p.seated?3:b));
  if(id==='hoe'){
   const hand=maintenance?[12,35+b]:[p.hand[0]+1,hy];
@@ -166,15 +172,17 @@ function toolIcon(id,level){
  return g;
 }
 function monster(id,action,i){
- const g=new Grid(48,48),b=(action==='walk'||action==='idle')&&i%2?-1:action==='attack'&&i===2?2:0;g.ellipse(6,39,36,7,'#203d383a');
+ const direction=action.split('_')[1]||'south';action=action.split('_')[0];const stride=['walk','run'].includes(action)?[-2,0,2,0][i]*(action==='run'?1.5:1):0;
+ const g=new Grid(48,48),b=(action==='walk'||action==='idle'||action==='run')&&i%2?(action==='run'?-3:-1):action==='attack'&&i===2?2:0;g.ellipse(6,39,36,7,'#203d383a');
  if(id==='forest_slime'){
   g.ellipse(7,18+b,34,25-b,outline);g.ellipse(8,19+b,32,22-b,'#568f6c');g.ellipse(9,19+b,27,18-b,'#8aba83');g.ellipse(12,20+b,17,7,'#c0d69b');g.rect(14,29+b,3,4,outline);g.rect(30,29+b,3,4,outline);g.dot(14,29+b,'#e8e9b4');g.dot(30,29+b,'#e8e9b4');g.rect(22,34+b,5,2,'#416a54');g.rect(10,35+b,3,2,'#add299');g.poly([[23,19+b],[19,13+b],[22,12+b],[25,17+b],[29,11+b],[32,14+b],[27,19+b]],'#547b50');
  } else if(id==='forest_boar'){
-  g.borderedRect(11,34,6,8,'#634e44');g.borderedRect(30,34,6,8,'#634e44');g.poly([[10,19+b],[8,8+b],[18,13+b],[31,13+b],[40,8+b],[38,21+b]],outline);g.poly([[11,17+b],[10,11+b],[17,15+b],[32,15+b],[38,11+b],[37,19+b]],'#b88759');g.ellipse(7,15+b,35,25,outline);g.ellipse(8,16+b,33,22,'#9c7152');g.ellipse(11,16+b,24,10,'#c79a69');g.poly([[17,16+b],[22,10+b],[25,16+b],[29,10+b],[32,18+b]],'#635246');g.rect(14,26+b,3,3,outline);g.rect(31,26+b,3,3,outline);g.ellipse(17,29+b,19,11,'#d7ae7b');g.rect(22,33+b,2,3,'#785643');g.rect(29,33+b,2,3,'#785643');g.poly([[12,31+b],[10,27+b],[10,36+b],[16,38+b]],'#efdfaf');g.poly([[37,31+b],[40,27+b],[39,36+b],[34,38+b]],'#efdfaf');
+  g.borderedRect(11,34+stride,6,8-stride,'#634e44');g.borderedRect(30,34-stride,6,8+stride,'#634e44');g.poly([[10,19+b],[8,8+b],[18,13+b],[31,13+b],[40,8+b],[38,21+b]],outline);g.poly([[11,17+b],[10,11+b],[17,15+b],[32,15+b],[38,11+b],[37,19+b]],'#b88759');g.ellipse(7,15+b,35,25,outline);g.ellipse(8,16+b,33,22,'#9c7152');g.ellipse(11,16+b,24,10,'#c79a69');g.poly([[17,16+b],[22,10+b],[25,16+b],[29,10+b],[32,18+b]],'#635246');g.rect(14,26+b,3,3,outline);g.rect(31,26+b,3,3,outline);g.ellipse(17,29+b,19,11,'#d7ae7b');g.rect(22,33+b,2,3,'#785643');g.rect(29,33+b,2,3,'#785643');g.poly([[12,31+b],[10,27+b],[10,36+b],[16,38+b]],'#efdfaf');g.poly([[37,31+b],[40,27+b],[39,36+b],[34,38+b]],'#efdfaf');
  } else {
-  g.borderedRect(13,34,8,10,'#596e6c');g.borderedRect(27,34,8,10,'#596e6c');g.borderedRect(12,19+b,25,18,'#718b80');g.rect(14,20+b,9,12,'#a2b59a');g.borderedRect(5,20+b,8,17,'#718b80');g.rect(6,21+b,5,5,'#a2b59a');g.borderedRect(36,20+b,8,17,'#718b80');g.rect(37,21+b,5,5,'#a2b59a');g.poly([[12,6+b],[32,4+b],[37,11+b],[35,24+b],[12,25+b],[10,14+b]],outline);g.poly([[13,7+b],[31,6+b],[35,12+b],[33,22+b],[13,23+b],[12,14+b]],'#91a68e');g.poly([[13,7+b],[29,7+b],[22,11+b],[13,13+b]],'#c1c6a3');g.rect(15,16+b,6,3,'#e9d888');g.rect(27,16+b,6,3,'#e9d888');g.poly([[24,25+b],[29,30+b],[24,36+b],[19,30+b]],outline);g.poly([[24,27+b],[27,30+b],[24,34+b],[21,30+b]],'#cbbd71');g.line(25,8+b,22,12+b,'#54766b');g.line(22,12+b,26,14+b,'#54766b');g.rect(13,8+b,3,4,'#66895a');
+  g.borderedRect(13,34+stride,8,10-stride,'#596e6c');g.borderedRect(27,34-stride,8,10+stride,'#596e6c');g.borderedRect(12,19+b,25,18,'#718b80');g.rect(14,20+b,9,12,'#a2b59a');g.borderedRect(5,20+b,8,17,'#718b80');g.rect(6,21+b,5,5,'#a2b59a');g.borderedRect(36,20+b,8,17,'#718b80');g.rect(37,21+b,5,5,'#a2b59a');g.poly([[12,6+b],[32,4+b],[37,11+b],[35,24+b],[12,25+b],[10,14+b]],outline);g.poly([[13,7+b],[31,6+b],[35,12+b],[33,22+b],[13,23+b],[12,14+b]],'#91a68e');g.poly([[13,7+b],[29,7+b],[22,11+b],[13,13+b]],'#c1c6a3');g.rect(15,16+b,6,3,'#e9d888');g.rect(27,16+b,6,3,'#e9d888');g.poly([[24,25+b],[29,30+b],[24,36+b],[19,30+b]],outline);g.poly([[24,27+b],[27,30+b],[24,34+b],[21,30+b]],'#cbbd71');g.line(25,8+b,22,12+b,'#54766b');g.line(22,12+b,26,14+b,'#54766b');g.rect(13,8+b,3,4,'#66895a');
  }
- if(action==='attack'&&i===2){g.line(37,20,44,27,'#efcf8b',2);g.line(41,29,45,31,'#fff0c2',2);}if(action==='hurt'){g.line(8,9,4,5,'#f1cf95',2);g.line(39,9,44,6,'#f1cf95',2);}return g;
+ if(direction==='north'){g.rect(14,25+b,21,10,id==='forest_slime'?'#8aba83':id==='forest_boar'?'#9c7152':'#91a68e');g.line(23,26+b,25,34+b,id==='forest_slime'?'#568f6c':'#635246',2);}
+ if(action==='attack'&&i===2){if(direction==='north'){g.line(16,8,23,2,'#efcf8b',2);g.line(28,3,34,8,'#fff0c2',2);}else if(direction==='south'){g.line(16,39,22,45,'#efcf8b',2);g.line(28,45,34,40,'#fff0c2',2);}else{g.line(37,20,44,27,'#efcf8b',2);g.line(41,29,45,31,'#fff0c2',2);}}if(action==='hurt'){g.line(8,9,4,5,'#f1cf95',2);g.line(39,9,44,6,'#f1cf95',2);}return g;
 }
 function crop(id,stage){const g=new Grid(32,32);if(stage==='untilled'){g.borderedRect(0,9,32,22,'#8b8460','#636747');for(const[x,y]of[[5,17],[14,24],[25,17],[27,28]]){g.line(x,y,x-2,y-5,'#60774d',2);g.line(x,y,x+3,y-4,'#a1ae6b',2);}g.poly([[17,13],[22,12],[24,15],[21,18],[16,16]],'#b6b393');g.dot(5,27,'#d2c48d');return g;}const wet=['growing','ready'].includes(stage);g.borderedRect(0,9,32,22,wet?'#71573f':'#967046','#514a36');g.rect(2,10,28,3,wet?'#92734e':'#bd915a');for(let y=16;y<31;y+=6){g.line(2,y,29,y,wet?'#4d4939':'#6d5238',2);g.line(2,y-1,27,y-1,wet?'#8c7651':'#b48a55');}if(wet){g.line(4,24,10,24,'#73958a');g.line(20,29,26,29,'#8aab98');}if(stage==='empty'||stage==='tilled')return g;for(const x of [7,16,25]){if(stage==='seeded'){g.dot(x,22,'#dbc38c');g.line(x,22,x,19,'#82a35a');g.dot(x-1,20,'#b3c67b');}else if(id==='turnip'){g.ellipse(x-4,stage==='ready'?17:21,8,stage==='ready'?10:6,stage==='ready'?'#f0e4b9':'#b1bc7c');g.line(x,24,x-1,28,'#d2c18f');g.poly([[x,21],[x-6,15],[x-4,12],[x,17],[x+4,11],[x+6,15]],'#668e4a');g.line(x,21,x,12,'#a9c67c');}else{g.line(x,27,x,9,'#a7a85c');for(const y of [12,17,22]){g.poly([[x,y+3],[x-4,y],[x-3,y-4],[x,y-1]],stage==='ready'?'#dfb85d':'#8da563');g.poly([[x,y+1],[x+4,y-3],[x+3,y-6],[x,y-2]],stage==='ready'?'#f0d27e':'#b4be73');}}}return g;}
 function seedRandom(seed=7340){return()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};}
@@ -319,7 +327,8 @@ function recipe(name,frames,w=48,h=48){
    const key=symbols[index.size];index.set(c,key);palette[key]=c;
  }
  const animations={};
- for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','till','plant','water','harvest','craft','repair','upgrade','cook','eat','resolved'].includes(a)}).frames.push(f.name);}
+ for(const f of frames){const a=f.action||f.name;(animations[a]??={frames:[],loop:!['attack','hurt','till','plant','water','harvest','craft','repair','upgrade','cook','eat','resolved'].includes(a.split('_')[0])}).frames.push(f.name);}
+ for(const action of baseMotions)if(animations[action]&&animations[`${action}_north`])animations[`${action}_south`]={...animations[action],frames:[...animations[action].frames]};
  const sourceFrames=frames.map(f=>{
    const ops=[];
    // A still may exceed 256px, but each editable Pixelbolt grid is at most 256².
@@ -328,7 +337,7 @@ function recipe(name,frames,w=48,h=48){
  });
  return {version:1,name,width:w,height:h,palette,frames:sourceFrames,animations,sheet:{columns:Math.min(8,frames.length),padding:0}};
 }
-const manifest={version:1,release:'0.18.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},scenes:{plaza:{image:'/pixel-world/scene_plaza.png',width:768,height:512},adventure:{image:'/pixel-world/scene_adventure.png',width:768,height:512}},props:{},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:11,y:8}}};
+const manifest={version:1,release:'0.19.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},scenes:{plaza:{image:'/pixel-world/scene_plaza.png',width:768,height:512},adventure:{image:'/pixel-world/scene_adventure.png',width:768,height:512}},props:{},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:11,y:8}}};
 function cli(args){return JSON.parse(execFileSync(process.execPath,[CLI,...args],{encoding:'utf8',maxBuffer:16*1024*1024}));}
 function exportRecipe(r,group,id=r.name){
  const path=join(SOURCE,`${r.name}.pixel.json`);
@@ -359,7 +368,7 @@ function exportRecipe(r,group,id=r.name){
  console.log(`${id}: ${r.width}x${r.height}, ${r.frames.length} frames`);
 }
 for(let i=0;i<8;i++)exportRecipe(recipe(`wanderer_${i+1}`,poses.map(p=>({...p,g:character(specs[i],p.action,p.frame)}))),'characters');
-for(const id of ['forest_slime','forest_boar','ruins_guardian'])exportRecipe(recipe(id,poses.filter(p=>['idle','walk','attack','hurt'].includes(p.action)).map(p=>({...p,g:monster(id,p.action,p.frame)}))),'monsters');
+for(const id of ['forest_slime','forest_boar','ruins_guardian'])exportRecipe(recipe(id,poses.filter(p=>['idle','walk','run','attack','hurt'].includes(p.action.split('_')[0])).map(p=>({...p,g:monster(id,p.action,p.frame)}))),'monsters');
 for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor','hunter_bow','heavy_hammer','heavy_armor'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'equipment');
 for(const id of ['supply_cache','wild_garden','spring'])exportRecipe(recipe(`discovery_${id}`,[{name:'idle',action:'idle',duration:1000,g:discovery(id)},...Array.from({length:4},(_,i)=>({name:`resolved_${i}`,action:'resolved',duration:300,g:discovery(id,true,i)}))]),'discoveries',id);
 for(const id of ['leaf','scarf','ribbon','star'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'accessories');

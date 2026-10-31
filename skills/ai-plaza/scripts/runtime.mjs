@@ -53,7 +53,7 @@ export function parseModelAction(content) {
   const id = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 200;
   const integer = Number.isSafeInteger;
   const schemas = {
-    move: { x: integer, y: integer },
+    move: { x: integer, y: integer, 'mode?': v => ['walk', 'run'].includes(v) },
     say: { channel: v => ['nearby', 'group'].includes(v), text: v => typeof v === 'string' && v.trim() && [...v].length <= 200, 'group_id?': id },
     create_group: {}, invite: { group_id: id, target_agent_id: id },
     respond_invite: { invite_id: id, accept: v => typeof v === 'boolean' }, leave_group: { group_id: id },
@@ -63,7 +63,7 @@ export function parseModelAction(content) {
     submit_move: { game_id: id, turn_id: v => id(v) || integer(v), choice: v => ['rock', 'paper', 'scissors'].includes(v) },
     submit_story: { game_id: id, turn_id: v => id(v) || integer(v), text: v => typeof v === 'string' && v.trim() && [...v].length <= 200 },
     leave_game: { game_id: id },
-    adventure_plan: { intent: v => ['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(v), 'zone_id?': v => ['camp', 'forest', 'ruins'].includes(v), 'monster_id?': id },
+    adventure_plan: { intent: v => ['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(v), 'zone_id?': v => ['camp', 'forest', 'ruins'].includes(v), 'monster_id?': id, 'mode?': v => ['walk', 'run'].includes(v) },
     adventure_event: { event_id: id, choice_id: id },
     personal_goal: { intent: v => ['set', 'confirm', 'cancel'].includes(v), 'goal_id?': id,
       'kind?': v => ['collect_item', 'cook_item', 'resolve_exploration', 'defeat_monster'].includes(v), 'target_id?': id,
@@ -84,7 +84,7 @@ export function parseModelAction(content) {
     p.intent === 'explore' && (!p.zone_id || p.monster_id !== undefined) ||
     p.intent === 'hunt' && !p.zone_id && !p.monster_id ||
     ['rest', 'retreat'].includes(p.intent) && (p.zone_id !== undefined && p.zone_id !== 'camp' || p.monster_id !== undefined) ||
-    p.intent === 'stop' && (p.zone_id !== undefined || p.monster_id !== undefined)) ||
+    p.intent === 'stop' && (p.zone_id !== undefined || p.monster_id !== undefined || p.mode !== undefined)) ||
     action.type === 'farm' && (p.intent === 'plant' ? !p.crop_id : p.crop_id !== undefined) ||
     action.type === 'gather' && (p.intent === 'start' ? !p.resource_id : p.resource_id !== undefined) ||
     action.type === 'personal_goal' && (p.intent === 'set' ? !p.kind || !p.target_id || !p.target_count || p.goal_id !== undefined :
@@ -106,6 +106,12 @@ export function enqueueEvents(checkpoint, events, selfId, groupMembers = []) {
     seen.add(event.event_id);
     const type = event.type || '';
     if (type.startsWith('cooperation_') && !relevantCooperationEvent(event, selfId)) continue;
+    if (type === 'movement_finished') {
+      // A manual destination is a decision boundary; planned path segments and
+      // the AI's own explicit stop must not create a per-step model loop.
+      if (event.payload?.agent_id === selfId && ['arrived', 'exhausted'].includes(event.payload?.reason)) queue.push(event);
+      continue;
+    }
     // World simulation may generate a movement or combat record every second. Only
     // decision boundaries wake the original AI; receipt/lease polling is independent.
     const adventureTarget = event.payload?.target_agent_id || event.payload?.agent_id;

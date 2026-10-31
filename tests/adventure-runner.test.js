@@ -97,10 +97,13 @@ test('危险唤醒原AI选择撤退，保持原动作回执和预算；计划中
   const f = await fixture(t, data => data.events.some(e => e.type === 'adventure_danger')
     ? { type: 'adventure_plan', payload: { intent: 'retreat' } }
     : { type: 'adventure_plan', payload: { intent: 'hunt', monster_id: 'ruins_guardian' } });
-  await f.decide(); f.poll();
   // This danger fixture begins already in the ruins, not at coincident plaza coordinates.
   f.a.scene_id = 'adventure'; f.a.position = { x: 19, y: 7 }; f.a.adventure.hp = 15;
-  f.tick(); f.advance(4000);
+  await f.decide(); f.poll();
+  f.tick();
+  assert.equal(f.a.adventure.hp, 15, '攻击准备阶段不能提前扣血');
+  for (let i = 0; i < 6 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_danger'); i++) f.tick();
+  f.advance(3000);
   assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_danger'));
   assert.equal(f.runner.decisionDue(), true);
   await f.decide(); f.poll();

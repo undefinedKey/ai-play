@@ -15,7 +15,7 @@ export function useRenderSprite(definition,frame,{facing='south',action='idle',l
   useLayoutEffect(()=>{
     if(!registry)return;
     if(!definition||!frame||(!ground&&!space)){registry.delete(id);return;}
-    registry.set(id,{definition,frame,x:ground?0:space.x,y:ground?0:space.y,depth:ground?-100:space.depth+layer,anchor:ground?[0,0]:space.anchor,scale:ground?1:space.scale,alpha:ground?1:space.alpha,flip:facing==='west'&&action==='walk',action});
+    registry.set(id,{definition,frame,x:ground?0:space.x,y:ground?0:space.y,depth:ground?-100:space.depth+layer,anchor:ground?[0,0]:space.anchor,scale:ground?1:space.scale,alpha:ground?1:space.alpha,flip:facing==='west',action});
   },[registry,id,definition,frame,space,ground,layer,facing,action]);
   useLayoutEffect(()=>()=>registry?.delete(id),[registry,id]);
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 // The original AI chooses a finite plan; this module only executes public game rules.
-import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward, findPath, isWalkable, sceneDefinition, recordMovement } from './spatial.js';
+import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward, findPath, isWalkable, sceneDefinition, recordMovement, advanceMovement, stopMovement, publicMovement, publicAction, publicHurt } from './spatial.js';
+import { facingBetween } from '../shared/motion.js';
 import { equipmentStats, grantMonsterLoot } from './life.js';
 import { combatStats } from './combat.js';
 import { FATIGUE_RULES, publicFatigue, spendEnergy, attackMultiplier, announceExhausted } from './fatigue.js';
@@ -19,17 +20,20 @@ const MONSTERS = [
   { monster_id: 'ruins_guardian', name: '遗迹守卫', zone_id: 'ruins', position: { x: 20, y: 7 }, max_hp: 70, attack: 8, xp: 48, gold: 24 },
 ];
 export const ADVENTURE_RULES = {
-  scene_id: 'adventure', map: { ...WORLD_MAP }, zones: ADVENTURE_ZONES, tick_ms: 1000, plan_seconds: 90, respawn_seconds: 60,
+  scene_id: 'adventure', map: { ...WORLD_MAP }, zones: ADVENTURE_ZONES, tick_ms: 100, plan_seconds: 90, respawn_seconds: 60,
   exploration: EXPLORATION_RULES,
   monster_ai: { aggro_radius: 3, leash_radius: 6, decision_seconds: 30, camp_safe_radius: 2, patrol_radius: 2, patrol_interval_ms: 2000 },
-  description: 'scene_id才是所在地，in_field只是野外战斗暴露。广场探索或狩猎先步行到(22,8)入口，再到冒险(11,8)入口继续目的地；rest/retreat/explore camp反向返回广场(11,8)营地。冒险(11,8)只提供安全入口，不是广场生活设施。总计划90秒不重置，stop或暂停不会换场景。AI 自己选择冒险计划；服务器每秒最多执行一步，不代替 AI 选择下一个计划。探索抵达结束移动，并在300秒全局冷却允许时产生150秒限时保护的待选发现；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命和体力；撤退回营地后结束，不自动开始休息；stop 只停止计划，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒一步；每秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
-  actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], zone_id: ['camp', 'forest', 'ruins'], monster_id: MONSTERS.map(m => m.monster_id) } },
+  description: 'scene_id才是所在地，in_field只是野外战斗暴露。广场探索或狩猎先步行到(22,8)入口，再到冒险(11,8)入口继续目的地；rest/retreat/explore camp反向返回广场(11,8)营地。冒险(11,8)只提供安全入口，不是广场生活设施。总计划90秒不重置，stop或暂停不会换场景。AI 自己选择冒险计划；服务器每100毫秒推进已授权的实际位置，walk每秒2格，run每秒3.5格且每格耗能为步行2倍；不代替 AI 选择下一个计划。探索抵达结束移动，并在300秒全局冷却允许时产生150秒限时保护的待选发现；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命和体力；撤退回营地后结束，不自动开始休息；stop 停止计划及正在进行的手动移动和未命中攻击，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒发起一段连续步行；每100毫秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
+  actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], mode:['walk','run'], zone_id: ['camp', 'forest', 'ruins'], monster_id: MONSTERS.map(m => m.monster_id) } },
   party: '使用 create_group / invite / respond_invite 自主组队；每位成员需自己选择 hunt 同一个 monster_id。同组或临时协力者只有实际参与战斗、结算时仍在目标附近且继续该计划，才按实际伤害分享总经验和金币。加入小组本身不授权战斗或跟随。',
-  combat: '普通攻击为 4 + 等级×2 + 武器加成；射程、攻击间隔、每击体力和移动体力按life.stats的装备有效属性，旧武器默认射程1格、间隔1秒、每击3体力；护甲降低怪物伤害但每次至少受到1点。怪物每秒最多移动一步或攻击一次，不叠加反击。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
+  combat: '普通攻击为 4 + 等级×2 + 武器加成；射程、攻击间隔、每击体力和移动体力按life.stats的装备有效属性，旧武器默认射程1格、间隔1秒、每击3体力；护甲降低怪物伤害但每次至少受到1点。角色攻击准备350–650毫秒，怪物准备450毫秒，命中时重检距离/目标/权限后结算，再恢复到攻击间隔结束；怪物每秒最多发起一次攻击，不叠加反击。走跑按实际途中位置判断危险和射程；原AI可停止/换计划取消未结算攻击，受击本身不自动改变意图。超过1秒迟到的命中不补伤害。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
 };
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const camp = ADVENTURE_ZONES[0];
 const clone = value => structuredClone(value);
+const publicNumber=value=>Number.isFinite(value)?value:undefined;
+const publicText=value=>typeof value==='string'?value:undefined;
+const publicPoint=value=>({x:publicNumber(value?.x),y:publicNumber(value?.y)});
 const safeCamp = position => distance(position, camp) <= camp.radius;
 // An eight-step diamond, not a fresh random choice at every frame.
 const PATROL_OFFSETS = [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }];
@@ -39,7 +43,7 @@ export function initializeAdventure(state, now) {
   const previous = state.adventure?.monsters || [];
   state.adventure = { last_tick_at: now, monsters: MONSTERS.map(template => {
     const old = previous.find(m => m.monster_id === template.monster_id);
-    return { ...clone(template), position: boundedPosition(template.position), hp: old ? Math.max(0, Math.min(template.max_hp, old.hp)) : template.max_hp,
+    return { ...clone(template), scene_id:'adventure', position: boundedPosition(template.position), position_at:now, facing:'south', movement:null, action:null, hurt:null, next_attack_at:0, hp: old ? Math.max(0, Math.min(template.max_hp, old.hp)) : template.max_hp,
       status: old?.status === 'respawning' ? 'respawning' : 'alive', respawn_at: old?.status === 'respawning' ? old.respawn_at : null, contributions: {}, strikes: 0,
       home_position: boundedPosition(template.position), target_agent_id: null, behavior: 'idle', aggro_radius: 3, leash_radius: 6,
       patrol_radius: 2, patrol_interval_ms: 2000, patrol_index: 0, next_patrol_at: now + 2000 };
@@ -58,19 +62,21 @@ export function publicFighter(a) {
   const f = a.adventure || freshFighter();
   return { hp: f.hp, max_hp: f.max_hp, level: f.level, xp: f.xp, gold: f.gold, kills: f.kills, in_field: f.in_field === true, decision_until: f.decision_until ?? null,
     encounter: publicEncounter(a), discovery_ready_at: f.discovery_ready_at || 0,
-    plan: f.plan ? { intent: f.plan.intent, zone_id: f.plan.zone_id, monster_id: f.plan.monster_id, started_at: f.plan.started_at, expires_at: f.plan.expires_at, phase: ['to_portal','to_target','resting'].includes(f.plan.phase) ? f.plan.phase : undefined, destination_scene_id: ['plaza','adventure'].includes(f.plan.destination_scene_id) ? f.plan.destination_scene_id : undefined } : null,
+    plan: f.plan ? { intent: f.plan.intent, mode:['walk','run'].includes(f.plan.mode)?f.plan.mode:'walk', zone_id: f.plan.zone_id, monster_id: f.plan.monster_id, started_at: f.plan.started_at, expires_at: f.plan.expires_at, phase: ['to_portal','to_target','resting'].includes(f.plan.phase) ? f.plan.phase : undefined, destination_scene_id: ['plaza','adventure'].includes(f.plan.destination_scene_id) ? f.plan.destination_scene_id : undefined } : null,
     last_result: f.last_result ? { kind: f.last_result.kind, text: f.last_result.text, at: f.last_result.at } : null };
 }
 export function publicAdventure(state) {
-  return { scene_id: 'adventure', map: { ...WORLD_MAP }, zones: clone(ADVENTURE_ZONES), tick_ms: 1000, plan_seconds: 90, exploration: clone(EXPLORATION_RULES),
-    monsters: (state.adventure?.monsters || []).map(m => ({ scene_id: 'adventure', monster_id: m.monster_id, name: m.name, zone_id: m.zone_id, position: clone(m.position), hp: m.hp, max_hp: m.max_hp, attack: m.attack, status: m.status, respawn_at: m.respawn_at,
-      home_position: clone(m.home_position), target_agent_id: m.target_agent_id, behavior: m.behavior, aggro_radius: m.aggro_radius, leash_radius: m.leash_radius,
-      patrol_radius: m.patrol_radius, patrol_interval_ms: m.patrol_interval_ms })) };
+  return { scene_id: 'adventure', map: { ...WORLD_MAP }, zones: clone(ADVENTURE_ZONES), tick_ms: 100, plan_seconds: 90, exploration: clone(EXPLORATION_RULES),
+    monsters: (state.adventure?.monsters || []).map(m => ({ scene_id: 'adventure', monster_id:publicText(m.monster_id), name:publicText(m.name), zone_id:publicText(m.zone_id), position:publicPoint(m.position),position_at:publicNumber(m.position_at),facing:['north','south','east','west'].includes(m.facing)?m.facing:'south',movement:publicMovement(m),action:publicAction(m),hurt:publicHurt(m), hp:publicNumber(m.hp), max_hp:publicNumber(m.max_hp), attack:publicNumber(m.attack), status:publicText(m.status), respawn_at:m.respawn_at===null?null:publicNumber(m.respawn_at),
+      home_position:publicPoint(m.home_position), target_agent_id:publicText(m.target_agent_id)||null, behavior:publicText(m.behavior), aggro_radius:publicNumber(m.aggro_radius), leash_radius:publicNumber(m.leash_radius),
+      patrol_radius:publicNumber(m.patrol_radius), patrol_interval_ms:publicNumber(m.patrol_interval_ms) })) };
 }
 function announce(world, type, a, text, extra = {}) {
   return world.event(type, { ...(a ? { agent_id: a.agent_id, name: a.name } : {}), text, ...extra }, world.activeIds());
 }
 export function stopAdventure(world, a, kind = 'stopped', text = '冒险计划已停止') {
+  stopMovement(a,world.now());
+  cancelAttack(a,world.now());
   if (!a.adventure?.plan) return false;
   a.adventure.plan = null;
   a.adventure.last_result = { kind, text, at: world.now() };
@@ -93,14 +99,15 @@ export function leaveAdventureField(world, a) {
 }
 export function startAdventure(world, a, payload, fail) {
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
-  if (Object.keys(payload).some(k => !['intent', 'zone_id', 'monster_id'].includes(k)) || !['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(payload.intent)) fail('INVALID_ACTION', '冒险计划只接受 intent、zone_id 和 monster_id');
+  if (Object.keys(payload).some(k => !['intent', 'zone_id', 'monster_id','mode'].includes(k)) || !['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(payload.intent) || payload.mode !== undefined && !['walk','run'].includes(payload.mode)) fail('INVALID_ACTION', '冒险计划只接受 intent、zone_id、monster_id 和可选 mode:walk|run');
   const { intent, zone_id, monster_id } = payload;
   if (encounterPending(a, world.now()) && !['stop', 'retreat'].includes(intent)) fail('ENCOUNTER_PENDING', '请先处理探索发现，或明确 stop/retreat 中断');
   if (zone_id !== undefined && !ADVENTURE_ZONES.some(z => z.id === zone_id)) fail('INVALID_ACTION', '冒险区域不存在');
   if (monster_id !== undefined && (intent !== 'hunt' || typeof monster_id !== 'string')) fail('INVALID_ACTION', '只有 hunt 可以指定 monster_id');
   if (intent === 'stop') {
-    if (zone_id !== undefined) fail('INVALID_ACTION', 'stop 不接受 zone_id');
+    if (zone_id !== undefined || payload.mode !== undefined) fail('INVALID_ACTION', 'stop 不接受 zone_id 或 mode');
     endEncounter(world, a);
+    if(a.movement && !a.adventure.plan) announce(world,'movement_finished',a,`${a.name}主动停止移动`,{reason:'stopped',position:{...a.position}});
     stopAdventure(world, a); return { adventure: publicFighter(a) };
   }
   if (a.activity) fail('ACTIVITY_BUSY', '请先结束独处活动，再开始冒险');
@@ -121,9 +128,10 @@ export function startAdventure(world, a, payload, fail) {
     zone = target.zone_id;
   }
   if (intent === 'retreat') endEncounter(world, a);
+  if (payload.mode === 'run' && publicFatigue(a).energy <= 0) fail('FATIGUE_EXHAUSTED','体力不足以奔跑，仍可自行选择步行');
   stopAdventure(world, a, 'replanned', '原 AI 改变了冒险计划');
   const destination_scene_id = zone === 'camp' ? 'plaza' : 'adventure';
-  a.adventure.plan = { phase: a.scene_id === destination_scene_id ? 'to_target' : 'to_portal', destination_scene_id, intent, zone_id: zone, monster_id: target?.monster_id || null, started_at: world.now(), expires_at: world.now() + 90000 };
+  a.adventure.plan = { phase: a.scene_id === destination_scene_id ? 'to_target' : 'to_portal', destination_scene_id, intent, mode:payload.mode || 'walk', zone_id: zone, monster_id: target?.monster_id || null, started_at: world.now(), expires_at: world.now() + 90000 };
   if (['hunt', 'explore'].includes(intent) && zone !== 'camp') a.adventure.in_field = a.scene_id === 'adventure' && !safeCamp(a.position);
   if (intent === 'hunt') a.adventure.decision_until = null;
   a.adventure.last_result = null;
@@ -132,9 +140,10 @@ export function startAdventure(world, a, payload, fail) {
   return { adventure: publicFighter(a) };
 }
 function moveToward(a, target, world) {
+  if (a.movement) return true;
   const path = findPath(a.scene_id || 'adventure', a.position, target);
   if (!path || path.length < 2) return false;
-  if (world) { spendEnergy(world, a, 'move', 1); recordMovement(a, path.slice(0, 2), world.now()); }
+  if (world) { recordMovement(a, path.slice(0, 2), world.now(),a.adventure?.plan?.mode); }
   else a.position = path[1];
   return true;
 }
@@ -142,7 +151,7 @@ function changeScene(world, a, sceneId, position, reason) {
   const from_scene_id = a.scene_id, from_position = { ...a.position };
   if (a.next_action_id) a.scene_stale_actions = [...(a.scene_stale_actions || []), a.next_action_id].slice(-8);
   a.next_action_id = `act_${randomUUID()}`;
-  a.scene_id = sceneId; a.position = { ...position }; a.movement = null;
+  a.scene_id = sceneId; a.position = { ...position }; a.movement = null; a.position_at=world.now(); cancelAttack(a,world.now());
   leaveAdventureField(world, a);
   world.event('scene_changed', { agent_id: a.agent_id, scene_id: sceneId, from_scene_id, position: { ...position }, from_position, reason,
     text: `${a.name}${reason === 'rescue' ? '被救援回到广场营地' : `通过入口来到${sceneId === 'plaza' ? '社交广场' : '冒险地图'}`}` }, world.activeIds());
@@ -166,7 +175,7 @@ function patrol(m, now) {
     // At map/camp edges a skipped waypoint can need the other axis first.
     const next = [primary, vertical].find(position => distance(m.position, position) === 1 && allowedMonsterStep(m, position, m.patrol_radius));
     if (next) {
-      m.position = next; m.behavior = 'patrolling';
+      recordMovement(m,[{...m.position},next],now); m.behavior = 'patrolling';
       if (!distance(m.position, target)) m.patrol_index = (m.patrol_index + 1) % route.length;
       return true;
     }
@@ -175,7 +184,7 @@ function patrol(m, now) {
   return false;
 }
 function reward(world, monster) {
-  const eligible = Object.entries(monster.contributions).map(([id, damage]) => ({ a: world.state.agents[id], damage })).filter(({ a, damage }) => a?.status === 'active' && a.scene_id === 'adventure' && damage > 0 && a.adventure?.plan?.monster_id === monster.monster_id && distance(a.position, monster.position) <= Math.max(2, combatStats(a).range));
+  const eligible = Object.entries(monster.contributions).map(([id, damage]) => ({ a: world.state.agents[id], damage })).filter(({ a, damage }) => agentPermitted(world,a,world.now()) && a.scene_id === 'adventure' && damage > 0 && a.adventure?.plan?.expires_at>world.now() && a.adventure?.plan?.monster_id === monster.monster_id && distance(a.position, monster.position) <= Math.max(2, combatStats(a).range));
   const total = eligible.reduce((n, entry) => n + entry.damage, 0);
   let xpLeft = monster.xp, goldLeft = monster.gold;
   for (const [index, { a, damage }] of eligible.entries()) {
@@ -197,7 +206,7 @@ function reward(world, monster) {
     stopAdventure(world, a, 'victory', `击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}`);
   }
   monster.hp = 0; monster.status = 'respawning'; monster.respawn_at = world.now() + 60000; monster.contributions = {};
-  monster.target_agent_id = null; monster.behavior = 'idle'; monster.position = boundedPosition(monster.home_position);
+  monster.target_agent_id = null; monster.behavior = 'idle'; stopMovement(monster,world.now()); cancelAttack(monster,world.now());
   monster.patrol_index = 0; monster.next_patrol_at = monster.respawn_at + monster.patrol_interval_ms;
 }
 function vulnerable(world, a) {
@@ -214,13 +223,14 @@ function finishAtDecision(world, a, kind, text) {
     announce(world, 'adventure_finished', a, `${a.name}：${text}`, { kind });
   }
 }
-function monsterAttack(world, m, a) {
+function monsterAttack(world, m, a, action) {
   // Recheck after every monster: another monster can grant protection this tick.
   if (!vulnerable(world, a) || distance(a.position, m.position) > 1) return false;
   const f = a.adventure, before = f.hp;
   const damage = Math.max(1, m.attack - equipmentStats(a).defense);
   f.hp = Math.max(0, f.hp - damage);
-  announce(world, 'adventure_combat', a, `${m.name}攻击${a.name}，造成 ${damage} 点伤害`, { monster_id: m.monster_id, attacker: 'monster', damage, hp: f.hp });
+  if(action) { action.outcome='hit'; action.damage=damage; a.hurt={action_id:action.action_id,started_at:world.now(),ends_at:world.now()+360,damage}; }
+  announce(world, 'adventure_combat', a, `${m.name}攻击${a.name}，造成 ${damage} 点伤害`, { monster_id: m.monster_id, attacker: 'monster', damage, hp: f.hp,action_id:action?.action_id });
   if (f.hp === 0) {
     changeScene(world, a, 'plaza', { x: camp.x, y: camp.y }, 'rescue'); f.hp = 10;
     announce(world, 'adventure_defeated', a, `${a.name}被${m.name}击败，已安全返回营地`, { monster_id: m.monster_id });
@@ -246,112 +256,155 @@ function targetMonster(world, m, target) {
     announce(world, 'adventure_aggro', target, `${m.name}盯上了${target.name}`, { monster_id: m.monster_id, target_agent_id: target.agent_id });
   }
 }
-/** One fixed step at most: a delayed process never catches up minutes of combat. */
-export function tickAdventure(world) {
-  const state = world.state.adventure, now = world.now();
-  if (world.state.room.status !== 'active' || now - state.last_tick_at < 1000) return { changed: false, durable: false };
-  state.last_tick_at = now;
-  let changed = false, durable = false;
-  for (const m of state.monsters) if (m.status === 'respawning' && m.respawn_at <= now) {
-    m.status = 'alive'; m.hp = m.max_hp; m.respawn_at = null; m.contributions = {}; m.strikes = 0; changed = true;
-    m.position = boundedPosition(m.home_position); m.target_agent_id = null; m.behavior = 'idle';
-    m.patrol_index = 0; m.next_patrol_at = now + m.patrol_interval_ms;
-    announce(world, 'adventure_respawn', null, `${m.name}重新出现在${ADVENTURE_ZONES.find(z => z.id === m.zone_id).name}`, { monster_id: m.monster_id });
+// Attack outcomes are authoritative, bounded and idempotent. An interrupted
+// preparation never deals damage, and a delayed process never replays a backlog.
+function cancelAttack(actor, now) {
+  const action=actor.action;
+  if(action && action.outcome === null) {
+    action.outcome='cancelled'; action.phase='cancelled'; action.resolved_at=now;
+    action.ends_at=Math.min(action.ends_at,now+150);
   }
-  const attackers = new Map();
-  for (const a of Object.values(world.state.agents)) {
-    const f = a.adventure, p = f?.plan;
-    if (a.status !== 'active' || !f) continue;
-    if (f.decision_until !== null && f.decision_until <= now) { f.decision_until = null; changed = true; }
-    if (p) {
-      changed = true;
-      if (p.expires_at <= now) { stopAdventure(world, a, 'expired', '本次冒险计划已到时，请重新决定下一步'); durable = true; }
-      else if (a.scene_id !== p.destination_scene_id) {
-        p.phase = 'to_portal';
-        const portal = sceneDefinition(a.scene_id).portal;
-        if (distance(a.position, portal.position)) {
-          if (!moveToward(a, portal.position, world)) { stopAdventure(world, a, 'unreachable', '入口暂不可达，请重新观察'); durable = true; }
-        } else {
-          changeScene(world, a, portal.to_scene_id, portal.to_position, 'portal'); p.phase = 'to_target'; durable = true;
+}
+function attackBusy(actor,now) { return actor.action && actor.action.outcome!=='cancelled' && now<actor.action.ends_at; }
+function startAttack(actor,target,now,{interval=1000,targetKind='monster',windup=350}={}) {
+  stopMovement(actor,now);
+  const facing=facingBetween(actor.position,target.position,actor.facing);
+  actor.facing=facing;
+  actor.action={action_id:`combat_${randomUUID()}`,type:'attack',scene_id:actor.scene_id,target_id:targetKind==='monster'?target.monster_id:target.agent_id,target_kind:targetKind,facing,
+    started_at:now,impact_at:now+windup,ends_at:now+Math.max(windup+300,interval),phase:'prepare',outcome:null,damage:0,resolved_at:null};
+  if(targetKind==='monster') actor.adventure.next_attack_at=now+interval;
+  else actor.next_attack_at=now+interval;
+}
+function agentPermitted(world,a,now) { return world.state.room.status==='active' && a?.status==='active' && a.run?.status==='active' && a.run.expires_at>now && a.last_contact_at!==null && a.last_contact_at+45000>now; }
+function resolveAttack(world,actor,target,valid,apply) {
+  const now=world.now(),action=actor.action;
+  if(!action || action.outcome!==null || now<action.impact_at) return false;
+  action.phase='recovery'; action.resolved_at=now;
+  // More than one second late is a missed action, not deferred free damage.
+  action.outcome='miss';
+  if(now-action.impact_at>1000 || !target || !valid()) return true;
+  apply(action); return true;
+}
+function trimMotionState(actor,now) {
+  let changed=false;
+  if(actor.hurt && now>=actor.hurt.ends_at) { actor.hurt=null;changed=true; }
+  if(actor.action && now>=actor.action.ends_at+1000) { actor.action=null;changed=true; }
+  return changed;
+}
+function moveMonster(m,target,now,radius) {
+  if(m.movement) return true;
+  const path=findPath('adventure',m.position,target,{allowed:p=>allowedMonsterStep(m,p,radius)});
+  if(!path || path.length<2) return false;
+  recordMovement(m,path.slice(0,2),now); return true;
+}
+/** One bounded intent step per tick. Movement settles continuously; no missed
+ * attacks, goals, patrols or plans are manufactured to catch up a stalled loop. */
+export function tickAdventure(world) {
+  const state=world.state.adventure,now=world.now();
+  if(world.state.room.status!=='active' || now-state.last_tick_at<100) return {changed:false,durable:false};
+  state.last_tick_at=now;
+  let changed=false,durable=false;
+  for(const m of state.monsters) {
+    m.scene_id='adventure';
+    changed=trimMotionState(m,now)||changed;
+    if(m.status==='respawning' && m.respawn_at<=now) {
+      m.status='alive';m.hp=m.max_hp;m.respawn_at=null;m.contributions={};m.strikes=0;
+      m.position=boundedPosition(m.home_position);m.position_at=now;m.movement=null;m.action=null;m.hurt=null;m.target_agent_id=null;m.behavior='idle';m.next_attack_at=now;
+      m.patrol_index=0;m.next_patrol_at=now+m.patrol_interval_ms;changed=true;durable=true;
+      announce(world,'adventure_respawn',null,`${m.name}重新出现在${ADVENTURE_ZONES.find(z=>z.id===m.zone_id).name}`,{monster_id:m.monster_id});
+    }
+    if(m.status==='alive') changed=advanceMovement(m,now)||changed;
+  }
+  // Positions have settled before impact validation; a moving target can leave
+  // range during preparation. Each action only transitions out of null once.
+  for(const a of Object.values(world.state.agents)) {
+    changed=trimMotionState(a,now)||changed;
+    const action=a.action;
+    if(action?.outcome!==null || !action) continue;
+    const p=a.adventure?.plan,m=state.monsters.find(m=>m.monster_id===action.target_id);
+    if(!agentPermitted(world,a,now) || !p || p.expires_at<=now || p.intent!=='hunt' || p.monster_id!==action.target_id) {cancelAttack(a,now);changed=true;continue;}
+    if(resolveAttack(world,a,m,()=>m.status==='alive' && m.hp>0 && a.scene_id==='adventure' && !safeCamp(a.position) && distance(a.position,m.position)<=combatStats(a).range+1e-8,action=>{
+      if(!spendEnergy(world,a,'attack')) return;
+      const damage=Math.min(m.hp,Math.max(1,Math.floor(combatStats(a).attack*attackMultiplier(a))));
+      m.hp-=damage;action.outcome='hit';action.damage=damage;
+      m.hurt={action_id:action.action_id,started_at:now,ends_at:now+360,damage};
+      m.contributions[a.agent_id]=(m.contributions[a.agent_id]||0)+damage;
+      announce(world,'adventure_combat',a,`${a.name}攻击${m.name}，造成 ${damage} 点伤害`,{monster_id:m.monster_id,attacker:'agent',damage,hp:m.hp,action_id:action.action_id});
+      if(m.hp<=0) reward(world,m);
+    })) {changed=true;durable=true;}
+  }
+  for(const m of state.monsters) {
+    const action=m.action;
+    if(!action || action.outcome!==null) continue;
+    const a=world.state.agents[action.target_id];
+    if(m.status!=='alive' || !vulnerable(world,a) || m.target_agent_id!==a?.agent_id) {cancelAttack(m,now);changed=true;continue;}
+    if(resolveAttack(world,m,a,()=>vulnerable(world,a) && distance(m.position,a.position)<=1+1e-8,action=>{monsterAttack(world,m,a,action);})){changed=true;durable=true;}
+  }
+  for(const a of Object.values(world.state.agents)) {
+    const f=a.adventure,p=f?.plan;
+    if(!agentPermitted(world,a,now) || !f) continue;
+    if(f.decision_until!==null && f.decision_until<=now) {f.decision_until=null;changed=true;}
+    if(p) {
+      if(p.expires_at<=now) {stopAdventure(world,a,'expired','本次冒险计划已到时，请重新决定下一步');changed=true;durable=true;}
+      else if(a.scene_id!==p.destination_scene_id) {
+        p.phase='to_portal';const portal=sceneDefinition(a.scene_id).portal;
+        if(distance(a.position,portal.position)>1e-8) {
+          if(!moveToward(a,portal.position,world)){stopAdventure(world,a,'unreachable','入口暂不可达，请重新观察');durable=true;}
+        } else {changeScene(world,a,portal.to_scene_id,portal.to_position,'portal');p.phase='to_target';durable=true;}
+        changed=true;
+      } else if(p.intent==='hunt') {
+        p.phase='to_target';const m=state.monsters.find(m=>m.monster_id===p.monster_id),stats=combatStats(a);
+        if(publicFatigue(a).energy<stats.attack_energy) {stopAdventure(world,a,'exhausted','体力不足以继续攻击，请自主决定撤退、休息或其他活动');announceExhausted(world,a);changed=true;durable=true;}
+        else if(!m || m.status!=='alive') {stopAdventure(world,a,'target_unavailable','目标已被击败，请重新决定下一步');changed=true;durable=true;}
+        else if(!attackBusy(a,now)) {
+          if(distance(a.position,m.position)>stats.range+1e-8 || safeCamp(a.position)) {
+            if(!moveToward(a,m.position,world)){stopAdventure(world,a,'unreachable','目标暂不可达，请重新观察');durable=true;} changed=true;
+          } else if(now>=(f.next_attack_at||0)) {startAttack(a,m,now,{interval:stats.attack_interval_ms,windup:Math.min(650,Math.round(stats.attack_interval_ms*.35))});changed=true;}
         }
-      } else if (p.intent === 'hunt') {
-        p.phase = 'to_target';
-        const m = state.monsters.find(m => m.monster_id === p.monster_id);
-        const stats = combatStats(a);
-        if (publicFatigue(a).energy < stats.attack_energy) {
-          stopAdventure(world, a, 'exhausted', '体力不足以继续攻击，请自主决定撤退、休息或其他活动'); announceExhausted(world, a); durable = true;
-        } else if (!m || m.status !== 'alive') { stopAdventure(world, a, 'target_unavailable', '目标已被击败，请重新决定下一步'); durable = true; }
-        else if (distance(a.position, m.position) > stats.range || safeCamp(a.position)) moveToward(a, m.position, world);
-        else if (now >= (f.next_attack_at || 0)) { if (!attackers.has(m.monster_id)) attackers.set(m.monster_id, []); attackers.get(m.monster_id).push(a); }
       } else {
-        p.phase = 'to_target';
-        const target = ADVENTURE_ZONES.find(z => z.id === p.zone_id);
-        if (distance(a.position, target) > 0) moveToward(a, target, world);
+        const target=ADVENTURE_ZONES.find(z=>z.id===p.zone_id);p.phase='to_target';
+        if(distance(a.position,target)>1e-8) {if(!moveToward(a,target,world)){stopAdventure(world,a,'unreachable','目标暂不可达，请重新观察');durable=true;}changed=true;}
         else {
-          if (p.intent === 'rest') p.phase = 'resting';
-          if (p.intent === 'rest') f.hp = Math.min(f.max_hp, f.hp + 5);
-          if (p.intent !== 'rest' || f.hp === f.max_hp && publicFatigue(a).energy === 100) {
-            announce(world, 'adventure_arrived', a, `${a.name}${p.intent === 'rest' ? '在营地恢复了生命与体力' : `抵达${target.name}`}`, { zone_id: target.id });
-            stopAdventure(world, a, 'completed', p.intent === 'rest' ? '休息完毕，生命与体力已恢复' : `已抵达${target.name}，请自主决定下一步`); durable = true;
-            if (p.intent === 'explore') discoverEncounter(world, a, target.id);
+          stopMovement(a,now);
+          if(p.intent==='rest') {
+            p.phase='resting';const elapsed=Math.min(1000,Math.max(0,now-(p.last_rest_at??now)));p.last_rest_at=now;
+            if(f.hp<f.max_hp && elapsed){f.hp=Math.min(f.max_hp,f.hp+5*elapsed/1000);changed=true;}
+          }
+          if(p.intent!=='rest' || f.hp===f.max_hp && publicFatigue(a).energy===100) {
+            announce(world,'adventure_arrived',a,`${a.name}${p.intent==='rest'?'在营地恢复了生命与体力':`抵达${target.name}`}`,{zone_id:target.id});
+            stopAdventure(world,a,'completed',p.intent==='rest'?'休息完毕，生命与体力已恢复':`已抵达${target.name}，请自主决定下一步`);durable=true;changed=true;
+            if(p.intent==='explore')discoverEncounter(world,a,target.id);
           }
         }
       }
     }
-    if (a.scene_id !== 'adventure' || safeCamp(a.position)) {
-      if (f.in_field || f.decision_until !== null) { leaveAdventureField(world, a); changed = true; durable = true; }
-    } else if (p && ['hunt', 'explore'].includes(p.intent) && p.zone_id !== 'camp') f.in_field = true;
+    if(a.scene_id!=='adventure'||safeCamp(a.position)) {
+      if(f.in_field||f.decision_until!==null){leaveAdventureField(world,a);changed=true;durable=true;}
+    } else if(p && ['hunt','explore'].includes(p.intent) && p.zone_id!=='camp') f.in_field=true;
   }
-  // AI-authored hunt plans attack first. Merely being chased never invents a hunt.
-  for (const [id, party] of attackers) {
-    const m = state.monsters.find(m => m.monster_id === id);
-    for (const a of party) {
-      if (m.hp <= 0) break;
-      if (!spendEnergy(world, a, 'attack')) continue;
-      const stats = combatStats(a);
-      a.adventure.next_attack_at = now + stats.attack_interval_ms; durable = true;
-      const damage = Math.min(m.hp, Math.max(1, Math.floor(stats.attack * attackMultiplier(a)))); m.hp -= damage;
-      m.contributions[a.agent_id] = (m.contributions[a.agent_id] || 0) + damage;
-      announce(world, 'adventure_combat', a, `${a.name}攻击${m.name}，造成 ${damage} 点伤害`, { monster_id: id, attacker: 'agent', damage, hp: m.hp });
-    }
-    if (m.hp <= 0) { reward(world, m); durable = true; }
-  }
-  // All monster damage lives in this one phase: never retaliation plus aggro damage.
-  for (const m of state.monsters) {
-    if (m.status !== 'alive') continue;
-    const retaliation = (attackers.get(m.monster_id) || []).filter(a => vulnerable(world, a) && distance(a.position, m.position) <= 1);
-    const previous = m.target_agent_id;
-    let target = world.state.agents[previous];
-    if (!vulnerable(world, target) || distance(target.position, m.home_position) > m.leash_radius && !retaliation.includes(target)) target = null;
-    if (!target) target = retaliation[0] || Object.values(world.state.agents).filter(a => vulnerable(world, a) && distance(a.position, m.position) <= m.aggro_radius && distance(a.position, m.home_position) <= m.leash_radius).sort((a, b) => distance(a.position, m.position) - distance(b.position, m.position))[0];
-    if (target) {
-      targetMonster(world, m, target); changed = true;
-      if (distance(m.position, target.position) <= 1) {
-        m.behavior = 'attacking'; if (monsterAttack(world, m, target)) durable = true;
-      } else {
-        const step = { position: stepToward(m.position, target.position, 1, 'adventure', p => allowedMonsterStep(m, p, m.leash_radius)) };
-        if (allowedMonsterStep(m, step.position, m.leash_radius)) { m.position = step.position; m.behavior = 'chasing'; }
-        else { m.target_agent_id = null; m.behavior = 'returning'; }
+  for(const m of state.monsters) {
+    if(m.status!=='alive')continue;
+    const previous=m.target_agent_id;
+    let target=world.state.agents[previous];
+    if(!vulnerable(world,target)||distance(target.position,m.home_position)>m.leash_radius)target=null;
+    if(!target)target=Object.values(world.state.agents).filter(a=>vulnerable(world,a)&&distance(a.position,m.position)<=m.aggro_radius&&distance(a.position,m.home_position)<=m.leash_radius).sort((a,b)=>distance(a.position,m.position)-distance(b.position,m.position))[0];
+    if(target) {
+      if(m.target_agent_id!==target.agent_id){stopMovement(m,now);cancelAttack(m,now);}
+      targetMonster(world,m,target);changed=true;
+      if(!attackBusy(m,now)) {
+        if(distance(m.position,target.position)<=1+1e-8){m.behavior='attacking';if(now>=(m.next_attack_at||0))startAttack(m,target,now,{targetKind:'agent',windup:450});}
+        else {m.behavior='chasing';if(!moveMonster(m,target.position,now,m.leash_radius)){m.target_agent_id=null;m.behavior='returning';}}
       }
     } else {
-      m.target_agent_id = null;
-      const returning = previous || ['chasing', 'attacking', 'returning'].includes(m.behavior) || m.hp !== m.max_hp || m.behavior === 'idle' && distance(m.position, m.home_position);
-      if (returning) {
-        if (distance(m.position, m.home_position)) {
-          m.behavior = 'returning';
-          const step = stepToward(m.position, m.home_position, 1, 'adventure', p => allowedMonsterStep(m, p, m.leash_radius));
-          if (allowedMonsterStep(m, step, m.leash_radius)) m.position = step;
-          changed = true;
-        }
-        if (!distance(m.position, m.home_position)) {
-          m.behavior = 'idle'; m.hp = m.max_hp; m.contributions = {}; m.patrol_index = 0; m.next_patrol_at = now + m.patrol_interval_ms; changed = true;
-        }
-      } else if (patrol(m, now)) {
-        changed = true;
-      }
+      if(previous){cancelAttack(m,now);stopMovement(m,now);}
+      m.target_agent_id=null;
+      const returning=previous||['chasing','attacking','returning'].includes(m.behavior)||m.hp!==m.max_hp||m.behavior==='idle'&&distance(m.position,m.home_position);
+      if(returning) {
+        if(distance(m.position,m.home_position)>1e-8){m.behavior='returning';moveMonster(m,m.home_position,now,m.leash_radius);changed=true;}
+        else {m.behavior='idle';m.hp=m.max_hp;m.contributions={};m.patrol_index=0;m.next_patrol_at=now+m.patrol_interval_ms;changed=true;}
+      } else if(!m.movement&&patrol(m,now))changed=true;
     }
   }
-  // Movement is a snapshot update, not a per-step event that would wake every model.
-  if (changed) world.state.room.world_revision++;
-  return { changed, durable };
+  if(changed)world.state.room.world_revision++;
+  return {changed,durable};
 }

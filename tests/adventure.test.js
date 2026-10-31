@@ -31,7 +31,7 @@ function fixture(t, options = {}) {
   const advance = (ms, connected = people) => {
     const end = now + ms;
     while (now < end) {
-      now = Math.min(end, now + 1000); world.tick();
+      now = Math.min(end, now + 100); world.tick();
       for (const p of connected) if (world.agent(p.agent.agent_id).status === 'active') observe(p);
     }
   };
@@ -154,7 +154,7 @@ test('模拟不补算长时间卡顿，计划最迟90秒结束', t => {
   const f = fixture(t), p = f.make(); f.plan(p, 'explore', { zone_id: 'ruins' });
   const a = f.fighter(p), pos = { ...a.position };
   f.jump(10000);
-  assert.equal(Math.abs(a.position.x - pos.x) + Math.abs(a.position.y - pos.y), 1);
+  assert.deepEqual(a.position,pos); assert.ok(a.movement, 'late first tick starts a path rather than teleporting');
   // A finite plan deadline is independent from the renewable control lease.
   a.adventure.plan.expires_at = f.now() + 2000; f.advance(2000);
   assert.equal(a.adventure.plan, null); assert.equal(a.adventure.last_result.kind, 'expired');
@@ -275,7 +275,7 @@ test('发现冷却期间只探索也会被追击攻击；不替原AI反击，锁
   f.fighter(p).adventure.discovery_ready_at = f.now() + 300000;
   f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000);
   const m = f.world.state.adventure.monsters[2], a = f.fighter(p);
-  assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'chasing'); assert.deepEqual(m.position, { x: 19, y: 7 }); assert.equal(a.adventure.hp, 40);
+  assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'attacking'); assert.ok(Math.abs(m.position.x-a.position.x)+Math.abs(m.position.y-a.position.y)<=1); assert.equal(a.adventure.hp, 40);
   f.advance(2000); assert.equal(a.adventure.hp, 24); assert.equal(m.behavior, 'attacking');
   assert.equal(a.adventure.plan, null); assert.equal(a.adventure.in_field, true); assert.equal(a.adventure.last_result.kind, 'completed');
   assert.equal(m.hp, 70); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length, 0);
@@ -299,7 +299,7 @@ test('发现冷却期间stop和探索结束不授予免疫；无计划低血仍�
   const a = f.fighter(p); assert.equal(a.adventure.plan, null); assert.equal(a.adventure.hp, 32);
   f.advance(1000); assert.equal(a.adventure.hp, 24); assert.equal(a.adventure.in_field, true);
   f.advance(2000); assert.equal(a.adventure.hp, 8); assert.equal(a.adventure.last_result.kind, 'needs_decision');
-  assert.equal(a.adventure.decision_until, f.now() + 30000);
+  assert.equal(a.adventure.decision_until, f.world.state.events.findLast(e=>e.type==='adventure_danger').occurred_at+30000);
   const until = a.adventure.decision_until, hp = a.adventure.hp;
   f.plan(p, 'stop'); f.advance(1000); assert.equal(a.adventure.decision_until, until); assert.equal(a.adventure.hp, hp);
   f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000); assert.equal(a.adventure.decision_until, until);
@@ -312,7 +312,7 @@ test('同tick多怪只有第一只跨低血线时受击，后续怪物立即尊�
   f.plan(p, 'explore', { zone_id: 'forest' }); f.plan(p, 'stop'); a.adventure.hp = 12;
   const [slime, boar] = f.world.state.adventure.monsters; boar.position = { x: 5, y: 11 };
   f.advance(1000);
-  assert.equal(a.adventure.hp, 10); assert.equal(a.adventure.decision_until, f.now() + 30000);
+  assert.equal(a.adventure.hp, 10); assert.equal(a.adventure.decision_until, f.world.state.events.findLast(e=>e.type==='adventure_danger').occurred_at+30000);
   const hits = f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'monster');
   assert.equal(hits.length, 1); assert.equal(hits[0].payload.monster_id, slime.monster_id);
   assert.equal(boar.target_agent_id, null);
@@ -323,7 +323,7 @@ test('低血保护到期不会因仍低血反复续期；主动hunt立刻取消�
   f.plan(p, 'explore', { zone_id: 'forest' }); f.plan(p, 'stop'); a.adventure.hp = 12;
   f.advance(1000); assert.equal(a.adventure.hp, 10); assert.ok(a.adventure.decision_until > f.now());
   const until = a.adventure.decision_until;
-  f.advance(30000); assert.equal(a.adventure.decision_until, null); assert.ok(a.adventure.hp < 10);
+  f.advance(32000); assert.equal(a.adventure.decision_until, null); assert.ok(a.adventure.hp < 10);
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_danger').length, 1);
   a.adventure.hp = 12; f.advance(1000); assert.ok(a.adventure.decision_until > until);
   f.plan(p, 'hunt', { monster_id: 'forest_slime' }); assert.equal(a.adventure.decision_until, null);
@@ -339,14 +339,16 @@ test('同一怪物每秒只攻击一次，不叠加反击与主动攻击', t => 
 });
 
 test('怪物超出追击范围放弃目标并逐步归位，回家恢复生命而不无限追赶', t => {
-  const f = fixture(t), p = f.make(); const a = f.fighter(p); a.position = { x: 17, y: 7 };
-  f.plan(p, 'explore', { zone_id: 'ruins' }); f.advance(1000); f.plan(p, 'stop');
-  f.act(p, 'move', { x: 15, y: 7 }); f.advance(2000);
-  const m = f.world.state.adventure.monsters[2]; assert.deepEqual(m.position, { x: 17, y: 7 });
-  m.hp = 60; f.act(p, 'move', { x: 15, y: 4 }); f.advance(1000);
-  assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'returning'); assert.deepEqual(m.position, { x: 18, y: 7 });
-  f.advance(2000); assert.deepEqual(m.position, m.home_position); assert.equal(m.behavior, 'idle'); assert.equal(m.hp, 70);
-  f.advance(5000); assert.equal(m.behavior, 'patrolling'); assert.ok(Math.abs(m.position.x - m.home_position.x) + Math.abs(m.position.y - m.home_position.y) <= 2); assert.equal(a.adventure.in_field, true);
+  const f=fixture(t),p=f.make(),a=f.fighter(p),m=f.world.state.adventure.monsters[2];
+  a.position={x:17,y:7};m.position={x:18,y:7};m.hp=60;
+  f.plan(p,'explore',{zone_id:'ruins'});f.plan(p,'stop');f.advance(100);
+  assert.equal(m.target_agent_id,a.agent_id);
+  assert.equal(f.act(p,'move',{x:15,y:7,mode:'run'}).status,'applied');f.advance(1000);
+  assert.equal(f.act(p,'move',{x:15,y:4,mode:'run'}).status,'applied');f.advance(1000);
+  assert.equal(m.target_agent_id,null);assert.equal(m.behavior,'returning');
+  for(let i=0;i<60 && (m.behavior!=='idle'||m.position.x!==m.home_position.x||m.position.y!==m.home_position.y);i++)f.advance(100);
+  assert.deepEqual(m.position,m.home_position);assert.equal(m.hp,70);
+  f.advance(3000);assert.equal(m.behavior,'patrolling');assert.ok(Math.abs(m.position.x-m.home_position.x)+Math.abs(m.position.y-m.home_position.y)<=2);assert.equal(a.adventure.in_field,true);
 });
 
 test('归位中的怪物遭到攻击仍会应战，不能利用returning无伤刷怪', t => {
@@ -356,16 +358,16 @@ test('归位中的怪物遭到攻击仍会应战，不能利用returning无伤�
   assert.equal(m.hp, 64); assert.equal(a.adventure.hp, 32); assert.equal(m.target_agent_id, a.agent_id); assert.equal(m.behavior, 'attacking');
 });
 
-test('营地边界安全，返回营地立即退出野外，营地内不能远程无伤攻击', t => {
-  const f = fixture(t), p = f.make(); const a = f.fighter(p), m = f.world.state.adventure.monsters[2];
-  a.position = { x: 13, y: 8 }; a.adventure.in_field = true;
-  m.position = { x: 14, y: 8 }; m.home_position = { x: 14, y: 8 };
-  f.advance(1000); assert.equal(a.adventure.hp, 40); assert.equal(a.adventure.in_field, false); assert.equal(m.target_agent_id, null);
-  f.plan(p, 'hunt', { monster_id: m.monster_id }); f.advance(1000);
-  assert.deepEqual(a.position, { x: 14, y: 8 }); assert.equal(m.hp, 70); assert.equal(a.adventure.hp, 32);
-  assert.equal(a.adventure.in_field, true);
-  f.act(p, 'move', { x: 13, y: 8 }); assert.equal(a.adventure.in_field, false); assert.equal(m.target_agent_id, null);
-  f.advance(5000); assert.equal(a.adventure.hp, 32); assert.equal(m.target_agent_id, null);
+test('营地边界安全，实际走出后才能攻击，实际返回后立即退出野外', t => {
+  const f=fixture(t),p=f.make(),a=f.fighter(p),m=f.world.state.adventure.monsters[2];
+  a.position={x:13,y:8};a.adventure.in_field=true;m.position={x:14,y:8};m.home_position={x:14,y:8};
+  f.advance(1000);assert.equal(a.adventure.hp,40);assert.equal(a.adventure.in_field,false);assert.equal(m.target_agent_id,null);
+  f.plan(p,'hunt',{monster_id:m.monster_id});f.advance(100);assert.deepEqual(a.position,{x:13,y:8});assert.equal(m.hp,70);
+  f.advance(100);assert.ok(a.position.x>13);assert.equal(a.adventure.in_field,true);assert.equal(m.hp,70,'preparation is not an instant hit');
+  f.advance(500);assert.equal(m.hp,64);assert.equal(a.adventure.hp,32);
+  assert.equal(f.act(p,'move',{x:13,y:8}).status,'applied');assert.equal(a.adventure.in_field,true,'accepting move does not teleport into safety');
+  f.advance(100);assert.equal(a.adventure.in_field,false);assert.equal(m.target_agent_id,null);
+  f.advance(5000);assert.equal(a.adventure.hp,32);assert.equal(m.target_agent_id,null);
 });
 
 test('野外停止计划后也不能用旧小游戏或独处活动规避风险，聊天邀请仍可用', t => {
@@ -398,7 +400,7 @@ test('权限暂停、过期、失联及房间暂停清除仇恨，已完成计�
 test('怪物死亡复活均清目标并回出生点，复活后的新接触才重新锁定', t => {
   const f = fixture(t), p = f.make(); f.plan(p, 'hunt', { monster_id: 'forest_slime' });
   f.advance(20000); const m = f.world.state.adventure.monsters[0];
-  assert.equal(m.status, 'respawning'); assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'idle'); assert.deepEqual(m.position, m.home_position);
+  assert.equal(m.status, 'respawning'); assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'idle'); assert.equal(m.movement,null); assert.ok(m.hp===0);
   f.world.ownerControl(p.agent.agent_id, 'recall'); f.advance(m.respawn_at - f.now(), []);
   assert.equal(m.status, 'alive'); assert.equal(m.target_agent_id, null); assert.equal(m.behavior, 'idle'); assert.deepEqual(m.position, m.home_position);
   f.advance(2000, []); assert.equal(m.behavior, 'patrolling'); assert.equal(m.target_agent_id, null);
@@ -422,7 +424,7 @@ test('无人且无旁观者时怪物按2秒一步巡逻，路线连续不抖动�
   for (let i = 0; i < 120; i++) {
     f.advance(1000, []);
     const moved = Math.abs(m.position.x - previous.x) + Math.abs(m.position.y - previous.y);
-    assert.equal(moved, i % 2 === 0 ? 1 : 0);
+    assert.equal(moved, i % 2 === 0 ? 0 : 1, 'patrol starts at two seconds and takes 500ms to reach its waypoint');
     assert.equal(m.behavior, 'patrolling'); assert.equal(m.target_agent_id, null);
     visited.add(`${m.position.x},${m.position.y}`); previous = { ...m.position };
   }
@@ -449,7 +451,7 @@ test('持续30分钟模拟巡逻始终在地图/领地内且不进入安全营�
 test('地图四角及营地边缘的巡逻路线会过滤越界/安全区但保持实际移动', t => {
   const f = fixture(t), m = f.world.state.adventure.monsters[0], camp = f.world.getRules().adventure.zones.find(z => z.id === 'camp');
   for (const home of [{ x: 0, y: 0 }, { x: WORLD_MAP.width - 1, y: 0 }, { x: 0, y: WORLD_MAP.height - 1 }, { x: WORLD_MAP.width - 1, y: WORLD_MAP.height - 1 }, { x: 14, y: 8 }, { x: 11, y: 5 }]) {
-    Object.assign(m, { position: { ...home }, home_position: { ...home }, behavior: 'idle', target_agent_id: null, patrol_index: 0, next_patrol_at: f.now() + 2000 });
+    Object.assign(m, { position: { ...home }, home_position: { ...home }, behavior: 'idle', movement:null, target_agent_id: null, patrol_index: 0, next_patrol_at: f.now() + 2000 });
     const visited = new Set();
     for (let second = 0; second < 120; second++) {
       const before = { ...m.position }; f.advance(1000, []);
@@ -467,9 +469,9 @@ test('房间暂停冻结巡逻，恢复或长时间卡顿后不补算多步', t 
   f.world.ownerRoom('pause'); const position = { ...m.position }, events = f.world.state.events.length;
   f.jump(180000); assert.deepEqual(m.position, position); assert.equal(f.world.state.events.length, events);
   f.world.ownerRoom('resume'); f.world.tick();
-  assert.equal(Math.abs(m.position.x - position.x) + Math.abs(m.position.y - position.y), 1);
-  const resumed = { ...m.position }; f.advance(1000, []); assert.deepEqual(m.position, resumed);
-  f.jump(180000); assert.equal(Math.abs(m.position.x - resumed.x) + Math.abs(m.position.y - resumed.y), 1);
+  assert.deepEqual(m.position,position); assert.ok(m.movement);
+  f.advance(500, []); const resumed={...m.position}; assert.equal(Math.abs(m.position.x-position.x)+Math.abs(m.position.y-position.y),1);
+  f.jump(180000); assert.deepEqual(m.position,resumed); assert.ok(m.movement); f.advance(500,[]); assert.equal(Math.abs(m.position.x-resumed.x)+Math.abs(m.position.y-resumed.y),1);
 });
 
 test('巡逻中的怪物每秒先感知新目标，无需等下一次巡逻步且不替AI反击', t => {
@@ -477,7 +479,7 @@ test('巡逻中的怪物每秒先感知新目标，无需等下一次巡逻步�
   assert.equal(m.behavior, 'patrolling'); const before = { ...m.position };
   const p = f.make(); f.fighter(p).position = { x: before.x, y: before.y + 1 }; f.plan(p, 'explore', { zone_id: 'ruins' }); f.plan(p, 'stop');
   f.advance(1000);
-  assert.equal(m.target_agent_id, p.agent.agent_id); assert.equal(m.behavior, 'attacking'); assert.deepEqual(m.position, before);
+  assert.equal(m.target_agent_id, p.agent.agent_id); assert.equal(m.behavior, 'attacking'); assert.ok(Math.abs(m.position.x-before.x)+Math.abs(m.position.y-before.y)<=.2+1e-8);
   assert.equal(f.fighter(p).adventure.hp, 32); assert.equal(m.hp, m.max_hp);
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_aggro' && e.payload.monster_id === m.monster_id).length, 1);
 });
@@ -485,7 +487,7 @@ test('巡逻中的怪物每秒先感知新目标，无需等下一次巡逻步�
 test('受伤或脱战的巡逻怪物先归位回血，再等巡逻间隔恢复路线', t => {
   const f = fixture(t), m = f.world.state.adventure.monsters[2];
   m.position = { x: m.home_position.x - 2, y: m.home_position.y }; m.behavior = 'patrolling'; m.hp = 50;
-  f.advance(1000, []); assert.equal(m.behavior, 'returning'); assert.equal(m.hp, 50); assert.equal(m.position.x, m.home_position.x - 1);
+  f.advance(1000, []); assert.equal(m.behavior, 'returning'); assert.equal(m.hp, 50); assert.equal(m.position.x, m.home_position.x - .2);
   f.advance(1000, []); assert.equal(m.behavior, 'idle'); assert.equal(m.hp, m.max_hp); assert.deepEqual(m.position, m.home_position);
   f.advance(1000, []); assert.deepEqual(m.position, m.home_position);
   f.advance(1000, []); assert.equal(m.behavior, 'patrolling'); assert.notDeepEqual(m.position, m.home_position);

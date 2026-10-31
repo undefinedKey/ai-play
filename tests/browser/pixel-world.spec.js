@@ -26,6 +26,7 @@ async function actor(api,name) {
   return {agent,observe:()=>call('observe',session),act:async(type,payload={})=>{const result=await call('act',{...session,action_id:(await call('observe',session)).next_action_id,type,payload});expect(result.status,JSON.stringify(result)).toBe('applied');actionId=result.next_action_id;return result;}};
 }
 function tick(ms=2000){clock+=ms;application.world.tick();}
+function arrive(a){const raw=application.world.agent(a.agent.agent_id),movement=raw.movement;if(!movement)return;clock=Math.max(clock,movement.ends_at);application.world.tick();expect(raw.position).toEqual(movement.path.at(-1));}
 async function audit(page,prefix) {
   for(const width of [1440,390]){
     await page.setViewportSize({width,height:900});
@@ -76,7 +77,7 @@ test('真实 Pixelbolt 素材呈现固定且不同的 AI 外观，两个地图�
 
 test('真实移动与种田回执驱动动画，装备叠层与低体力效率可见，暂停和减少动态停帧',async({page,request})=>{
   const api=await owner(request),a=await actor(api,'像素田园旅人');
-  await a.act('move',{x:11,y:8});
+  await a.act('move',{x:11,y:8});arrive(a);
   await page.goto(base+'/watch?view=farm');
   let sprite=page.getByTestId('farm-present-agent').locator('.pixel-character');
   await expect(sprite.locator('[data-asset-missing]')).toHaveCount(0);
@@ -107,11 +108,20 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
   await page.getByRole('button',{name:'社交广场',exact:true}).click();
   sprite=page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character');
   await expect(page.getByTestId('farm-view')).toHaveCount(0);
-  await a.act('move',{x:8,y:8});
-  await expect(sprite).toHaveAttribute('data-action','walk');
+  // A live walk needs fresh authoritative samples. Holding the fake server
+  // clock while the browser keeps running correctly freezes prediction after
+  // 250ms; advance the real world tick while observing this movement instead.
+  const walkingTicks=setInterval(()=>tick(100),100);
+  try {
+    await expect(page.locator('.connection-state')).toContainText('正在实时观察');
+    await a.act('move',{x:8,y:8});
+    await expect(sprite).toHaveAttribute('data-action','walk');
+    await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
+  } finally {clearInterval(walkingTicks);}
+  arrive(a);
   // Spend actual movement energy through MCP; no mocked fatigue or game state.
-  while(application.world.agent(a.agent.agent_id).fatigue.energy>23){const current=application.world.agent(a.agent.agent_id).position;await a.act('move',{x:current.x===8?11:8,y:8});}
-  await a.act('move',{x:11,y:8});tick();
+  while(application.world.agent(a.agent.agent_id).fatigue.energy>23){const current=application.world.agent(a.agent.agent_id).position;await a.act('move',{x:current.x===8?11:8,y:8});arrive(a);}
+  await a.act('move',{x:11,y:8});arrive(a);tick();
   await expect(sprite).toHaveAttribute('data-action','tired');
   await expect(page.getByTestId('fatigue-status')).toContainText('攻击效率 75%');
   await expect(page.getByTestId('fatigue-status')).toContainText('由原 AI 决定');
@@ -148,32 +158,35 @@ test('怪物真实攻击显示受伤，原 AI 应战后才播放攻击动画',as
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
 });
 
-test('连续三个真实战斗tick中，人物与怪物在下一回执前分别展示攻击和受击两相',async({page,request})=>{
+test('连续三个真实攻击周期中，准备、实际命中受击和恢复均由服务端阶段驱动画布',async({page,request})=>{
   const api=await owner(request),a=await actor(api,'连续战斗旅人');
-  // Keep the app's 1000ms timer deterministic: advancing only 720ms must still
-  // change action phases through the units' shared 100ms animation clock.
-  await page.clock.install({time:new Date(clock)});
-  await page.clock.pauseAt(new Date(clock));
   await page.goto(base+'/watch?view=adventure');
+  await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');
+  await page.clock.install({time:new Date(clock-1000)});await page.clock.pauseAt(new Date(clock));
+  const raw=application.world.agent(a.agent.agent_id),target=application.world.state.adventure.monsters.find(m=>m.monster_id==='forest_boar');
   const sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
   const monster=page.getByTestId('monster-forest_boar').locator('.pixel-sprite');
-  await a.act('adventure_plan',{intent:'hunt',monster_id:'forest_boar'});
-  let hits=[];
-  for(let i=0;i<70&&!hits.some(event=>event.payload.attacker==='agent');i++){
-    tick(1001);await a.observe();
-    hits=application.world.state.events.filter(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.monster_id==='forest_boar'&&event.occurred_at===clock);
+  const seen=new Set();
+  async function until(predicate){
+    for(let i=0;i<900&&!predicate();i++){tick(100);await a.observe();await page.clock.runFor(100);}
+    expect(predicate()).toBe(true);
+    // Let the real 200ms transport deliver this held authoritative phase; then
+    // draw one presentation frame without inventing another simulation step.
+    await new Promise(resolve=>setTimeout(resolve,230));await page.clock.runFor(16);
   }
+  await a.act('adventure_plan',{intent:'hunt',monster_id:'forest_boar'});
   for(let cycle=0;cycle<3;cycle++){
-    expect(hits.map(event=>event.payload.attacker)).toEqual(['agent','monster']);
+    await until(()=>raw.action?.outcome===null&&!seen.has(raw.action.action_id)&&clock<raw.action.impact_at&&(!raw.hurt||clock>=raw.hurt.ends_at));
+    const actionId=raw.action.action_id;seen.add(actionId);
     await expect(sprite).toHaveAttribute('data-action','attack');
+    await expect(sprite).toHaveAttribute('data-action-phase','prepare');
+    const hp=target.hp;
+    await until(()=>raw.action?.action_id===actionId&&raw.action.outcome==='hit');
+    expect(target.hp).toBeLessThan(hp);expect(target.hurt.action_id).toBe(actionId);
     await expect(monster).toHaveAttribute('data-pixel-action','hurt');
-    await page.clock.runFor(720);
+    await until(()=>raw.hurt&&clock<raw.hurt.ends_at&&target.action?.outcome==='hit'&&clock<target.action.ends_at&&(!target.hurt||clock>=target.hurt.ends_at));
     await expect(sprite).toHaveAttribute('data-action','hurt');
     await expect(monster).toHaveAttribute('data-pixel-action','attack');
-    if(cycle<2){
-      await page.clock.runFor(281);
-      tick(1001);
-      hits=application.world.state.events.filter(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.monster_id==='forest_boar'&&event.occurred_at===clock);
-    }
   }
+  expect(seen.size).toBe(3);await page.clock.resume();
 });

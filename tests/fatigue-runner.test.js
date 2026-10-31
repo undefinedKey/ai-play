@@ -3,9 +3,16 @@ import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
 import { PlazaRunner, enqueueEvents } from '../runner/runner.js';
-import { decisionPrompt } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
+import { prepareDecisionPrompt } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
 
-const decode = prompt => JSON.parse(prompt.split('公开数据：')[1]);
+const preparedByText = new Map();
+const decisionPrompt = context => { const p = prepareDecisionPrompt(context); preparedByText.set(p.text, p.references || {}); return p.text; };
+const decode = prompt => {
+  const references = preparedByText.get(prompt) || {};
+  const expand = value => Array.isArray(value) ? value.map(expand) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, expand(v)])) : Object.hasOwn(references, value) ? references[value] : value;
+  return expand(JSON.parse(prompt.split('公开数据：')[1]));
+};
 const action = (type, payload = {}) => ({ type, payload });
 async function fixture(t, choose, mode = 'dsh-pet') {
   let now = Date.now();

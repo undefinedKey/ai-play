@@ -33,6 +33,10 @@ function ordinaryOpportunities(world, a) {
     add('cancel_gather', '取消当前采集', `工作预计于${life.gathering.ends_at}结束；取消不退已花体力且不领奖，也可以继续等待`, 'gather', { intent: 'cancel' });
     return options;
   }
+  if(a.movement && !f.plan) {
+    add('stop_moving','在当前位置停下','也可以等待到达；移动完成后再决定下一步','adventure_plan',{intent:'stop'});
+    return options;
+  }
   // A different member's game must not conceal this AI's free choices.
   const game = world.state.game;
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) return options;
