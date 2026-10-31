@@ -32,8 +32,9 @@ async function fixture(t, mode = 'dsh-pet') {
 test('探索与公开目标解析严格，不接收自报奖励、私人身份、无界队列或过时确认参数', () => {
   for (const value of [action('adventure_event', { event_id: 'event1', choice_id: 'decline' }),
     action('personal_goal', { intent: 'set', kind: 'collect_item', target_id: 'wood', target_count: 2, title: '想收集木材' }),
+    action('inventory', { intent: 'equip', item_id: 'hunter_bow' }),
     ...['confirm', 'cancel'].map(intent => action('personal_goal', { intent, goal_id: 'goal1' }))]) assert.deepEqual(parseModelAction(JSON.stringify(value)), value);
-  for (const value of [action('adventure_event', { event_id: 'event1', choice_id: 'wood', reward: 999 }),
+  for (const value of [action('inventory', { intent: 'equip', item_id: 'hunter_bow', slot: 'weapon' }), action('adventure_event', { event_id: 'event1', choice_id: 'wood', reward: 999 }),
     action('personal_goal', { intent: 'confirm' }), action('personal_goal', { intent: 'cancel', goal_id: 'goal1', duration_seconds: 1800 }),
     ...[0, 11, 1.5].map(target_count => action('personal_goal', { intent: 'set', kind: 'collect_item', target_id: 'wood', target_count })),
     action('personal_goal', { intent: 'set', kind: 'collect_item', target_id: 'wood', target_count: 1, goal_id: 'old' }),
@@ -53,6 +54,9 @@ test('pending选择在极限2000UTF16内保留主人/消息/三威胁/成本/食
   const prompt = decisionPrompt({ observation, rules: f.runner.rules, ownerGoal, correction: true, lastActionFeedback: feedback,
     events: [{ type: 'message', payload: { agent_id: friend, text: message } }] }), data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal)); assert.equal(data.events[0].text, message);
+  const original = decisionPrompt({ observation, rules: f.runner.rules, ownerGoal, correction: false, lastActionFeedback: feedback, events: [{ type: 'message', payload: { agent_id: friend, text: message } }] });
+  assert.ok(original.length <= 2000); assert.notEqual(prompt, original); assert.match(prompt, /纠正\{type,payload\}的键\/类型/); assert.deepEqual(decode(original), data);
+  assert.match(prompt, /adventure_event\{event_id,choice_id\}/);
   assert.equal(data.event[0], self.adventure.encounter.event_id); assert.equal(data.event[2].length, 3); assert.equal(data.event[1], 150);
   assert.equal(data.foes.length, 3); assert.equal(data.E, 1); assert.equal(data.food.length, 2);
   assert.match(prompt, /personal_goal\{intent:confirm\|cancel,goal_id\}/);
@@ -101,6 +105,7 @@ test('装备有效属性与比较可读，15能力只在完整支持时报告，
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.match(prompt, /personal_goal\{intent:set/); assert.ok(data.goals.some(([kind, ids]) => kind === 'resolve_exploration' && ids.includes('forest')));
   assert.deepEqual(data.gear.find(row => row[0] === 'heavy_armor').slice(4, 7), [null, null, null]); assert.ok(data.combat); assert.ok(data.gear?.some(row => row[0] === 'hunter_bow' && row[4] === 3 && row[5] === 2000 && row[6] === 2));
+  assert.match(prompt, /inventory\{intent:craft\|equip,item_id\}仅这两键/); assert.match(prompt, /槽\(只读\)/);
   assert.equal(f.runner.capabilities().length, 15);
   const old = structuredClone(f.runner.rules); old.max_capabilities = 12; delete old.personal_goals; delete old.adventure.exploration; delete old.life.strategy_equipment;
   old.allowed_actions = old.allowed_actions.filter(type => !['personal_goal', 'adventure_event'].includes(type)); f.runner.rules = old;
@@ -123,13 +128,15 @@ test('长消息下野外目标复核仍含完整目标语义，不能盲目确�
   assert.deepEqual(data.goal, [self.personal_goal.goal_id, 'needs_review', 'collect_item', 'wood', 1, 10, 500]);
   assert.equal(data.foes.length, 3); assert.equal(data.E[0], 1); assert.equal(data.food.length, 2); assert.equal(data.protection, 30);
   assert.equal(data.plan[1], 'ruins_guardian'); assert.ok(data.combat); assert.deepEqual(data.receipt.slice(2), [[999, -999], [4, 11]]);
+  const corrected = decisionPrompt({ observation, rules: f.runner.rules, ownerGoal, correction: true, lastActionFeedback: { status: 'applied', code: 'MOVE_ADJUSTED', requested: { x: 999, y: -999 }, applied: { x: 4, y: 11 } }, events: [{ type: 'message', payload: { agent_id: friend, text: message } }] });
+  assert.ok(corrected.length <= 2000); assert.notEqual(corrected, prompt); assert.deepEqual(decode(corrected), data); assert.match(corrected, /纠正\{type,payload\}的键\/类型/);
 });
 
 
 test('营地老玩家有金币和料理时仍知道可自选公开目标，等待不自动设置', async t => {
   const f = await fixture(t); f.a.adventure.gold = 20; f.a.life.inventory.turnip = 2; f.a.life.inventory.wheat = 2; Object.assign(f.a.life.plots[0], { tilled: true, crop_id: 'wheat', planted_at: f.runner.now(), ready_at: f.runner.now() + 60000 }); f.refresh();
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules });
-  assert.ok(prompt.length <= 2000); assert.match(prompt, /personal_goal\{intent:set/); for (const id of ['hunter_bow', 'heavy_hammer', 'heavy_armor', 'collect_item/', 'cook_item/', 'resolve_exploration/', 'defeat_monster/']) assert.ok(prompt.includes(id)); assert.equal(f.a.personal_goal, null);
+  assert.ok(prompt.length <= 2000); assert.match(prompt, /personal_goal\{intent:set/); assert.match(prompt, /仅这两键，勿传slot/); for (const id of ['hunter_bow', 'heavy_hammer', 'heavy_armor', 'collect_item/', 'cook_item/', 'resolve_exploration/', 'defeat_monster/']) assert.ok(prompt.includes(id)); assert.equal(f.a.personal_goal, null);
 });
 
 
@@ -157,4 +164,19 @@ for (const mode of ['dsh-pet', 'model']) test(mode + '探索实际收益在新�
   await f.decide(action('wait')); const context = f.contexts.at(-1);
   if (mode === 'dsh-pet') { assert.deepEqual(context.discovery, ['resolved', 'wood', { wood: 2 }, 0, -4]); assert.equal(context.events.at(-1).text, message); }
   else assert.deepEqual(context.observation.self.adventure.encounter.public_result, result);
+});
+
+
+test('pending的格式重试实际告知原AI纠正，只有后续合法回答才执行', async t => {
+  const f = await fixture(t); await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
+  const eventId = f.a.adventure.encounter.event_id, prompts = [], flags = [], before = f.runner.checkpoint.calls_used;
+  f.runner.petClient.decide = async context => {
+    const prompt = decisionPrompt(context); assert.ok(prompt.length <= 2000); prompts.push(prompt); flags.push(context.correction);
+    return JSON.stringify(context.correction ? action('adventure_event', { event_id: eventId, choice_id: 'decline' }) : action('inventory', { intent: 'equip', item_id: 'hunter_bow', slot: 'weapon' }));
+  };
+  await f.decide(action('wait'));
+  assert.deepEqual(flags, [false, true]); assert.notEqual(prompts[0], prompts[1]); assert.deepEqual(decode(prompts[0]), decode(prompts[1]));
+  assert.equal(f.runner.checkpoint.calls_used, before + 2); assert.equal(f.a.adventure.encounter.status, 'declined');
+  assert.equal(f.calls.filter(c => c.name === 'act' && c.args.type === 'inventory').length, 0);
+  assert.equal(f.calls.filter(c => c.name === 'act' && c.args.type === 'adventure_event').length, 1);
 });

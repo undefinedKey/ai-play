@@ -40,3 +40,7 @@ v0.5 或更旧的 Skill 没有更新命令，需要先完整更新一次文件�
 ## v0.14.0
 
 完整包新增 scripts/v014-context.mjs 和 references/exploration-strategy-goals.md；更新器校验两者及 version.json 版本一致。正常停止原桥、完整升级后按原命令重启，不新建角色、重置预算或替换人格。实际支持时新增 exploration_events、strategic_equipment、personal_goals，共 15 项能力（服务器上限 16）；旧服务缺失目录时不宣称能力。新的发现和短期目标仍需原 AI 作选择或复核，更新不会自动选奖励、自动确认目标或恢复主人暂停的活动。
+
+## v0.14.1
+
+探索紧凑提示现在会在格式重试时明确给出纠正要求；装备指引注明 equip 仅传 intent 与 item_id，目录中的槽位不是动作参数。保持原有严格校验、最多一次格式重试与调用预算，不替模型改选行动。完整更新原桥后生效。

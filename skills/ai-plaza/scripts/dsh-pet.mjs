@@ -120,7 +120,7 @@ function minimumPrompt(data, { ownerGoal, correction, adventure = false, gameTyp
     (data.discovery ? DISCOVERY_GUIDANCE : '') +
     (data.food ? FOOD_GUIDANCE : '') + supplyGuidance(data) +
     (data.combat ? data.gear ? STRATEGY_COMPACT_GUIDANCE : 'combat=[实际伤害,防御,射程,攻击间隔ms,每击体力,每格体力]。\n' : '') +
-    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}。\n' : '') +
+    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
     (data.goals ? COMPACT_GOAL_GUIDANCE : data.goal_offer && !data.personal_goal ? `可自选personal_goal{intent:set,kind,target_id,target_count:1..10}；kind/target_id例：${data.goal_offer.map(row => row.join('/')).join(',')}。公开勿泄私，非自动。\n` : data.personal_goal ? Array.isArray(data.personal_goal) ? GOAL_TUPLE_GUIDANCE : 'personal_goal为公开目标；personal_goal{intent:confirm|cancel,goal_id}复核不续期、不自动做。\n' : '') +
     (data.opportunities?.length ? 'opportunities.action可选，无需邀请才探索。\n' : '') +
     (data.life?.tools ? 'life.tools=[id,级,耐久,上限,劳作体力,升档材料,维修材料]，材料=[木材,矿石]；farm{intent:till,plot_id}先垦，inventory{intent:repair|upgrade,item_id}。\n' : '') +
@@ -255,7 +255,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     (data.food ? FOOD_GUIDANCE : '') +
     supplyGuidance(data) +
     (data.combat ? data.gear ? STRATEGY_COMPACT_GUIDANCE : 'combat=[实际伤害,防御,射程,攻击间隔ms,每击体力,每格体力]。\n' : '') +
-    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}。\n' : '') +
+    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
     (data.goals ? COMPACT_GOAL_GUIDANCE : data.goal_offer && !data.personal_goal ? `可自选personal_goal{intent:set,kind,target_id,target_count:1..10}；kind/target_id例：${data.goal_offer.map(row => row.join('/')).join(',')}。公开勿泄私，非自动。\n` : data.personal_goal ? 'personal_goal{intent:confirm|cancel,goal_id}处理公开目标；不自动做或续期。\n' : '') +
     (data.energy ? ENERGY_GUIDANCE : '') +
     '也可' + socialActions() + '不强制换玩法。MOVE_ADJUSTED仅到applied，未到requested。\n' +
@@ -372,7 +372,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     const minimal = minimumPrompt(data, { ownerGoal, correction, adventure: !!(progress.in_field || plan || threatened.size) });
     if (minimal.length <= 2000) return minimal;
     if (self.personal_goal || data.discovery) {
-      const focused = encounterPrompt({ observation, rules, events, ownerGoal, lastActionFeedback }, { energy: fatigueContext(self), food: foodContext(observation, rules) });
+      const focused = encounterPrompt({ observation, rules, events, ownerGoal, lastActionFeedback, correction }, { energy: fatigueContext(self), food: foodContext(observation, rules) });
       if (focused.length <= 2000) return focused;
       fail('PET_CONTEXT_TOO_LARGE', `目标复核与危险上下文为 ${focused.length} 字符，未发送模型请求`);
     }
