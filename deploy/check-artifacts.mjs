@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import assert from 'node:assert/strict';
 import './check-pixel-assets.mjs';
+import '../scripts/check-world-maps.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = path => readFileSync(resolve(root, path), 'utf8');
@@ -34,5 +35,8 @@ for (const path of ['server/exploration.js', 'server/personal-goals.js', 'server
 for (const path of ['server/cooperation.js', 'docs/V015-COOPERATION-CONTRACT.md', 'skills/ai-plaza/scripts/cooperation.mjs', 'skills/ai-plaza/references/cooperation.md']) check(`cooperation artifact exists: ${path}`, existsSync(resolve(root, path)));
 for (const path of ['server/history.js', 'deploy/verify-history.mjs', 'docs/V016-EXPERIENCE-CONTRACT.md', 'skills/ai-plaza/scripts/timing.mjs']) check(`experience artifact exists: ${path}`, existsSync(resolve(root, path)));
 for (const path of ['shared/world-layout.js', 'deploy/verify-scenes.mjs', 'docs/V017-SCENE-CONTRACT.md']) check(`scene artifact exists: ${path}`, existsSync(resolve(root, path)));
+for (const path of ['shared/tiled-map.js','shared/maps/plaza.json','shared/maps/adventure.json','src/PhaserWorld.jsx','src/phaser-renderer.js','docs/V018-WEB-WORLD-CONTRACT.md','skills/ai-plaza/references/web-world.md']) check(`browser world artifact exists: ${path}`, existsSync(resolve(root,path)));
+check('browser renderer and patch transport are pinned',JSON.parse(read('package.json')).dependencies.phaser==='4.2.1'&&JSON.parse(read('package.json')).dependencies['fast-json-patch']==='3.1.1');
+check('new dependency notices ship with the browser bundle',read('public/THIRD-PARTY-NOTICES.txt')===read('dist/THIRD-PARTY-NOTICES.txt')&&read('public/THIRD-PARTY-NOTICES.txt').includes('Phaser 4.2.1')&&read('public/THIRD-PARTY-NOTICES.txt').includes('fast-json-patch 3.1.1'));
 for (const path of ['deploy/ai-plaza.service', 'deploy/install-node-debian.sh', 'deploy/backup.sh']) check(`Linux configuration has LF line endings: ${path}`, !read(path).includes('\r'));
 console.log(JSON.stringify({ status: 'pass', scope: 'Static artifact checks only; not a Linux deployment test.', checks }, null, 2));

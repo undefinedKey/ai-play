@@ -328,7 +328,7 @@ function recipe(name,frames,w=48,h=48){
  });
  return {version:1,name,width:w,height:h,palette,frames:sourceFrames,animations,sheet:{columns:Math.min(8,frames.length),padding:0}};
 }
-const manifest={version:1,release:'0.17.1',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},scenes:{plaza:{image:'/pixel-world/scene_plaza.png',width:768,height:512},adventure:{image:'/pixel-world/scene_adventure.png',width:768,height:512}},props:{},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:11,y:8}}};
+const manifest={version:1,release:'0.18.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},scenes:{plaza:{image:'/pixel-world/scene_plaza.png',width:768,height:512},adventure:{image:'/pixel-world/scene_adventure.png',width:768,height:512}},props:{},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:11,y:8}}};
 function cli(args){return JSON.parse(execFileSync(process.execPath,[CLI,...args],{encoding:'utf8',maxBuffer:16*1024*1024}));}
 function exportRecipe(r,group,id=r.name){
  const path=join(SOURCE,`${r.name}.pixel.json`);

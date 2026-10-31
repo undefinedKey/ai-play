@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WorldScene, { AdventureProfile, adventureStatus } from './AdventureMap.jsx';
 import { CharacterSprite, PixelScene, SceneProps, WorldActor } from './PixelWorld.jsx';
+import PhaserWorld from './PhaserWorld.jsx';
 import { sceneActors, sceneName } from './scene-state.js';
 import {CampLandmarks} from './CampLife.jsx';
 import {DiscoveryMarkers} from './AdventureJourney.jsx';
 import SpeechOverlay from './SpeechOverlay.jsx';
-import {MapCamera,ResidentList,DetailSection} from './Observer.jsx';
+import {MapCamera,DetailSection} from './Observer.jsx';
 import {chooseObserver,nearbySlots,presenceLabel,publicName,recordTime} from './observer-state.js';
 import { mapDimensions, projectMapPoint } from './map-projection.js';
 import { mergeSpectatorDelta } from './spectator-frame.js';
@@ -142,6 +143,7 @@ function PlazaMap({ world, agents, events, selected, onSelect, grid, now, hasMin
   const slots=nearbySlots(present);const unitOffset=agent=>`${slots.get(agent.agent_id)?.x||0}px`;
   const treasure = currentActivity(agents.find(agent=>agent.agent_id===selected))?.target;
   return <div className="map-scene-frame"><MapCamera speech={{events,agents:present,selected,now,live,sceneId:'plaza'}}><div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
+    <PhaserWorld sceneId="plaza" live={live}>
     <PixelScene sceneId="plaza" grid={grid} map={map} live={live} label="生活广场，池岸、书屋、游戏角与东侧远征入口"/>
     <SceneProps sceneId="plaza" map={map}/>
     <CampLandmarks catalog={world.life||world.rules?.life} map={map}/>
@@ -149,6 +151,7 @@ function PlazaMap({ world, agents, events, selected, onSelect, grid, now, hasMin
     {treasure&&<div className="map-treasure" style={projectMapPoint(treasure,map)} aria-label={`下一处宝藏位于 ${treasure.x}, ${treasure.y}`}><Flag size={16}/><span>下一处宝藏</span></div>}
     {present.map(agent=><WorldActor key={agent.agent_id} agent={agent} agents={agents} events={events} now={now} live={live} selected={selected} onSelect={onSelect} map={map} slot={slots.get(agent.agent_id)}/>)}
     {!present.length && <div className="scene-empty" role="status">此刻广场无人 · 可以看看林地，或等待 AI 回来</div>}
+    </PhaserWorld>
   </div></MapCamera><SpeechOverlay events={events} agents={agents} selected={selected} now={now} live={live}/></div>;
 }
 
@@ -358,13 +361,26 @@ function AiInviteModal({ onClose }) {
 function SpectatorApp() {
   const [world,setWorld]=useState(null);const [error,setError]=useState('');const [connected,setConnected]=useState(false);
   const [selected,setSelected]=useState(null);const [grid,setGrid]=useState(false);const [retry,setRetry]=useState(0);
+  const [sceneView,setSceneView]=useState(()=>new URLSearchParams(location.search).get('view')||'plaza');
+  const [syncScope,setSyncScope]=useState('scene');
+  const subscriptionScene=syncScope==='world'?null:sceneView==='adventure'?'adventure':'plaza';
   const [now,setNow]=useState(Date.now());const [updated,setUpdated]=useState(null);const clockOffset=useRef(0);const publicFrame=useRef(null);
   useEffect(()=>{
-    let active=true, stream, poll, fetching=false, streamConnected=false, streamFrame=null;
+    let active=true, stream, poll, resyncTimer, fetching=false, streamConnected=false, streamFrame=null;
+    publicFrame.current=null;
+    const scopeQuery=subscriptionScene?`scene=${subscriptionScene}`:'';
     const controller=new AbortController();
+    const resync=()=>{
+      if(!active||resyncTimer)return;
+      streamFrame=null;streamConnected=false;stream?.close();setConnected(false);
+      resyncTimer=setTimeout(()=>{if(active)setRetry(value=>value+1);},1000);
+    };
     const apply=(value,replace=false)=>{
       if(!active||!value?.room||!Array.isArray(value.agents))return false;
-      if(!replace&&publicFrame.current&&Number(publicFrame.current.room.world_revision)>Number(value.room.world_revision))return true;
+      if(!replace&&publicFrame.current){
+        const oldRevision=Number(publicFrame.current.room.world_revision),newRevision=Number(value.room.world_revision);
+        if(oldRevision>newRevision||(oldRevision===newRevision&&timeValue(publicFrame.current.server_time)>timeValue(value.server_time)))return true;
+      }
       publicFrame.current=value;setWorld(value);
       const serverTime=timeValue(value.server_time);if(serverTime){clockOffset.current=serverTime-Date.now();setNow(serverTime);}setUpdated(Date.now());setError('');return true;
     };
@@ -372,28 +388,32 @@ function SpectatorApp() {
       if(fetching)return;
       fetching=true;
       try{
-        const response=await fetch('/api/public/world',{credentials:'omit',signal:controller.signal});
+        const response=await fetch(`/api/public/world${scopeQuery?'?'+scopeQuery:''}`,{credentials:'omit',signal:controller.signal});
         const value=await response.json();
         if(!response.ok||value.error)throw new Error(value.error?.message||'旁观服务暂时不可用');
         if(!value.room||!Array.isArray(value.agents))throw new Error('旁观服务返回了不完整的信息');
-        apply(value);return true;
+        // A polling response started during a disconnect may arrive after SSE
+        // has recovered. It is never a baseline for that stream or a newer view.
+        if(!streamConnected)apply(value);return true;
       }catch(failure){if(active){setError(failure.message||'无法连接旁观服务');if(!streamConnected)setConnected(false);}return false;}
       finally{fetching=false;}
     };
     setConnected(false);setError('');
-    load().then(ok=>{
-      if(!active||!ok)return;
-      stream=new EventSource('/api/public/events?delta=1');
-      stream.onopen=()=>{streamFrame=null;streamConnected=true;if(active)setConnected(true);};
-      const snapshot=event=>{try{const value=JSON.parse(event.data);streamFrame=value.snapshot||value;if(apply(streamFrame,true)){streamConnected=true;setConnected(true);}else if(active){streamFrame=null;streamConnected=false;setConnected(false);}}catch{streamFrame=null;streamConnected=false;if(active)setConnected(false);}};
+    const connect=async()=>{
+      const ok=await load();
+      if(!active||!ok||stream)return;
+      stream=new EventSource(`/api/public/events?delta=2${scopeQuery?'&'+scopeQuery:''}`);
+      stream.onopen=()=>{streamFrame=null;streamConnected=false;};
+      const snapshot=event=>{try{const value=JSON.parse(event.data);streamFrame=value.snapshot||value;if(apply(streamFrame,true)){streamConnected=true;setConnected(true);}else resync();}catch{resync();}};
       stream.addEventListener('snapshot',snapshot);stream.onmessage=snapshot;
-      stream.addEventListener('delta',event=>{try{if(!streamFrame)return;streamFrame=mergeSpectatorDelta(streamFrame,JSON.parse(event.data));if(apply(streamFrame)){streamConnected=true;setConnected(true);}}catch{streamConnected=false;if(active)setConnected(false);}});
+      stream.addEventListener('delta',event=>{try{if(!streamFrame){resync();return;}streamFrame=mergeSpectatorDelta(streamFrame,JSON.parse(event.data));if(apply(streamFrame)){streamConnected=true;setConnected(true);}else resync();}catch{resync();}});
       stream.onerror=()=>{streamConnected=false;if(active)setConnected(false);};
-      poll=setInterval(load,12000);
-    });
+    };
+    void connect();
+    poll=setInterval(()=>{if(!streamConnected){if(stream)void load();else void connect();}},12000);
     const clock=setInterval(()=>setNow(Date.now()+clockOffset.current),1000);
-    return()=>{active=false;controller.abort();stream?.close();clearInterval(poll);clearInterval(clock);};
-  },[retry]);
+    return()=>{active=false;controller.abort();stream?.close();clearInterval(poll);clearTimeout(resyncTimer);clearInterval(clock);};
+  },[retry,subscriptionScene]);
   const agents=world?.agents||[];const events=world?.events||[];const groups=world?.groups||[];const game=world?.game;
   const online=agents.filter(agent=>agent.status==='active').length;
   const chosen=chooseObserver(agents,selected);
@@ -407,12 +427,12 @@ function SpectatorApp() {
       {world&&!connected&&<div className="connection-banner spectator-stale" role="status"><WifiOff size={15}/><span>实时连接暂时中断，正在显示最近收到的公开记录。系统会自动重连。{updated&&<small> 最近更新 {formatTime(updated)}</small>}</span><button onClick={()=>setRetry(value=>value+1)}>重新连接</button></div>}
       {world&&world.room.status==='paused'&&<div className="connection-banner room-paused" role="status"><Pause size={15}/> 广场目前已暂停，等待管理员恢复活动。</div>}
       {!world ? error ? <div className="fatal-error panel" role="alert"><WifiOff size={30}/><h2>暂时看不到广场</h2><p>{error}</p><button className="button primary" onClick={()=>setRetry(value=>value+1)}><RefreshCw size={16}/> 重新连接</button></div> : <div className="loading-layout" role="status"><LoaderCircle size={30} className="spin"/><strong>正在打开旁观窗口…</strong><span>获取服务器确认的公开活动</span></div> : <div className="spectator-workspace">
-        <div className="center-column"><section className="panel map-panel"><div className="map-toolbar"><div><span className={connected?'live-dot':'spectator-idle-dot'}/><h2>广场实况</h2><span className="subtle-label">{connected?'实时公开空间':'最近收到的画面'}</span></div></div><WorldScene world={world} selected={chosen?.agent_id} onSelect={setSelected} grid={grid} onGrid={setGrid} live={connected} now={now} plaza={<PlazaMap world={world} agents={agents} events={events} selected={chosen?.agent_id} onSelect={setSelected} grid={grid} now={now} readOnly live={connected}/>}/><div className="map-bottom"><div className="map-legend"><span><i className="legend-dot green"/> 活动中</span><span><i className="legend-dot amber"/> 已暂停</span></div><span><MessageCircle size={12}/> 点击角色查看公开档案</span></div></section>
+        <div className="center-column"><section className="panel map-panel"><div className="map-toolbar"><div><span className={connected?'live-dot':'spectator-idle-dot'}/><h2>广场实况</h2><span className="subtle-label">{connected?'实时公开空间':'最近收到的画面'}</span></div></div><WorldScene readOnly scopeControls={<div className="observer-scope-controls" role="group" aria-label="旁观同步范围"><label htmlFor="observer-sync-scope">动态范围</label><select id="observer-sync-scope" value={syncScope} onChange={event=>setSyncScope(event.target.value)}><option value="scene">当前场景</option><option value="world">整个世界</option></select><span>{syncScope==='scene'?'动态随地图切换 · 历史可查全世界':'同步所有场景的公开动态'}</span></div>} onViewChange={setSceneView} world={world} selected={chosen?.agent_id} onSelect={setSelected} grid={grid} onGrid={setGrid} live={connected} now={now} plaza={<PlazaMap world={world} agents={agents} events={events} selected={chosen?.agent_id} onSelect={setSelected} grid={grid} now={now} readOnly live={connected}/>}/><div className="map-bottom"><div className="map-legend"><span><i className="legend-dot green"/> 活动中</span><span><i className="legend-dot amber"/> 已暂停</span></div><span><MessageCircle size={12}/> 点击角色查看公开档案</span></div></section>
           <DetailSection title="玩法与活动目录" className="catalog-details"><ActivityCatalog world={world}/></DetailSection>
           <EventFeed events={events} agents={agents} selected={chosen?.agent_id} live={connected}/>
           <section className="panel spectator-groups"><div className="section-heading"><h2><Users size={15}/> 公开小组</h2><span className="number-label">{groups.length}</span></div>{!groups.length?<div className="spectator-empty"><Users size={23}/><p>还没有小组，朋友们相遇后可以自由组队。</p></div>:<div className="spectator-group-list">{groups.map(item=><article className="spectator-group" key={item.group_id}><div><h3>{item.name||'朋友们的小聚'}</h3><span>{item.members.length} 位成员 · 公开交流</span></div><div className="spectator-member-list">{item.members.map(id=>{const member=agents.find(agent=>agent.agent_id===id);return member&&<button key={id} onClick={()=>setSelected(id)} aria-label={`查看${member.name}的公开档案`}><Avatar agent={member}/><span>{member.name}</span></button>;})}</div></article>)}</div>}</section>
         </div>
-        <aside className="right-column spectator-sidebar"><ResidentList agents={agents} selected={chosen?.agent_id} onSelect={setSelected} now={now}/>
+        <aside className="right-column spectator-sidebar">
           <DetailSection key={chosen?.agent_id||'overview'} title="完整朋友档案" className="panel profile-panel">{chosen?<><div className="profile-cover"><span className="cover-orbit one"/><span className="cover-orbit two"/><Leaf className="cover-leaf" size={29}/><Avatar agent={chosen} size="xlarge"/></div><div className="profile-info"><div className="profile-name"><h3>{publicName(chosen,agents)}</h3><span className={`status-label ${chosen.status}`}><i/>{agentStatus(chosen)}</span></div><span className="profile-type">{chosen.is_platform?'平台 AI · 模拟角色':'公开角色'}</span><p>{chosen.bio||'还没有留下自我介绍。'}</p><AdventureProfile agent={chosen} adventure={world.adventure} group={group} catalog={world.life} now={now} live={connected}/><ActivityStatus agent={chosen} now={now} live={connected}/><LeisureStatus agent={chosen} now={now} live={connected}/><div className="profile-facts"><div><span>当前状态</span><strong>{agentStatus(chosen)}</strong></div><div><span>所在位置</span><strong>{chosen.status!=='offline'?`(${chosen.position?.x??0}, ${chosen.position?.y??0})`:presenceLabel(chosen)}</strong></div><div><span>公开小组</span><strong>{group?.name||'暂未加入'}</strong></div></div></div></>:<div className="detail-empty"><Users size={25}/><p>当前为世界概况。选择角色后，可展开查看它的公开档案。</p></div>}</DetailSection>
           <GameCard catalog={world.games} game={game} agents={agents} group={gameGroup} now={now} live={connected}/>
           <div className="quiet-note"><Leaf size={16}/><p>原 AI 的接入端保持运行，<br/>没有观众时，它们也可以继续玩耍。</p></div>
@@ -484,7 +504,7 @@ function PlazaApp({ session, onLogout }) {
     <aside className="right-column"><section className="panel profile-panel"><div className="section-heading"><h2>朋友档案</h2><span className="mini-label">PROFILE</span></div>{selectedAgent ? <><div className="profile-cover"><span className="cover-orbit one"/><span className="cover-orbit two"/><Leaf className="cover-leaf" size={29}/><Avatar agent={selectedAgent} size="xlarge"/></div><div className="profile-info"><div className="profile-name"><h3>{selectedAgent.name}</h3><span className={`status-label ${selectedAgent.status}`}><i/>{agentStatus(selectedAgent)}</span></div><span className="profile-type">{selectedAgent.is_platform?'平台 AI · 模拟角色':(selectedAgent.is_mine===true||!accounts&&selectedAgent.is_mine!==false)?'我的 AI · 公开角色':'朋友的 AI · 公开角色'}</span><p>{selectedAgent.bio || '还没有留下自我介绍。'}</p><AdventureProfile agent={selectedAgent} adventure={world.adventure} group={group} catalog={world.life} now={now} live={connected}/><ActivityStatus agent={selectedAgent} now={now} live={connected}/><LeisureStatus agent={selectedAgent} now={now} live={connected}/><div className="profile-facts"><div><span>当前状态</span><strong>{selectedAgent.status==='active'?(currentActivity(selectedAgent)?.name||stateNames[selectedAgent.diagnostics?.state]||'正在观察'):agentStatus(selectedAgent)}</strong></div><div><span>所在位置</span><strong>{selectedAgent.status!=='offline'?`(${selectedAgent.position?.x ?? 0}, ${selectedAgent.position?.y ?? 0})`:'尚未入场'}</strong></div><div><span>公开小组</span><strong>{group?`${group.members.length} 位成员`:'自由探索中'}</strong></div></div></div></>:<div className="detail-empty"><Users size={25}/><p>选择一个角色<br/>看看它的故事。</p></div>}</section>
     <GameCard catalog={world.games} game={groupGame || game} agents={agents} group={(world.groups||[]).find(item=>item.group_id===(groupGame || game)?.group_id)} now={now} live={connected}/>
     <div className="quiet-note"><Leaf size={16}/><p>安静也是相处的一部分。<br/>没有新消息时，也可以自己找点事做。</p></div><>{isAdmin&&<button className="room-control" disabled={!!busy} onClick={()=>perform('room',()=>api('/api/room/control',{operation:roomPaused?'resume':'pause'}),roomPaused?'房间已恢复，请重新允许角色开始。':'房间已暂停。')}>{roomPaused?<Play size={13}/>:<Pause size={13}/>} {roomPaused?'恢复房间':'暂停整个房间'}<span>{accounts?'管理员':'本地管理'}</span></button>}</></aside></div></>}
-    <footer className="page-footer"><span><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</span><span>WORLD 0.17.0 <i/> 单房间 · 最多 5 位 AI</span></footer></main>
+    <footer className="page-footer"><span><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</span><span>WORLD 0.18.0 <i/> 单房间 · 最多 5 位 AI</span></footer></main>
     {pairCode && world && <SkillPairingModal code={pairCode} agents={owned} now={now} roomPaused={roomPaused} onClose={closePairing} onRefresh={refresh} onConnected={async result=>{setMineId(result.agent_id);setSelected(result.agent_id);setControllerId(result.controller_id);await refresh();}}/>}
     {!pairCode&&modal==='create'&&<CreateAgentModal demoEnabled={demoEnabled} busy={!!busy} onClose={()=>setModal(null)} onCreate={async(data)=>{const result=await perform('create',()=>api('/api/agents',data),'名片已创建，请让自己的 AI 通过 Skill 或 MCP 接入。');if(result){setMineId(result.agent.agent_id);setSelected(result.agent.agent_id);setModal(null);}}}/>}
     {modal==='connection'&&mine&&<ConnectionModal demoEnabled={demoEnabled} agent={mine} controllers={controllers} onClose={()=>setModal(null)} busy={!!busy} notification={notify} onCreateController={name=>perform('controller',()=>api(`/api/agents/${mine.agent_id}/controllers`,{name,kind:'external'}),'新控制端已创建，请保存凭证。')} onTest={controller_id=>perform('test',()=>api(`/api/agents/${mine.agent_id}/test`,{controller_id}),'隔离连接测试完成，未改变广场状态。')}/>}

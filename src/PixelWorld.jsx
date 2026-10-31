@@ -4,11 +4,12 @@ import { mapDimensions, projectMapPoint } from './map-projection.js';
 import { sceneDefinition } from '../shared/world-layout.js';
 import { confirmedPosition } from './scene-state.js';
 import { publicName } from './observer-state.js';
+import { RenderSpace, useRenderSprite } from './world-render-context.jsx';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.17.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.18.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -57,6 +58,8 @@ export function PixelSprite({ definition, action = 'idle', animate = false, faci
   const prior = useRef(action);
   if (prior.current !== action) { prior.current = action; started.current = Date.now(); }
   const frame = animationFrame(definition, action, Math.max(0, clock - (startedAt ?? started.current)), animate && clock > 0, facing);
+  const layer=className.includes('pixel-tool')?.04:className.includes('pixel-weapon')?.03:className.includes('pixel-armor')?.02:className.includes('pixel-accessory')?.01:0;
+  useRenderSprite(definition,frame,{facing,action,layer});
   if (!definition || !frame) return <span className={`pixel-sprite pixel-placeholder ${className}`} aria-hidden="true" data-asset-missing="true"/>;
   return <span aria-hidden="true" className={`pixel-sprite ${className}`} data-pixel-action={action} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ '--frame-w': `${frame.w}px`, '--frame-h': `${frame.h}px`, backgroundImage: `url("${definition.image}")`, backgroundSize: `calc(${definition.sheet_width}px * var(--pixel-scale, 1)) calc(${definition.sheet_height}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x}px * var(--pixel-scale, 1)) calc(${-frame.y}px * var(--pixel-scale, 1))`, transform: facing === 'west' && action === 'walk' ? 'scaleX(-1)' : undefined }}/>
 }
@@ -95,6 +98,7 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
   useEffect(()=>setFailed(false),[sceneId]);
   const dimensions = mapDimensions(map);
   const scene=assets?.scenes?.[sceneId];
+  useRenderSprite(scene,scene&&{x:0,y:0,w:scene.width,h:scene.height},{ground:true});
   return <div className="pixel-scene" role="img" aria-label={label||`${sceneDefinition(sceneId)?.name}，真实场景地形`} data-testid="pixel-scene" data-scene-id={sceneId} style={{ '--grid-columns': dimensions.width, '--grid-rows': dimensions.height }}>
     {scene?.image && <img src={scene.image} alt="" className="pixel-scene-image" draggable="false" onError={()=>setFailed(true)}/>}
     {!assets && <span className="pixel-scene-loading">像素场景载入中…</span>}
@@ -107,7 +111,7 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
 export function SceneProps({sceneId,map}){
   const assets=usePixelManifest();
   const scene=sceneDefinition(sceneId);
-  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=><span key={prop.id} className="scene-prop" data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10}} aria-hidden="true"><PixelSprite definition={assets?.props?.[prop.kind]}/></span>)}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
+  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=><RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={[64,120]}><span className="scene-prop" data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10}} aria-hidden="true"><PixelSprite definition={assets?.props?.[prop.kind]}/></span></RenderSpace>)}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
 }
 
 export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){
@@ -116,7 +120,7 @@ export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,s
   const name=publicName(agent,agents);
   const crowded=agents.filter(a=>a.scene_id===agent.scene_id&&['active','paused'].includes(a.status)&&a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1;
   return <button className={`world-actor ${adventure?'adventure-agent':'map-agent'} ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} data-speech-agent={agent.agent_id} data-testid={`${adventure?'adventure-agent':'map-agent'}-${agent.agent_id}`} data-scene-id={agent.scene_id} data-foot-y={position.y} data-crowded={crowded} style={{...projectMapPoint(position,map),'--unit-map-x':`${(position.x+.5)/map.width*100}cqw`,'--unit-offset':`${slot?.x||0}px`,'--unit-row':`${slot?.y||0}px`,zIndex:101+position.y*10}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${name}${adventure?'的冒险档案':''}，${agent.status==='paused'?'已暂停':'活动中'}`}>
-    <CharacterSprite agent={agent} events={events} now={now} live={live}/><span className={adventure?'adventure-agent-name':'map-agent-name'}>{name}</span>
+    <RenderSpace position={position} depth={101+position.y*10} offset={{x:(slot?.x||0)*.55,y:(slot?.y||0)*.2}}><CharacterSprite agent={agent} events={events} now={now} live={live}/></RenderSpace><span className={adventure?'adventure-agent-name':'map-agent-name'}>{name}</span>
     {adventure&&agent.adventure&&<span className="unit-health"><i style={{width:`${Math.max(0,Math.min(100,agent.adventure.hp/agent.adventure.max_hp*100))}%`}}/></span>}
     {agent.activity&&agent.status==='active'&&<span className="map-agent-activity">{agent.activity.name}</span>}
   </button>;

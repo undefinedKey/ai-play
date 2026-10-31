@@ -55,7 +55,7 @@ export function SpeechBubbles({events=[],agents=[],selected,now=Date.now(),live=
   const returnFocus=agentId=>{
     const frame=layer.current?.parentElement;
     const actor=[...(frame?.querySelectorAll('[data-speech-agent]')||[])].find(el=>el.dataset.speechAgent===agentId);
-    (actor?.matches('button')?actor:frame?.closest('.map-panel')?.querySelector('select[aria-label="观察对象"]'))?.focus();
+    (actor?.matches('button')?actor:frame?.closest('.map-panel')?.querySelector('select[aria-label="观察对象"], [data-testid="observer-selection"]'))?.focus();
   };
   const close=message=>{returnFocus(message.agentId);setDismissedIds(previous=>new Set([...previous,message.key].slice(-512)));setReading(previous=>{const next={...previous};delete next[message.agentId];return next;});mark(message);};
   return <div ref={layer} className="head-speech-layer" data-testid="head-speech-layer">

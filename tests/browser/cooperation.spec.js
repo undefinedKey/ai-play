@@ -1,3 +1,4 @@
+import {selectObservedAgent} from './observer-navigation.js';
 import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -18,7 +19,7 @@ async function actor(api,name){
 async function advance(ms){while(ms>0){const n=Math.min(ms,20000);clock+=n;for(const a of actors)if(app.world.agent(a.agent.agent_id).status==='active')await a.observe();app.world.tick();ms-=n;}}
 async function propose(a,b,template_id='camp_meal',role_id='supplier'){await a.act('cooperation',{intent:'propose',template_id,target_agent_id:b.agent.agent_id,role_id});return(await a.observe()).cooperation;}
 async function accept(b,p,role_id='cook'){await b.act('cooperation',{intent:'respond',cooperation_id:p.cooperation_id,revision:p.revision,accept:true,role_id});return(await b.observe()).cooperation;}
-async function open(page,id){await page.getByLabel('观察对象',{exact:true}).selectOption(id);const card=page.getByTestId('cooperation-panel');if((await card.getAttribute('open'))===null)await card.locator('summary').first().click();return card;}
+async function open(page,id){await selectObservedAgent(page,id);const card=page.getByTestId('cooperation-panel');if((await card.getAttribute('open'))===null)await card.locator('summary').first().click();return card;}
 async function review(page,label){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/cooperation-v015-${label}-${width}-${height}.png`,fullPage:true});await page.screenshot({path:`artifacts/cooperation-v015-${label}-${width}-${height}-viewport.png`});}}
 
 test('共同备餐真实同意、托管和结算可见，旁观不泄露定向邀请且只读',async({page,request})=>{
@@ -40,7 +41,7 @@ test('退出、拒绝、超时和暂停复核按服务状态展示，倒计时�
  await api(`/api/agents/${a.agent.agent_id}/control`,{operation:'start',controller_id:a.controller.controller_id,duration_minutes:30,max_calls:1000,goal:'PRIVATE_COOP_OWNER_GOAL'});await a.join();let current=(await a.observe()).cooperation;await a.act('cooperation',{intent:'confirm',cooperation_id:p.cooperation_id,revision:current.revision});await expect(card).toContainText('1 / 2 位已复核');await expect(page.getByRole('log')).toContainText('有成员已复核，等待双方确认');current=(await b.observe()).cooperation;await b.act('cooperation',{intent:'confirm',cooperation_id:p.cooperation_id,revision:current.revision});await expect(card).toHaveAttribute('data-cooperation-status','active');await b.act('cooperation',{intent:'leave',cooperation_id:p.cooperation_id});await expect(card).toContainText('已有成员退出');expect((await a.observe()).self.life.inventory.turnip).toBe(4);await expect(card.locator('.cooperation-escrow')).toContainText('0');
  await advance(61000);p=await propose(a,b);card=await open(page,a.agent.agent_id);await expect(card).toHaveAttribute('data-cooperation-status','proposed');
  // Keep the real SSE connection open while withholding HTTP clock resync during a client-only time jump.
- const polls=[];await page.route('**/api/public/world',route=>{polls.push(route);});await page.clock.install();await page.clock.fastForward(160000);await expect(card).toContainText('期限已到，等待确认');expect((await a.observe()).cooperation.status).toBe('proposed');await advance(160000);await expect(card).toHaveAttribute('data-cooperation-status','ended');await expect(card.locator('.cooperation-result')).toHaveCount(0);await page.unroute('**/api/public/world');await Promise.all(polls.map(route=>route.continue()));
+ const polls=[];await page.route('**/api/public/world*',route=>{polls.push(route);});await page.clock.install();await page.clock.fastForward(160000);await expect(card).toContainText('期限已到，等待确认');expect((await a.observe()).cooperation.status).toBe('proposed');await advance(160000);await expect(card).toHaveAttribute('data-cooperation-status','ended');await expect(card.locator('.cooperation-result')).toHaveCount(0);await page.unroute('**/api/public/world*');await Promise.all(polls.map(route=>route.continue()));
 });
 
 test('林地巡查只显示真实先后阶段，发现和击杀完成后没有虚构奖励',async({page,request})=>{

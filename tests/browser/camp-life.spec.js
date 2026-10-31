@@ -1,3 +1,4 @@
+import {selectObservedAgent} from './observer-navigation.js';
 import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -46,5 +47,5 @@ test('五位长同名角色同时徒手采集仍可区分选择，设施不挡�
  const api=await owner(request),actors=[];for(let i=0;i<5;i++){const a=await actor(api,i<2?'长名字的营地拾枝同伴':`营地拾枝同伴${i}`);await a.act('move',{x:11,y:8});actors.push(a);}
  await page.goto(base+'/watch?view=plaza');for(const a of actors)await a.act('gather',{intent:'start',resource_id:'wood'});
  await expect(page.locator('.map-agent')).toHaveCount(5);await expect(page.getByTestId('gather-current')).toContainText('正在采集木材');const offsets=await page.locator('.map-agent').evaluateAll(els=>els.map(el=>[el.style.getPropertyValue('--unit-offset'),el.style.getPropertyValue('--unit-row')].join(',')));expect(new Set(offsets).size).toBe(5);
- await review(page,'five-gatherers');await page.getByLabel('观察对象',{exact:true}).selectOption(actors[1].agent.agent_id);await expect(page.getByTestId(`map-agent-${actors[1].agent.agent_id}`)).toHaveClass(/selected/);await expect(page.getByTestId('observer-status')).toContainText('长名字的营地拾枝同伴');await page.getByRole('button',{name:'关注角色',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','following');await expect(page.locator('[data-asset-missing]')).toHaveCount(0);
+ await review(page,'five-gatherers');await selectObservedAgent(page,actors[1].agent.agent_id);await expect(page.getByTestId(`map-agent-${actors[1].agent.agent_id}`)).toHaveClass(/selected/);await expect(page.getByTestId('observer-status')).toContainText('长名字的营地拾枝同伴');await page.getByRole('button',{name:'关注角色',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','following');await expect(page.locator('[data-asset-missing]')).toHaveCount(0);
 });

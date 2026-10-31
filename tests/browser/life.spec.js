@@ -1,3 +1,4 @@
+import {selectObservedAgent} from './observer-navigation.js';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -19,8 +20,8 @@ async function owner(request) {
   expect(login.ok()).toBe(true);const session=await login.json();
   return async(path,data)=>{const response=await request.post(base+path,{headers:{Origin:base,'X-CSRF-Token':session.csrf_token},data});expect(response.ok(),await response.text()).toBe(true);return response.json();};
 }
-async function actor(api,name) {
-  const {agent}=await api('/api/agents',{name,avatar:'🌱'});
+async function actor(api,name,existing) {
+  const agent=existing||(await api('/api/agents',{name,avatar:'🌱'})).agent;
   const controller=await api(`/api/agents/${agent.agent_id}/controllers`,{kind:'external',name:'田园测试接入端'});
   await api(`/api/agents/${agent.agent_id}/control`,{operation:'start',controller_id:controller.controller_id,duration_minutes:15,max_calls:1000,goal:'PRIVATE_FARM_GOAL'});
   const client=new Client({name:'farm-browser-test',version:'1'},{capabilities:{}});clients.push(client);
@@ -104,6 +105,8 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   expect(registered.ok(),await registered.text()).toBe(true);const neighbor=await registered.json();
   const other=await request.post(base+'/api/agents',{headers:{Origin:base,'X-CSRF-Token':neighbor.csrf_token},data:{name:'邻居的小田'}});
   expect(other.ok()).toBe(true);const b=(await other.json()).agent;
+  const neighborApi=async(path,data)=>{const response=await request.post(base+path,{headers:{Origin:base,'X-CSRF-Token':neighbor.csrf_token},data});expect(response.ok(),await response.text()).toBe(true);return response.json();};
+  const neighborActor=await actor(neighborApi,b.name,b);
   await a.act('move',{x:11,y:8});
   await a.act('farm',{intent:'till',plot_id:'plot_1'});
   await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
@@ -117,13 +120,13 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(page.getByTestId('equipment-status')).toContainText('木剑');
   await expect(page.getByTestId('equipment-status')).toContainText('实际攻击 8');
   const planted=(await a.observe()).self.life.plots[0];
-  while(clock<=planted.ready_at){clock+=Math.min(20000,planted.ready_at+1-clock);application.world.tick();await a.observe();}
+  while(clock<=planted.ready_at){clock+=Math.min(20000,planted.ready_at+1-clock);application.world.tick();await a.observe();await neighborActor.observe();}
   await expect(page.getByTestId('farm-plot_1')).toContainText('已成熟 · 等待收获');
   expect((await a.observe()).self.life.inventory.turnip).toBeUndefined();
-  await page.getByLabel('观察对象',{exact:true}).selectOption(b.agent_id);
+  await selectObservedAgent(page,b.agent_id);
   await expect(page.locator('.farm-owner')).toContainText('邻居的小田的农田');
   await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
-  await page.getByLabel('观察对象',{exact:true}).selectOption(a.agent.agent_id);
+  await selectObservedAgent(page,a.agent.agent_id);
   await audit(page,'life-public-mature');
   await a.act('farm',{intent:'harvest',plot_id:'plot_1'});
   await expect(page.getByTestId('farm-plot_1')).toContainText('未开垦 · 等待锄地');
@@ -144,11 +147,11 @@ test('原 AI 播种浇水收获并装备木剑；旁观仅见田地与装备，�
   await expect(warehouse.locator('.warehouse-items>div').filter({has:page.getByText('木剑',{exact:true})})).toContainText('已装备');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('尚未核实');
   await a.report({runtime_version:'0.8.2',mode:'dsh-pet',capabilities:['adventure']});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.17 独立场景版本');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报版本 0.8.2 早于 0.18 世界框架版本');
   await a.report({runtime_version:'0.11.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('早于 0.17 独立场景版本');
-  await a.report({runtime_version:'0.17.1',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
-  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.17.1');
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('早于 0.18 世界框架版本');
+  await a.report({runtime_version:'0.18.0',mode:'dsh-pet',capabilities:['adventure','farming','farm_tools','inventory','equipment','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'],last_decision_type:'wait'});
+  await expect(page.getByTestId('runtime-diagnostics')).toContainText('0.18.0');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('原宠物桥接');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('上报决定等待');
   await expect(page.getByTestId('runtime-diagnostics')).toContainText('实际动作照料农田 · 已执行');

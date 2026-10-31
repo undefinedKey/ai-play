@@ -1,3 +1,4 @@
+import {selectObservedAgent} from './observer-navigation.js';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -43,7 +44,7 @@ async function speakMany(a,n,prefix='真实经历'){for(let i=0;i<n;i++){clock+=
 
 test('公开经历分页筛选保留读位，刷新才插入新经历，原始全文和出处可展开',async({page,request})=>{
   const a=await actor(request,'同名经历旅人'),b=await actor(request,'同名经历旅人');await speakMany(a,25);await b.act('say',{channel:'nearby',text:'乙的独立经历'});
-  await page.goto(base+'/watch?view=adventure');await page.getByLabel('观察对象',{exact:true}).selectOption(a.agent.agent_id);
+  await page.goto(base+'/watch?view=adventure');await selectObservedAgent(page,a.agent.agent_id);
   const panel=await openHistory(page),list=panel.getByTestId('history-list');await expect(list.locator(':scope > li')).toHaveCount(20);await expect(list).not.toContainText('乙的独立经历');
   const first=await list.locator(':scope > li').first().getAttribute('data-entry-id');await list.locator(':scope > li > details > summary').first().click();await expect(list.locator('.history-source').first()).toContainText('evt_');
   await a.act('say',{channel:'nearby',text:'后来才发生的新经历'});await expect(panel.getByRole('button',{name:'有新经历 · 刷新记录'})).toBeVisible();expect(await list.locator(':scope > li').first().getAttribute('data-entry-id')).toBe(first);
@@ -62,7 +63,7 @@ test('历史快速切换人物忽略迟到响应，错误可重试，离线旧�
   const a=await actor(request,'慢响应人物'),b=await actor(request,'快速人物');await a.act('say',{channel:'nearby',text:'甲的历史'});await b.act('say',{channel:'nearby',text:'乙的历史'});
   await a.api(`/api/agents/${a.agent.agent_id}/control`,{operation:'recall'});
   let pending;await page.route('**/api/public/history?**',async route=>{const url=new URL(route.request().url());if(url.searchParams.get('agent_id')===a.agent.agent_id){const r=await route.fetch();pending=()=>route.fulfill({response:r});}else await route.continue();});
-  await page.goto(base+'/watch?view=plaza');await page.getByLabel('观察对象',{exact:true}).selectOption(a.agent.agent_id);const panel=page.getByTestId('history-panel');await panel.locator(':scope > details > summary').click();await expect.poll(()=>!!pending).toBe(true);
+  await page.goto(base+'/watch?view=plaza');const panel=page.getByTestId('history-panel');await panel.locator(':scope > details > summary').click();await panel.getByLabel('经历人物').selectOption(a.agent.agent_id);await expect.poll(()=>!!pending).toBe(true);
   await panel.getByLabel('经历人物').selectOption(b.agent.agent_id);await expect(panel.getByTestId('history-list')).toContainText('乙的历史');await pending();await expect(panel.getByTestId('history-list')).not.toContainText('甲的历史');
   await page.unroute('**/api/public/history?**');let failed=false;await page.route('**/api/public/history?**',route=>{if(!failed){failed=true;return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'暂时无法读取经历'}})});}return route.continue();});
   await panel.getByRole('button',{name:'刷新记录',exact:true}).click();await expect(panel.getByRole('alert')).toContainText('暂时无法');await panel.getByRole('button',{name:'重试读取经历'}).click();await expect(panel.getByRole('alert')).toHaveCount(0);
@@ -74,6 +75,6 @@ test('合作终态清出即时列表后双方仍可回顾同一成果，拒绝�
   const a=await actor(request,'共同供菜者'),b=await actor(request,'共同厨师');await a.act('move',{x:11,y:8});await b.act('move',{x:11,y:8});application.world.agent(a.agent.agent_id).life.inventory.turnip=4;
   await a.act('cooperation',{intent:'propose',template_id:'camp_meal',target_agent_id:b.agent.agent_id,role_id:'supplier'});let p=Object.values(application.world.state.cooperations).find(p=>p.status==='proposed');await b.act('cooperation',{intent:'respond',cooperation_id:p.cooperation_id,revision:p.revision,accept:true,role_id:'cook'});await a.act('cooperation',{intent:'contribute',cooperation_id:p.cooperation_id,revision:p.revision});await b.act('cooperation',{intent:'cook',cooperation_id:p.cooperation_id,revision:p.revision});
   application.world.state.cooperations={};application.world.state.events=[];application.world.commit();
-  await page.goto(base+'/watch?view=farm');await page.getByLabel('观察对象',{exact:true}).selectOption(a.agent.agent_id);await expect(page.getByTestId('cooperation-panel')).toHaveCount(0);const panel=await openHistory(page);await panel.getByRole('button',{name:'查看合作成果'}).click();await expect(panel.locator('.history-list > li')).toHaveCount(1);const id=await panel.locator('.history-list > li').getAttribute('data-entry-id');await panel.locator('.history-list > li > details > summary').click();await expect(panel.getByTestId('cooperation-result')).toContainText('浓汤');await expect(panel.locator('.history-entry-body')).toContainText('共同供菜者');await expect(panel.locator('.history-entry-body')).toContainText('共同厨师');
+  await page.goto(base+'/watch?view=farm');await selectObservedAgent(page,a.agent.agent_id);await expect(page.getByTestId('cooperation-panel')).toHaveCount(0);const panel=await openHistory(page);await panel.getByRole('button',{name:'查看合作成果'}).click();await expect(panel.locator('.history-list > li')).toHaveCount(1);const id=await panel.locator('.history-list > li').getAttribute('data-entry-id');await panel.locator('.history-list > li > details > summary').click();await expect(panel.getByTestId('cooperation-result')).toContainText('浓汤');await expect(panel.locator('.history-entry-body')).toContainText('共同供菜者');await expect(panel.locator('.history-entry-body')).toContainText('共同厨师');
   await panel.getByLabel('经历人物').selectOption(b.agent.agent_id);await expect(panel.locator('.history-list > li')).toHaveAttribute('data-entry-id',id);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);
 });

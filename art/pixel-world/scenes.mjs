@@ -23,9 +23,17 @@ export function sceneGround(Grid, id) {
     // Service court remains entirely walkable, unlike house/pond footprints.
     g.ellipse(273,199,196,152,'#a69872');g.ellipse(279,205,184,140,'#d4c49b');
     for(let y=211;y<341;y+=12)for(let x=284+(y%24?0:7);x<455;x+=17)if(((x-371)/83)**2+((y-275)/61)**2<1)g.borderedRect(x,y,15,10,'#c6bb95','#b3aa86');
-    const water={x:64,y:64,w:96,h:64};g.rect(water.x-4,water.y-4,104,72,'#ccb98c');g.rect(64,64,96,64,'#466b70');g.rect(67,67,90,58,'#67979c');g.rect(70,70,84,52,'#80b1ad');
-    for(const[x,y]of[[78,78],[113,88],[91,111],[137,115]]){g.rect(x,y,14,2,'#c6d8bf');g.rect(x+4,y+3,5,1,'#9bc5b7');}
-    g.rect(159,79,17,34,'#9f7d53');for(let y=80;y<113;y+=6)g.line(160,y,175,y,'#cba56e');
+    // The painted water follows the same footprint as server collision. Rebuild
+    // ground images after editing the Tiled map; no second hand-written location.
+    const cells=SCENES.find(s=>s.id===id).props.find(p=>p.kind==='pond')?.footprint;
+    if(cells?.length){
+      const x=Math.min(...cells.map(p=>p.x))*32,y=Math.min(...cells.map(p=>p.y))*32;
+      const w=(Math.max(...cells.map(p=>p.x))*32-x)+32,h=(Math.max(...cells.map(p=>p.y))*32-y)+32;
+      if(cells.length!==w*h/1024)throw Error('Painted pond footprint must be rectangular.');
+      g.rect(x-4,y-4,w+8,h+8,'#ccb98c');g.rect(x,y,w,h,'#466b70');g.rect(x+3,y+3,w-6,h-6,'#67979c');g.rect(x+6,y+6,w-12,h-12,'#80b1ad');
+      for(const[dx,dy]of[[14,14],[49,24],[27,47],[73,51]])if(dx+14<w&&dy+4<h){g.rect(x+dx,y+dy,14,2,'#c6d8bf');g.rect(x+dx+4,y+dy+3,5,1,'#9bc5b7');}
+      g.rect(x+w-1,y+15,17,34,'#9f7d53');for(let yy=y+16;yy<y+49;yy+=6)g.line(x+w,yy,x+w+15,yy,'#cba56e');
+    }
   }else{
     g.ellipse(310,224,117,105,'#506e60');g.ellipse(317,231,103,89,'#a2a48a');
     for(let y=134;y<304;y+=22)for(let x=558;x<696;x+=25){g.borderedRect(x,y,23,19,(x+y)%3?'#7d8a7d':'#929a85','#526b62');if((x+y)%2)g.line(x+5,y+3,x+12,y+12,'#596f63');}

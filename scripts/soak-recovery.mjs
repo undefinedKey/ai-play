@@ -16,8 +16,40 @@ import { publicCooperations } from '../server/cooperation.js';
 import { isWalkable } from '../shared/world-layout.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import jsonPatch from 'fast-json-patch';
 
 const percentile = (values, fraction = .95) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)] || 0;
+const viewerCount = Number(process.argv.find(arg => arg.startsWith('--viewers='))?.split('=')[1] || 20);
+assert.ok(Number.isInteger(viewerCount) && viewerCount >= 1 && viewerCount <= 150);
+const scopedViewers = process.argv.includes('--scoped-viewers');
+const patchV2 = process.argv.includes('--patch-v2');
+function reconstructPublicFrame(previous, message, snapshot) {
+  if (snapshot) return message;
+  if (message.protocol === 2) {
+    assert.equal(message.base_frame_id, previous.stream_frame_id, 'delta must match this connection baseline');
+    assert.equal(typeof message.frame_id, 'string'); assert.ok(Array.isArray(message.patch));
+    assert.ok(message.patch.every(operation => !/^\/events(?:\/|$)/.test(operation.path)), 'event ring uses append/reset separately');
+    const { events, stream_frame_id, ...body } = previous;
+    const patched = jsonPatch.applyPatch(body, message.patch, true, false, true).newDocument;
+    return { ...patched, events: message.event_reset ? (message.events || []) : [...events, ...(message.events || [])].slice(-150), stream_frame_id: message.frame_id };
+  }
+  const { event_reset, ...delta } = message;
+  return { ...previous, ...delta, events: event_reset ? (delta.events || []) : [...previous.events, ...(delta.events || [])].slice(-150) };
+}
+function validatePublicFrame(frame, scene) {
+  assert.equal(frame.scope.scene_id, scene); assert.equal(frame.scope.roster, 'world');
+  assert.ok(frame.room && Array.isArray(frame.scenes) && frame.scenes.length === 2 && frame.life && frame.history && frame.fatigue);
+  assert.ok(Array.isArray(frame.agents) && frame.agents.length === 5); assert.ok(Array.isArray(frame.events) && frame.events.length <= 150);
+  assert.equal(new Set(frame.agents.map(a=>a.agent_id)).size,5); assert.ok(Number.isFinite(frame.server_time));
+  for (const a of frame.agents) {
+    assert.ok(isWalkable(a.scene_id,a.position)); assert.ok(Number.isFinite(a.adventure.hp));
+    assert.ok(!Object.hasOwn(a,'owner_id') && !Object.hasOwn(a,'run') && !Object.hasOwn(a,'diagnostics'));
+    assert.ok(!Object.hasOwn(a.life,'inventory') && !Object.hasOwn(a.life,'ledger'));
+  }
+  if (scene==='plaza') assert.equal(frame.adventure.monsters.length,0);
+  if (scene) assert.ok(frame.events.every(e=>e.payload.scene_id===scene || (e.type==='scene_changed'&&e.payload.from_scene_id===scene)
+    || (scene==='plaza'&&e.type.startsWith('cooperation_')&&e.payload.template_id==='camp_meal')));
+}
 const lifeScenario = process.argv.includes('--life');
 const explorationScenario = process.argv.includes('--exploration');
 const experienceScenario = process.argv.includes('--experience');
@@ -110,12 +142,20 @@ if (process.argv.includes('--worker')) {
   const directory = resolve(process.env.PLAZA_SOAK_DIR || '');
   assert.equal(dirname(directory), resolve(tmpdir()));
   assert.ok(directory.split(/[\\/]/).at(-1).startsWith('plaza-soak-'));
-  const app = await createApp({ dbPath: join(directory, 'world.sqlite'), frontend: false, demo: false });
+  // The private measurement app explicitly permits its local load generator. This
+  // is not a deployment default and never uses a forged forwarded IP header.
+  const app = await createApp({ dbPath: join(directory, 'world.sqlite'), frontend: false, demo: false,
+    spectatorOptions: { maxStreams: 150, maxPerIp: Math.max(30, viewerCount) } });
   const tick = app.world.tick.bind(app.world), times = [], delay = monitorEventLoopDelay({ resolution: 20 });
-  let maxTick = 0, peakEvents = 0, peakReceipts = 0, tickCount = 0;
+  let maxTick = 0, peakEvents = 0, peakReceipts = 0, tickCount = 0, unobservedPhysicalSteps = 0;
+  const physicalState = () => JSON.stringify({ agents:Object.values(app.world.state.agents).map(a=>[a.scene_id,a.position,a.adventure.hp]),
+    monsters:app.world.state.adventure.monsters.map(m=>[m.position,m.hp,m.status]) });
   const sceneCrossings = { plaza: 0, adventure: 0 }, priorScenes = new Map();
   app.world.tick = (...args) => {
+    const unobserved = app.spectator.count === 0 && app.spectator.stats.peak_streams > 0;
+    const priorPhysical = unobserved ? physicalState() : null;
     const before = performance.now(); const result = tick(...args); const ms = performance.now() - before;
+    if (unobserved && priorPhysical !== physicalState()) unobservedPhysicalSteps++;
     maxTick = Math.max(maxTick, ms); tickCount++;
     if (times.length < 50000) times.push(ms);
     peakEvents = Math.max(peakEvents, app.world.state.events.length);
@@ -154,7 +194,8 @@ if (process.argv.includes('--worker')) {
       cpu_ms: (used.user + used.system) / 1000, tick_p95_ms: percentile(times), tick_max_ms: maxTick, tick_count: tickCount,
       event_loop_p99_ms: delay.percentile(99) / 1e6, retained_events: app.world.state.events.length,
       retained_receipts: Object.keys(app.world.state.receipts).length, peak_events: peakEvents, peak_receipts: peakReceipts,
-      active: app.world.activeIds().length,
+      active: app.world.activeIds().length, living: Object.values(app.world.state.agents).filter(a=>a.adventure.hp>0).length,
+      spectator: app.spectator.stats, unobserved_physical_steps:unobservedPhysicalSteps,
       ...(sceneScenario ? { scene_crossings: sceneCrossings, scenes: Object.values(app.world.state.agents).map(a => a.scene_id) } : {}),
       ...(experienceScenario ? { history_entries:app.world.state.history.entries.length, history_cooperations:app.world.state.history.entries.filter(e=>e.category==='cooperation').length, completed_games:app.world.state.history.entries.filter(e=>e.type==='game_finished'&&e.outcome==='completed').length, live_meal_completed:publicCooperations(app.world).some(p=>p.status==='completed'&&p.template_id==='camp_meal') } : {}),
       ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
@@ -165,6 +206,7 @@ if (process.argv.includes('--worker')) {
   process.send({ type: 'ready', url, people });
   const timer = setInterval(() => process.send?.({ type: 'metrics', ...metrics() }), 5000);
   process.on('message', async message => {
+    if (message === 'probe') { process.send({ type: 'probe', ...metrics() }); return; }
     if (message !== 'stop') return;
     clearInterval(timer); process.send({ type: 'final', ...metrics() }); delay.disable();
     await app.close(); server.closeAllConnections(); await new Promise(r => server.close(r)); process.disconnect();
@@ -173,9 +215,10 @@ if (process.argv.includes('--worker')) {
   const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.split('=')[1] || 1800);
   assert.ok(Number.isInteger(seconds) && seconds >= 10 && seconds <= 3600);
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'plaza-soak-'));
-  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(sceneScenario ? ['--scenes'] : []), ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+  const worker = fork(fileURLToPath(import.meta.url), ['--worker', `--viewers=${viewerCount}`, ...(patchV2 ? ['--patch-v2'] : []), ...(scopedViewers ? ['--scoped-viewers'] : []), ...(sceneScenario ? ['--scenes'] : []), ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
   const samples = [], latencies = [], viewers = [], clients = [], abort = new AbortController();
-  let final, applied = 0, failures = 0, frames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
+  const updateAges = [], clientCpu = process.cpuUsage();
+  let final, applied = 0, failures = 0, frames = 0, validatedFrames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
   const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map(),words:['气球','球场','场地','地球','球迷','迷人','人民','民族','族群','群山']};
   let historyReads=0, historyFailures=0; const historyLatencies=[];
   const exit = new Promise(resolveExit => worker.once('exit', code => { exited = true; resolveExit(code); }));
@@ -200,12 +243,13 @@ if (process.argv.includes('--worker')) {
       clients.push({ client, session: await call(client, 'join_world'), policy: { setup:0,equipped:false,cycle:0 } });
     }
     cooperationShared.agentIds = clients.map(p=>p.session.self.agent_id);
-    await Promise.all(Array.from({ length: 20 }, async () => {
-      const response = await fetch(`${ready.url}/api/public/events?delta=1`, { signal: abort.signal });
+    await Promise.all(Array.from({ length: viewerCount }, async (_,index) => {
+      const scene = scopedViewers ? [null,'plaza','adventure'][index % 3] : null;
+      const response = await fetch(`${ready.url}/api/public/events?delta=${patchV2?2:1}${scene ? `&scene=${scene}` : ''}`, { signal: abort.signal });
       assert.equal(response.status, 200);
       const reader = response.body.getReader();
       viewers.push((async () => {
-        let buffer = '';
+        let buffer = '', currentFrame = null;
         const decoder = new TextDecoder();
         try {
           for (;;) {
@@ -217,7 +261,13 @@ if (process.argv.includes('--worker')) {
             while ((split = buffer.indexOf('\n\n')) !== -1) {
               const event = buffer.slice(0, split); buffer = buffer.slice(split + 2);
               const line = event.split('\n').find(line => line.startsWith('data: '));
-              if (line) { JSON.parse(line.slice(6)); frames++; }
+              if (line) {
+                const data=JSON.parse(line.slice(6)); frames++;
+                const snapshot=event.startsWith('event: snapshot');
+                if (!snapshot && patchV2) assert.equal(data.protocol,2);
+                currentFrame=reconstructPublicFrame(currentFrame,data,snapshot);validatePublicFrame(currentFrame,scene);validatedFrames++;
+                if (!snapshot) updateAges.push(Math.max(0,Date.now()-currentFrame.server_time));
+              }
             }
           }
         } catch (error) { if (!abort.signal.aborted) { viewerErrors++; console.error(error.message); } }
@@ -268,27 +318,52 @@ if (process.argv.includes('--worker')) {
       await sleep(Math.min(sceneScenario || experienceScenario || lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
     } while (performance.now() - start < seconds * 1000);
     const elapsed = performance.now() - start;
-    abort.abort(); await Promise.all(viewers); await Promise.all(clients.map(({ client }) => client.close()));
+    abort.abort(); await Promise.all(viewers);
+    const probe = () => new Promise((resolveProbe,reject) => {
+      const listener=message=>{if(message.type==='probe'){clearTimeout(timer);worker.off('message',listener);resolveProbe(message);}};
+      const timer=setTimeout(()=>{worker.off('message',listener);reject(new Error('Metrics probe timeout'));},5000);
+      worker.on('message',listener);worker.send('probe');
+    });
+    await sleep(100); const noViewersBefore=await probe();
+    // Keep the five authorized controllers alive, with zero public streams. The
+    // actual application timer must continue simulating independently of viewers.
+    for(let i=0;i<3;i++) {
+      await sleep(2000);
+      await Promise.all(clients.map(({client,session})=>call(client,'observe',{run_id:session.run_id,session_epoch:session.session_epoch})));
+    }
+    const noViewersAfter=await probe();
+    const unobserved={seconds:(noViewersAfter.at-noViewersBefore.at)/1000,
+      streams_before:noViewersBefore.spectator.active_streams,streams_after:noViewersAfter.spectator.active_streams,
+      simulation_ticks:noViewersAfter.tick_count-noViewersBefore.tick_count,
+      physical_steps:noViewersAfter.unobserved_physical_steps-noViewersBefore.unobserved_physical_steps,active:noViewersAfter.active};
+    await Promise.all(clients.map(({ client }) => client.close()));
     worker.send('stop'); assert.equal(await exit, 0); assert.ok(final);
     const window = Math.max(1, Math.min(60, Math.floor(samples.length / 3)));
     const early = percentile(samples.slice(window, window * 2).map(s => s.rss_mb), .5);
     const late = percentile(samples.slice(-window).map(s => s.rss_mb), .5);
-    const result = { type: 'result', scope: 'Isolated real HTTP: 5 scripted controllers, 20 public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.',
+    const clientUsed=process.cpuUsage(clientCpu);
+    const result = { type: 'result', scope: `Isolated real HTTP: 5 scripted controllers, ${viewerCount} public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.`,
       environment: { platform: process.platform, node: process.version, cores: cpus().length, total_memory_mb: Math.round(totalmem() / 1048576) },
       scenario: sceneScenario ? 'independent-scene-round-trips' : experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
       history_reads:historyReads,history_failures:historyFailures,history_query_p95_ms:+percentile(historyLatencies).toFixed(2),
-      requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: 20, applied, failures, viewer_errors: viewerErrors, frames,
-      mean_bytes_per_viewer_second: Math.round(bytes / 20 / (elapsed / 1000)), max_client_frame_buffer: maxBuffer,
+      requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: viewerCount, scoped_viewers:scopedViewers, delta_protocol:patchV2?2:1, applied, failures, viewer_errors: viewerErrors, frames, validated_frames:validatedFrames,
+      received_bytes:bytes, mean_bytes_per_viewer_second: Math.round(bytes / viewerCount / (elapsed / 1000)), max_client_frame_buffer: maxBuffer,
+      update_age_p95_ms:+percentile(updateAges).toFixed(2), update_age_samples:updateAges.length,
+      encoding_reuse_ratio:+(final.spectator.delta_frames_written/Math.max(1,final.spectator.delta_encodes)).toFixed(2), unobserved,
       mcp_roundtrip_p95_ms: +percentile(latencies).toFixed(2), app: final, samples,
-      steady_rss_median_change_mb: +(late - early).toFixed(2), client_peak_rss_mb: process.resourceUsage().maxRSS / 1024,
+      steady_rss_median_change_mb: +(late - early).toFixed(2), client_peak_rss_mb: process.resourceUsage().maxRSS / 1024, client_cpu_ms:(clientUsed.user+clientUsed.system)/1000,
       criteria: { app_rss_below_512: final.peak_rss_mb < 512, tick_p95_below_50: final.tick_p95_ms < 50, bounded_events: final.peak_events <= 3000, bounded_receipts: final.peak_receipts <= 1000, steady_rss_change_below_64: late - early < 64, all_five_present: final.active === 5,
+        all_five_living:final.living===5, full_viewer_capacity:final.spectator.peak_streams===viewerCount, no_stream_failures:final.spectator.slow_disconnects+final.spectator.write_errors===0,
+        shared_delta_encoding:viewerCount<10||final.spectator.delta_frames_written>final.spectator.delta_encodes*5,
+        every_frame_reconstructed:validatedFrames===frames,
+        world_continues_without_viewers:unobserved.streams_before===0&&unobserved.streams_after===0&&unobserved.simulation_ticks>=5&&unobserved.physical_steps>0&&unobserved.active===5,
         ...(sceneScenario && seconds >= 180 ? { entered_adventure: final.scene_crossings.adventure >= 5, returned_to_plaza: final.scene_crossings.plaza >= 5, farm_only_in_plaza: actionCounts['farm:till'] === 5 } : {}),
         ...(experienceScenario ? { bounded_history:final.history_entries===4096,cooperation_quota_preserved:final.history_cooperations===512,history_queries_passed:historyReads>0&&historyFailures===0,...(seconds>=900?{slow_game_completed:final.completed_games>0,slow_cooperation_completed:final.live_meal_completed}: {})} : {}),
         ...(cooperationScenario ? { bounded_cooperations: final.cooperations.length <= 25, bounded_returns: final.pending_returns <= 5, bounded_ledgers: final.ledger_entries.every(n=>n<=100), ...(seconds>=900 ? {meal_completed:final.cooperations.some(p=>p.template_id==='camp_meal'&&p.status==='completed'),patrol_completed:final.cooperations.some(p=>p.template_id==='scout_and_guard'&&p.status==='completed'),refusal_exercised:actionCounts['cooperation:respond_false']>=1,leave_exercised:actionCounts['cooperation:leave']>=1,expiry_exercised:final.cooperations.some(p=>p.status==='ended'&&p.end_reason==='expired')} : {}) } : {}),
         ...(explorationScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100),bounded_encounters:final.encounters<=5,bounded_goals:final.goals<=5, ...(seconds>=600? {exploration_choices_exercised:Object.entries(actionCounts).filter(([k])=>k.startsWith('adventure_event:')).reduce((n,[,v])=>n+v,0)>=10,goals_exercised:actionCounts['personal_goal:set']>=5,strategy_equipped:actionCounts['inventory:equip']>=10,finite_expiry_exercised:final.expired_encounters>0}: {}) } : {}),
         ...(lifeScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100), ...(seconds >= 600 ? { life_cycle_exercised: ['gather:start','inventory:repair','farm:harvest','inventory:craft','inventory:use','trade:buy','trade:sell'].every(key => actionCounts[key] >= 5) } : {}) } : {}) } };
     console.log(JSON.stringify(result));
-    assert.equal(failures + viewerErrors, 0); assert.ok(frames >= 20); assert.ok(applied >= (experienceScenario && seconds < 120 ? 0 : 5));
+    assert.equal(failures + viewerErrors, 0); assert.ok(frames >= viewerCount); assert.ok(applied >= (experienceScenario && seconds < 120 ? 0 : 5));
     assert.ok(Object.values(result.criteria).every(Boolean));
   } finally {
     abort.abort(); await Promise.allSettled(clients.map(({ client }) => client.close()));

@@ -1,0 +1,589 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.12.2",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "infinite": false,
+  "width": 24,
+  "height": 16,
+  "tilewidth": 32,
+  "tileheight": 32,
+  "nextlayerid": 3,
+  "nextobjectid": 21,
+  "properties": [
+    {
+      "name": "scene_id",
+      "type": "string",
+      "value": "plaza"
+    },
+    {
+      "name": "scene_name",
+      "type": "string",
+      "value": "生活广场"
+    },
+    {
+      "name": "destination_scene",
+      "type": "string",
+      "value": "adventure"
+    }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "Ground",
+      "type": "imagelayer",
+      "visible": true,
+      "opacity": 1,
+      "x": 0,
+      "y": 0,
+      "image": "../../public/pixel-world/scene_plaza.png",
+      "imagewidth": 768,
+      "imageheight": 512,
+      "locked": true
+    },
+    {
+      "id": 2,
+      "name": "World props and footprints",
+      "type": "objectgroup",
+      "visible": true,
+      "opacity": 1,
+      "draworder": "topdown",
+      "x": 0,
+      "y": 0,
+      "objects": [
+        {
+          "id": 1,
+          "name": "pond",
+          "type": "pond",
+          "rotation": 0,
+          "visible": true,
+          "point": true,
+          "x": 112,
+          "y": 112,
+          "width": 0,
+          "height": 0,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "bookshop",
+          "type": "bookshop",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 560,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "cottage",
+          "type": "cottage",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 176,
+          "y": 120,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "tool_shed",
+          "type": "shed",
+          "rotation": 0,
+          "visible": true,
+          "gid": 3,
+          "x": 400,
+          "y": 184,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[1,-1],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "games",
+          "type": "game_table",
+          "rotation": 0,
+          "visible": true,
+          "gid": 4,
+          "x": 592,
+          "y": 440,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "village_tree_0",
+          "type": "oak",
+          "rotation": 0,
+          "visible": true,
+          "gid": 5,
+          "x": -16,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "village_tree_1",
+          "type": "birch",
+          "rotation": 0,
+          "visible": true,
+          "gid": 6,
+          "x": 48,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "village_tree_2",
+          "type": "apple",
+          "rotation": 0,
+          "visible": true,
+          "gid": 7,
+          "x": 112,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "name": "village_tree_3",
+          "type": "oak",
+          "rotation": 0,
+          "visible": true,
+          "gid": 5,
+          "x": 176,
+          "y": 440,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "village_tree_4",
+          "type": "birch",
+          "rotation": 0,
+          "visible": true,
+          "gid": 6,
+          "x": 16,
+          "y": 440,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "village_tree_5",
+          "type": "apple",
+          "rotation": 0,
+          "visible": true,
+          "gid": 7,
+          "x": 464,
+          "y": 440,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "name": "village_tree_6",
+          "type": "oak",
+          "rotation": 0,
+          "visible": true,
+          "gid": 5,
+          "x": 656,
+          "y": 120,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "name": "village_tree_7",
+          "type": "birch",
+          "rotation": 0,
+          "visible": true,
+          "gid": 6,
+          "x": 624,
+          "y": 184,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "name": "village_tree_8",
+          "type": "apple",
+          "rotation": 0,
+          "visible": true,
+          "gid": 7,
+          "x": 400,
+          "y": 56,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "name": "village_tree_9",
+          "type": "oak",
+          "rotation": 0,
+          "visible": true,
+          "gid": 5,
+          "x": 272,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "name": "village_tree_10",
+          "type": "birch",
+          "rotation": 0,
+          "visible": true,
+          "gid": 6,
+          "x": -16,
+          "y": 344,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "name": "village_tree_11",
+          "type": "apple",
+          "rotation": 0,
+          "visible": true,
+          "gid": 7,
+          "x": 656,
+          "y": 472,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "name": "well",
+          "type": "well",
+          "rotation": 0,
+          "visible": true,
+          "gid": 8,
+          "x": 240,
+          "y": 184,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "name": "bench",
+          "type": "bench",
+          "rotation": 0,
+          "visible": true,
+          "gid": 9,
+          "x": 80,
+          "y": 184,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "name": "portal",
+          "type": "portal_plaza",
+          "rotation": 0,
+          "visible": true,
+          "gid": 10,
+          "x": 656,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[]"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "name": "world-props",
+      "columns": 0,
+      "tilewidth": 128,
+      "tileheight": 128,
+      "tilecount": 19,
+      "objectalignment": "bottomleft",
+      "grid": {
+        "orientation": "orthogonal",
+        "width": 1,
+        "height": 1
+      },
+      "tiles": [
+        {
+          "id": 0,
+          "type": "bookshop",
+          "image": "../../public/pixel-world/bookshop.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 1,
+          "type": "cottage",
+          "image": "../../public/pixel-world/cottage.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 2,
+          "type": "shed",
+          "image": "../../public/pixel-world/shed.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 3,
+          "type": "game_table",
+          "image": "../../public/pixel-world/game_table.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 4,
+          "type": "oak",
+          "image": "../../public/pixel-world/oak.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 5,
+          "type": "birch",
+          "image": "../../public/pixel-world/birch.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 6,
+          "type": "apple",
+          "image": "../../public/pixel-world/apple.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 7,
+          "type": "well",
+          "image": "../../public/pixel-world/well.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 8,
+          "type": "bench",
+          "image": "../../public/pixel-world/bench.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 9,
+          "type": "portal_plaza",
+          "image": "../../public/pixel-world/portal_plaza.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 10,
+          "type": "pine",
+          "image": "../../public/pixel-world/pine.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 11,
+          "type": "pine_tall",
+          "image": "../../public/pixel-world/pine_tall.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 12,
+          "type": "dead_tree",
+          "image": "../../public/pixel-world/dead_tree.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 13,
+          "type": "ruin_arch",
+          "image": "../../public/pixel-world/ruin_arch.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 14,
+          "type": "ruin_column",
+          "image": "../../public/pixel-world/ruin_column.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 15,
+          "type": "ruin_wall",
+          "image": "../../public/pixel-world/ruin_wall.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 16,
+          "type": "rock",
+          "image": "../../public/pixel-world/rock.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 17,
+          "type": "rock_large",
+          "image": "../../public/pixel-world/rock_large.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 18,
+          "type": "portal_adventure",
+          "image": "../../public/pixel-world/portal_adventure.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        }
+      ]
+    }
+  ]
+}

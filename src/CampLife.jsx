@@ -3,6 +3,7 @@ import {PixelItem,PixelLandmark} from './PixelWorld.jsx';
 import {projectMapPoint} from './map-projection.js';
 import {gatheringState,lifeItemName,publicLifeResult} from './life-state.js';
 import {recordTime} from './observer-state.js';
+import {RenderSpace} from './world-render-context.jsx';
 
 // All placements come from server rules; decorative trees are not gathering nodes.
 export function CampLandmarks({catalog,map}) {
@@ -10,7 +11,7 @@ export function CampLandmarks({catalog,map}) {
   useEffect(()=>{const resize=new ResizeObserver(entries=>setScale(entries[0].contentRect.width/768));if(host.current)resize.observe(host.current);return()=>resize.disconnect();},[]);
   const resources=catalog?.gathering?.resources||[];
   const places=[...resources.map(node=>({...node,kind:node.id,label:node.item_id==='wood'?'拾枝':'碎矿'})),...[catalog?.cooking_place,catalog?.market?.place].filter(Boolean).map(place=>({...place,kind:place.id,label:place.id==='kitchen'?'料理':'补给'}))];
-  return <div ref={host} className="camp-landmarks" aria-label="营地生活设施" style={{'--world-prop-scale':scale}}>{places.map(place=><span key={place.id} className={`camp-landmark landmark-${place.kind}`} style={{...projectMapPoint(place,map),zIndex:100+place.y*10}} role="img" aria-label={`${place.name}，坐标 ${place.x}, ${place.y}`} data-testid={`life-node-${place.id}`}><PixelLandmark id={place.kind}/><span>{place.label}</span></span>)}</div>;
+  return <div ref={host} className="camp-landmarks" aria-label="营地生活设施" style={{'--world-prop-scale':scale}}>{places.map(place=><span key={place.id} className={`camp-landmark landmark-${place.kind}`} style={{...projectMapPoint(place,map),zIndex:100+place.y*10}} role="img" aria-label={`${place.name}，坐标 ${place.x}, ${place.y}`} data-testid={`life-node-${place.id}`}><RenderSpace position={place} depth={100+place.y*10} anchor={[32,57.6]}><PixelLandmark id={place.kind}/></RenderSpace><span>{place.label}</span></span>)}</div>;
 }
 
 export default function CampLife({world,agent,now,live}) {

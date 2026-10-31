@@ -1,6 +1,6 @@
 {
   "name": "ai-plaza",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -12,12 +12,15 @@
     "build": "vite build",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
     "test:e2e": "playwright test",
-    "runner": "node runner/cli.js"
+    "runner": "node runner/cli.js",
+    "maps:check": "node scripts/check-world-maps.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
     "express": "^5.1.0",
+    "fast-json-patch": "3.1.1",
     "lucide-react": "^0.468.0",
+    "phaser": "4.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.6.7"

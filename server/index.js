@@ -102,8 +102,8 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.17.1', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, cooperation: true, public_history: true, head_speech_bubbles: true, independent_scenes: true, terrain_collision: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
-  const spectator = attachSpectator(app, world);
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.18.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, cooperation: true, public_history: true, head_speech_bubbles: true, independent_scenes: true, terrain_collision: true, phaser_renderer: true, scene_subscriptions: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
+  const spectator = attachSpectator(app, world, config.spectator);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
   });
@@ -336,7 +336,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
   const heartbeat = setInterval(() => { for (const [stream, info] of streams) { if (!authenticated(info.token)) { stream.end(); streams.delete(stream); } else stream.write(': heartbeat\n\n'); } }, 15000);
   timer.unref(); heartbeat.unref();
   return {
-    app, world, accounts, config, skillPairing,
+    app, world, accounts, config, skillPairing, spectator,
     async start(port = 3000) {
       if (accounts) {
         const admin = accounts.firstAdmin();

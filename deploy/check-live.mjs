@@ -14,7 +14,13 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
-for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision']) assert.equal(health.capabilities[capability], true, capability);
+for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision','phaser_renderer','scene_subscriptions']) assert.equal(health.capabilities[capability], true, capability);
+for(const scene of ['plaza','adventure']) {
+  const scoped=await(await response(`/api/public/world?scene=${scene}`)).json();
+  assert.deepEqual(scoped.scope,{scene_id:scene,events:'scene',roster:'world'});
+  assert.deepEqual(scoped.agents.map(a=>a.agent_id).sort(),world.agents.map(a=>a.agent_id).sort());
+  if(scene==='plaza')assert.equal(scoped.adventure.monsters.length,0);
+}
 assert.deepEqual(world.scenes, SCENES);
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);

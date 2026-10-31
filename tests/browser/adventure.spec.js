@@ -119,7 +119,7 @@ test('两个真实 MCP 接入端选择组队讨伐，无观众时前进，旁观
   await expect(page.locator('body')).not.toContainText(a.token);
   await expect(page.locator('body')).not.toContainText('PRIVATE_ADVENTURE_GOAL');
   expect(requests.every(r=>r.method()==='GET'&&['/api/public/world','/api/public/events','/api/public/history'].includes(new URL(r.url()).pathname))).toBe(true);
-  expect(requests.some(r=>r.url().includes('/api/public/events?delta=1'))).toBe(true);
+  expect(requests.some(r=>r.url().includes('/api/public/events?delta=2'))).toBe(true);
   await step(5);expect((await a.observe()).self.adventure.gold).toBe(result.gold);
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:900});
@@ -146,14 +146,15 @@ test('原 AI 的探索计划抵达即结束，主人暂停后停止执行且旁�
   await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`)).toHaveClass(/paused/);
 });
 
-test('HTTP 轮询先于同版本 SSE 增量到达时，旁观日志不重复且继续更新位置', async ({page,request}) => {
+test('断线 HTTP 轮询先于排队的同版本 SSE 增量到达时，旁观日志不重复且继续更新位置', async ({page,request}) => {
   const api=await owner(request), a=await actor(api,'测试增量旅人');
-  // Delay delivery of real SSE delta callbacks, leaving real snapshots and HTTP
-  // untouched. This reproduces polling ahead of a slow event stream.
+  // Delay real SSE callbacks at the transport boundary. A transient error is
+  // delivered before HTTP polling; healthy streams intentionally no longer poll.
   await page.addInitScript(()=>{
     const NativeEventSource=window.EventSource;
     window.__queuedDeltas=[];window.__holdDeltas=true;
     window.EventSource=class extends NativeEventSource {
+      constructor(...args){super(...args);window.__testSource=this;}
       addEventListener(type,listener,options) {
         if(type==='delta')return super.addEventListener(type,event=>{
           if(window.__holdDeltas)window.__queuedDeltas.push(()=>listener.call(this,event));
@@ -168,8 +169,10 @@ test('HTTP 轮询先于同版本 SSE 增量到达时，旁观日志不重复且�
   await expect(page.getByTestId('adventure-profile')).toContainText('目前没有冒险计划');
   await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});await step(2);
   await expect.poll(()=>page.evaluate(()=>window.__queuedDeltas.length)).toBeGreaterThan(0);
+  await page.evaluate(()=>window.__testSource.dispatchEvent(new Event('error')));
+  await expect(page.locator('.spectator-stale')).toBeVisible();
   const text=application.world.state.events.find(event=>event.type==='adventure_started').payload.text;
-  // The 12-second HTTP poll makes the current plan visible before deltas arrive.
+  // The disconnected 12-second HTTP poll is applied before the held deltas.
   await expect(page.getByTestId('adventure-profile')).toContainText('探索 · 苔光森林',{timeout:16000});
   await page.evaluate(()=>{window.__holdDeltas=false;window.__queuedDeltas.splice(0).forEach(deliver=>deliver());});
   await expect(page.getByRole('log').getByText(text,{exact:true})).toHaveCount(1);

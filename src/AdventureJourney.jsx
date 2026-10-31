@@ -4,6 +4,7 @@ import {projectMapPoint} from './map-projection.js';
 import {encounterState,goalState,goalKinds} from './journey-state.js';
 import {lifeItemName} from './life-state.js';
 import {publicName,recordTime} from './observer-state.js';
+import {RenderSpace} from './world-render-context.jsx';
 
 const resultText=result=>typeof result==='string'?result:result?.text;
 const targetName=(world,goal)=>lifeItemName(world.life,goal.target_id)||goal.target_id;
@@ -17,7 +18,7 @@ export function DiscoveryMarkers({world,map,selected,now,live}){
  return <div className="discovery-markers" role="group" aria-label="真实探索发现">{[...clusters.values()].map(cluster=>{
   const {agent,state}=cluster.find(entry=>entry.agent.agent_id===selected)||cluster[0],e=state.encounter;
   const flash=live&&agent.status==='active'&&e.status==='resolved'&&stateNow>=e.resolved_at&&stateNow-e.resolved_at<1500;
-  return <span key={agent.agent_id} className={`discovery-marker ${selected===agent.agent_id?'selected':''} ${state.pending?'pending':'closed'}`} style={projectMapPoint(e.position,map)} data-testid={`discovery-${agent.agent_id}`} data-encounter-status={e.status} role="img" aria-label={`${publicName(agent,world.agents)}发现${state.title}，${!live?'最近记录：':''}${state.label}${cluster.length>1?`；此处共 ${cluster.length} 位角色有发现，可切换观察对象查看`:''}`}><PixelDiscovery id={e.template_id} resolved={e.status==='resolved'} animate={flash}/><span className="discovery-status-mark" aria-hidden="true">{cluster.length>1?cluster.length:state.pending?'?':e.status==='resolved'?'✓':'·'}</span>{selected===agent.agent_id&&<span className="discovery-map-label">{state.title}</span>}</span>;
+  return <span key={agent.agent_id} className={`discovery-marker ${selected===agent.agent_id?'selected':''} ${state.pending?'pending':'closed'}`} style={projectMapPoint(e.position,map)} data-testid={`discovery-${agent.agent_id}`} data-encounter-status={e.status} role="img" aria-label={`${publicName(agent,world.agents)}发现${state.title}，${!live?'最近记录：':''}${state.label}${cluster.length>1?`；此处共 ${cluster.length} 位角色有发现，可切换观察对象查看`:''}`}><RenderSpace position={e.position} depth={260} anchor={[24,42]} screenSize={.833333} alpha={state.pending?1:.7}><PixelDiscovery id={e.template_id} resolved={e.status==='resolved'} animate={flash}/></RenderSpace><span className="discovery-status-mark" aria-hidden="true">{cluster.length>1?cluster.length:state.pending?'?':e.status==='resolved'?'✓':'·'}</span>{selected===agent.agent_id&&<span className="discovery-map-label">{state.title}</span>}</span>;
  })}</div>;
 }
 

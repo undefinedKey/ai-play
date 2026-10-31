@@ -93,11 +93,11 @@ test('旁观页：实时连接中断保留画面并明确标记，重新连接�
 test('旁观页：登录入口可以直接围观，初次加载失败可重试且不授予会话', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('link', { name: '先看看广场' })).toBeVisible();
-  await page.route('**/api/public/world', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'UNAVAILABLE', message: '旁观测试服务暂时不可用' } }) }));
+  await page.route('**/api/public/world*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'UNAVAILABLE', message: '旁观测试服务暂时不可用' } }) }));
   await page.getByRole('link', { name: '先看看广场' }).click();
   await expect(page.getByRole('alert')).toContainText('旁观测试服务暂时不可用');
   await expect(page.getByRole('heading', { name: '欢迎回到广场' })).toHaveCount(0);
-  await page.unroute('**/api/public/world');
+  await page.unroute('**/api/public/world*');
   await page.getByRole('button', { name: '重新连接', exact: true }).click();
   await expect(page.getByTestId('plaza-map')).toBeVisible();
   expect(await page.context().cookies()).toEqual([]);
