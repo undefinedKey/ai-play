@@ -100,13 +100,13 @@ test('发现和目标复核按本人/队友筛选，普通目标进度不触发�
   assert.equal(result.queue.length, 10); assert.ok(result.queue.every(e => !/stranger|personal_goal_set|personal_goal_progress/.test(e.event_id)));
 });
 
-test('装备有效属性与比较可读，15能力只在完整支持时报告，旧服保持12', async t => {
+test('装备有效属性与比较可读，16能力只在完整支持时报告，旧服保持12', async t => {
   const f = await fixture(t); Object.assign(f.a.life.inventory, { hunter_bow: 1, heavy_hammer: 1, heavy_armor: 1 }); f.refresh();
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.match(prompt, /personal_goal\{intent:set/); assert.ok(data.goals.some(([kind, ids]) => kind === 'resolve_exploration' && ids.includes('forest')));
   assert.deepEqual(data.gear.find(row => row[0] === 'heavy_armor').slice(4, 7), [null, null, null]); assert.ok(data.combat); assert.ok(data.gear?.some(row => row[0] === 'hunter_bow' && row[4] === 3 && row[5] === 2000 && row[6] === 2));
   assert.match(prompt, /inventory\{intent:craft\|equip,item_id\}仅这两键/); assert.match(prompt, /槽\(只读\)/);
-  assert.equal(f.runner.capabilities().length, 15);
+  assert.equal(f.runner.capabilities().length, 16);
   const old = structuredClone(f.runner.rules); old.max_capabilities = 12; delete old.personal_goals; delete old.adventure.exploration; delete old.life.strategy_equipment;
   old.allowed_actions = old.allowed_actions.filter(type => !['personal_goal', 'adventure_event'].includes(type)); f.runner.rules = old;
   assert.equal(f.runner.capabilities().length, 12); f.runner.mode = 'demo'; assert.deepEqual(f.runner.capabilities(), []);

@@ -102,7 +102,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.14.2', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.15.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, cooperation: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
   const spectator = attachSpectator(app, world);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));

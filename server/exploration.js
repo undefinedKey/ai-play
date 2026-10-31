@@ -3,6 +3,7 @@ import { isPositionInBounds } from './spatial.js';
 import { adjustInventory } from './life.js';
 import { FATIGUE_RULES, publicFatigue, spendEnergy } from './fatigue.js';
 import { progressPersonalGoal } from './personal-goals.js';
+import { progressCooperation } from './cooperation.js';
 
 const choice = (choice_id, name, energy_cost = 0, items = {}, heal = 0, restore_energy = 0) => ({ choice_id, name, energy_cost, items, heal, restore_energy });
 export const EXPLORATION_RULES = {
@@ -95,5 +96,6 @@ export function performAdventureEvent(world, a, p, fail) {
     text: c.choice_id === 'decline' ? '选择离开，没有消耗或奖励' : `选择了「${c.name}」` };
   announce(world, a, c.choice_id === 'decline' ? 'exploration_ended' : 'exploration_resolved', `${a.name}${e.public_result.text}`);
   if (c.choice_id !== 'decline') progressPersonalGoal(world, a, { kind: 'resolve_exploration', target_id: e.zone_id, source_id: e.event_id });
+  if (c.choice_id !== 'decline') progressCooperation(world, a, { kind: 'exploration', zone_id: e.zone_id, source_id: e.event_id, found_at: e.found_at });
   return { encounter: publicEncounter(a) };
 }

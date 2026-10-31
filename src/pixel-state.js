@@ -1,5 +1,6 @@
 const occurredAt = value => typeof value === 'number' ? value : Date.parse(value || '') || 0;
 const recent = (at, now, duration = 1600) => Number.isFinite(at) && now >= at && now - at < duration;
+const cooperationCook = (event, agentId) => event.type === 'cooperation_completed' && event.payload?.template_id === 'camp_meal' && event.payload.status === 'completed' && event.payload.members?.some(member => member.agent_id === agentId && member.role_id === 'cook');
 
 /** Select only poses supported by an observed position, action receipt or public state. */
 export function characterAction(agent, events, now, moving = false) {
@@ -15,7 +16,9 @@ export function characterAction(agent, events, now, moving = false) {
     if (outgoing && incoming) return now - occurredAt(last.occurred_at) < 660 ? 'attack' : 'hurt';
   }
   for (const event of [...(events || [])].reverse()) {
-    if (event.payload?.agent_id !== agent.agent_id || !recent(occurredAt(event.occurred_at), now)) continue;
+    if (!recent(occurredAt(event.occurred_at), now)) continue;
+    if (cooperationCook(event, agent.agent_id)) return 'cook';
+    if (event.payload?.agent_id !== agent.agent_id) continue;
     if (event.type === 'adventure_combat') return event.payload.attacker === 'monster' ? 'hurt' : 'attack';
     if (event.type === 'life_consumed') return 'eat';
     if (event.type === 'life_crafted' && ['turnip_soup','wheat_bread'].includes(event.payload.item_id)) return 'cook';
@@ -37,7 +40,7 @@ export function characterAction(agent, events, now, moving = false) {
 export function characterActionKey(agent, events, action) {
   if(action==='gather')return `gather:${agent.life?.gathering?.job_id||''}`;
   if(action==='cook'||action==='eat'){
-    const receipt=[...(events||[])].reverse().find(event=>event.payload?.agent_id===agent.agent_id&&event.type===(action==='cook'?'life_crafted':'life_consumed'));
+    const receipt=[...(events||[])].reverse().find(event=>action==='cook'&&cooperationCook(event,agent.agent_id)||event.payload?.agent_id===agent.agent_id&&event.type===(action==='cook'?'life_crafted':'life_consumed'));
     return `${action}:${receipt?.event_id||receipt?.occurred_at||''}`;
   }
   const type = { attack:'adventure_combat',hurt:'adventure_combat',till:'life_tilled',plant:'life_planted',water:'life_watered',harvest:'life_harvested',craft:'life_crafted',repair:'life_tool_repaired',upgrade:'life_tool_upgraded' }[action];

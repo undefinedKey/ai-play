@@ -102,7 +102,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}入场立即有决策机�
   const version = JSON.parse(readFileSync(new URL('../skills/ai-plaza/version.json', import.meta.url), 'utf8')).version;
   assert.equal(reports.at(-1).runtime_version, version);
   assert.equal(reports.at(-1).mode, mode);
-  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals', 'recovery', 'reliable_events', 'runtime_health']);
+  assert.deepEqual(reports.at(-1).capabilities, ['adventure', 'farming', 'inventory', 'equipment', 'farm_tools', 'fatigue', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals', 'cooperation', 'recovery', 'reliable_events', 'runtime_health']);
   assert.equal(reports.at(-1).last_decision_type, 'adventure_plan');
   assert.ok(reports.some(r => r.last_decision_type === 'wait'));
 });

@@ -125,7 +125,7 @@ export function publicLife(a, now, { privateInventory = false, includeLedger = t
 function announce(world, a, type, text, extra = {}) {
   world.event(type, { agent_id: a.agent_id, name: a.name, text, ...extra }, [...new Set([a.agent_id, ...world.activeIds()])]);
 }
-function campAvailable(world, a, fail) {
+export function campAvailable(world, a, fail) {
   const farm = LIFE_RULES.farm_place, position = a.position;
   if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
   if (a.adventure?.plan || a.adventure?.in_field || a.activity) fail('ACTIVITY_BUSY', '请先结束当前计划或活动，并返回安全营地');

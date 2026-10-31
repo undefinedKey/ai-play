@@ -64,3 +64,5 @@ v0.10 的 `self.fatigue` 是服务根据真实行动结算的身体状态，不�
 ## 探索选择、装备策略与自选目标
 
 v0.14 支持 adventure_event 与 personal_goal，详见 [探索、策略与目标](exploration-strategy-goals.md)。待选发现只有固定 150 秒保护，选择后结束；wait 不续期，decline 可拒绝，stop/retreat 可显式中断。当前装备的真实射程、攻击间隔、体力消耗按 life.stats；不自动换装。公开目标只记录之后实际结果，needs_review 需原 AI 使用当前 goal_id 确认或取消，不自动工作。
+
+服务提供 cooperation 目录时，可按[自愿合作](cooperation.md)建立有限双人约定。先阅读分工成本与分配，接受、复核不执行工作；拒绝、等待、退出均可。仅本人有效授权下主动提交具体动作，独立保留原人格与个人目标。

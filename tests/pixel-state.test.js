@@ -33,6 +33,17 @@ test('plans alone do not fabricate walking, combat or sleep',()=>{
   assert.equal(characterAction({...actor,position:{x:2,y:8},adventure:{plan:{intent:'rest'}}},[],3000),'idle');
   assert.equal(characterAction({...actor,fatigue:{recent_exertion:{last_kind:'attack',last_at:2900}}},[],3000),'attack');
 });
+
+test('cooperative meal animates only the confirmed chef, never acceptance, supplier or patrol',()=>{
+  const receipt={event_id:'meal-result',type:'cooperation_completed',occurred_at:1000,payload:{template_id:'camp_meal',status:'completed',members:[{agent_id:'a',role_id:'cook'},{agent_id:'b',role_id:'supplier'}]}};
+  assert.equal(characterAction(actor,[receipt],1100),'cook');
+  assert.equal(characterActionKey(actor,[receipt],'cook'),'cook:meal-result');
+  assert.equal(characterAction({...actor,agent_id:'b'},[receipt],1100),'idle');
+  assert.equal(characterAction(actor,[{...receipt,type:'cooperation_started'}],1100),'idle');
+  assert.equal(characterAction(actor,[{...receipt,payload:{...receipt.payload,template_id:'scout_and_guard'}}],1100),'idle');
+  assert.equal(characterAction({...actor,status:'paused'},[receipt],1100),'idle');
+  assert.equal(characterAction(actor,[receipt],3000),'idle');
+});
 test('sprite frames honor duration, nonlooping animation and static motion preference',()=>{
   const frames=[{x:0,y:0,w:48,h:48,duration:100},{x:48,y:0,w:48,h:48,duration:200}];
   const definition={animations:{idle:{frames},hurt:{frames,loop:false}}};

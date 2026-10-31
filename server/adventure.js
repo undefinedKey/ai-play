@@ -6,6 +6,7 @@ import { FATIGUE_RULES, publicFatigue, spendEnergy, attackMultiplier, announceEx
 import { economyBalance, recordEconomyDelta } from './economy.js';
 import { EXPLORATION_RULES, initializeExploration, publicEncounter, encounterPending, discoverEncounter, endEncounter } from './exploration.js';
 import { progressPersonalGoal } from './personal-goals.js';
+import { progressCooperation } from './cooperation.js';
 export const ADVENTURE_ZONES = [
   { id: 'camp', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。主动休息恢复生命与体力，可以聊天并邀请同伴。' },
   { id: 'forest', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
@@ -178,6 +179,7 @@ function reward(world, monster) {
     const event = announce(world, 'adventure_loot', a, `${a.name}参与击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}${f.level > oldLevel ? `，升到 ${f.level} 级` : ''}`, { monster_id: monster.monster_id, xp, gold, materials });
     recordEconomyDelta(a, balanceBefore, { source_id: event.event_id, reason: 'monster_loot', at: world.now(), world });
     progressPersonalGoal(world, a, { kind: 'defeat_monster', target_id: monster.monster_id, source_id: event.event_id });
+    progressCooperation(world, a, { kind: 'monster', zone_id: monster.zone_id, source_id: event.event_id });
     stopAdventure(world, a, 'victory', `击败${monster.name}，获得 ${xp} 经验、${gold} 金币${materialText ? `、${materialText}` : ''}`);
   }
   monster.hp = 0; monster.status = 'respawning'; monster.respawn_at = world.now() + 60000; monster.contributions = {};

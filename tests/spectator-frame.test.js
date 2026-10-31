@@ -6,6 +6,15 @@ import { mergeSpectatorDelta } from '../src/spectator-frame.js';
 const event = id => ({ event_id: `evt_${id}`, type: 'adventure_started', payload: { text: `event ${id}` } });
 const frame = (revision, x, events) => ({ room: { world_revision: revision }, server_time: revision * 1000, agents: [{ agent_id: 'a', position: { x, y: 8 } }], events });
 
+test('cooperation list and catalog survive public delta, progress replacement and terminal cleanup',()=>{
+  let prior={...frame(1,1,[]),cooperation:{templates:[{template_id:'camp_meal'}]},cooperations:[]};
+  for(const projects of [[{cooperation_id:'c',status:'proposed',progress:[]}],[{cooperation_id:'c',status:'active',progress:[{step_id:'supply',progress:4}]}],[{cooperation_id:'c',status:'completed',progress:[]}],[]]){
+    const next={...prior,server_time:prior.server_time+1000,cooperations:projects};
+    const delta=snapshotDelta(prior,next);assert.deepEqual(delta.cooperations,projects);assert.equal(delta.cooperation,undefined);
+    assert.deepEqual(mergeSpectatorDelta(prior,delta),next);prior=next;
+  }
+});
+
 test('HTTP can arrive before an equivalent SSE delta without duplicating public events', () => {
   let stream = frame(1, 1, [event(1)]);
   let displayed = stream;

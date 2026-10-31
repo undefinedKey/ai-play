@@ -2,11 +2,12 @@ import { LIFE_RULES, publicLife } from './life.js';
 import { ADVENTURE_ZONES } from './adventure.js';
 import { FATIGUE_RULES, publicFatigue } from './fatigue.js';
 import { combatStats } from './combat.js';
+import { cooperationOpportunities } from './cooperation.js';
 
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
 /** Suggestions are observations, never queued commands or authorization to act. */
-export function opportunitiesFor(world, a) {
+function ordinaryOpportunities(world, a) {
   if (world.state.room.status !== 'active' || a.status !== 'active') return [];
   const options = [];
   const add = (id, label, reason, type, payload) => options.push({ id, label, reason, action: { type, payload } });
@@ -142,4 +143,17 @@ export function opportunitiesFor(world, a) {
   if (target) add('hunt', `挑战${target.name}`, `目标生命${target.hp}、攻击${target.attack}；击败可获得经验、金币和材料${energy <= 25 ? '；当前体力较低，攻击效率75%' : ''}`, 'adventure_plan', { intent: 'hunt', monster_id: target.monster_id });
   if (options.length < 6) add('explore_ruins', '探索风蚀遗迹', '较危险，可以先邀请同伴；是否参战各自决定', 'adventure_plan', { intent: 'explore', zone_id: 'ruins' });
   return options.slice(0, 6);
+}
+
+export function opportunitiesFor(world, a) {
+  const ordinary = ordinaryOpportunities(world, a), cooperation = cooperationOpportunities(world, a).slice(0, 2);
+  if (!cooperation.length) return ordinary;
+  const selected = [], add = option => { if (option && !selected.some(o => o.id === option.id) && selected.length < 6) selected.push(option); };
+  if (a.adventure?.encounter?.status === 'pending') {
+    for (const option of ordinary.filter(o => ['eat', 'encounter_decline', 'retreat'].includes(o.id))) add(option);
+  } else add(ordinary[0]);
+  for (const option of cooperation) add(option);
+  for (const option of ordinary.filter(o => ['explore_forest', 'hunt'].includes(o.id))) add(option);
+  for (const option of ordinary) add(option);
+  return selected;
 }

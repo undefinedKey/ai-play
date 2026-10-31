@@ -72,13 +72,88 @@ def compare_v014_records(old, new, agent_id, a, b):
     if not expired:
         assert int(event['cursor']) < int(restart['cursor']) and event['occurred_at'] <= restart['occurred_at'], 'goal review occurs during restart'
 
+def compare_cooperations(old, new):
+    """Mirror only permitted restart bookkeeping; never accept new work or consent."""
+    original = old.get('cooperations', {})
+    expected = deepcopy(original)
+    agents = deepcopy(old['agents'])
+    events = [event for event in new.get('events', []) if str(event.get('cursor', '')).isdigit() and int(event['cursor']) > old.get('sequence', 0)]
+    restarts = [event for event in events if event.get('type') == 'server_restarted']
+    restart = restarts[0] if len(restarts) == 1 else None
+    public_fields = ['cooperation_id', 'revision', 'template_id', 'status', 'created_at', 'invite_expires_at', 'expires_at', 'started_at', 'ended_at', 'end_reason', 'progress', 'escrow', 'public_result']
+    def prove(event, p):
+        assert restart and safe_time(event.get('occurred_at')), 'cooperation lifecycle requires restart record'
+        assert all(event['payload'].get(key) == p.get(key) for key in public_fields), 'cooperation event matches state'
+        assert event['payload'].get('members') == [{key: m[key] for key in ['agent_id', 'role_id', 'confirmed']} for m in p['members']], 'cooperation public consents match'
+    for cid, p in expected.items():
+        if p['status'] not in ['proposed', 'active', 'needs_review']:
+            continue
+        changes = [event for event in events if event.get('payload', {}).get('cooperation_id') == cid]
+        reviews = [event for event in changes if event['type'] == 'cooperation_review']
+        endings = [event for event in changes if event['type'] == 'cooperation_ended']
+        assert not any(event['type'] in ['cooperation_started', 'cooperation_progress', 'cooperation_completed', 'cooperation_proposed'] for event in changes), 'no cooperative work or consent during release'
+        assert len(reviews) <= 1 and len(endings) <= 1, 'single restart lifecycle transition'
+        previous_status = p['status']
+        required_review = previous_status == 'active' or previous_status == 'needs_review' and any(m['confirmed'] for m in p['members'])
+        if reviews:
+            assert required_review, 'only existing consent can be invalidated'
+            p['status'] = 'needs_review'; p['revision'] += 1
+            for m in p['members']: m['confirmed'] = False
+            prove(reviews[0], p)
+            assert int(reviews[0]['cursor']) < int(restart['cursor']) and reviews[0]['occurred_at'] <= restart['occurred_at'], 'review occurs during constructor'
+        if endings:
+            event = endings[0]; payload = event['payload']; ended_at = payload.get('ended_at'); reason = payload.get('end_reason')
+            assert safe_time(ended_at) and p['created_at'] <= ended_at <= event['occurred_at'], 'valid cooperation end timestamp'
+            if previous_status == 'proposed':
+                assert reason == 'not_formed' and not reviews, 'unaccepted proposals end on restart'
+            elif reason == 'expired':
+                assert ended_at >= p['expires_at'], 'expiry cannot be forged early'
+            elif reason == 'authorization_ended':
+                assert any(not old['agents'][m['agent_id']].get('run') or old['agents'][m['agent_id']]['run']['status'] == 'closed' or
+                    old['controllers'].get(old['agents'][m['agent_id']]['run']['controller_id'], {}).get('revoked') for m in p['members']), 'closed or revoked authorization required'
+            else:
+                raise AssertionError('no voluntary leave or new result during release')
+            if required_review and not reviews:
+                assert reason == 'expired' and ended_at <= restart['occurred_at'], 'only immediate expiry bypasses review'
+            quantity = p['escrow']['turnip']
+            if quantity:
+                assert quantity == 4 and p['contributor_id'] in agents, 'fixed original escrow refund'
+                owner = agents[p['contributor_id']]; actual = new['agents'][p['contributor_id']]
+                assert owner.get('cooperation_return') is None, 'refund slot was free before contribution'
+                inventory = owner['life']['inventory']; balance = inventory.get('turnip', 0) + quantity
+                if balance <= 9007199254740991:
+                    inventory['turnip'] = balance
+                    ledger = owner['life']['ledger']; source = 'cooperation:' + cid + ':return'
+                    rows = [row for row in actual['life']['ledger']['entries'] if row['source_id'] == source]
+                    assert len(rows) == 1 and safe_time(rows[0].get('at')) and p['created_at'] <= rows[0]['at'] <= ended_at, 'one timestamped refund ledger entry'
+                    ledger['total_entries'] = min(9007199254740991, ledger['total_entries'] + 1)
+                    row = {'entry_id': 'ledger_' + str(ledger['total_entries']), 'source_id': source, 'at': rows[0]['at'], 'reason': 'cooperation_return',
+                        'items': {'turnip': quantity}, 'gold_delta': 0,
+                        'balances': {'inventory': {key: value for key, value in inventory.items() if value != 0}, 'gold': owner['adventure']['gold']}}
+                    ledger['entries'] = (ledger['entries'] + [row])[-100:]
+                else:
+                    owner['cooperation_return'] = {'cooperation_id': cid, 'quantity': quantity}
+                p['escrow']['turnip'] = 0
+            p.update(status='ended', ended_at=ended_at, end_reason=reason)
+            prove(event, p)
+        elif previous_status == 'proposed' or required_review and not reviews:
+            raise AssertionError('required cooperation restart transition missing')
+    # This is the same deterministic public-history pruning, with independent returns.
+    ended = sorted([p for p in expected.values() if p['status'] not in ['proposed', 'active', 'needs_review']], key=lambda p: (p.get('ended_at') or 0, p['cooperation_id']), reverse=True)
+    for p in ended[20:]: del expected[p['cooperation_id']]
+    assert new.get('cooperations', {}) == expected, 'cooperation terms, bindings, sources, escrow and progress preserved'
+    return agents
+
 def compare_states(old, new):
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
+    expected_agents = compare_cooperations(old, new)
     for key, a in old['agents'].items():
         b = new['agents'][key]
         for field in ['inventory', 'equipment', 'tools', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
-            assert a['life'].get(field) == b['life'].get(field), field
+            assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
+        assert a.get('cooperation_proposed_at') == b.get('cooperation_proposed_at'), 'proposal cooldown preserved'
+        assert expected_agents[key].get('cooperation_return') == b.get('cooperation_return'), 'private pending return preserved'
         # Compare whole normalized arrays; zip alone silently accepts lost plots.
         normalize = lambda plots: [{k: v for k, v in p.items() if k != 'ready_notified'} for p in plots]
         assert normalize(a['life']['plots']) == normalize(b['life']['plots']), 'plots preserved'
@@ -114,6 +189,7 @@ def verify(path, root=Path('/')):
         'appearance_growth_preserved': True, 'grants_and_budgets_preserved': True, 'controller_credentials_preserved': True,
         'existing_ledger_and_market_preserved': True, 'server_configuration_preserved': True,
         'exploration_goals_and_cooldowns_preserved': True,
+        'cooperations_consents_escrow_returns_preserved': True,
         'sqlite_integrity': 'ok', 'backup': str(path)}
 
 if __name__ == '__main__':

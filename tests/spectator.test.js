@@ -110,6 +110,30 @@ test('匿名 SSE：初始快照与真实交流实时送达，重连无cookie且�
   assert.ok(snapshotFrame(await second.next()).events.some(event => event.payload.text === '旁观者应该看到这句话'));
 });
 
+test('合作公开契约投影与增量SSE不含未接受对象、拒绝私信、绑定或退款余额', async t => {
+  const f=await fixture(t),a=character(f.world,'公开发起者'),b=character(f.world,'未接受对象');
+  const raw={cooperation_id:'public_coop',revision:1,template_id:'camp_meal',status:'proposed',created_at:f.world.now(),invite_expires_at:f.world.now()+150000,expires_at:f.world.now()+900000,
+    members:[{agent_id:a.agent.agent_id,role_id:'supplier',confirmed:true,run_id:a.observation.run_id,session_epoch:a.observation.session_epoch,private_reason:'PRIVATE_MEMBER'}],
+    progress:[{step_id:'supply',role_id:'supplier',progress:0,target_count:4,source_id:'PRIVATE_SOURCE'}],escrow:{turnip:0,private_balance:'PRIVATE_BALANCE'},
+    target_agent_id:b.agent.agent_id,target_binding:{run_id:b.observation.run_id,session_epoch:b.observation.session_epoch},sources:['PRIVATE_SOURCE'],owner_goal:'PRIVATE_COOP_GOAL',cooperation_return:{quantity:4}};
+  f.world.state.cooperations={[raw.cooperation_id]:raw};
+  f.world.event('cooperation_proposed',{...raw,text:'PRIVATE_INVITE_TEXT'},[a.agent.agent_id,b.agent.agent_id]);
+  f.world.event('cooperation_invitation',{target_agent_id:b.agent.agent_id,text:'PRIVATE_INVITATION'},[b.agent.agent_id]);
+  f.world.event('cooperation_response',{target_agent_id:b.agent.agent_id,accepted:false,text:'PRIVATE_REFUSAL'},[a.agent.agent_id]);
+  const http=await(await fetch(f.url+'/api/public/world')).json();const project=http.cooperations[0];
+  assert.equal(project.members.length,1);assert.equal(http.cooperation.templates.length,2);assert.ok(!JSON.stringify(project).includes(b.agent.agent_id));
+  assert.doesNotMatch(JSON.stringify(http),/PRIVATE_/);
+  assert.doesNotMatch(JSON.stringify({cooperations:http.cooperations,events:http.events.filter(e=>e.type.startsWith('cooperation_'))}),/"(?:target_agent_id|target_binding|run_id|session_epoch|cooperation_return|owner_goal|source_id)"/);
+  assert.deepEqual(http.events.find(e=>e.type==='cooperation_proposed').payload,project);
+  const watch=await stream(t,f.url+'/api/public/events?delta=1');const initial=snapshotFrame(await watch.next());assert.deepEqual(initial.cooperations,[project]);
+  raw.status='ended';raw.ended_at=f.world.now();raw.end_reason='not_formed';
+  f.world.event('cooperation_ended',{...raw,private_reason:'PRIVATE_DECLINED'},[a.agent.agent_id]);
+  const frame=await watch.next();assert.match(frame,/^event: delta/);const delta=snapshotFrame(frame);
+  assert.equal(delta.cooperations[0].end_reason,'not_formed');assert.equal(delta.events.at(-1).payload.status,'ended');
+  assert.doesNotMatch(JSON.stringify(delta),/PRIVATE_/);
+  assert.doesNotMatch(JSON.stringify({cooperations:delta.cooperations,events:delta.events.filter(e=>e.type.startsWith('cooperation_'))}),/"(?:target_agent_id|target_binding|run_id|session_epoch|cooperation_return|owner_goal|source_id)"/);
+});
+
 test('旁观增量SSE仅发送变化和新事件，重连恢复完整快照', async t => {
   const f = await fixture(t), c = character(f.world);
   for (let i = 0; i < 150; i++) f.world.event('message', { agent_id: c.agent.agent_id, name: '公开小芽', channel: 'nearby', text: `历史${i}` });

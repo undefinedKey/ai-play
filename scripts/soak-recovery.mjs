@@ -10,13 +10,16 @@ import { performance, monitorEventLoopDelay } from 'node:perf_hooks';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createApp } from '../server/index.js';
 import { initializeEconomy } from '../server/economy.js';
+import { cooperationLoadAction } from './cooperation-soak-policy.mjs';
+import { publicCooperations } from '../server/cooperation.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const percentile = (values, fraction = .95) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)] || 0;
 const lifeScenario = process.argv.includes('--life');
 const explorationScenario = process.argv.includes('--exploration');
-const CAPABILITIES = ['adventure','farming','inventory','equipment','farm_tools','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals'];
+const cooperationScenario = process.argv.includes('--cooperation');
+const CAPABILITIES = ['adventure','farming','inventory','equipment','farm_tools','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'];
 // Deterministic load policy ONLY: product controllers remain the original AI.
 function lifeAction(observation) {
   const a = observation.self, l = a.life, inv = l.inventory, now = observation.server_time;
@@ -117,6 +120,7 @@ if (process.argv.includes('--worker')) {
     if (explorationScenario) { const raw=app.world.agent(a.agent_id); raw.position={x:11,y:8}; raw.life.inventory.wood=60; raw.life.inventory.ore=60; delete raw.life.ledger; initializeEconomy(raw,app.world.now()); }
     return { token: c.token };
   });
+  if (cooperationScenario) for (const [index, raw] of Object.values(app.world.state.agents).entries()) { raw.position = {x:11,y:8}; raw.life.inventory.turnip = index === 0 ? 100 : 0; if ([2,3].includes(index)) { raw.adventure.level=20; raw.adventure.xp=570; raw.adventure.hp=raw.adventure.max_hp=135; } delete raw.life.ledger; initializeEconomy(raw,app.world.now()); }
   const { server, url } = await app.start(0);
   const metrics = () => {
     const used = process.cpuUsage(cpu);
@@ -125,8 +129,9 @@ if (process.argv.includes('--worker')) {
       event_loop_p99_ms: delay.percentile(99) / 1e6, retained_events: app.world.state.events.length,
       retained_receipts: Object.keys(app.world.state.receipts).length, peak_events: peakEvents, peak_receipts: peakReceipts,
       active: app.world.activeIds().length,
+      ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
       ...(explorationScenario ? {encounters: Object.values(app.world.state.agents).filter(a=>a.adventure.encounter).length, goals:Object.values(app.world.state.agents).filter(a=>a.personal_goal).length, exploration_events:app.world.state.events.filter(e=>e.type.startsWith('exploration_')).length, expired_encounters:app.world.state.events.filter(e=>e.type==='exploration_ended' && e.payload.status==='expired').length} : {}),
-      ...((lifeScenario || explorationScenario) ? { ledger_entries: Object.values(app.world.state.agents).map(a => a.life.ledger?.entries?.length || 0),
+      ...((lifeScenario || explorationScenario || cooperationScenario) ? { ledger_entries: Object.values(app.world.state.agents).map(a => a.life.ledger?.entries?.length || 0),
         life_events: ['life_gather_finished','life_crafted','life_traded'].map(type => ({ type, retained: app.world.state.events.filter(e => e.type === type).length })) } : {}) };
   };
   process.send({ type: 'ready', url, people });
@@ -140,10 +145,10 @@ if (process.argv.includes('--worker')) {
   const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.split('=')[1] || 1800);
   assert.ok(Number.isInteger(seconds) && seconds >= 10 && seconds <= 3600);
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'plaza-soak-'));
-  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
   const samples = [], latencies = [], viewers = [], clients = [], abort = new AbortController();
   let final, applied = 0, failures = 0, frames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
-  const actionCounts = {};
+  const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map()};
   const exit = new Promise(resolveExit => worker.once('exit', code => { exited = true; resolveExit(code); }));
   worker.on('message', message => { if (message.type === 'metrics') samples.push(message); if (message.type === 'final') final = message; });
   const call = async (client, name, args = {}) => {
@@ -161,10 +166,11 @@ if (process.argv.includes('--worker')) {
       worker.once('error', reject); worker.once('exit', () => { clearTimeout(timer); reject(new Error('Worker exited before ready')); });
     });
     for (const person of ready.people) {
-      const client = new Client({ name: 'isolated-soak', version: '0.14.0' });
+      const client = new Client({ name: 'isolated-soak', version: '0.15.0' });
       await client.connect(new StreamableHTTPClientTransport(new URL(`${ready.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${person.token}` } } }));
-      clients.push({ client, session: await call(client, 'join_world'), policy: { setup:0,equipped:false } });
+      clients.push({ client, session: await call(client, 'join_world'), policy: { setup:0,equipped:false,cycle:0 } });
     }
+    cooperationShared.agentIds = clients.map(p=>p.session.self.agent_id);
     await Promise.all(Array.from({ length: 20 }, async () => {
       const response = await fetch(`${ready.url}/api/public/events?delta=1`, { signal: abort.signal });
       assert.equal(response.status, 200);
@@ -194,12 +200,12 @@ if (process.argv.includes('--worker')) {
         try {
           const observation = await call(client, 'observe', { run_id: session.run_id, session_epoch: session.session_epoch });
           const a = observation.self;
-          if (lifeScenario || explorationScenario) {
-            const decision = lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
+          if (lifeScenario || explorationScenario || cooperationScenario) {
+            const decision = cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
             if (decision) {
               const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, ...decision });
               assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
-              const key = `${decision.type}:${decision.payload.intent || decision.payload.choice_id || 'apply'}`; actionCounts[key] = (actionCounts[key] || 0) + 1;
+              const key = `${decision.type}:${decision.payload.intent === 'respond' ? 'respond_'+decision.payload.accept : decision.payload.intent || decision.payload.choice_id || 'apply'}`; actionCounts[key] = (actionCounts[key] || 0) + 1;
             }
           } else if (!a.adventure.plan && a.adventure.encounter?.status !== 'pending') {
             const monsters = observation.adventure.monsters.filter(m => m.status === 'alive');
@@ -207,12 +213,12 @@ if (process.argv.includes('--worker')) {
             const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, type: 'adventure_plan', payload });
             assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
           }
-          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.14.0', mode: 'demo', capabilities: explorationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
+          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.15.0', mode: 'demo', capabilities: explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
         } catch (error) { failures++; console.error(error.message); }
       }));
       round++;
       if (round % 6 === 0) console.log(JSON.stringify({ type: 'progress', elapsed_seconds: Math.round((performance.now() - start) / 1000), applied, failures, frames, app: samples.at(-1) }));
-      await sleep(Math.min(lifeScenario || explorationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
+      await sleep(Math.min(lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
     } while (performance.now() - start < seconds * 1000);
     const elapsed = performance.now() - start;
     abort.abort(); await Promise.all(viewers); await Promise.all(clients.map(({ client }) => client.close()));
@@ -222,12 +228,13 @@ if (process.argv.includes('--worker')) {
     const late = percentile(samples.slice(-window).map(s => s.rss_mb), .5);
     const result = { type: 'result', scope: 'Isolated real HTTP: 5 scripted controllers, 20 public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.',
       environment: { platform: process.platform, node: process.version, cores: cpus().length, total_memory_mb: Math.round(totalmem() / 1048576) },
-      scenario: lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      scenario: cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
       requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: 20, applied, failures, viewer_errors: viewerErrors, frames,
       mean_bytes_per_viewer_second: Math.round(bytes / 20 / (elapsed / 1000)), max_client_frame_buffer: maxBuffer,
       mcp_roundtrip_p95_ms: +percentile(latencies).toFixed(2), app: final, samples,
       steady_rss_median_change_mb: +(late - early).toFixed(2), client_peak_rss_mb: process.resourceUsage().maxRSS / 1024,
       criteria: { app_rss_below_512: final.peak_rss_mb < 512, tick_p95_below_50: final.tick_p95_ms < 50, bounded_events: final.peak_events <= 3000, bounded_receipts: final.peak_receipts <= 1000, steady_rss_change_below_64: late - early < 64, all_five_present: final.active === 5,
+        ...(cooperationScenario ? { bounded_cooperations: final.cooperations.length <= 25, bounded_returns: final.pending_returns <= 5, bounded_ledgers: final.ledger_entries.every(n=>n<=100), ...(seconds>=900 ? {meal_completed:final.cooperations.some(p=>p.template_id==='camp_meal'&&p.status==='completed'),patrol_completed:final.cooperations.some(p=>p.template_id==='scout_and_guard'&&p.status==='completed'),refusal_exercised:actionCounts['cooperation:respond_false']>=1,leave_exercised:actionCounts['cooperation:leave']>=1,expiry_exercised:final.cooperations.some(p=>p.status==='ended'&&p.end_reason==='expired')} : {}) } : {}),
         ...(explorationScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100),bounded_encounters:final.encounters<=5,bounded_goals:final.goals<=5, ...(seconds>=600? {exploration_choices_exercised:Object.entries(actionCounts).filter(([k])=>k.startsWith('adventure_event:')).reduce((n,[,v])=>n+v,0)>=10,goals_exercised:actionCounts['personal_goal:set']>=5,strategy_equipped:actionCounts['inventory:equip']>=10,finite_expiry_exercised:final.expired_encounters>0}: {}) } : {}),
         ...(lifeScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100), ...(seconds >= 600 ? { life_cycle_exercised: ['gather:start','inventory:repair','farm:harvest','inventory:craft','inventory:use','trade:buy','trade:sell'].every(key => actionCounts[key] >= 5) } : {}) } : {}) } };
     console.log(JSON.stringify(result));

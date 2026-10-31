@@ -8,6 +8,7 @@ import SpeechOverlay, { SpeechOverlayScope } from './SpeechOverlay.jsx';
 import FarmPanel, { EquipmentStatus } from './FarmPanel.jsx';
 import CampLife,{CampLandmarks} from './CampLife.jsx';
 import AdventureJourney,{DiscoveryMarkers} from './AdventureJourney.jsx';
+import CooperationPanel from './CooperationPanel.jsx';
 import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
@@ -110,6 +111,7 @@ export default function WorldScene({ world, selected, onSelect, grid, onGrid, li
     <ObserverStatus world={world} agent={agent} live={live} now={now}/>
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
     {view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={now}/>:React.cloneElement(plaza,{onSelect:choose})}
+    <CooperationPanel world={world} agent={agent} now={now} live={live}/>
     <AdventureJourney world={world} agent={agent} now={now} live={live}/>
     <CampLife world={world} agent={agent} now={now} live={live}/>
   </CameraContext.Provider></SpeechOverlayScope>;

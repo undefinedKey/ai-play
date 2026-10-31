@@ -123,6 +123,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.14.0') >= 0 && ['scripts/v014-context.mjs', 'references/exploration-strategy-goals.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少探索选择、装备策略或目标上下文，未执行升级');
   }
+  if (compareVersions(version, '0.15.0') >= 0 && ['scripts/cooperation.mjs', 'references/cooperation.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '更新包缺少自愿合作上下文或完整规则，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

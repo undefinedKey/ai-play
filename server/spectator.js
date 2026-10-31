@@ -8,6 +8,7 @@ import { publicFatigue } from './fatigue.js';
 import { publicPresence } from './presence.js';
 import { publicPersonalGoal } from './personal-goals.js';
 import { EXPLORATION_RULES, publicExplorationResult } from './exploration.js';
+import { COOPERATION_RULES, publicCooperation, publicCooperations } from './cooperation.js';
 
 const string = value => typeof value === 'string' ? value : undefined;
 const number = value => typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -65,7 +66,12 @@ const publicEventFields = {
   story_submitted: ['agent_id', 'game_id', 'text', 'segment_count'],
   game_finished: ['game_id', 'group_id', 'game_type', 'valid_count', 'scores'],
 };
-function publicEvent(event, agentIds) {
+const cooperationEvents=new Set(['cooperation_proposed','cooperation_started','cooperation_progress','cooperation_review','cooperation_completed','cooperation_ended']);
+export function publicEvent(event, agentIds) {
+  if(cooperationEvents.has(event.type)) {
+    const payload=publicCooperation(event.payload);
+    return payload?{event_id:string(event.event_id),type:event.type,occurred_at:number(event.occurred_at),cursor:string(event.cursor),world_revision:number(event.world_revision),payload}:null;
+  }
   if (!Object.hasOwn(publicEventFields, event.type)) return null;
   const fields = publicEventFields[event.type];
   const raw = event.payload || {};
@@ -103,6 +109,7 @@ export function spectatorSnapshot(world) {
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
     games: catalog.games.map(item => ({ id: string(item.id), name: string(item.name), description: string(item.description), min_players: number(item.min_players), max_players: number(item.max_players) })),
     groups: Object.values(groups).map(group => ({ group_id: string(group.group_id), name: string(group.name), members: strings(group.members), created_at: number(group.created_at) })),
+    cooperation: structuredClone(COOPERATION_RULES), cooperations: publicCooperations(world),
     game: publicGame(game, { spectator: true, agentIds }),
     events: recentEvents.reverse(),
     server_time: world.now(),

@@ -93,7 +93,9 @@ test('真实墙钟停服46秒后复用持久身份与预算恢复（按需长探
   const f = await fixture(t), runner = await f.runner();
   await until(() => runner.checkpoint?.calls_used === 1 && !runner.modelAbort, '首次模型请求未完成');
   const before = f.disk(); await f.close(); const stoppedAt = Date.now();
-  await sleep(46000);
+  // Windows timers may wake slightly before their requested delay. Keep the
+  // actual outage threshold; do not treat one timer callback as elapsed time.
+  while (Date.now() - stoppedAt < 46000) await sleep(Math.max(1, 46000 - (Date.now() - stoppedAt)));
   assert.ok(Date.now() - stoppedAt >= 46000);
   await f.open(); const restoredAt = Date.now();
   await until(() => runner.active && runner.observation.session_epoch > before.session_epoch, '真实长停服后未恢复', 35000);
