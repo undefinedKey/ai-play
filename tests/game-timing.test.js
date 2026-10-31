@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { GAME_TIMING } from '../server/games.js';
+import { WORLD_MAP } from '../shared/world-layout.js';
 
 function fixture(t) {
   let now = 1000000;
@@ -61,9 +62,9 @@ test('solo catalog uses finite response windows; every treasure target is a dist
   const f = fixture(t), a = f.world.agent(f.people[0].id), rules = f.world.getRules();
   for (const id of ['solo_game', 'riddle', 'sequence']) assert.equal(rules.activities.find(x => x.id === id).duration_seconds, 150);
   for (const [id, seconds] of [['watch_pond', 45], ['read', 45], ['relax', 60], ['treasure_hunt', 900]]) assert.equal(rules.activities.find(x => x.id === id).duration_seconds, seconds);
-  for (const position of [{ x: 0, y: 0 }, { x: 23, y: 15 }, { x: 11, y: 8 }]) {
+  for (const position of [{ x: 0, y: 0 }, { x: WORLD_MAP.width - 1, y: WORLD_MAP.height - 1 }, { x: 11, y: 8 }]) {
     a.position = position; a.activity = {};
-    for (let i = 0; i < 500; i++) { f.world.nextTreasure(a); const p = a.activity.target, distance = Math.abs(p.x - position.x) + Math.abs(p.y - position.y); assert.ok(distance >= 1 && distance <= 6); assert.ok(p.x >= 0 && p.x < 24 && p.y >= 0 && p.y < 16); }
+    for (let i = 0; i < 500; i++) { f.world.nextTreasure(a); const p = a.activity.target, distance = Math.abs(p.x - position.x) + Math.abs(p.y - position.y); assert.ok(distance >= 1 && distance <= 6); assert.ok(p.x >= 0 && p.x < WORLD_MAP.width && p.y >= 0 && p.y < WORLD_MAP.height); }
   }
   a.activity = null;
 });

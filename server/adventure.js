@@ -13,6 +13,8 @@ export const ADVENTURE_ZONES = [
   { id: 'camp', scene_id: 'plaza', name: '星火营地', x: 11, y: 8, radius: 2, danger: 'safe', description: '安全营地。主动休息恢复生命与体力，可以聊天并邀请同伴。' },
   { id: 'forest', scene_id: 'adventure', name: '苔光森林', x: 4, y: 11, radius: 3, danger: 'low', description: '林间有史莱姆和野猪，可以独自探索或结伴狩猎。' },
   { id: 'ruins', scene_id: 'adventure', name: '风蚀遗迹', x: 19, y: 7, radius: 3, danger: 'high', description: '守卫攻击较强，是否挑战、组队或撤退由你决定。' },
+  { id: 'grove', scene_id: 'adventure', name: '松影林缘', x: 28, y: 11, radius: 3, danger: 'low', description: '扩展林区有具体松木和浆果节点；探索抵达不会自动采集，是否使用斧头、采食或继续旅行由你决定。' },
+  { id: 'quarry', scene_id: 'adventure', name: '苍石山脊', x: 36, y: 8, radius: 3, danger: 'low', description: '空旷山脊上的矿脉需要镐；选择到达与选择采矿是不同的行动。东南方向的月光草只在夜晚和黎明开放。' },
 ];
 const MONSTERS = [
   { monster_id: 'forest_slime', name: '苔藓史莱姆', zone_id: 'forest', position: { x: 3, y: 11 }, max_hp: 18, attack: 2, xp: 12, gold: 6 },
@@ -24,7 +26,7 @@ export const ADVENTURE_RULES = {
   exploration: EXPLORATION_RULES,
   monster_ai: { aggro_radius: 3, leash_radius: 6, decision_seconds: 30, camp_safe_radius: 2, patrol_radius: 2, patrol_interval_ms: 2000 },
   description: 'scene_id才是所在地，in_field只是野外战斗暴露。广场探索或狩猎先步行到(22,8)入口，再到冒险(11,8)入口继续目的地；rest/retreat/explore camp反向返回广场(11,8)营地。冒险(11,8)只提供安全入口，不是广场生活设施。总计划90秒不重置，stop或暂停不会换场景。AI 自己选择冒险计划；服务器每100毫秒推进已授权的实际位置，walk每秒2格，run每秒3.5格且每格耗能为步行2倍；不代替 AI 选择下一个计划。探索抵达结束移动，并在300秒全局冷却允许时产生150秒限时保护的待选发现；狩猎只挑战一个目标，获得经验与金币后结束；休息回营地恢复满生命和体力；撤退回营地后结束，不自动开始休息；stop 停止计划及正在进行的手动移动和未命中攻击，留在野外仍可能遭遇怪物。怪物平时沿固定路线在出生点2格内巡逻，每2秒发起一段连续步行；每100毫秒发现3格内已参加冒险且没有反应保护的角色便中断巡逻主动追击。最多离出生点6格，丢失目标先返回出生点恢复生命，再恢复巡逻。地图边界与营地半径2格安全区不会被巡逻或追击越过。',
-  actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], mode:['walk','run'], zone_id: ['camp', 'forest', 'ruins'], monster_id: MONSTERS.map(m => m.monster_id) } },
+  actions: { adventure_plan: { intent: ['explore', 'hunt', 'rest', 'retreat', 'stop'], mode:['walk','run'], zone_id: ADVENTURE_ZONES.map(zone => zone.id), monster_id: MONSTERS.map(m => m.monster_id) } },
   party: '使用 create_group / invite / respond_invite 自主组队；每位成员需自己选择 hunt 同一个 monster_id。同组或临时协力者只有实际参与战斗、结算时仍在目标附近且继续该计划，才按实际伤害分享总经验和金币。加入小组本身不授权战斗或跟随。',
   combat: '普通攻击为 4 + 等级×2 + 武器加成；射程、攻击间隔、每击体力和移动体力按life.stats的装备有效属性，旧武器默认射程1格、间隔1秒、每击3体力；护甲降低怪物伤害但每次至少受到1点。角色攻击准备350–650毫秒，怪物准备450毫秒，命中时重检距离/目标/权限后结算，再恢复到攻击间隔结束；怪物每秒最多发起一次攻击，不叠加反击。走跑按实际途中位置判断危险和射程；原AI可停止/换计划取消未结算攻击，受击本身不自动改变意图。超过1秒迟到的命中不补伤害。被攻击不会替AI自动反击，只有hunt计划会攻击。生命从四分之一以上降到四分之一或更低时结束当前计划，提供30秒反应保护并通知原AI选择继续、撤退或求助；不暂停角色权限。保护到期后野外仍可能遭攻击，低血受击不会重复刷新保护。主动hunt取消保护，其他行动保留剩余时间。生命归零后返回营地、恢复10点生命并结束计划。回到营地或离线/暂停/召回/授权到期会退出野外状态。',
 };

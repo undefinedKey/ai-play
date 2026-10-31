@@ -10,6 +10,8 @@ import { createApp } from '../server/index.js';
 import { LIFE_RULES, initializeLife, publicLife } from '../server/life.js';
 import { spectatorSnapshot } from '../server/spectator.js';
 
+const FARM_TOOLS = LIFE_RULES.tools.filter(tool => ['hoe', 'watering_can'].includes(tool.id));
+
 function fixture(t, options = {}) {
   let now = 1000000;
   const world = new World({ now: () => now, actionIntervalMs: 0, ...options });
@@ -35,7 +37,10 @@ const snapshot = a => structuredClone({ life: a.life, fatigue: a.fatigue });
 test('工具目录公布各级消耗；新旧角色只迁移一次，不补耐久且旧作物计时不变', () => {
   const a = { life: { starter_granted: true, inventory: { wood: 8 }, plots: [{ plot_id: 'plot_1', crop_id: 'turnip', planted_at: 100, watered_at: 200, ready_at: 120200, ready_notified: true }] } };
   initializeLife(a);
-  assert.deepEqual(a.life.tools, { hoe: { level: 1, durability: 20, max_durability: 20 }, watering_can: { level: 1, durability: 20, max_durability: 20 } });
+  assert.deepEqual(a.life.tools, {
+    hoe: { level: 1, durability: 20, max_durability: 20 }, watering_can: { level: 1, durability: 20, max_durability: 20 },
+    axe: { level: 1, durability: 0, max_durability: 12, owned: false }, pickaxe: { level: 1, durability: 0, max_durability: 12, owned: false },
+  });
   assert.deepEqual(a.life.plots[0], { plot_id: 'plot_1', tilled: true, tilled_at: 100, crop_id: 'turnip', planted_at: 100, watered_at: 200, ready_at: 120200, ready_notified: true });
   assert.equal(a.life.plots[1].tilled, false);
   a.life.tools.hoe.durability = 0; a.life.tools.watering_can = { level: 2, durability: 7, max_durability: 999, private_note: 'PRIVATE' };
@@ -43,7 +48,7 @@ test('工具目录公布各级消耗；新旧角色只迁移一次，不补耐�
   assert.deepEqual(a.life.tools.hoe, { level: 1, durability: 0, max_durability: 20 });
   assert.deepEqual(a.life.tools.watering_can, { level: 2, durability: 7, max_durability: 40 });
   delete a.life.tools.hoe; initializeLife(a); assert.equal(a.life.tools.hoe.durability, 0, '已迁移后缺失槽不能再次领满耐久');
-  for (const tool of LIFE_RULES.tools) {
+  for (const tool of FARM_TOOLS) {
     assert.deepEqual(tool.levels.map(level => level.max_durability), [20, 40, 60]);
     assert.deepEqual(tool.levels.map(level => level.energy_cost), tool.id === 'hoe' ? [3, 2, 1] : [1, .75, .5]);
     assert.deepEqual(tool.levels[1].upgrade_cost, { wood: 3, ore: 2 }); assert.deepEqual(tool.levels[2].upgrade_cost, { wood: 5, ore: 4 });
@@ -104,7 +109,7 @@ test('升级逐级扣下一等级配方并回满，等级3封顶，材料不足�
 });
 
 test('每级工具实际降低开垦/浇水体力，临界值执行与不足拒绝不消耗耐久', t => {
-  for (const definition of LIFE_RULES.tools) for (const level of definition.levels) {
+  for (const definition of FARM_TOOLS) for (const level of definition.levels) {
     const f = fixture(t), p = f.make(), id = definition.id, intent = id === 'hoe' ? 'till' : 'water';
     f.raw(p).life.tools[id] = { level: level.level, durability: 1, max_durability: level.max_durability };
     if (intent === 'water') Object.assign(f.raw(p).life.plots[0], { tilled: true, crop_id: 'turnip', planted_at: f.now() });
@@ -152,7 +157,7 @@ test('开垦和维护只允许营地空闲，野外/活动/多人游戏拒绝且
 test('机会目录按工具/田地/体力过滤，最多六项且保留探索，每个候选均可真实执行', t => {
   const f = fixture(t), p = f.make();
   for (const level of [1, 2, 3]) for (const durability of [0, 1]) for (const energy of [0, .49, .5, .74, .75, .99, 1, 1.99, 2, 2.99, 3, 100]) for (const phase of ['empty', 'tilled', 'dry', 'ready']) {
-    f.raw(p).life.tools = Object.fromEntries(LIFE_RULES.tools.map(tool => [tool.id, { level, durability, max_durability: level * 20 }]));
+    for (const tool of FARM_TOOLS) f.raw(p).life.tools[tool.id] = { level, durability, max_durability: level * 20 };
     f.raw(p).life.inventory.wood = 20; f.raw(p).life.inventory.ore = 20; f.raw(p).fatigue.energy = energy;
     for (const plot of f.raw(p).life.plots) Object.assign(plot, { tilled: phase !== 'empty', tilled_at: phase !== 'empty' ? f.now() : null, crop_id: ['dry', 'ready'].includes(phase) ? 'turnip' : null, planted_at: null, watered_at: phase === 'ready' ? f.now() : null, ready_at: phase === 'ready' ? f.now() : null, ready_notified: phase === 'ready' });
     const o = f.observe(p), saved = structuredClone(f.world.state);
@@ -204,7 +209,7 @@ test('真实HTTP MCP支持开垦和升级，公开响应与动作回执均返回
   t.after(async () => { await client.close(); await app.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${c.token}` } } }));
   const call = async (name, args = {}) => { const r = await client.callTool({ name, arguments: args }); return r.structuredContent || JSON.parse(r.content[0].text); };
-  const rules = await call('get_rules'); assert.equal(rules.life.tools.length, 2);
+  const rules = await call('get_rules'); assert.deepEqual(rules.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 'axe', 'pickaxe']);
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
   const tilled = applied(await call('act', { ...session, action_id: joined.next_action_id, type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } }));
   assert.equal(tilled.life.tools.hoe.durability, 19); assert.equal(tilled.life.plots[0].tilled, true);

@@ -151,8 +151,15 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
     expected_agents = compare_cooperations(old, new)
     for key, a in old['agents'].items():
         b = new['agents'][key]
-        for field in ['inventory', 'equipment', 'tools', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
+        for field in ['inventory', 'equipment', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
             assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
+        expected_tools = deepcopy(expected_agents[key]['life'].get('tools'))
+        if new.get('resources', {}).get('version') == 1 and isinstance(expected_tools, dict):
+            for tool_id in ['axe', 'pickaxe']:
+                if tool_id not in expected_tools:
+                    assert not a['life']['inventory'].get(tool_id, 0), 'legacy resource tool cannot be silently granted'
+                    expected_tools[tool_id] = {'level': 1, 'durability': 0, 'max_durability': 12, 'owned': False}
+        assert expected_tools == b['life'].get('tools'), 'old tools preserved; only unowned resource tool defaults may be added'
         assert a.get('cooperation_proposed_at') == b.get('cooperation_proposed_at'), 'proposal cooldown preserved'
         assert expected_agents[key].get('cooperation_return') == b.get('cooperation_return'), 'private pending return preserved'
         # Compare whole normalized arrays; zip alone silently accepts lost plots.
@@ -177,6 +184,16 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
             text=True, encoding='utf-8', timeout=60)
         assert result.returncode == 0, 'scene location preservation/migration verification failed'
         assert json.loads(result.stdout).get('scene_locations_preserved') is True
+    if 'resources' in new or 'day_cycle' in new:
+        if project_root is None:
+            assert '__file__' in globals(), 'explicit application root required for embedded migration verification'
+            project_root = Path(__file__).resolve().parent.parent
+        helper = Path(project_root).resolve() / 'deploy/verify-resources.mjs'
+        assert helper.is_file(), 'tracked resource verification helper required'
+        result = subprocess.run(['node', str(helper)], input=json.dumps({'old': old, 'new': new}), capture_output=True,
+            text=True, encoding='utf-8', timeout=60)
+        assert result.returncode == 0, 'resource and day-cycle preservation verification failed'
+        assert json.loads(result.stdout).get('resource_state_preserved') is True
     if require_history or 'history' in old or 'history' in new:
         assert 'history' in new, 'existing public history must not disappear'
         if project_root is None:

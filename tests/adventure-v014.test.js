@@ -42,7 +42,7 @@ const resources = a => structuredClone({ life: a.life, fatigue: a.fatigue, adven
 
 test('v0.14目录、固定选择、策略装备与目标边界实际公开；新角色不自动接目标', t => {
   const f = fixture(t), p = f.make(), rules = f.world.getRules(), publicState = spectatorSnapshot(f.world);
-  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.19.0-motion');
+  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.20.0-resources');
   assert.ok(['adventure_event', 'personal_goal'].every(x => rules.allowed_actions.includes(x)));
   assert.equal(rules.adventure.exploration.pending_seconds, 150); assert.equal(rules.adventure.exploration.discovery_cooldown_seconds, 300);
   assert.deepEqual(publicState.adventure.exploration, rules.adventure.exploration);

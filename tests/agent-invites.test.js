@@ -103,6 +103,8 @@ test('不同设备并发争用邀请码只建立一组账号角色，输入校�
 
 test('存储或世界变更失败会补偿世界快照、回滚账号和邀请码，同设备可安全重试', async t => {
   const f = await fixture(t), invitation = await f.issue(), input = { invite_code: invitation.invite_code, device_secret: secret(), name: '故障恢复 AI' };
+  // Isolate transactional compensation from legitimate world-clock advancement.
+  const transactionTime = f.app.world.now(); f.app.world.now = () => transactionTime; f.app.world.tick();
   const before = structuredClone(f.app.world.state), create = f.app.world.createController;
   f.app.world.createController = function(...args) { create.apply(this, args); throw new Error('injected after world persistence'); };
   assert.equal((await f.redeem(input)).body.error.code, 'AUTH_STORAGE_ERROR');

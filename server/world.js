@@ -9,6 +9,8 @@ import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } fro
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
 import { WORLD_MAP, MAX_MOVE, MOVEMENT_RULES, movementOptions, SCENES, sameScene, initializeScene, findPath, recordMovement, publicMovement, publicAction, publicHurt, advanceMovement, stopMovement } from './spatial.js';
 import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife, cancelGather } from './life.js';
+import { RESOURCE_RULES, initializeResources, publicResources, tickResources } from './resources.js';
+import { DAY_RULES, initializeDayCycle, publicDayCycle, tickDayCycle } from './day-cycle.js';
 import { initializeEconomy, economyBalance, recordEconomyDelta } from './economy.js';
 import { opportunitiesFor } from './opportunities.js';
 import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFatigueRecovery, tickFatigue } from './fatigue.js';
@@ -73,6 +75,8 @@ export class World extends EventEmitter {
       agents: {}, controllers: {}, groups: {}, invitations: {}, game: null, events: [], receipts: {}, controlReceipts: {}, sequence: 0,
     };
     Object.assign(this.state.room, WORLD_MAP);
+    initializeDayCycle(this.state, this.now());
+    initializeResources(this.state, this.now(), { restore: !!saved });
     for (const a of Object.values(this.state.agents)) initializeScene(a, this.now());
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
@@ -271,7 +275,7 @@ export class World extends EventEmitter {
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
-      cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(),
+      cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(), resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
   }
   ownerSnapshot() {
@@ -283,7 +287,8 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.19.0-motion', recommended_skill_version: '0.19.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.20.0-resources', recommended_skill_version: '0.20.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+      resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: GAME_TIMING.invitation_seconds, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
@@ -304,6 +309,7 @@ export class World extends EventEmitter {
       self: { ...this.publicAgent(a), life: publicLife(a, this.now(), { privateInventory: true }) }, nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && sameScene(a, b) && distance(a.position, b.position) <= 6).map(b => this.publicAgent(b)),
       group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
       ...cooperationObservation(this, a),
+      resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()),
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: opportunitiesFor(this, a), movement: movementOptions(a.position, a.scene_id), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
   }
@@ -699,18 +705,21 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) {
       if (a.movement) {
         const permitted = this.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
-        const until = permitted ? Math.min(now,a.run.expires_at,(a.last_contact_at ?? -45000)+45000,a.adventure?.plan?.expires_at ?? Infinity) : a.position_at;
+        const until = permitted ? Math.min(now,a.run.expires_at,(a.last_contact_at ?? -45000)+45000,a.adventure?.plan?.expires_at ?? Infinity,a.life?.gathering?.expires_at ?? Infinity) : a.position_at;
         const running = a.movement.mode === 'run';
         const cost = combatStats(a).move_energy_per_tile * (running ? 2 : 1);
         const maxDistance = running ? publicFatigue(a).energy / cost : Infinity;
         const wasMoving = a.movement;
-        const manual = !a.adventure?.plan;
+        const manual = !a.adventure?.plan && !a.life?.gathering;
         motionChanged = advanceMovement(a,now,{until,maxDistance,onDistance:(steps,_mode,settledAt)=>spendEnergy(this,a,'move',steps*(running?2:1),settledAt)}) || motionChanged;
         if(manual && !a.movement && permitted && now<=until) {
           const arrived=distance(a.position,wasMoving.path.at(-1))<1e-8;
           this.event('movement_finished',{agent_id:a.agent_id,reason:arrived?'arrived':'exhausted',position:{...a.position},text:`${a.name}${arrived?'已完成移动':'奔跑体力已耗尽，停在途中'}`},[a.agent_id]);changed=true;
         }
-        if (running && !a.movement && wasMoving.settled_distance + 1e-8 < wasMoving.path.slice(1).reduce((n,p,i)=>n+distance(p,wasMoving.path[i]),0) && publicFatigue(a).energy <= 0) {
+        if (running && !a.movement && (a.life?.gathering || wasMoving.settled_distance + 1e-8 < wasMoving.path.slice(1).reduce((n,p,i)=>n+distance(p,wasMoving.path[i]),0)) && publicFatigue(a).energy <= 0) {
+          // End the chosen resource job at the physical exhaustion boundary.
+          // A later camp-recovery interval must not restart its run implicitly.
+          if (a.life?.gathering) cancelGather(this, a, 'exhausted');
           stopAdventure(this,a,'exhausted','奔跑体力已耗尽，已停下；可自行选择步行、撤退或休息');
           this.event('fatigue_exhausted',{agent_id:a.agent_id,name:a.name,text:`${a.name}体力不足以继续奔跑，已停下；步行仍可用`,energy:0,fatigue:100},[a.agent_id]); changed=true;
         }
@@ -747,9 +756,11 @@ export class World extends EventEmitter {
     for (const collection of [this.state.receipts, this.state.controlReceipts]) for (const [key, receipt] of Object.entries(collection)) if (receipt.at < cutoff) { delete collection[key]; changed = true; }
     const adventureStep = tickAdventure(this);
     const fatigueStep = tickFatigue(this, fatigueRecovery);
+    const dayStep = tickDayCycle(this);
+    const resourceStep = tickResources(this);
     const lifeStep = tickLife(this);
     if(motionChanged)this.state.room.world_revision++;
-    if (changed || adventureStep.durable || lifeStep.changed) this.commit();
-    else if (adventureStep.changed || fatigueStep.changed || motionChanged) this.commit({ deferred: true });
+    if (changed || adventureStep.durable || lifeStep.durable || dayStep.durable || resourceStep.durable) this.commit();
+    else if (adventureStep.changed || fatigueStep.changed || motionChanged || lifeStep.changed || dayStep.changed || resourceStep.changed) this.commit({ deferred: true });
   }
 }

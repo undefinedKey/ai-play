@@ -12,7 +12,7 @@ for (const directory of ['public', 'dist']) {
   assert.equal(manifest.tool.name, 'Pixelbolt');
   assert.match(manifest.tool.commit, /^[a-f0-9]{40}$/);
   assert.equal(manifest.tile_size, 32);
-  assert.deepEqual(manifest.map, { width: 24, height: 16 });
+  assert.deepEqual(manifest.map, WORLD_MAP);
   assert.match(read('PIXELBOLT-LICENSE.txt').toString(), /MIT License/);
   const images = new Set();
   function visit(value) {
@@ -42,7 +42,7 @@ for (const directory of ['public', 'dist']) {
   visit(manifest);
   assert.equal(Object.keys(manifest.characters).length, 8);
   assert.deepEqual({ width: manifest.farm_scene.width, height: manifest.farm_scene.height }, { width: 640, height: 400 });
-  for (const id of ['hoe', 'watering_can']) for (const level of [1, 2, 3]) {
+  for (const id of ['hoe', 'watering_can','axe','pickaxe']) for (const level of [1, 2, 3]) {
     assert.ok(manifest.tools[`${id}_${level}`]);
     assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
   }
@@ -56,7 +56,7 @@ for (const directory of ['public', 'dist']) {
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
   for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
-  assert.equal(manifest.release,'0.19.0');
+  assert.equal(manifest.release,'0.20.0');
   for(const scene of SCENES){
     assert.deepEqual(scene.map,WORLD_MAP);
     assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);
@@ -79,7 +79,7 @@ for (const directory of ['public', 'dist']) {
     while(todo.length){const p=todo.pop(),key=`${p.x},${p.y}`;if(seen.has(key)||!isWalkable(scene.id,p))continue;seen.add(key);for(const[dx,dy]of[[0,1],[1,0],[0,-1],[-1,0]])todo.push({x:p.x+dx,y:p.y+dy});}
     assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id} isolated walkable cell`);
   }
-  assert.notEqual(read('scene_plaza.png').toString('base64'),read('scene_adventure.png').toString('base64'));
-  assert.equal(images.size, 76);
-  console.log(`${directory}: 76 Pixelbolt images, frames, scene footprints, portals and reachability verified.`);
+  for(const id of ['pine','oak','ore','berries','stump','herb']){const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<1);assert.ok(asset.anchor.x<asset.width&&asset.anchor.y<asset.height);assert.equal(asset.image,'/pixel-world/props_ink.png');}
+  assert.equal(images.size, 91);
+  console.log(`${directory}: ${images.size} Pixelbolt and original ink images, frames, scene footprints, portals and reachability verified.`);
 }

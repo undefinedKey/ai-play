@@ -120,7 +120,7 @@ for (const mode of ['model', 'dsh-pet']) test(`${mode}新场景交给服务校�
   assert.equal(f.runner.checkpoint.last_action_feedback.code, 'INVALID_ACTION');
   assert.equal(f.runner.checkpoint.calls_used, 1); assert.equal(f.runner.checkpoint.pending_movement, undefined);
   assert.ok(f.tools.filter(call => call.name === 'observe').length >= 3);
-  assert.equal(f.requests[0].movement.max_step, 3); assert.equal(f.requests[0].movement.map.width, 24);
+  assert.equal(f.requests[0].movement.max_step, 3); assert.equal(f.requests[0].movement.map.width, 48); assert.equal(f.requests[0].movement.map.height, 32);
   assert.ok(!f.logs.some(log => log.includes('服务已确认移动到')));
   f.advance(6000); await f.runner.decide();
   assert.equal(f.requests.at(-1).last_action.code, 'INVALID_ACTION');

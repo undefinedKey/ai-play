@@ -79,7 +79,7 @@ export function captureFatigueRecovery(world) {
     const active = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
     if(a.movement?.version===2) {
       const m=a.movement,previous=m.settled_distance||0;
-      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,m.ends_at):Math.min(now,a.position_at??now);
+      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,m.ends_at):Math.min(now,a.position_at??now);
       const budget=m.mode==='run'?energy(a)/(combatStats(a).move_energy_per_tile*2):Infinity;
       const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
       const stop=samplePath(m.path,progress).position;
@@ -93,7 +93,7 @@ export function captureFatigueRecovery(world) {
     if (a.movement) {
       rate = 0;
     } else if (gathering) {
-      until = Math.min(until, timestamp(gathering.ends_at) ? gathering.ends_at : now);
+      until = Math.min(until, timestamp(gathering.expires_at) ? gathering.expires_at : Infinity, timestamp(gathering.ends_at) ? gathering.ends_at : now);
       rate = 0;
     } else if (plan) {
       until = Math.min(until, timestamp(plan.expires_at) ? plan.expires_at : now);

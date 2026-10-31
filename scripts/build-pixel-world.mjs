@@ -5,6 +5,7 @@ import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { sceneGround, sceneProp } from '../art/pixel-world/scenes.mjs';
 import { SCENES } from '../shared/world-layout.js';
+import { applyWildernessAssets } from '../art/wilderness/manifest.mjs';
 const ROOT = resolve(import.meta.dirname, '..');
 const TOOL = resolve(process.env.PIXELBOLT_ROOT || join(ROOT, 'data/tools/Pixelbolt'));
 const PIN = 'ce12f75cc524e63e90d4bd183aecc3a46a6b44ee';
@@ -141,7 +142,11 @@ const toolPalette = level => level===3 ? {body:'#c6a45d',light:'#f3dc91',shade:'
 function toolOverlay(id,level,action,i){
  const g=new Grid(48,48),p=pose(action,i),b=p.bob,c=toolPalette(level);action=action.split('_')[0];const maintenance=['repair','upgrade'].includes(action);
  const hy=Math.min(42,p.hand[1]+(p.seated?3:b));
- if(id==='hoe'){
+ if(id==='axe'||id==='pickaxe'){
+  const hand=maintenance?[12,35+b]:[p.hand[0],hy],tip=maintenance?[8,19+b]:action==='gather'?[[40,15],[34,6],[44,35],[39,18]][i]:[39,hy-15];
+  g.line(...hand,...tip,outline,3);g.line(...hand,...tip,'#b8905b',2);g.line(...hand,...tip,'#e0bd82');
+  if(id==='axe'){g.poly([[tip[0]-2,tip[1]-5],[tip[0]+7,tip[1]-7],[tip[0]+8,tip[1]+5],[tip[0]-2,tip[1]+3]],c.edge);g.poly([[tip[0],tip[1]-3],[tip[0]+6,tip[1]-5],[tip[0]+6,tip[1]+3],[tip[0],tip[1]+1]],c.light);}else{g.line(tip[0]-8,tip[1]+3,tip[0],tip[1]-2,c.edge,3);g.line(tip[0],tip[1]-2,tip[0]+7,tip[1]+3,c.edge,3);g.line(tip[0]-7,tip[1]+3,tip[0],tip[1]-1,c.light);g.line(tip[0],tip[1]-1,tip[0]+7,tip[1]+3,c.body);}
+ }else if(id==='hoe'){
   const hand=maintenance?[12,35+b]:[p.hand[0]+1,hy];
   const tip=maintenance?[6,20+b]:action==='till'?[[39,14],[35,5],[44,40],[40,19]][i]:[40,hy-15];
   g.line(...hand,...tip,outline,3);g.line(...hand,...tip,'#ae8357',2);g.line(hand[0],hand[1],tip[0],tip[1],'#e0bd82');
@@ -159,7 +164,10 @@ function toolOverlay(id,level,action,i){
 function toolIcon(id,level){
  const g=new Grid(32,32),c=toolPalette(level);
  g.ellipse(5,27,23,3,'#203d382e');
- if(id==='hoe'){
+ if(id==='axe'||id==='pickaxe'){
+  g.line(10,27,20,8,outline,4);g.line(11,27,20,8,'#b88d55',2);g.line(11,26,20,9,'#e4c38b');
+  if(id==='axe'){g.poly([[17,5],[28,3],[29,15],[18,13]],c.edge);g.poly([[20,6],[27,5],[27,13],[20,11]],c.light);}else{g.poly([[5,11],[16,3],[22,3],[31,12],[21,8],[17,7]],c.edge);g.line(7,10,17,5,c.light,2);g.line(17,5,28,10,c.body,2);}
+ }else if(id==='hoe'){
   g.line(10,27,22,7,outline,4);g.line(11,27,22,7,'#ac8052',2);g.line(11,26,21,8,'#e4c38b');
   g.poly([[8,4],[25,5],[27,9],[23,15],[16,12],[9,11]],c.edge);g.poly([[10,5],[24,6],[25,9],[22,13],[17,11],[10,10]],c.body);g.line(10,6,23,7,c.light,2);g.line(18,11,23,13,c.shade,2);
  }else{
@@ -267,7 +275,15 @@ function farmScene(){
 }
 function itemIcon(id){
  const g=new Grid(32,32);g.ellipse(4,27,25,3,'#203d382e');
- if(id==='wood'){
+ if(id==='berry'){
+  g.line(9,24,22,7,outline,2);g.line(17,14,10,7,'#6a8350',3);g.line(18,14,27,10,'#789259',3);for(const[x,y]of[[9,18],[16,22],[21,16],[13,13]]){g.ellipse(x-4,y-4,9,9,'#493c35');g.ellipse(x-3,y-3,7,7,'#a86550');g.dot(x-1,y-2,'#e0ae7e');}
+ }else if(id==='moon_herb'){
+  g.line(15,28,16,8,'#556b46',2);g.line(15,24,8,15,'#7b9159',3);g.line(15,21,24,13,'#899b65',3);for(const[x,y]of[[14,7],[10,10],[19,10],[15,13]])g.ellipse(x-3,y-3,6,6,'#e7dbac');g.ellipse(13,8,5,5,'#a48b53');
+ }else if(id==='trail_ration'){
+  g.poly([[5,12],[14,6],[28,12],[25,26],[8,28]],outline);g.poly([[7,13],[14,8],[26,13],[23,24],[9,26]],'#b89a68');g.line(8,15,23,24,'#e0ca94',3);g.line(10,25,24,13,'#687849',2);g.ellipse(11,11,5,5,'#a85f46');g.ellipse(17,12,5,5,'#ad704d');
+ }else if(id==='moon_stew'){
+  g.ellipse(4,12,25,17,outline);g.ellipse(5,11,23,12,'#d6c69b');g.ellipse(7,13,19,8,'#889766');for(const[x,y]of[[11,16],[18,17],[22,15]])g.ellipse(x-2,y-1,4,3,'#a15d46');g.line(13,14,17,18,'#e9dfba',2);g.line(9,24,23,24,'#a58b60',2);
+ }else if(id==='wood'){
   for(const[x,y]of[[7,21],[13,25],[8,14]]){g.line(x,y,x+15,y-10,outline,5);g.line(x+1,y,x+15,y-9,'#af8053',3);g.line(x+2,y,x+15,y-9,'#e3bb77');g.ellipse(x-1,y-1,5,5,'#d9b178');g.dot(x+1,y+1,'#8b6043');}g.line(16,18,15,12,'#b28b5c',2);
  }else if(id==='ore'){
   g.poly([[3,24],[7,12],[15,7],[25,12],[29,25],[20,29]],outline);g.poly([[5,23],[9,13],[15,9],[23,13],[20,21]],'#a6bbc0');g.poly([[20,21],[23,13],[27,24],[20,27],[6,25]],'#657e8e');g.line(10,14,16,12,'#e4e2c6',2);g.line(13,24,17,18,'#bed6d0',2);
@@ -373,9 +389,9 @@ for(const id of ['wooden_sword','iron_sword','wooden_shield','iron_armor','hunte
 for(const id of ['supply_cache','wild_garden','spring'])exportRecipe(recipe(`discovery_${id}`,[{name:'idle',action:'idle',duration:1000,g:discovery(id)},...Array.from({length:4},(_,i)=>({name:`resolved_${i}`,action:'resolved',duration:300,g:discovery(id,true,i)}))]),'discoveries',id);
 for(const id of ['leaf','scarf','ribbon','star'])exportRecipe(recipe(id,poses.map(p=>({...p,g:overlay(id,p.action,p.frame)}))),'accessories');
 for(const id of ['turnip','wheat'])exportRecipe(recipe(id,['untilled','tilled','empty','seeded','growing','ready'].map(stage=>({name:stage,action:stage,duration:1000,g:crop(id,stage)})),32,32),'crops');
-for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold'])exportRecipe(recipe(`item_${id}`,[{name:'idle',action:'idle',duration:1000,g:itemIcon(id)}],32,32),'items',`item_${id}`);
+for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew'])exportRecipe(recipe(`item_${id}`,[{name:'idle',action:'idle',duration:1000,g:itemIcon(id)}],32,32),'items',`item_${id}`);
 for(const id of ['wood','ore','kitchen','supply'])exportRecipe(recipe(`landmark_${id}`,[{name:'idle',action:'idle',duration:1000,g:landmark(id)}],64,64),'landmarks',id);
-for(const id of ['hoe','watering_can'])for(const level of [1,2,3]){
+for(const id of ['hoe','watering_can','axe','pickaxe'])for(const level of [1,2,3]){
  exportRecipe(recipe(`${id}_${level}`,poses.map(p=>({...p,g:toolOverlay(id,level,p.action,p.frame)}))),'tools');
  exportRecipe(recipe(`${id}_${level}_icon`,[{name:'idle',action:'idle',duration:1000,g:toolIcon(id,level)}],32,32),'tool_icons');
 }
@@ -393,4 +409,4 @@ if(!only||only==='campfire'){
  // Public app uses the common idle key for an environmental loop.
  manifest.effects.campfire.animations.idle=Object.values(manifest.effects.campfire.animations)[0];
 }
-if(!only){publish(join(PUBLIC,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');writeFileSync(join(SOURCE,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');}
+if(!only){applyWildernessAssets(manifest,ROOT);publish(join(PUBLIC,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');writeFileSync(join(SOURCE,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');}

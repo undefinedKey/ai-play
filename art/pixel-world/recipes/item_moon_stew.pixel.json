@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "name": "item_moon_stew",
+  "width": 32,
+  "height": 32,
+  "palette": {
+    "A": "#d6c69b",
+    "B": "#889766",
+    "C": "#e9dfba",
+    "D": "#a15d46",
+    "E": "#293f3f",
+    "F": "#a58b60",
+    "G": "#203d382e"
+  },
+  "frames": [
+    {
+      "name": "idle",
+      "duration": 1000,
+      "anchor": [
+        16,
+        32
+      ],
+      "ops": [
+        {
+          "op": "grid",
+          "x": 0,
+          "y": 0,
+          "rows": [
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "................................",
+            "............AAAAAAAAA...........",
+            ".........AAAAAAAAAAAAAAA........",
+            ".......AAAAABBBBBBBBBAAAAA......",
+            "......AAABBBBCCBBBBBBDDBAAA.....",
+            ".....AAABBDDBCCCBBBBDDDDBAAA....",
+            ".....AABBDDDDBCCCDDBBDDBBBAA....",
+            ".....AABBBDDBBBCCCDDBBBBBBAA....",
+            "....EAAABBBBBBBBCCCBBBBBBAAAE...",
+            "....EEAAABBBBBBBBCCBBBBBAAAEE...",
+            "....EEEAAAAABBBBBBBBBAAAAAEEE...",
+            "....EEEEEAAAAAAAAAAAAAAAEEEEE...",
+            "....EEEEEEEEAAAAAAAAAEEEEEEEE...",
+            ".....EEEEEEEEEEEEEEEEEEEEEEE....",
+            ".....EEEEFFFFFFFFFFFFFFFFEEE....",
+            "......EEEFFFFFFFFFFFFFFFFEE.....",
+            "........EEEEEEEEEEEEEEEEE.......",
+            ".......GGEEEEEEEEEEEEEEEGG......",
+            "....GGGGGGGGEEEEEEEEEGGGGGGGG...",
+            ".......GGGGGGGGGGGGGGGGGGG......",
+            "................................",
+            "................................"
+          ]
+        }
+      ]
+    }
+  ],
+  "animations": {
+    "idle": {
+      "frames": [
+        "idle"
+      ],
+      "loop": true
+    }
+  },
+  "sheet": {
+    "columns": 1,
+    "padding": 0
+  }
+}

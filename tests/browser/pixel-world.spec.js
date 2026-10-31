@@ -40,7 +40,7 @@ async function audit(page,prefix) {
 
 test('空场展示已生成的像素世界，手机与桌面都没有虚构角色',async({page,request})=>{
   await page.goto(base+'/watch?view=adventure');
-  await expect(page.locator('.pixel-scene-image')).toHaveJSProperty('naturalWidth',768);
+  await expect(page.locator('.pixel-scene-image')).toHaveJSProperty('naturalWidth',1536);
   await expect(page.getByTestId('adventure-empty-banner')).toBeVisible();
   await expect(page.locator('.adventure-agent')).toHaveCount(0);
   await expect(page.locator('.adventure-monster')).toHaveCount(3);
@@ -55,7 +55,7 @@ test('真实 Pixelbolt 素材呈现固定且不同的 AI 外观，两个地图�
   expect(appearance.sprite_id).not.toBe(other.sprite_id);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base+'/watch?view=plaza');
-  await expect(page.locator('.pixel-scene-image')).toHaveJSProperty('naturalWidth',768);
+  await expect(page.locator('.pixel-scene-image')).toHaveJSProperty('naturalWidth',1536);
   const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`);
   await expect(unit.locator('.pixel-character')).toHaveAttribute('data-sprite-id',appearance.sprite_id);
   await expect(unit.locator('[data-asset-missing]')).toHaveCount(0);

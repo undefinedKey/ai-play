@@ -155,7 +155,7 @@ for (const activePlan of [false, true]) test(`UTF-16极限${activePlan ? '含进
   assert.deepEqual(data.energy, [0, 0.75, 12]); assert.equal(data.adventure.monsters.length, 3); assert.deepEqual(data.combat, [observation.self.life.stats.effective_attack, 0, 1, 1000, 3, 0.15]);
   assert.ok(data.adventure.monsters.some(row => row[6] === friend || row[6] === 'speaker' && data.events.at(-1).agent_id === friend)); assert.ok(data.food.some(row => row[0] === 'turnip'));
   assert.equal(data.self.adventure.hp, 8); assert.equal(data.self.adventure.decision_seconds, 30);
-  if (activePlan) assert.deepEqual(data.self.adventure.plan, ['hunt', 'ruins_guardian', '走向目标', '冒险']);
+  if (activePlan) { assert.deepEqual(data.self.adventure.plan, ['hunt', 'ruins_guardian', '走向目标']); assert.equal(data.self.scene_id, 'adventure', '同场景目的地从当前位置明确恢复'); }
   assert.deepEqual(data.last_action.requested, feedback.requested); assert.deepEqual(data.last_action.applied, feedback.applied);
   assert.match(prompt, /rest\/relax/); assert.match(prompt, /不强制/); assert.match(prompt, /不向广场复述/);
 });

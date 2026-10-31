@@ -24,16 +24,24 @@ for(const scene of ['plaza','adventure']) {
 assert.deepEqual(world.scenes, SCENES);
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
-assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
-for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), [20, 40, 60]);
+assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 'axe', 'pickaxe']);
+for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), ['axe', 'pickaxe'].includes(tool.id) ? [12, 24, 36] : [20, 40, 60]);
 assert.equal(world.life.gathering.tool_required, false);
 assert.deepEqual(world.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
-assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread']);
+assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew']);
+assert.equal(health.capabilities.resource_nodes, true); assert.equal(health.capabilities.day_cycle, true);
+assert.equal(world.resources.version, 1); assert.equal(world.resources.nodes.length, 9);
+assert.ok(['day', 'dusk', 'night', 'dawn'].includes(world.day_cycle.phase));
+assert.equal(world.day_cycle.cycle_seconds, 600);
+for (const node of world.resources.nodes) {
+  assert.ok(node.stock >= 0 && node.stock <= node.max_stock);
+  assert.ok(isWalkable(node.scene_id, node.interaction_position));
+}
 assert.equal(world.life.market.stock_policy, 'per_agent_window');
 assert.ok(world.life.market.items.some(i => i.buy_price > 0) && world.life.market.items.some(i => i.sell_price > 0));
 assert.equal(world.fatigue.max_energy, 100);
 assert.deepEqual(world.adventure.map, { width: world.room.width, height: world.room.height });
-assert.equal(world.adventure.zones.length, 3);
+assert.equal(world.adventure.zones.length, 5);
 assert.equal(world.adventure.monsters.length, 3);
 for (const monster of world.adventure.monsters) {
   assert.ok(monster.home_position && monster.behavior);
@@ -42,7 +50,9 @@ for (const monster of world.adventure.monsters) {
   assert.equal(monster.patrol_interval_ms, 2000);
 }
 const manifest = await (await response('/pixel-world/manifest.json')).json();
-assert.notEqual(manifest.scenes.plaza.image, manifest.scenes.adventure.image);
+// Scenes may reuse a ground texture; their authored terrain and prop placement
+// are independent, and the renderer draws scene-specific paths over that texture.
+assert.notDeepEqual(SCENES[0].props, SCENES[1].props);
 for (const scene of SCENES) {
   assert.equal(manifest.scenes[scene.id].width, scene.map.width * 32);
   assert.equal(manifest.scenes[scene.id].height, scene.map.height * 32);
@@ -69,7 +79,8 @@ for (const agent of world.agents) {
   assert.equal(agent.life.market, undefined);
   for (const id of ['wood', 'ore']) assert.ok(Number.isSafeInteger(agent.life.gather_ready_at[id]));
   if (agent.life.gathering) {
-    assert.ok(['wood', 'ore'].includes(agent.life.gathering.resource_id));
+    const job = agent.life.gathering, node = world.resources.nodes.find(n => n.id === job.node_id);
+    assert.ok(node ? node.item_id === job.resource_id : ['wood', 'ore'].includes(job.resource_id));
     assert.equal(agent.life.gathering.run_id, undefined);
     assert.equal(agent.life.gathering.session_epoch, undefined);
   }

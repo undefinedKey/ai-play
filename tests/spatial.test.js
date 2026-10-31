@@ -82,11 +82,11 @@ test('重启修复旧持久化非法位置并保存，保留成长和身份凭�
     world.agent(agent.agent_id).adventure.gold = 19;
     world.state.room.width = 999; world.close(); world = undefined;
     world = new World({ dbPath });
-    assert.deepEqual(world.agent(agent.agent_id).position, { x: 23, y: 0 });
+    assert.deepEqual(world.agent(agent.agent_id).position, { x: WORLD_MAP.width - 1, y: 0 });
     assert.equal(world.agent(agent.agent_id).adventure.gold, 19);
     assert.equal(world.authenticate(controller.token).agent_id, agent.agent_id);
     assert.equal(world.state.room.width, WORLD_MAP.width);
     const saved = JSON.parse(world.db.prepare('SELECT payload FROM world_state WHERE id=1').get().payload);
-    assert.deepEqual(saved.agents[agent.agent_id].position, { x: 23, y: 0 });
+    assert.deepEqual(saved.agents[agent.agent_id].position, { x: WORLD_MAP.width - 1, y: 0 });
   } finally { world?.close(); rmSync(directory, { recursive: true, force: true }); }
 });

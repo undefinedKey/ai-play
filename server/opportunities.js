@@ -3,6 +3,8 @@ import { ADVENTURE_ZONES } from './adventure.js';
 import { FATIGUE_RULES, publicFatigue } from './fatigue.js';
 import { combatStats } from './combat.js';
 import { cooperationOpportunities } from './cooperation.js';
+import { publicResources } from './resources.js';
+import { publicDayCycle, DAY_RULES } from './day-cycle.js';
 
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -30,7 +32,7 @@ function ordinaryOpportunities(world, a) {
     return options.slice(0, 6);
   }
   if (life.gathering) {
-    add('cancel_gather', '取消当前采集', `工作预计于${life.gathering.ends_at}结束；取消不退已花体力且不领奖，也可以继续等待`, 'gather', { intent: 'cancel' });
+    add('cancel_gather', '取消当前采集', `${life.gathering.phase === 'approaching' ? '正在真实前往所选资源，尚未扣工作体力/耐久' : `工作预计于${life.gathering.ends_at}结束`}；本次期限${life.gathering.expires_at}，可取消或继续等待，完成不自动续采`, 'gather', { intent: 'cancel' });
     return options;
   }
   if(a.movement && !f.plan) {
@@ -52,6 +54,21 @@ function ordinaryOpportunities(world, a) {
     }
     return options;
   }
+
+  const night = publicDayCycle(world.state, world.now()).phase === 'night';
+  const resourceChoices = publicResources(world.state, world.now()).nodes.map(node => {
+    const definition = LIFE_RULES.tools.find(t => t.id === node.tool_id), level = definition?.levels.find(l => l.level === life.tools[node.tool_id]?.level);
+    return { ...node, current_energy_cost: Math.round(node.energy_cost * (level ? level.energy_cost / definition.levels[0].energy_cost : 1) * (night ? DAY_RULES.night_work_energy_multiplier : 1) * 100) / 100,
+      current_duration_seconds: Math.ceil(node.duration_seconds * (level?.duration_multiplier || 1) * (night ? DAY_RULES.night_work_duration_multiplier : 1) * 1000) / 1000 };
+  }).filter(node => node.scene_id === a.scene_id && node.available &&
+    (!node.tool_id || life.tools[node.tool_id]?.owned && life.tools[node.tool_id].durability > 0) &&
+    energy >= node.current_energy_cost && held(node.item_id) <= Number.MAX_SAFE_INTEGER - node.yield_count)
+    .sort((x, y) => held(x.item_id) - held(y.item_id) || distance(a.position, x.interaction_position) - distance(a.position, y.interaction_position));
+  const addResource = node => {
+    const legacy = node.id === 'camp_branches' ? 'wood' : node.id === 'camp_stones' ? 'ore' : null;
+    const localLegacy = legacy && distance(a.position, node.position) <= node.radius && life.gather_ready_at[legacy] <= world.now();
+    add(`gather_${localLegacy ? legacy : node.id}`, `采集${node.name}`, `共享库存${node.stock}/${node.max_stock}，${node.tool_id ? `需要${node.tool_id}并耗1耐久` : '可徒手'}；先实际到达再工作，每次获得${node.yield_count}份${node.item_id}，当前工具/时段开工${node.current_duration_seconds}秒/${node.current_energy_cost}体力${night ? '，已计入夜间体力×1.2、时间×1.25' : ''}；到达时重新核算成本，一次完成后自己决定下一步`, 'gather', { intent: 'start', ...(localLegacy ? { resource_id: legacy } : { node_id: node.id }) });
+  };
 
   if (atCamp && (f.hp < f.max_hp || energy < 100)) add('rest', '营地休息', `体力${energy}/100，主动休息同时恢复生命和体力；不自动切换下一项`, 'adventure_plan', { intent: 'rest' });
 
@@ -77,6 +94,11 @@ function ordinaryOpportunities(world, a) {
     }
     for (const definition of LIFE_RULES.tools) {
       const tool = life.tools[definition.id], current = toolLevel(definition.id), next = definition.levels.find(level => level.level === tool.level + 1);
+      if (definition.crafted && !tool.owned) {
+        const recipe = LIFE_RULES.recipes.find(r => r.item_id === definition.id);
+        if (canPay(recipe.ingredients) && energy >= FATIGUE_RULES.costs.craft) farmAdd(4, `craft_${definition.id}`, `制作${definition.name}`, `消耗${JSON.stringify(recipe.ingredients)}和2体力；之后可自主选择具体野外资源点`, 'inventory', { intent: 'craft', item_id: definition.id });
+        continue;
+      }
       if (tool.durability < tool.max_durability && energy >= FATIGUE_RULES.costs.repair && canPay(current.repair_cost)) {
         farmAdd(tool.durability === 0 ? 2 : 7, `repair_${definition.id}`, `维修${definition.name}`, `当前耐久${tool.durability}/${tool.max_durability}；消耗目录材料和2体力，回满耐久`, 'inventory', { intent: 'repair', item_id: definition.id });
       }
@@ -118,9 +140,7 @@ function ordinaryOpportunities(world, a) {
       equipmentIds.add(id);
       farmAdd(6, id, `${owned ? '换用' : '制作'}${item.name}`, `穿戴后攻击${stats.attack}、射程${stats.range}、每${stats.attack_interval_ms / 1000}秒一击耗${stats.attack_energy}体力，防御${stats.defense}，每格耗${stats.move_energy_per_tile}；取舍由自己决定${owned ? '' : '，制作后需另行选择穿戴'}`, 'inventory', { intent, item_id: item.id });
     }
-    const resources = LIFE_RULES.gathering.resources.filter(resource => distance(a.position, resource) <= resource.radius && energy >= resource.energy_cost &&
-      life.gather_ready_at[resource.id] <= world.now() && held(resource.item_id) <= Number.MAX_SAFE_INTEGER - resource.yield_count);
-    const resource = resources.sort((x, y) => held(x.item_id) - held(y.item_id))[0];
+    const resource = resourceChoices[0];
     // Equivalent targets share a suggestion slot: two empty plots or two worn
     // tools must not conceal crafting/cooking. The full catalog stays available.
     const seen = new Set();
@@ -139,9 +159,10 @@ function ordinaryOpportunities(world, a) {
     // visible without evicting the highest-priority farm/repair choice.
     if (slots >= 2 && equipmentIds.size && !selected.some(option => equipmentIds.has(option.id))) selected[selected.length - 1] = distinct.find(option => equipmentIds.has(option.id));
     options.push(...selected.map(({ priority, ...option }) => option));
-    if (resource) add(`gather_${resource.id}`, `徒手采集${resource.item_id === 'wood' ? '木材' : '矿石'}`, `${resource.name}：${resource.duration_seconds}秒、${resource.energy_cost}体力，完成得${resource.yield_count}份；无需工具，可取消`, 'gather', { intent: 'start', resource_id: resource.id });
+    if (resource) addResource(resource);
   } else {
     add('return_camp', '回营地休息或照料农田', '安全区可种植、收获、制作和穿戴装备', 'adventure_plan', { intent: 'rest' });
+    for (const resource of resourceChoices.slice(0, 2)) addResource(resource);
   }
   add('explore_forest', '探索苔光森林', '自由探索；走出安全区可能遇到巡逻怪物', 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   if (target) add('hunt', `挑战${target.name}`, `目标生命${target.hp}、攻击${target.attack}；击败可获得经验、金币和材料${energy <= 25 ? '；当前体力较低，攻击效率75%' : ''}`, 'adventure_plan', { intent: 'hunt', monster_id: target.monster_id });

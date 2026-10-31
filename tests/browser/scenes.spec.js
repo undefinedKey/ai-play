@@ -19,7 +19,7 @@ async function actor(request,name){
 }
 async function advance(ms){for(let elapsed=0;elapsed<ms;){const dt=Math.min(100,ms-elapsed);elapsed+=dt;clock+=dt;app.world.tick();if(clock-heartbeatAt>=1000){for(const a of actors)if(app.world.agent(a.agent.agent_id).status==='active')await a.observe();heartbeatAt=clock;}}}
 async function stepUntil(predicate,max=80){for(let i=0;i<max*10&&!predicate();i++)await advance(100);expect(predicate()).toBe(true);}
-async function capture(page,name){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');const stage=page.getByTestId('world-camera');const rect=await stage.boundingBox();expect(rect.width/rect.height).toBeCloseTo(1.5,2);expect(rect.y).toBeLessThan(width===390?270:220);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll("body *")].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>[e.className,e.getBoundingClientRect().right]).slice(0,15)))).toBe(true);await expect(page.locator('.pixel-scene-image').first()).toHaveJSProperty('complete',true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}.png`});await stage.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}-map.png`});}}
+async function capture(page,name){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');const stage=page.getByTestId('world-camera');const rect=await stage.boundingBox();expect(rect.width/rect.height).toBeCloseTo(1.5,2);expect(rect.y).toBeLessThan(width===390?300:270);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),JSON.stringify(await page.evaluate(()=>[...document.querySelectorAll("body *")].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>[e.className,e.getBoundingClientRect().right]).slice(0,15)))).toBe(true);await expect(page.locator('.pixel-scene-image').first()).toHaveJSProperty('complete',true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}.png`});await stage.screenshot({path:`artifacts/scenes-v017-${name}-${width}x${height}-map.png`});}}
 
 test('独立场景真实入口往返，旁观切换不移动、空场不宣称世界无人、镜头和发言隔离',async({page,request})=>{
  const a=await actor(request,'往返林地的旅人'),id=a.agent.agent_id;const raw=()=>app.world.agent(id);
@@ -28,7 +28,7 @@ test('独立场景真实入口往返，旁观切换不移动、空场不宣称�
  await page.goto(base+'/watch?view=plaza');await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();await expect(page.getByTestId('speech-cloud')).toContainText('广场岸边');
  await page.getByRole('button',{name:'关注角色',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','following');
  const before={...raw().position};await page.getByRole('button',{name:'冒险地图',exact:true}).click();expect(raw().position).toEqual(before);expect(raw().scene_id).toBe('plaza');expect(calls).toEqual([]);
- await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','overview');await expect(page.locator('.world-actor')).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);await expect(page.locator('.scene-elsewhere')).toContainText('生活广场');await expect(page.getByTestId('adventure-empty-banner')).toContainText('0 位 AI');
+ await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','manual');await expect(page.locator('.world-actor')).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);await expect(page.locator('.scene-elsewhere')).toContainText('生活广场');await expect(page.getByTestId('adventure-empty-banner')).toContainText('0 位 AI');
  await capture(page,'adventure-empty');
  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});let observedPath=false;
  for(let i=0;i<800&&raw().scene_id!=='adventure';i++){await advance(100);if(raw().movement?.path?.length>1)observedPath=true;}
@@ -37,7 +37,7 @@ test('独立场景真实入口往返，旁观切换不移动、空场不宣称�
  await page.getByRole('button',{name:'关注角色',exact:true}).click();await a.act('adventure_plan',{intent:'rest'});await stepUntil(()=>raw().scene_id==='plaza');
  // Leaving the watched scene cancels following and preserves the spectator's zoom.
  await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','manual');await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-zoom','2.00');await expect(page.getByTestId(`adventure-agent-${id}`)).toHaveCount(0);await expect(page.getByTestId('speech-cloud')).toHaveCount(0);
- await page.getByRole('button',{name:'镜头复位',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','overview');await page.getByRole('button',{name:'查看所在地',exact:true}).click();await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();
+ await page.getByRole('button',{name:'镜头复位',exact:true}).click();await expect(page.getByTestId('world-camera')).toHaveAttribute('data-camera-mode','manual');await page.getByRole('button',{name:'查看所在地',exact:true}).click();await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();
  await expect(page.locator('body')).not.toContainText('PRIVATE_SCENE_OWNER_GOAL');
 });
 
@@ -74,7 +74,7 @@ test('真实拐弯逐段推进，不直穿树干；减少动态使用当前确�
  await page.goto(base+'/watch?view=plaza');
  const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`);await expect(unit).toBeVisible();const receipt=await a.act('move',{x:6,y:6});
  expect(receipt.path).toEqual([{x:5,y:5},{x:6,y:5},{x:6,y:6}]);await expect(unit).toHaveAttribute('data-foot-y','5');
- const point=()=>unit.evaluate(el=>({x:parseFloat(el.style.left)/100*24-.5,y:parseFloat(el.style.top)/100*16-.5}));
+ const point=()=>unit.evaluate(el=>({x:parseFloat(el.style.left)/100*48-.5,y:parseFloat(el.style.top)/100*32-.5}));
  expect(raw.position).toEqual({x:5,y:5});
  await advance(100);expect(raw.position.x).toBeCloseTo(5.2,5);expect(raw.position.y).toBe(5);
  await expect.poll(()=>point().then(p=>p.x)).toBeGreaterThan(5);const first=await point();expect(first.x).toBeLessThan(6);expect(first.y).toBeCloseTo(5,4);

@@ -1,22 +1,24 @@
 import React,{useContext,useEffect,useRef,useState} from 'react';
-import {Minus,Plus,Expand,Minimize,LocateFixed,Volume2,VolumeX} from 'lucide-react';
+import {Minus,Plus,Expand,Minimize,LocateFixed,Volume2,VolumeX,Map as MapIcon} from 'lucide-react';
 import {CameraContext} from './camera-context.js';
 import {usePixelNow} from './PixelWorld.jsx';
 import {confirmedPosition} from './scene-state.js';
 import {SpeechBubbles} from './SpeechOverlay.jsx';
 import {cameraView,zoomCamera,panCamera,cameraTransform} from './camera-state.js';
+import {WORLD_MAP} from '../shared/world-layout.js';
+const campView=()=>cameraView({x:11.5/WORLD_MAP.width,y:8.5/WORLD_MAP.height},2);
 
-export default function WorldCamera({children,speech}){
+export default function WorldCamera({children,speech,status}){
   const camera=useContext(CameraContext),frame=useRef(null),pointers=useRef(new Map()),gesture=useRef(null),suppressClick=useRef(false);
-  const[scale,setScale]=useState(1),[view,setView]=useState(()=>cameraView()),[fullscreen,setFullscreen]=useState(false),[notice,setNotice]=useState('');
+  const[scale,setScale]=useState(1),[view,setView]=useState(campView),[fullscreen,setFullscreen]=useState(false),[notice,setNotice]=useState('');
   const now=usePixelNow(camera?.now||0,!!camera?.live&&camera?.agent?.status==='active');
   const point=camera?.agent?confirmedPosition(camera.agent,now,!!camera.live):camera?.point;
-  const map=camera?.map||{width:24,height:16};
+  const map=camera?.map||WORLD_MAP;
   const rendered=point?cameraView({x:(point.x+.5)/map.width,y:(point.y+.5)/map.height},view.zoom):view;
   const state=useRef();state.current={view:rendered,camera};
-  useEffect(()=>{const observer=new ResizeObserver(entries=>setScale(entries[0].contentRect.width/768));observer.observe(frame.current);return()=>observer.disconnect();},[]);
+  useEffect(()=>{const observer=new ResizeObserver(entries=>setScale(entries[0].contentRect.width/(WORLD_MAP.width*32)));observer.observe(frame.current);return()=>observer.disconnect();},[]);
   useEffect(()=>{if(camera?.mode==='following'||camera?.mode==='located')setView(v=>cameraView(v.center,Math.max(2,v.zoom)));},[camera?.mode,camera?.agent?.agent_id,camera?.point]);
-  useEffect(()=>{setView(cameraView());},[camera?.resetKey]);
+  useEffect(()=>{setView(camera?.resetZoom===1?cameraView():campView());},[camera?.resetKey]);
   useEffect(()=>{const changed=()=>setFullscreen(document.fullscreenElement===(frame.current?.closest('.map-scene-frame')||frame.current));document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
   const manual=next=>{state.current.camera?.onManual?.();setView(next);};
   const zoom=(amount,anchor)=>manual(zoomCamera(state.current.view,state.current.view.zoom*amount,anchor));
@@ -52,13 +54,14 @@ export default function WorldCamera({children,speech}){
     const directions={ArrowLeft:[.08,0],ArrowRight:[-.08,0],ArrowUp:[0,.08],ArrowDown:[0,-.08]};
     if(directions[event.key]){event.preventDefault();manual(panCamera(rendered,...directions[event.key]));}
     else if(['+','=','-'].includes(event.key)){event.preventDefault();zoom(event.key==='-'?1/1.25:1.25);}
-    else if(event.key==='Home'){event.preventDefault();camera?.onReset?.();setView(cameraView());}
+    else if(event.key==='Home'){event.preventDefault();camera?.onReset?.();setView(campView());}
   }
   async function toggleFullscreen(){try{if(document.fullscreenElement===(frame.current?.closest('.map-scene-frame')||frame.current))await document.exitFullscreen();else if(frame.current.requestFullscreen)await (frame.current.closest('.map-scene-frame')||frame.current).requestFullscreen();else setNotice('当前浏览器不支持全屏，仍可使用缩放');}catch{setNotice('未能进入全屏，仍可使用缩放');}}
-  return <div ref={frame} className={`world-camera ${rendered.zoom>1?'focused':''}`} role="region" aria-label="世界镜头，方向键平移，加减缩放，Home恢复全图" tabIndex={0} data-testid="world-camera" data-camera-mode={point?camera?.mode:rendered.zoom>1?'manual':'overview'} data-camera-zoom={rendered.zoom.toFixed(2)} data-camera-x={rendered.center.x.toFixed(5)} data-camera-y={rendered.center.y.toFixed(5)} style={{'--world-scale':scale}} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onKeyDown={key} onClickCapture={event=>{if(suppressClick.current){event.preventDefault();event.stopPropagation();suppressClick.current=false;}}}>
+  return <div ref={frame} className={`world-camera ${rendered.zoom>1?'focused':''}`} role="region" aria-label="世界镜头，方向键平移，加减缩放，Home返回营地" tabIndex={0} data-testid="world-camera" data-camera-mode={point?camera?.mode:rendered.zoom>1?'manual':'overview'} data-camera-zoom={rendered.zoom.toFixed(2)} data-camera-x={rendered.center.x.toFixed(5)} data-camera-y={rendered.center.y.toFixed(5)} style={{'--world-scale':scale,'--camera-zoom':rendered.zoom}} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onKeyDown={key} onClickCapture={event=>{if(suppressClick.current){event.preventDefault();event.stopPropagation();suppressClick.current=false;}}}>
     <div className="world-camera-layer" style={{transformOrigin:'0 0',transform:cameraTransform(rendered)}}>{children}</div>
+    {status}
     {speech&&<SpeechBubbles {...speech}/>}
-    <div className="camera-hud" role="group" aria-label="镜头工具"><button aria-label="缩小地图" disabled={rendered.zoom<=1} onClick={()=>zoom(1/1.25)}><Minus size={17}/></button><output aria-label="当前缩放">{Math.round(rendered.zoom*100)}%</output><button aria-label="放大地图" disabled={rendered.zoom>=4} onClick={()=>zoom(1.25)}><Plus size={17}/></button><button aria-label="镜头复位" onClick={()=>{camera?.onReset?.();setView(cameraView());}}><LocateFixed size={17}/></button><button aria-label={fullscreen?'退出全屏':'全屏观看'} onClick={toggleFullscreen}>{fullscreen?<Minimize size={17}/>:<Expand size={17}/>}</button><button aria-label={camera?.sound?'关闭游戏音效':'开启游戏音效'} aria-pressed={!!camera?.sound} onClick={()=>camera?.onSound?.()}>{camera?.sound?<Volume2 size={17}/>:<VolumeX size={17}/>}</button></div>
+    <div className="camera-hud" role="group" aria-label="镜头工具"><button aria-label="缩小地图" disabled={rendered.zoom<=1} onClick={()=>zoom(1/1.25)}><Minus size={17}/></button><output aria-label="当前缩放">{Math.round(rendered.zoom*100)}%</output><button aria-label="放大地图" disabled={rendered.zoom>=4} onClick={()=>zoom(1.25)}><Plus size={17}/></button><button aria-label="查看全景" onClick={()=>manual(cameraView())}><MapIcon size={17}/></button><button aria-label="镜头复位" onClick={()=>{camera?.onReset?.();setView(campView());}}><LocateFixed size={17}/></button><button aria-label={fullscreen?'退出全屏':'全屏观看'} onClick={toggleFullscreen}>{fullscreen?<Minimize size={17}/>:<Expand size={17}/>}</button><button aria-label={camera?.sound?'关闭游戏音效':'开启游戏音效'} aria-pressed={!!camera?.sound} onClick={()=>camera?.onSound?.()}>{camera?.sound?<Volume2 size={17}/>:<VolumeX size={17}/>}</button></div>
     {notice&&<span className="camera-notice" role="status">{notice}</span>}
   </div>;
 }

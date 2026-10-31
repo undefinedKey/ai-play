@@ -6,6 +6,7 @@ import { EXPLORATION_GUIDANCE, STRATEGY_GUIDANCE, PERSONAL_GOAL_GUIDANCE } from 
 import { movementContext, normalizeMove, MOVEMENT_GUIDANCE, SCENE_GUIDANCE, inAdventureScene } from './movement.mjs';
 import { COOPERATION_GUIDANCE, supportsCooperation, validCooperation, cooperationStamp, cooperationFocus, cooperationActivityKey, cooperationReviewIsDeferred, relevantCooperationEvent } from './cooperation.mjs';
 import { MODEL_REQUEST_MS, DECISION_WATCHDOG_MS, remainingSeconds } from './timing.mjs';
+import { RESOURCE_GUIDANCE, supportsResources } from './resources-context.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
@@ -63,7 +64,7 @@ export function parseModelAction(content) {
     submit_move: { game_id: id, turn_id: v => id(v) || integer(v), choice: v => ['rock', 'paper', 'scissors'].includes(v) },
     submit_story: { game_id: id, turn_id: v => id(v) || integer(v), text: v => typeof v === 'string' && v.trim() && [...v].length <= 200 },
     leave_game: { game_id: id },
-    adventure_plan: { intent: v => ['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(v), 'zone_id?': v => ['camp', 'forest', 'ruins'].includes(v), 'monster_id?': id, 'mode?': v => ['walk', 'run'].includes(v) },
+    adventure_plan: { intent: v => ['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(v), 'zone_id?': v => ['camp', 'forest', 'ruins', 'grove', 'quarry'].includes(v), 'monster_id?': id, 'mode?': v => ['walk', 'run'].includes(v) },
     adventure_event: { event_id: id, choice_id: id },
     personal_goal: { intent: v => ['set', 'confirm', 'cancel'].includes(v), 'goal_id?': id,
       'kind?': v => ['collect_item', 'cook_item', 'resolve_exploration', 'defeat_monster'].includes(v), 'target_id?': id,
@@ -71,7 +72,7 @@ export function parseModelAction(content) {
       'title?': v => typeof v === 'string' && [...v].length <= 60 },
     farm: { intent: v => ['till', 'plant', 'water', 'harvest'].includes(v), plot_id: v => ['plot_1', 'plot_2'].includes(v), 'crop_id?': v => ['turnip', 'wheat'].includes(v) },
     inventory: { intent: v => ['craft', 'equip', 'unequip', 'use', 'repair', 'upgrade'].includes(v), 'item_id?': id, 'slot?': v => ['weapon', 'armor'].includes(v) },
-    gather: { intent: v => ['start', 'cancel'].includes(v), 'resource_id?': v => ['wood', 'ore'].includes(v) },
+    gather: { intent: v => ['start', 'cancel'].includes(v), 'resource_id?': v => ['wood', 'ore'].includes(v), 'node_id?': v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(v), 'mode?': v => ['walk', 'run'].includes(v) },
     trade: { intent: v => ['buy', 'sell'].includes(v), item_id: id, quantity: v => integer(v) && v >= 1 && v <= 10 },
     start_activity: { activity_id: id }, finish_activity: { 'answer?': v => integer(v) || typeof v === 'string' && v.trim().length > 0 && [...v].length <= 100 }, wait: {},
   };
@@ -86,11 +87,11 @@ export function parseModelAction(content) {
     ['rest', 'retreat'].includes(p.intent) && (p.zone_id !== undefined && p.zone_id !== 'camp' || p.monster_id !== undefined) ||
     p.intent === 'stop' && (p.zone_id !== undefined || p.monster_id !== undefined || p.mode !== undefined)) ||
     action.type === 'farm' && (p.intent === 'plant' ? !p.crop_id : p.crop_id !== undefined) ||
-    action.type === 'gather' && (p.intent === 'start' ? !p.resource_id : p.resource_id !== undefined) ||
+    action.type === 'gather' && (p.intent === 'start' ? !!p.resource_id === !!p.node_id || p.mode !== undefined && !p.node_id : ['resource_id', 'node_id', 'mode'].some(key => p[key] !== undefined)) ||
     action.type === 'personal_goal' && (p.intent === 'set' ? !p.kind || !p.target_id || !p.target_count || p.goal_id !== undefined :
       !p.goal_id || ['kind', 'target_id', 'target_count', 'duration_seconds', 'title'].some(key => p[key] !== undefined)) ||
     action.type === 'inventory' && ((p.intent === 'unequip' ? !p.slot || p.item_id !== undefined : !p.item_id || p.slot !== undefined) ||
-      ['repair', 'upgrade'].includes(p.intent) && !['hoe', 'watering_can'].includes(p.item_id))) {
+      ['repair', 'upgrade'].includes(p.intent) && !['hoe', 'watering_can', 'axe', 'pickaxe'].includes(p.item_id))) {
     throw new RunnerError('INVALID_MODEL_OUTPUT', '动作 payload 字段、类型或长度不符合世界动作约定');
   }
   // Identity, credentials and action IDs are always supplied by the runner.
@@ -122,7 +123,7 @@ export function enqueueEvents(checkpoint, events, selfId, groupMembers = []) {
     if (type.startsWith('life_') && (event.payload?.agent_id !== selfId && !groupMembers.includes(event.payload?.agent_id))) continue;
     if (/^(exploration_|personal_goal_)/.test(type) && event.payload?.agent_id !== selfId && !groupMembers.includes(event.payload?.agent_id)) continue;
     if (type.startsWith('personal_goal_') && !['personal_goal_review', 'personal_goal_ended'].includes(type)) continue; // Recording progress is not an automatic work queue.
-    if (type === 'life_gather_started') continue; // One finite job needs no model call for its start or progress.
+    if (['life_gather_started', 'life_gather_working', 'resource_regrown', 'day_phase_changed'].includes(type)) continue; // Progress and environment updates do not schedule another AI activity.
     if (type === 'adventure_aggro') {
       // Coalesce repeated reports of the same lock while preserving a real switch
       // between teammates. Normal attacks are filtered above and never wake us.
@@ -137,7 +138,7 @@ export function enqueueEvents(checkpoint, events, selfId, groupMembers = []) {
     queue.push(event);
   }
   while (queue.length > 100) {
-    const ordinary = queue.findIndex(e => !/control|pause|recall|turn|game|adventure_finished|adventure_defeated|adventure_danger|adventure_aggro|exploration_|personal_goal_review|personal_goal_ended|cooperation_|life_ready|life_gather_finished|fatigue_/.test(e.type));
+    const ordinary = queue.findIndex(e => !/control|pause|recall|turn|game|adventure_finished|adventure_defeated|adventure_danger|adventure_aggro|exploration_|personal_goal_review|personal_goal_ended|cooperation_|life_ready|life_gather_finished|life_gather_cancelled|fatigue_/.test(e.type));
     queue.splice(ordinary >= 0 ? ordinary : 0, 1);
     dropped++;
   }
@@ -550,7 +551,7 @@ export class PlazaRunner extends EventEmitter {
     if (activity?.task && elapsed >= 10000) return true;
     if (activity && timestamp(activity.ends_at) > this.now()) return false;
     const gathering = this.observation?.self?.life?.gathering;
-    if (gathering) return timestamp(gathering.ends_at) <= serverNow || elapsed >= 30000;
+    if (gathering) return (gathering.phase === 'approaching' ? timestamp(gathering.expires_at) : timestamp(gathering.ends_at)) <= serverNow || elapsed >= 30000;
     const plan = this.observation?.self?.adventure?.plan;
     // The server executes a finite intention; never invoke the model for every
     // movement/attack. Important events above interrupt this wait. A 30s review
@@ -864,7 +865,7 @@ export class PlazaRunner extends EventEmitter {
       try { new URL(`${baseUrl}/chat/completions`); } catch { throw new RunnerError('MODEL_CONFIG', '本机模型地址格式无效'); }
       // The private audit ledger can contain 100 full balances. Current inventory
       // and the last receipt are enough for a decision; never replay that ledger.
-      const v014Guidance = [this.rules?.adventure?.exploration ? EXPLORATION_GUIDANCE : '', this.rules?.life?.strategy_equipment ? STRATEGY_GUIDANCE : '', this.rules?.personal_goals ? PERSONAL_GOAL_GUIDANCE : ''].filter(Boolean).join('\n');
+      const v014Guidance = [this.rules?.adventure?.exploration ? EXPLORATION_GUIDANCE : '', this.rules?.life?.strategy_equipment ? STRATEGY_GUIDANCE : '', this.rules?.personal_goals ? PERSONAL_GOAL_GUIDANCE : '', supportsResources(observation, this.rules) ? RESOURCE_GUIDANCE : ''].filter(Boolean).join('\n');
       const cooperationGuidance = supportsCooperation(this.rules) ? COOPERATION_GUIDANCE : '';
       const decisionObservation = { ...observation,
         ...(observation.self?.life ? { self: { ...observation.self, life: { ...observation.self.life, ledger: undefined } } } : {}),

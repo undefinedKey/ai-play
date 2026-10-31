@@ -6,6 +6,8 @@ import { publicLeisure } from './leisure.js';
 import { snapshotDelta } from './snapshot-delta.js';
 import { publicAdventure, publicFighter } from './adventure.js';
 import { publicLife } from './life.js';
+import { publicResources } from './resources.js';
+import { publicDayCycle } from './day-cycle.js';
 import { publicAppearance } from './appearance.js';
 import { publicFatigue } from './fatigue.js';
 import { publicPresence } from './presence.js';
@@ -51,9 +53,12 @@ const publicEventFields = {
   life_watered: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'level', 'durability'],
   life_tool_repaired: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
   life_tool_upgraded: ['agent_id', 'name', 'text', 'item_id', 'level', 'durability', 'max_durability'],
-  life_gather_started: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'item_id', 'quantity', 'started_at', 'ends_at'],
-  life_gather_finished: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'item_id', 'quantity'],
-  life_gather_cancelled: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'reason'],
+  day_phase_changed: ['phase', 'day_index', 'next_at', 'text'],
+  resource_regrown: ['node_id', 'stock', 'text'],
+  life_gather_started: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'node_id', 'item_id', 'quantity', 'phase', 'started_at', 'ends_at'],
+  life_gather_working: ['agent_id', 'name', 'text', 'job_id', 'node_id', 'resource_id', 'item_id', 'quantity', 'position', 'phase', 'mode', 'started_at', 'work_started_at', 'ends_at', 'expires_at', 'duration_seconds', 'energy_cost', 'tool_id', 'day_phase'],
+  life_gather_finished: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'node_id', 'item_id', 'quantity'],
+  life_gather_cancelled: ['agent_id', 'name', 'text', 'job_id', 'resource_id', 'node_id', 'reason'],
   life_traded: ['agent_id', 'name', 'text', 'intent', 'item_id', 'quantity', 'total_price'],
   life_harvested: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot'],
   life_crafted: ['agent_id', 'name', 'text', 'plot_id', 'crop_id', 'item_id', 'slot', 'quantity'],
@@ -88,7 +93,7 @@ export function publicEvent(event, agentIds) {
     if (key === 'from_scene_id') { if (SCENE_IDS.includes(raw[key])) payload[key] = raw[key]; continue; }
     if (key === 'public_result') { payload[key] = publicExplorationResult(raw[key]); continue; }
     if (key === 'choices' && event.type.startsWith('exploration_')) { payload[key] = structuredClone(EXPLORATION_RULES.templates.find(t => t.template_id === raw.template_id)?.choices || []); continue; }
-    const value = ['position', 'from_position'].includes(key) ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['found_at', 'expires_at', 'resolved_at', 'created_at', 'updated_at', 'target_count', 'progress', 'deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = ['position', 'from_position'].includes(key) ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['found_at', 'expires_at', 'resolved_at', 'created_at', 'updated_at', 'day_index', 'next_at', 'stock', 'work_started_at', 'duration_seconds', 'energy_cost', 'target_count', 'progress', 'deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {
@@ -112,6 +117,7 @@ export function spectatorSnapshot(world) {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
     agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent), action:publicAction(agent), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
     scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
+    resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()),
     places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
@@ -127,7 +133,7 @@ export function spectatorSnapshot(world) {
 /** Scope only an already-public snapshot; subscriptions never change AI perception. */
 export function scopeSpectatorSnapshot(snapshot, scene = null) {
   return { ...snapshot, scope: { scene_id: scene, events: scene ? 'scene' : 'world', roster: 'world' },
-    ...(scene ? { events: snapshot.events.filter(event => event.payload.scene_id === scene
+    ...(scene ? { resources: { ...snapshot.resources, nodes: (snapshot.resources?.nodes || []).filter(node => node.scene_id === scene) }, events: snapshot.events.filter(event => event.payload.scene_id === scene || event.type === 'day_phase_changed'
       || (event.type === 'scene_changed' && event.payload.from_scene_id === scene)
       || (scene === 'plaza' && cooperationEvents.has(event.type) && event.payload.template_id === 'camp_meal')),
       ...(scene === 'plaza' ? { adventure: { ...snapshot.adventure, monsters: [] } } : {}) } : {}) };

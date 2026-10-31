@@ -1,0 +1,90 @@
+{
+  "frames": {
+    "pine": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 512,
+        "h": 600,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 570
+      }
+    },
+    "oak": {
+      "frame": {
+        "x": 512,
+        "y": 0,
+        "w": 512,
+        "h": 600,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 570
+      }
+    },
+    "ore": {
+      "frame": {
+        "x": 1024,
+        "y": 0,
+        "w": 512,
+        "h": 600,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 570
+      }
+    },
+    "berries": {
+      "frame": {
+        "x": 0,
+        "y": 600,
+        "w": 512,
+        "h": 424,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 374
+      }
+    },
+    "stump": {
+      "frame": {
+        "x": 512,
+        "y": 600,
+        "w": 512,
+        "h": 424,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 374
+      }
+    },
+    "herb": {
+      "frame": {
+        "x": 1024,
+        "y": 600,
+        "w": 512,
+        "h": 424,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 256,
+        "y": 374
+      }
+    }
+  },
+  "meta": {
+    "image": "props_ink.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "source": "original-imagegen-transparent-atlas"
+  }
+}

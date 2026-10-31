@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { World } from '../server/world.js';
 import { expectedPosition, verifyScenes } from '../deploy/verify-scenes.mjs';
+import { WORLD_MAP } from '../shared/world-layout.js';
 
 test('v019 restart preserves an actual point on a walkable edge and cancels uncompleted movement/attack', () => {
   const directory = mkdtempSync(join(tmpdir(), 'plaza-motion-migration-'));
@@ -43,7 +44,7 @@ test('v019 independent migration verifier preserves only legal cardinal physical
   for (const position of [{ x: 11.25, y: 8 }, { x: 11, y: 8.75 }, { x: 11, y: 8 }]) {
     assert.deepEqual(expectedPosition({ scene_id: 'plaza', position }), position);
   }
-  for (const position of [{ x: 11.25, y: 8.25 }, { x: -0.1, y: 8 }, { x: 24, y: 8 }]) {
+  for (const position of [{ x: 11.25, y: 8.25 }, { x: -0.1, y: 8 }, { x: WORLD_MAP.width, y: 8 }]) {
     assert.notDeepEqual(expectedPosition({ scene_id: 'plaza', position }), position);
   }
 });

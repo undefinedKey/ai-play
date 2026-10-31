@@ -87,7 +87,7 @@ test('有限采集不逐步思考，可由原AI选择取消；本人/队友完�
   const f = await fixture(t); await f.decide(action('gather', { intent: 'start', resource_id: 'ore' }));
   f.advance(5000); assert.equal(f.runner.decisionDue(), false);
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
-  assert.equal(data.gathering[0], 'ore'); assert.match(prompt, /gather\{intent:cancel\}/);
+  assert.equal(data.gathering[0], 'camp_stones'); assert.equal(data.gathering[1], 'working'); assert.match(prompt, /gather\{intent:cancel\}/);
   await f.decide(action('gather', { intent: 'cancel' })); assert.equal(f.a.life.gathering, null); assert.equal(f.a.life.inventory.ore || 0, 0);
   const events = ['self', 'friend', 'stranger'].flatMap(agent_id => ['life_gather_started', 'life_gather_finished'].map(type => ({ event_id: `${agent_id}-${type}`, type, payload: { agent_id } })));
   const state = enqueueEvents({ queue: [], seen: [] }, events, 'self', ['friend']);
@@ -98,7 +98,7 @@ test('资源、料理、价格与私人额度进入营地短提示，旧服务�
   const f = await fixture(t); Object.assign(f.a.life.inventory, { turnip: 2, wheat: 2 }); f.a.adventure.gold = 20; f.refresh();
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.equal(data.supply.gold, 20);
-  assert.ok(data.supply.gather.some(row => row[0] === 'wood' && row[4] === 12 && row[5] === 4));
+  assert.match(prompt, /camp_branches|camp_stones|orchard_berries/); assert.match(prompt, /库存/); assert.equal(data.supply.gather, undefined, '新服务提供共享节点，不复述旧个人采集目录');
   assert.ok(data.supply.cook.some(row => row[0] === 'wheat_bread' && row[3] === 24));
   assert.ok(data.supply.cook.every(row => row[4] === 2));
   assert.ok(data.supply.prices.some(row => row[0] === 'turnip' && row[1] === null && row[2] === 2));
@@ -117,7 +117,7 @@ test('长目标、消息和移动回执下正在采集仍保留取消入口、�
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules, ownerGoal, lastActionFeedback: feedback,
     events: [{ type: 'message', payload: { agent_id: 'agent_' + 'f'.repeat(36), text: message } }] }), data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal)); assert.equal(data.events.at(-1).text, message);
-  assert.equal(data.gathering[0], 'ore'); assert.match(prompt, /gather\{intent:cancel\}/);
+  assert.equal(data.gathering[0], 'camp_stones'); assert.equal(data.gathering[1], 'working'); assert.match(prompt, /gather\{intent:cancel\}/);
   assert.equal(data.energy[0], 1); assert.ok(data.food.some(row => row[0] === 'wheat_bread' && row[3] === 24));
   assert.deepEqual(data.last_action.requested, feedback.requested); assert.deepEqual(data.last_action.applied, feedback.applied);
 });

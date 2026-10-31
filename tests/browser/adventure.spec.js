@@ -296,7 +296,7 @@ test('没有角色和观众时怪物仍会巡逻，打开旁观后 SSE 持续显
     expect(rendered.top).toBeCloseTo((item.position.y+.5)/height*100,3);
   }
   await expect(page.locator('.adventure-agent')).toHaveCount(0);
-  expect(width).toBe(24);expect(height).toBe(16);
+  expect(width).toBe(48);expect(height).toBe(32);
   for(const viewport of [{width:1440,height:900},{width:390,height:844}]) {
     await page.setViewportSize(viewport);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

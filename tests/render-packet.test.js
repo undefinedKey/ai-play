@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {renderSpace,sameRenderPacket} from '../src/render-packet.js';
 test('native foot coordinates and crowded offsets retain screen-space separation at desktop/mobile edges',()=>{
   assert.deepEqual(renderSpace({x:5,y:6},{depth:160,anchor:[64,120]}),{x:176,y:208,depth:160,anchor:[64,120],alpha:1,scale:1});
-  for(const viewportScale of[390/768,1,1006/768]){
+  for(const viewportScale of[390/1536,1,1006/1536]){
     const middle=renderSpace({x:12,y:8},{offset:{x:22,y:4},viewportScale});
     assert.equal(Math.round((middle.x-400)*viewportScale),22);assert.equal(Math.round((middle.y-272)*viewportScale),4);
     const left=renderSpace({x:0,y:8},{offset:{x:-40},viewportScale});assert.ok(left.x*viewportScale>=12-1e-8);
-    const right=renderSpace({x:23,y:8},{offset:{x:40},viewportScale});assert.ok(right.x*viewportScale<=768*viewportScale-12+1e-8);
+    const right=renderSpace({x:47,y:8},{offset:{x:40},viewportScale});assert.ok(right.x*viewportScale<=1536*viewportScale-12+1e-8);
   }
 });
 test('unchanged packets sleep, while actual position, frame, depth and equipment changes redraw',()=>{

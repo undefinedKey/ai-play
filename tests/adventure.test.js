@@ -43,7 +43,7 @@ test('冒险目录和公开成长可发现；新角色没有自动计划或默�
   const f = fixture(t), p = f.make();
   const rules = f.world.getRules(), o = f.observe(p);
   assert.ok(rules.allowed_actions.includes('adventure_plan'));
-  assert.deepEqual(rules.adventure.zones.map(z => z.id), ['camp', 'forest', 'ruins']);
+  assert.deepEqual(rules.adventure.zones.map(z => z.id), ['camp', 'forest', 'ruins', 'grove', 'quarry']);
   assert.equal(o.adventure.monsters.length, 3); assert.equal(o.self.adventure.plan, null);
   assert.equal(o.self.adventure.hp, 40); assert.equal(o.self.bio, '保留原来的身份');
   f.advance(20000); assert.equal(f.fighter(p).adventure.plan, null);
@@ -445,7 +445,12 @@ test('持续30分钟模拟巡逻始终在地图/领地内且不进入安全营�
       previous.set(m.monster_id, { ...m.position });
     }
   }
-  assert.equal(f.world.state.events.length, 0); assert.equal(f.world.state.sequence, 0);
+  const events = f.world.state.events;
+  assert.equal(events.length, 12, '30分钟只产生三个昼夜周期的阶段变化');
+  assert.ok(events.every(event => event.type === 'day_phase_changed'), '无人世界不得产生角色行动、战斗或巡逻事件');
+  assert.deepEqual(events.map(event => event.payload.phase), Array.from({ length: 3 }, () => ['dusk', 'night', 'dawn', 'day']).flat());
+  assert.equal(f.world.state.sequence, events.length);
+  assert.equal(Object.keys(f.world.state.agents).length, 0);
 });
 
 test('地图四角及营地边缘的巡逻路线会过滤越界/安全区但保持实际移动', t => {

@@ -110,7 +110,7 @@ test('真实MCP传输可发现农具并执行开垦/种植/制作/穿戴', async
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${r.controller.token}` } } }));
   const call = async (name, args = {}) => (await client.callTool({ name, arguments: args })).structuredContent;
   const rules = await call('get_rules'); assert.equal(rules.life.plots_per_agent, 2); assert.ok(rules.allowed_actions.includes('farm'));
-  assert.deepEqual(rules.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
+  assert.deepEqual(rules.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 'axe', 'pickaxe']);
   assert.ok((await call('observe', r.session)).opportunities.some(candidate => candidate.action.type === 'farm' && candidate.action.payload.intent === 'till'));
   const commands = [
     ['farm', { intent: 'till', plot_id: 'plot_1' }],

@@ -18,6 +18,8 @@ v0.11 的 `life.tools` 目录及 `self.life.tools` 状态支持 `farm {intent:"t
 
 v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集，`{intent:"cancel"}` 不带资源 ID；`trade {intent:"buy"|"sell",item_id,quantity}` 限整数 1–10。料理沿用 inventory craft/use。目录和个人状态见 [采集、料理与购销](gathering-cooking-trading.md)。运行器只在相应动作与目录可用时报告 gathering/cooking/trading，v0.13 完整服务下总能力数为 12，不伪报旧服务支持。
 
+v0.20 的 `resources.version:1` 与 `life.gathering.version:2` 在原 gathering 能力下支持 `gather{intent:start,node_id,mode?:walk|run}`；node_id/resource_id 二选一，mode 只给节点 start，cancel 仅 intent。一次固定期限含真实接近和工作，不跨图、不续采。观察共享库存/预约/再生、工具 owned 与耐久以及 day_cycle；available 不代表本人全部条件满足。axe/pickaxe 通过 inventory craft/repair/upgrade 管理；口粮按实际配方制作使用。详见 [共享节点与昼夜](resources-day-cycle.md)。保持既有 16 能力、固定预算与身份，不逐格调用模型。
+
 `get_rules` 和 `observe` 的 `places` / `activities` 提供地点坐标、半径、时长和内容。到地点附近使用 `start_activity {activity_id}`；`self.activity` 带开始/截止时间和公开题面 `task`。`finish_activity {}` 提前结束普通活动；心算/数列用 `{answer:整数}`，谜语用 `{answer:"答案"}`，服务验证计分。寻宝时空参数表示在 `target:{x,y}` 收集，观察 `progress:{collected,total}` 与下一目标，移动保留寻宝；其他独处活动移动会取消。离线、暂停或参加多人游戏也会中断活动。事件包含 `activity_started`、`activity_finished` 与 `treasure_collected`。
 
 多人游戏：`propose_game {group_id,game_type}`，类型为 `word_chain`（默认）、`rock_paper_scissors` 或 `story_chain`；报名使用 `respond_game {game_id,accept:true}`。猜拳 `submit_move {game_id,turn_id,choice:"rock"|"paper"|"scissors"}`；故事 `submit_story {game_id,turn_id,text}`（1–200字）。报名与每回合各 30 秒；具体规则见 [多人游戏](games.md)。

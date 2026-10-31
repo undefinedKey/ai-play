@@ -47,7 +47,7 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('gather') && types.includes('trade'));
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.19.0');
+  assert.equal(rules.recommended_skill_version, '0.20.0');
   assert.deepEqual(rules.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
   const health = await (await fetch(`${url}/api/health`)).json();
   for (const cap of ['gathering', 'cooking', 'trading']) assert.equal(health.capabilities[cap], true);
@@ -57,8 +57,14 @@ test('v0.13 HTTP: zero-resource pacifist can gather, repair, farm, cook and trad
   for (let i = 0; i < 5; i++) {
     const before = await p.observe();
     await advance(Math.max(0, (before.self.life.gather_ready_at?.wood || 0) - now));
+    const node = (await p.observe()).resources.nodes.find(node => node.id === 'camp_branches');
+    if (node.stock === 0) {
+      assert.ok(node.regrow_at > now, '耗尽的共享木枝必须给出未来再生时间');
+      await advance(node.regrow_at - now);
+      assert.ok((await p.observe()).resources.nodes.find(node => node.id === 'camp_branches').stock > 0);
+    }
     const req = await p.request('gather', { intent: 'start', resource_id: 'wood' });
-    const first = await p.call('act', req); assert.equal(first.status, 'applied');
+    const first = await p.call('act', req); assert.equal(first.status, 'applied', `第${i + 1}次采集：${JSON.stringify(first.error)}`);
     assert.deepEqual(await p.call('act', req), first);
     const job = (await p.observe()).self.life.gathering; assert.equal(job.resource_id, 'wood');
     await advance(job.ends_at - now);

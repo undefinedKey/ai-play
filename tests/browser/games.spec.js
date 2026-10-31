@@ -81,7 +81,7 @@ test('新广场没有默认角色，创建名片也不会自行模拟；活动�
   const initial = await (await request.get(base + '/api/public/world')).json();
   expect(initial.agents).toEqual([]);
   await page.goto(base + '/watch');
-  await expect(page.getByTestId('plaza-map')).toContainText('此刻广场无人');
+  await expect(page.getByTestId('world-camera').locator('.scene-empty')).toBeVisible();await expect(page.getByTestId('world-camera')).toContainText('此刻广场无人');
   await expect(page.locator('.map-agent')).toHaveCount(0);
   await expect(page.locator('.catalog-cards').first().locator('article')).toHaveCount(3);
   await expect(page.locator('.solo-cards article')).toHaveCount(7);

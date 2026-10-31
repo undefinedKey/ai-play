@@ -6,11 +6,12 @@ import { sampleMotion } from '../shared/motion.js';
 import { confirmedPosition } from './scene-state.js';
 import { publicName } from './observer-state.js';
 import { RenderSpace, useRenderSprite } from './world-render-context.jsx';
+import {wildernessGround,pondGeometry} from './wilderness-art.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.19.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.20.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -63,7 +64,8 @@ export function PixelSprite({ definition, action = 'idle', animate = false, faci
   const layer=className.includes('pixel-tool')?(facing==='north'?-.03:.04):className.includes('pixel-weapon')?(facing==='north'?-.02:.03):className.includes('pixel-armor')?.01:className.includes('pixel-accessory')?.02:0;
   useRenderSprite(definition,frame,{facing,action,layer});
   if (!definition || !frame) return <span className={`pixel-sprite pixel-placeholder ${className}`} aria-hidden="true" data-asset-missing="true"/>;
-  return <span aria-hidden="true" className={`pixel-sprite ${className}`} data-pixel-action={action} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ '--frame-w': `${frame.w}px`, '--frame-h': `${frame.h}px`, backgroundImage: `url("${definition.image}")`, backgroundSize: `calc(${definition.sheet_width}px * var(--pixel-scale, 1)) calc(${definition.sheet_height}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x}px * var(--pixel-scale, 1)) calc(${-frame.y}px * var(--pixel-scale, 1))`, transform: facing === 'west' ? 'scaleX(-1)' : undefined }}/>
+  const unit=definition.native_scale||1;
+  return <span aria-hidden="true" className={`pixel-sprite ${definition.native_scale?'ink-sprite':''} ${className}`} data-pixel-action={action} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ '--frame-w': `${frame.w*unit}px`, '--frame-h': `${frame.h*unit}px`, backgroundImage: `url("${definition.image}")`, backgroundSize: `calc(${definition.sheet_width*unit}px * var(--pixel-scale, 1)) calc(${definition.sheet_height*unit}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x*unit}px * var(--pixel-scale, 1)) calc(${-frame.y*unit}px * var(--pixel-scale, 1))`, transform: facing === 'west' ? 'scaleX(-1)' : undefined }}/>
 }
 
 export function CharacterSprite({ agent, events = [], now = Date.now(), live = false, className = '', portrait = false }) {
@@ -84,8 +86,8 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const sprite = assets?.characters?.[id];
   const equipment = agent.life?.equipment || {};
   const maintenance = ['repair','upgrade'].includes(action) && [...sceneEvents].reverse().find(event => event.payload?.agent_id === agent.agent_id && event.type === (action === 'repair' ? 'life_tool_repaired' : 'life_tool_upgraded'));
-  const requestedTool = action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
-  const tool = ['hoe','watering_can'].includes(requestedTool) ? requestedTool : null;
+  const requestedTool = action === 'gather'?agent.life?.gathering?.tool_id:action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
+  const tool = ['hoe','watering_can','axe','pickaxe'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
   const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
   return <span className={`pixel-character ${className}`} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
@@ -103,8 +105,10 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
   const dimensions = mapDimensions(map);
   const scene=assets?.scenes?.[sceneId];
   useRenderSprite(scene,scene&&{x:0,y:0,w:scene.width,h:scene.height},{ground:true});
+  const ground=wildernessGround(sceneId),pond=pondGeometry(ground.pond),svgPoints=points=>points.map(p=>p.x+','+p.y).join(' ');
   return <div className="pixel-scene" role="img" aria-label={label||`${sceneDefinition(sceneId)?.name}，真实场景地形`} data-testid="pixel-scene" data-scene-id={sceneId} style={{ '--grid-columns': dimensions.width, '--grid-rows': dimensions.height }}>
     {scene?.image && <img src={scene.image} alt="" className="pixel-scene-image" draggable="false" onError={()=>setFailed(true)}/>}
+    <svg className="wilderness-terrain" viewBox={`0 0 ${dimensions.width*32} ${dimensions.height*32}`} aria-hidden="true"><rect width="100%" height="100%" fill="#d6ccae" opacity=".34"/><ellipse cx="368" cy="272" rx="87" ry="60" fill={sceneId==='plaza'?'#d9c5a2':'#a8aa8c'} opacity=".5"/>{ground.trails.map((path,i)=><g key={i}>{[[31,'#736749',.18],[24,'#d0bd97',.52],[2,'#817552',.2]].map(([width,color,opacity])=><polyline key={width} points={svgPoints(path)} fill="none" stroke={color} strokeWidth={width} opacity={opacity}/>)}</g>)}{pond&&<g><polygon points={svgPoints(pond.bank)} fill="#817f62" fillOpacity=".85" stroke="#535d4e" strokeWidth="2"/><polygon points={svgPoints(pond.water)} fill="#7b9790" stroke="#abb6a2" strokeWidth="2"/>{pond.ripples.map((line,i)=><polyline key={i} points={svgPoints(line)} stroke="#d1d5bc" opacity=".65" strokeWidth="1.4"/>)}{pond.reeds.map((p,i)=><path key={i} d={[-3,0,4].map(dx=>`M${p.x},${p.y} L${p.x+dx},${p.y-6-Math.abs(dx)}`).join(' ')} stroke="#4c5a3e" fill="none" strokeWidth="1.4"/>)}</g>}</svg>
     {!assets && <span className="pixel-scene-loading">像素场景载入中…</span>}
     {assets&&!scene&&<span className="pixel-scene-loading" role="status">当前场景素材暂不可用</span>}
     {assets&&(failed||sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]))&&<span className="scene-asset-warning" role="status">部分场景素材未载入 · 角色位置仍按服务器记录显示</span>}
@@ -115,7 +119,8 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
 export function SceneProps({sceneId,map}){
   const assets=usePixelManifest();
   const scene=sceneDefinition(sceneId);
-  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=><RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={[64,120]}><span className="scene-prop" data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10}} aria-hidden="true"><PixelSprite definition={assets?.props?.[prop.kind]}/></span></RenderSpace>)}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
+  const inkKinds={pine:'pine',pine_tall:'pine',oak:'oak',birch:'oak',apple:'oak',dead_tree:'stump',rock:'ore',rock_large:'ore'};
+  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=>{const definition=assets?.wilderness?.[inkKinds[prop.kind]]||assets?.props?.[prop.kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.native_scale?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
 }
 
 export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){
@@ -151,7 +156,7 @@ export function PixelCrop({ crop, state }) {
 
 export function PixelItem({ id }) {
   const assets = usePixelManifest();
-  return <PixelSprite definition={assets?.items?.[`item_${id}`]||assets?.equipment?.[id]} className="pixel-item" itemId={id}/>;
+  return <PixelSprite definition={assets?.items?.[`item_${id}`]||assets?.tool_icons?.[`${id}_1_icon`]||assets?.equipment?.[id]} className="pixel-item" itemId={id}/>;
 }
 
 export function PixelLandmark({id}){

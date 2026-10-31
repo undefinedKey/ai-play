@@ -44,7 +44,7 @@ test('v0.13目录明确所有成本/价格；节点交互范围处于安全区�
   }
   for (const item of MARKET_RULES.items) if (item.buy_price && item.sell_price) assert.ok(item.buy_price > item.sell_price);
   assert.equal(MARKET_RULES.max_quantity, 10); assert.equal(MARKET_RULES.window_seconds, 300);
-  assert.equal(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').length, 2);
+  assert.deepEqual(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew']);
 });
 
 test('真实动作开始只扣一次体力，工作期间不恢复，完成只发一次且写同job来源账本', t => {
@@ -95,9 +95,11 @@ for (const boundary of ['pause', 'recall', 'transfer', 'expiry', 'lease', 'room'
   assert.equal(f.world.state.events.filter(e => e.type === 'life_gather_cancelled' && e.payload.job_id === original).length, 1);
 });
 
-test('采集中的聊天等待与补给可用，其他工作/交易/活动须明确取消；两人可同时采同一资源', t => {
+test('采集中的聊天等待与补给可用，其他工作须明确取消；同节点竞争、不同节点可并行', t => {
   const f = fixture(t), p = f.make(), other = f.make('另一旅人', 'owner-b');
-  for (const person of [p, other]) applied(f.act(person, 'gather', { intent: 'start', resource_id: 'wood' }));
+  applied(f.act(p, 'gather', { intent: 'start', resource_id: 'wood' }));
+  rejected(f.act(other, 'gather', { intent: 'start', resource_id: 'wood' }), 'RESOURCE_BUSY');
+  applied(f.act(other, 'gather', { intent: 'start', resource_id: 'ore' }));
   for (const [type, payload] of [['farm', { intent: 'till', plot_id: 'plot_1' }], ['inventory', { intent: 'craft', item_id: 'wooden_sword' }],
     ['trade', { intent: 'sell', item_id: 'wood', quantity: 1 }], ['adventure_plan', { intent: 'rest' }], ['start_activity', { activity_id: 'relax' }]]) {
     const before = resources(f.raw(p)); rejected(f.act(p, type, payload), 'GATHER_BUSY'); assert.deepEqual(resources(f.raw(p)), before);
@@ -105,7 +107,8 @@ test('采集中的聊天等待与补给可用，其他工作/交易/活动须明
   applied(f.act(p, 'wait', {})); applied(f.act(p, 'say', { channel: 'nearby', text: '我在拾枝，你可以自由选择。' }));
   f.raw(p).life.inventory.wheat_bread = 1; applied(f.act(p, 'inventory', { intent: 'use', item_id: 'wheat_bread' }));
   assert.ok(f.raw(p).life.gathering); f.advance(12000);
-  assert.equal(f.raw(p).life.inventory.wood, 4); assert.equal(f.raw(other).life.inventory.wood, 4);
+  assert.equal(f.raw(p).life.inventory.wood, 4); assert.equal(f.raw(other).life.inventory.wood, 3); assert.equal(f.raw(other).life.inventory.ore || 0, 0);
+  f.advance(6000); assert.equal(f.raw(other).life.inventory.ore, 1);
 });
 
 test('采集拒绝越权/非法目录/不在范围/体力不足；开始与完成时库存上限不会溢出', t => {

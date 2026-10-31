@@ -12,16 +12,16 @@ function properties(items = []) {
   }
   return result;
 }
-const inBounds = p => Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 0 && p.x < 24 && p.y >= 0 && p.y < 16;
 export function compileTiledScene(source) {
   need(source?.type === 'map' && source.orientation === 'orthogonal' && source.infinite === false, 'expected finite orthogonal map');
-  need(source.width === 24 && source.height === 16 && source.tilewidth === 32 && source.tileheight === 32, 'current world requires 24×16 cells of 32 pixels');
+  need(source.width === 48 && source.height === 32 && source.tilewidth === 32 && source.tileheight === 32, 'current world requires 48×32 cells of 32 pixels');
+  const inBounds = p => Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 0 && p.x < source.width && p.y >= 0 && p.y < source.height;
   const meta = properties(source.properties);
   need(ids.includes(meta.scene_id) && ids.includes(meta.destination_scene) && meta.scene_id !== meta.destination_scene, 'invalid scene link');
   need(typeof meta.scene_name === 'string' && meta.scene_name.length > 0 && meta.scene_name.length <= 40, 'invalid scene name');
   need(Array.isArray(source.layers) && source.layers.length === 2, 'expected ground and prop layers');
   const ground = source.layers.find(l => l.type === 'imagelayer'), layer = source.layers.find(l => l.type === 'objectgroup');
-  need(ground?.image === `../../public/pixel-world/scene_${meta.scene_id}.png`, 'ground image must match the scene');
+  need(ground?.image === '../../public/pixel-world/ground_ink.png' && ground.imagewidth===source.width*32 && ground.imageheight===source.height*32, 'ground image must match world dimensions');
   need(layer && Array.isArray(layer.objects) && layer.objects.length <= 512, 'missing prop objects');
   for (const item of [ground, layer]) need(!item.x && !item.y && !item.offsetx && !item.offsety && item.visible !== false && item.opacity === 1, 'layer offsets/visibility must not alter geometry');
   need(Array.isArray(source.tilesets) && source.tilesets.length === 1, 'one embedded sprite collection required');
@@ -73,8 +73,8 @@ export function compileTiledScene(source) {
     visited.add(key);
     for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) pending.push({x:p.x+dx,y:p.y+dy});
   }
-  need(visited.size === 24 * 16 - blocked.length, 'isolated walkable cells');
-  return { id: meta.scene_id, name: meta.scene_name, map: {width:24,height:16}, portal: {position:portal.position,to_scene_id:meta.destination_scene}, blocked, props };
+  need(visited.size === source.width * source.height - blocked.length, 'isolated walkable cells');
+  return { id: meta.scene_id, name: meta.scene_name, map: {width:source.width,height:source.height}, portal: {position:portal.position,to_scene_id:meta.destination_scene}, blocked, props };
 }
 export function compileWorldMaps(sources) {
   need(Array.isArray(sources) && sources.length === 2, 'two scenes required');
