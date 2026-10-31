@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { animationFrame, characterAction, characterActionKey, movementFacing } from './pixel-state.js';
 import { mapDimensions, projectMapPoint } from './map-projection.js';
+import { sceneDefinition } from '../shared/world-layout.js';
+import { confirmedPosition } from './scene-state.js';
+import { publicName } from './observer-state.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.14.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.17.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -60,44 +63,63 @@ export function PixelSprite({ definition, action = 'idle', animate = false, faci
 
 export function CharacterSprite({ agent, events = [], now = Date.now(), live = false, className = '', portrait = false }) {
   const assets = usePixelManifest();
-  const previous = useRef(agent.position);
-  const [movement, setMovement] = useState({ at: 0, facing: 'south' });
-  useEffect(() => {
-    const old = previous.current, next = agent.position;
-    if (old && next && (old.x !== next.x || old.y !== next.y)) setMovement({ at: Date.now(), facing: movementFacing(old, next) });
-    previous.current = next;
-  }, [agent.position?.x, agent.position?.y]);
+  const path=agent.movement?.scene_id===agent.scene_id?agent.movement.path:null;
+  const facing=path?.length>1?movementFacing(path.at(-2),path.at(-1)):'south';
   const active = live && agent.status === 'active' && !portrait;
   const actionNow = usePixelNow(now, active);
-  const action = active ? characterAction(agent, events, actionNow, Date.now() - movement.at < 900) : 'idle';
-  const key = characterActionKey(agent, events, action);
+  const sceneEvents=events.filter(event=>(event.payload?.scene_id??event.scene_id)===agent.scene_id || (agent.scene_id==='plaza'&&event.type==='cooperation_completed'&&event.payload?.template_id==='camp_meal'));
+  const walking=path?.length>1&&actionNow>=agent.movement.started_at&&actionNow<agent.movement.started_at+agent.movement.duration_ms;
+  const action = active ? characterAction(agent, sceneEvents, actionNow, walking) : 'idle';
+  const key = characterActionKey(agent, sceneEvents, action);
   const pose = useRef({ key, at: Date.now() });
   if (pose.current.key !== key) pose.current = { key, at: Date.now() };
   const id = agent.appearance?.sprite_id;
   const sprite = assets?.characters?.[id];
   const equipment = agent.life?.equipment || {};
-  const maintenance = ['repair','upgrade'].includes(action) && [...events].reverse().find(event => event.payload?.agent_id === agent.agent_id && event.type === (action === 'repair' ? 'life_tool_repaired' : 'life_tool_upgraded'));
+  const maintenance = ['repair','upgrade'].includes(action) && [...sceneEvents].reverse().find(event => event.payload?.agent_id === agent.agent_id && event.type === (action === 'repair' ? 'life_tool_repaired' : 'life_tool_upgraded'));
   const requestedTool = action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
   const tool = ['hoe','watering_can'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
   const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
   return <span className={`pixel-character ${className}`} data-sprite-id={id || 'unassigned'} data-action={action} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
-    <PixelSprite definition={sprite} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active && action !== 'idle'}/>
-    {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active && action !== 'idle'}/>}
-    {['armor', 'weapon'].map(slot => equipment[slot] && !(slot === 'weapon' && handsBusy) && <PixelSprite key={slot} className={`pixel-layer pixel-${slot}`} itemId={equipment[slot]} definition={assets?.equipment?.[equipment[slot]]} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active && action !== 'idle'}/>)}
-    {tool && <PixelSprite className="pixel-layer pixel-tool" itemId={tool} toolLevel={toolLevel} definition={assets?.tools?.[`${tool}_${toolLevel}`]} action={action} startedAt={pose.current.at} facing={movement.facing} animate={active}/>}
+    <PixelSprite definition={sprite} action={action} startedAt={pose.current.at} facing={facing} animate={active && action !== 'idle'}/>
+    {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} startedAt={pose.current.at} facing={facing} animate={active && action !== 'idle'}/>}
+    {['armor', 'weapon'].map(slot => equipment[slot] && !(slot === 'weapon' && handsBusy) && <PixelSprite key={slot} className={`pixel-layer pixel-${slot}`} itemId={equipment[slot]} definition={assets?.equipment?.[equipment[slot]]} action={action} startedAt={pose.current.at} facing={facing} animate={active && action !== 'idle'}/>)}
+    {tool && <PixelSprite className="pixel-layer pixel-tool" itemId={tool} toolLevel={toolLevel} definition={assets?.tools?.[`${tool}_${toolLevel}`]} action={action} startedAt={pose.current.at} facing={facing} animate={active}/>}
   </span>;
 }
 
-export function PixelScene({ grid, map, live = false, label = '像素世界，营地、森林与遗迹' }) {
+export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) {
   const assets = usePixelManifest();
+  const [failed,setFailed]=useState(false);
+  useEffect(()=>setFailed(false),[sceneId]);
   const dimensions = mapDimensions(map);
-  return <div className="pixel-scene" role="img" aria-label={label} data-testid="pixel-scene" style={{ '--grid-columns': dimensions.width, '--grid-rows': dimensions.height }}>
-    {assets?.scene?.image && <img src={assets.scene.image} alt="" className="pixel-scene-image" draggable="false"/>}
+  const scene=assets?.scenes?.[sceneId];
+  return <div className="pixel-scene" role="img" aria-label={label||`${sceneDefinition(sceneId)?.name}，真实场景地形`} data-testid="pixel-scene" data-scene-id={sceneId} style={{ '--grid-columns': dimensions.width, '--grid-rows': dimensions.height }}>
+    {scene?.image && <img src={scene.image} alt="" className="pixel-scene-image" draggable="false" onError={()=>setFailed(true)}/>}
     {!assets && <span className="pixel-scene-loading">像素场景载入中…</span>}
-    {assets?.effects?.campfire && assets.placements?.campfire && <span className="pixel-campfire" style={projectMapPoint(assets.placements.campfire,map)}><PixelSprite definition={assets.effects.campfire} animate={live}/></span>}
+    {assets&&!scene&&<span className="pixel-scene-loading" role="status">当前场景素材暂不可用</span>}
+    {assets&&(failed||sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]))&&<span className="scene-asset-warning" role="status">部分场景素材未载入 · 角色位置仍按服务器记录显示</span>}
     {grid && <span className="pixel-grid"/>}
   </div>;
+}
+
+export function SceneProps({sceneId,map}){
+  const assets=usePixelManifest();
+  const scene=sceneDefinition(sceneId);
+  return <>{scene?.props.filter(prop=>prop.kind!=='pond').map(prop=><span key={prop.id} className="scene-prop" data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10}} aria-hidden="true"><PixelSprite definition={assets?.props?.[prop.kind]}/></span>)}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneId==='plaza'?'林地冒险':'生活广场'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':'← 广场'}</span>}</>;
+}
+
+export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){
+  const clock=usePixelNow(now,live&&agent.status==='active');
+  const position=confirmedPosition(agent,clock,live&&!reducedMotion());
+  const name=publicName(agent,agents);
+  const crowded=agents.filter(a=>a.scene_id===agent.scene_id&&['active','paused'].includes(a.status)&&a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1;
+  return <button className={`world-actor ${adventure?'adventure-agent':'map-agent'} ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} data-speech-agent={agent.agent_id} data-testid={`${adventure?'adventure-agent':'map-agent'}-${agent.agent_id}`} data-scene-id={agent.scene_id} data-foot-y={position.y} data-crowded={crowded} style={{...projectMapPoint(position,map),'--unit-map-x':`${(position.x+.5)/map.width*100}cqw`,'--unit-offset':`${slot?.x||0}px`,'--unit-row':`${slot?.y||0}px`,zIndex:101+position.y*10}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${name}${adventure?'的冒险档案':''}，${agent.status==='paused'?'已暂停':'活动中'}`}>
+    <CharacterSprite agent={agent} events={events} now={now} live={live}/><span className={adventure?'adventure-agent-name':'map-agent-name'}>{name}</span>
+    {adventure&&agent.adventure&&<span className="unit-health"><i style={{width:`${Math.max(0,Math.min(100,agent.adventure.hp/agent.adventure.max_hp*100))}%`}}/></span>}
+    {agent.activity&&agent.status==='active'&&<span className="map-agent-activity">{agent.activity.name}</span>}
+  </button>;
 }
 
 export function PixelFarmBackdrop() {

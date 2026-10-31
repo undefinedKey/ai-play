@@ -47,7 +47,7 @@ if mode=="verify-switch":
     print(result.stdout,flush=True)
     sys.exit(0)
 assert mode=="release"
-assert json.loads((root/"package.json").read_text())["version"]=="0.15.0"
+assert json.loads((root/"package.json").read_text())["version"]=="0.16.0"
 assert not command(["git","-C",str(root),"status","--porcelain"]).stdout.strip()
 assert active(),"expected original running bridge"
 command(["git","-C",str(root),"fetch",str(backup/("ai-play-"+prefix+".bundle")),"HEAD"])
@@ -67,7 +67,7 @@ skill_safe=True
 try:
     # Do not hard-kill the shell: its EXIT/TERM handlers own code/data rollback.
     with (backup/("release-"+prefix+".log")).open("w") as log:
-        result=subprocess.run(["bash",str(release),revision,"0.16.0"],stdout=log,stderr=subprocess.STDOUT,env=env)
+        result=subprocess.run(["bash",str(release),revision,"0.17.0"],stdout=log,stderr=subprocess.STDOUT,env=env)
     phase=json.loads(status.read_text())["phase"] if status.exists() else None
     assert result.returncode==0 and phase=="committed","release failed; inspect private status/log"
     old_skill=tree_hashes(Path("/home/dsh/.agents/skills/ai-plaza"))
@@ -80,7 +80,7 @@ try:
         raise RuntimeError("Skill upgrade failed; old package verified" if skill_safe else "Skill rollback requires operator recovery")
     skill_safe=True
     assert active()
-    print(json.dumps({"stage":"release_and_skill_complete","commit":revision,"version":"0.16.0"}),flush=True)
+    print(json.dumps({"stage":"release_and_skill_complete","commit":revision,"version":"0.17.0"}),flush=True)
 finally:
     state=json.loads(marker.read_text()) if marker.exists() else {}
     phase=json.loads(status.read_text()).get("phase") if status.exists() else None

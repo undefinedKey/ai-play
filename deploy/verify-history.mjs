@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { initializeHistory, recordHistoryEvent } from '../server/history.js';
 import { gameName } from '../server/games.js';
+import { expectedScene } from './verify-scenes.mjs';
 
 export function verifyHistory(old, current) {
   assert.ok(current.history, 'public history must exist after upgrade');
@@ -41,6 +42,7 @@ export function verifyHistory(old, current) {
       assert.ok(agent?.activity && !seenActivities.has(p.agent_id)); seenActivities.add(p.agent_id);
       const a = agent.activity;
       assert.deepEqual(p, { agent_id: p.agent_id, name: agent.name, activity_id: a.activity_id, activity_name: a.name,
+        ...(current.agents[p.agent_id]?.scene_id ? { scene_id: expectedScene(agent) } : {}),
         place_id: a.place_id, started_at: a.started_at, ends_at: a.ends_at, outcome: 'cancelled', interrupted: true,
         text: `${agent.name}结束了「${a.name}」` }, 'only the original activity may be interrupted');
       assert.equal(current.agents[p.agent_id].activity, null);
@@ -48,6 +50,7 @@ export function verifyHistory(old, current) {
     } else if (event.type === 'game_finished') {
       assert.ok(old.game && old.game.status !== 'finished' && p.game_id === old.game.game_id);
       assert.deepEqual(p, { game_id: expectedGame.game_id, game_type: expectedGame.game_type || 'word_chain', group_id: expectedGame.group_id,
+        ...(Object.values(current.agents).some(a => a.scene_id) ? { scene_id: 'plaza' } : {}),
         valid_count: expectedGame.valid_count, scores: expectedGame.scores, text: `${gameName(expectedGame.game_type)}结束：服务重启，活动已中断`, reason: '服务重启，活动已中断' });
       assert.ok(Number(event.cursor) < Number(restart.cursor));
     } else if (event.type === 'exploration_ended') {

@@ -1,3 +1,4 @@
+import { SCENE_IDS, SCENES, publicMovement, publicPath } from './spatial.js';
 import { GAME_END_REASONS, gameName, publicChoices, publicGame } from './games.js';
 import { publicLeisure } from './leisure.js';
 import { snapshotDelta } from './snapshot-delta.js';
@@ -21,7 +22,8 @@ const activityResult = value => value ? { summary: string(value.summary), ...(nu
 const publicEventFields = {
   server_restarted: ['text'], room_state: ['text', 'status'],
   agent_joined: ['agent_id', 'name', 'text'], agent_left: ['agent_id', 'text'], agent_offline: ['agent_id', 'text'],
-  agent_moved: ['agent_id', 'text', 'position'],
+  agent_moved: ['agent_id', 'text', 'position', 'path'],
+  scene_changed: ['agent_id', 'text', 'from_scene_id', 'position', 'from_position', 'reason'],
   activity_started: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text'],
   activity_finished: ['agent_id', 'name', 'activity_id', 'activity_name', 'place_id', 'started_at', 'ends_at', 'text', 'outcome', 'result'],
   treasure_collected: ['agent_id', 'name', 'collected', 'total', 'text'],
@@ -77,10 +79,13 @@ export function publicEvent(event, agentIds) {
   const raw = event.payload || {};
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
+  if (SCENE_IDS.includes(raw.scene_id)) payload.scene_id = raw.scene_id;
   for (const key of fields) {
+    if (key === 'path') { const path = publicPath(raw.scene_id, raw.path); if (path) payload.path = path; continue; }
+    if (key === 'from_scene_id') { if (SCENE_IDS.includes(raw[key])) payload[key] = raw[key]; continue; }
     if (key === 'public_result') { payload[key] = publicExplorationResult(raw[key]); continue; }
     if (key === 'choices' && event.type.startsWith('exploration_')) { payload[key] = structuredClone(EXPLORATION_RULES.templates.find(t => t.template_id === raw.template_id)?.choices || []); continue; }
-    const value = key === 'position' ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['found_at', 'expires_at', 'resolved_at', 'created_at', 'updated_at', 'target_count', 'progress', 'deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
+    const value = ['position', 'from_position'].includes(key) ? position(raw[key]) : key === 'scores' ? scores(raw[key], agentIds) : key === 'choices' ? publicChoices(raw[key], agentIds) : key === 'result' ? activityResult(raw[key]) : key === 'outcome' ? (['completed', 'cancelled'].includes(raw[key]) ? raw[key] : undefined) : ['found_at', 'expires_at', 'resolved_at', 'created_at', 'updated_at', 'target_count', 'progress', 'deadline', 'valid_count', 'started_at', 'ends_at', 'round', 'segment_count', 'collected', 'total', 'quantity', 'total_price', 'damage', 'hp', 'xp', 'gold', 'decision_until', 'energy', 'fatigue', 'level', 'durability', 'max_durability'].includes(key) ? number(raw[key]) : string(raw[key]);
     if (value !== undefined) payload[key] = value;
   }
   if (event.type === 'game_finished') {
@@ -102,9 +107,9 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, position: position(agent.position), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
-    leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
-    places: catalog.places.map(place => ({ id: string(place.id), name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), movement: publicMovement(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), presence: publicPresence(agent) })),
+    scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
+    places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
     games: catalog.games.map(item => ({ id: string(item.id), name: string(item.name), description: string(item.description), min_players: number(item.min_players), max_players: number(item.max_players), registration_seconds:number(item.registration_seconds),turn_seconds:number(item.turn_seconds) })),

@@ -14,7 +14,7 @@ export function cooperationFixture() {
   const templates = [{ template_id: 'camp_meal', terms: '供菜者supplier明确交4萝卜，厨师cook明确耗4体力做2汤，双方各1汤；退出退未用菜。', roles: [{ role_id: 'supplier' }, { role_id: 'cook' }], steps: [{}, {}] },
     { template_id: 'scout_and_guard', terms: 'scout先解决成立后森林发现（非拒绝），guard之后获森林怪有效击杀战利品，无额外奖励。', roles: [{ role_id: 'scout' }, { role_id: 'guard' }], steps: [{}, {}] }];
   const rules = { room: { width: 24, height: 16 }, max_move: 3, max_capabilities: 16, allowed_actions: ['cooperation', 'wait', 'adventure_event', 'adventure_plan', 'personal_goal', 'inventory'], cooperation: COOPERATION_RULES };
-  const observation = { server_time: now, self: { agent_id: me, position: { x: 12, y: 8 }, status: 'active', fatigue: { energy: 1, attack_multiplier: .75, hunt_min_energy: 12 },
+  const observation = { server_time: now, self: { agent_id: me, scene_id: 'adventure', position: { x: 12, y: 8 }, status: 'active', fatigue: { energy: 1, attack_multiplier: .75, hunt_min_energy: 12 },
     adventure: { hp: 8, max_hp: 100, in_field: true, encounter: { event_id: 'encounter_' + 'e'.repeat(36), status: 'pending', expires_at: now + 150000,
       choices: [{ choice_id: 'wood', energy_cost: 4, items: { wood: 2 }, heal: 0, restore_energy: 0 }, { choice_id: 'ore', energy_cost: 4, items: { ore: 1 }, heal: 0, restore_energy: 0 }, { choice_id: 'decline', energy_cost: 0, items: {}, heal: 0, restore_energy: 0 }] } },
     life: { inventory: { turnip: 1, wheat_bread: 1 }, equipment: {} }, personal_goal: { goal_id: 'goal_' + 'g'.repeat(36), kind: 'collect_item', target_id: 'wood', target_count: 10, progress: 1, status: 'needs_review', expires_at: now + 500000 } },
@@ -62,7 +62,7 @@ for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active',
   if (phase === 'active') o.cooperation.status = 'active';
   if (phase === 'return') o.cooperation_return = { cooperation_id: 'cooperation_' + 'r'.repeat(36), item_id: 'turnip', quantity: 4 };
   if (['game', 'recruiting', 'solo', 'gather'].includes(phase)) {
-    self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = []; self.position = { x: 11, y: 8 };
+    self.scene_id = 'plaza'; self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = []; self.position = { x: 11, y: 8 };
     if (phase === 'game') o.game = { game_id: 'game_' + 'z'.repeat(36), turn_id: 'turn_' + 't'.repeat(36), deadline: o.server_time + 150000, status: 'active', game_type: 'word_chain', participants: [self.agent_id], current_agent_id: self.agent_id, last_word: '天气' };
     if (phase === 'recruiting') o.game = { game_id: 'game_' + 'z'.repeat(36), deadline: o.server_time + 123000, status: 'recruiting', game_type: 'story_chain', participants: [o.nearby_agents[0].agent_id], responses: {} };
     if (phase === 'solo') self.activity = { activity_id: 'puzzle', ends_at: o.server_time + 90000, task: { kind: 'puzzle', prompt: '2+3=?', answer_type: 'integer' } };
@@ -113,20 +113,22 @@ test('已过期的私人邀请有真实不可响应提示；不合目录不宣�
   const broken = structuredClone(c.rules); broken.cooperation.templates[0].roles[0].role_id = 'invented'; assert.equal(supportsCooperation(broken), false);
 });
 
-for (const activity of ['story', 'story_emoji', 'read', 'treasure', 'scout']) test(`${activity}合作期间保留真实内容、行动入口和长消息`, () => {
+for (const activity of ['story', 'story_emoji', 'story_emoji_group', 'read', 'treasure', 'scout']) test(`${activity}合作期间保留真实内容、行动入口和长消息`, () => {
   const c = cooperationFixture(), o = c.observation, self = o.self;
-  self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = [];
+  self.scene_id = 'plaza'; self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = [];
   if (activity.startsWith('story')) o.game = { game_id: 'game-' + 'g'.repeat(36), turn_id: 'turn-' + 't'.repeat(36), deadline: o.server_time + 150000, status: 'active', game_type: 'story_chain', current_agent_id: self.agent_id,
-    participants: [self.agent_id], segments: [{ agent_id: o.nearby_agents[0].agent_id, text: (activity === 'story_emoji' ? '🐈' : '故').repeat(200) }] };
+    participants: [self.agent_id], segments: [{ agent_id: o.nearby_agents[0].agent_id, text: (activity.startsWith('story_emoji') ? '🐈' : '故').repeat(200) }] };
+  if (activity === 'story_emoji_group') { o.group.group_id = 'group_' + 'h'.repeat(36); c.events[0].payload.channel = 'group'; c.events[0].payload.scene_id = 'adventure'; }
   if (activity === 'read') { self.activity = { activity_id: 'read', ends_at: o.server_time + 60000 }; o.activities = [{ id: 'read', content: { title: '纸页', text: '书'.repeat(200) } }]; }
   if (activity === 'treasure') self.activity = { activity_id: 'treasure_hunt', ends_at: o.server_time + 60000, task: { kind: 'treasure_hunt', prompt: '走到target再采集', answer_type: 'none' }, target: { x: 13, y: 8 }, progress: { collected: 1, total: 3 } };
   if (activity === 'scout') { o.cooperation.template_id = 'scout_and_guard'; o.cooperation.self_role_id = 'scout'; o.cooperation.status = 'active'; o.cooperation.members[0].role_id = 'scout'; o.cooperation.members[1].role_id = 'guard'; }
   const prepared = prepareDecisionPrompt(c), p = prepared.text; assert.ok(p.length <= 2000); assert.ok(p.includes(c.ownerGoal)); assert.ok(p.includes(c.events[0].payload.text));
   if (activity === 'story') { assert.ok(p.includes('故'.repeat(200))); assert.ok(p.includes('submit_story')); }
-  if (activity === 'story_emoji') {
+  if (activity.startsWith('story_emoji')) {
     assert.equal(decode(p).game[2], 150); assert.ok(p.includes('余秒'));
     assert.ok(prepared.cooperationReviewDeferred); assert.ok(p.includes('🐈'.repeat(200))); assert.ok(p.includes('leave_game') && p.includes('intent:leave,cooperation_id'));
     assert.ok(!p.includes('intent:confirm|leave')); assert.ok(p.includes('结束或退出活动后重看完整复核条款'));
+    if (activity.endsWith('_group')) { assert.equal(decode(p).组信[1], c.events[0].payload.text); assert.ok(p.includes('channel:group,group_id:H')); assert.equal(prepared.references.H, o.group.group_id); }
     const deadline = o.cooperation.expires_at; o.game.status = 'finished';
     const restored = prepareDecisionPrompt(c); assert.ok(!restored.cooperationReviewDeferred); assert.ok(restored.text.includes('4萝卜')); assert.ok(restored.text.includes('confirm')); assert.equal(o.cooperation.expires_at, deadline);
   }
@@ -257,4 +259,19 @@ test('未展开的review批次不ACK，暂存期间其他事件可醒，结束/�
   o.cooperation.status = 'ended'; assert.equal(r.decisionDue(), true); assert.equal(r.checkpoint.cooperation_review_deferred, undefined); assert.equal(r.checkpoint.queue[0].event_id, 'review');
   r.checkpoint.deferred_cooperation_events = [review]; r.checkpoint.cooperation_review_deferred = {};
   r.deactivate(); assert.equal(r.healthReport().pending_events, 0); assert.equal(r.checkpoint.cooperation_review_deferred, undefined);
+});
+
+for (const cooperating of [false, true]) test(`旧组排队消息不映射为新组ID${cooperating ? '（合作路由）' : ''}`, () => {
+  const c = cooperationFixture(), old = 'group-old-' + 'o'.repeat(36), current = 'group-new-' + 'n'.repeat(36);
+  c.observation.group.group_id = current; c.observation.self.group_id = current;
+  c.events[0].payload.channel = 'group'; c.events[0].payload.group_id = old;
+  if (!cooperating) { c.observation.cooperation = null; c.observation.cooperation_invitations = []; c.observation.nearby_agents = []; }
+  const p = prepareDecisionPrompt(c); assert.ok(p.text.length <= 2000); assert.ok(p.text.includes(c.events[0].payload.text));
+  assert.equal(p.references.H, old); assert.ok(!p.text.includes(current)); assert.match(p.text, /已离开.*勿转发/);
+  assert.ok(!p.text.includes('say{channel:group,group_id:H,text}'));
+  assert.equal(c.observation.group.group_id, current);
+  c.ownerGoal = ''; c.events[0].payload.text = '旧组留下的消息';
+  const uncrowded = prepareDecisionPrompt(c);
+  assert.ok(uncrowded.text.length <= 2000); assert.equal(uncrowded.references.H, old);
+  assert.match(uncrowded.text, /已离开.*勿转发/); assert.ok(!uncrowded.text.includes(current));
 });

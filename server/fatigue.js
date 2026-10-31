@@ -5,12 +5,12 @@ export const FATIGUE_RULES = {
   max_energy: 100, tired_at: 25, rearm_at: 40, hunt_min_energy: 12, tired_attack_multiplier: 0.75,
   costs: { attack: BASE_ATTACK_ENERGY, move_per_tile: BASE_MOVE_ENERGY, till: 3, plant: 2, water: 1, harvest: 2, craft: 2, repair: 2, upgrade: 2, gather: 1, exploration: 1 },
   tool_energy: 'till和water实际体力消耗按life.tools对应工具当前等级的energy_cost；costs中的3和1为基础一级值。维修与升级各消耗2。',
-  recovery: { idle_per_second: 0.3, rest_per_second: 2, camp_center: { x: 11, y: 8 }, camp_radius: 2 },
+  recovery: { scene_id: 'plaza', idle_per_second: 0.3, rest_per_second: 2, camp_center: { x: 11, y: 8 }, camp_radius: 2 },
   description: '体力记录实际行动消耗，不代表性格或厌倦。体力不超过25时攻击变为75%；不足装备一次攻击所需体力时停止当前狩猎，重新狩猎至少需要12。走路和撤退始终允许。营地静止、聊天或低强度阅读每秒恢复0.3，主动休息或花园休息每秒恢复2；移动和劳作后1秒不恢复，野外不被动恢复；攻击/移动实际耗能按life.stats装备属性。离线、暂停或服务重启期间仅在营地慢恢复；不会自动开始其他活动。',
 };
 const round = value => Math.round(value * 10000) / 10000;
 const energy = a => Number.isFinite(a.fatigue?.energy) ? Math.max(0, Math.min(100, a.fatigue.energy)) : 100;
-const inCamp = a => isPositionInBounds(a.position) && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
+const inCamp = a => a.scene_id === 'plaza' && isPositionInBounds(a.position) && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
 const timestamp = value => Number.isSafeInteger(value) && value >= 0;
 const exertionKinds = ['attack', 'move', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'gather', 'exploration'];
 

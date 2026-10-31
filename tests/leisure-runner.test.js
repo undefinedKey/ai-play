@@ -68,7 +68,7 @@ test('近期完成历史进入原AI观察，所有游戏仍可选，不用冷却
   const data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal));
   assert.equal(data.events.at(-1).text, lastMessage); assert.deepEqual(data.leisure.recent, leisure.recent);
-  assert.equal(data.self.name, '原来的我'); assert.ok(prompt.includes('保持自己的偏好')); assert.ok(prompt.includes('不强制'));
+  assert.equal(data.self.name, '原来的我'); assert.match(prompt, /保持(?:自己的)?偏好/); assert.ok(prompt.includes('不强制'));
 });
 
 test('原AI能自主继续喜欢的游戏，连玩两局不被拒绝且预算真实计数', async t => {

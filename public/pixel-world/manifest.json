@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "0.14.0",
+  "release": "0.17.0",
   "tool": {
     "name": "Pixelbolt",
     "version": "0.10.0",
@@ -15,6 +15,495 @@
     "image": "/pixel-world/scene.png",
     "width": 768,
     "height": 512
+  },
+  "scenes": {
+    "plaza": {
+      "image": "/pixel-world/scene_plaza.png",
+      "width": 768,
+      "height": 512
+    },
+    "adventure": {
+      "image": "/pixel-world/scene_adventure.png",
+      "width": 768,
+      "height": 512
+    }
+  },
+  "props": {
+    "bookshop": {
+      "image": "/pixel-world/bookshop.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "cottage": {
+      "image": "/pixel-world/cottage.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "shed": {
+      "image": "/pixel-world/shed.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "game_table": {
+      "image": "/pixel-world/game_table.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "oak": {
+      "image": "/pixel-world/oak.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "birch": {
+      "image": "/pixel-world/birch.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "apple": {
+      "image": "/pixel-world/apple.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "well": {
+      "image": "/pixel-world/well.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "bench": {
+      "image": "/pixel-world/bench.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "portal_plaza": {
+      "image": "/pixel-world/portal_plaza.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "pine": {
+      "image": "/pixel-world/pine.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "pine_tall": {
+      "image": "/pixel-world/pine_tall.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "dead_tree": {
+      "image": "/pixel-world/dead_tree.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "ruin_arch": {
+      "image": "/pixel-world/ruin_arch.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "ruin_column": {
+      "image": "/pixel-world/ruin_column.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "ruin_wall": {
+      "image": "/pixel-world/ruin_wall.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "rock": {
+      "image": "/pixel-world/rock.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "rock_large": {
+      "image": "/pixel-world/rock_large.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    },
+    "portal_adventure": {
+      "image": "/pixel-world/portal_adventure.png",
+      "width": 128,
+      "height": 128,
+      "sheet_width": 128,
+      "sheet_height": 128,
+      "anchor": {
+        "x": 64,
+        "y": 120
+      },
+      "animations": {
+        "idle": {
+          "loop": true,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 128,
+              "h": 128,
+              "duration": 200
+            }
+          ]
+        }
+      }
+    }
   },
   "farm_scene": {
     "image": "/pixel-world/farm_scene.png",
@@ -17266,8 +17755,8 @@
   },
   "placements": {
     "campfire": {
-      "x": 9.1,
-      "y": 9.3
+      "x": 11,
+      "y": 8
     }
   }
 }

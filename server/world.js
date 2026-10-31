@@ -7,7 +7,7 @@ import { WORDS, WORD_VERSION } from './words.js';
 import { GAMES, GAME_TIMING, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
-import { WORLD_MAP, MAX_MOVE, isPositionInBounds, boundedPosition, movementOptions } from './spatial.js';
+import { WORLD_MAP, MAX_MOVE, movementOptions, SCENES, sameScene, initializeScene, findPath, recordMovement, publicMovement } from './spatial.js';
 import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife, cancelGather } from './life.js';
 import { initializeEconomy, economyBalance, recordEconomyDelta } from './economy.js';
 import { opportunitiesFor } from './opportunities.js';
@@ -37,10 +37,10 @@ const textField = (v, max, name, fallback = '') => {
 };
 const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'wait'];
 const PLACES = [
-  { id: 'pond', name: '薄荷小池', x: 4, y: 4, radius: 3 },
-  { id: 'garden', name: '中央花园', x: 11, y: 8, radius: 3 },
-  { id: 'reading', name: '林间书屋', x: 19, y: 4, radius: 3 },
-  { id: 'play', name: '独处游戏角', x: 19, y: 12, radius: 3 },
+  { id: 'pond', scene_id: 'plaza', name: '薄荷小池', x: 4, y: 4, radius: 3 },
+  { id: 'garden', scene_id: 'plaza', name: '中央花园', x: 11, y: 8, radius: 3 },
+  { id: 'reading', scene_id: 'plaza', name: '林间书屋', x: 19, y: 4, radius: 3 },
+  { id: 'play', scene_id: 'plaza', name: '独处游戏角', x: 19, y: 12, radius: 3 },
 ];
 const ACTIVITIES = [
   { id: 'watch_pond', name: '池边看水', place_id: 'pond', duration_seconds: 45, description: '在池边停留，观察这个共享世界；可以随时离开。' },
@@ -72,7 +72,7 @@ export class World extends EventEmitter {
       agents: {}, controllers: {}, groups: {}, invitations: {}, game: null, events: [], receipts: {}, controlReceipts: {}, sequence: 0,
     };
     Object.assign(this.state.room, WORLD_MAP);
-    for (const a of Object.values(this.state.agents)) a.position = boundedPosition(a.position);
+    for (const a of Object.values(this.state.agents)) initializeScene(a, this.now());
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
     for (const a of Object.values(this.state.agents)) { initializeLife(a); initializeEconomy(a, this.now()); initializePersonalGoal(a); initializePresence(a, { legacy: true, events: this.state.events }); }
@@ -112,6 +112,9 @@ export class World extends EventEmitter {
   event(type, payload, recipients = []) {
     const revision = ++this.state.room.world_revision;
     const cursor = String(++this.state.sequence);
+    if (this.state.agents[payload?.agent_id]) payload = { ...payload, scene_id: this.state.agents[payload.agent_id].scene_id };
+    else if (type.startsWith('game_') || type === 'round_revealed') payload = { ...payload, scene_id: 'plaza' };
+    else if (type === 'adventure_respawn') payload = { ...payload, scene_id: 'adventure' };
     const event = { event_id: `evt_${cursor}`, type, occurred_at: this.now(), world_revision: revision, cursor, payload, recipients: [...new Set(recipients)] };
     this.state.events.push(event);
     recordHistoryEvent(this, event);
@@ -163,7 +166,7 @@ export class World extends EventEmitter {
     const name = textField(input.name, 20, '名字'); if (!name) fail('INVALID_ACTION', '请填写角色名字');
     const a = { agent_id: uid('agent'), owner_id: input.owner_id || 'local-owner', name, bio: textField(input.bio, 200, '介绍'), avatar: textField(input.avatar, 20, '头像', '🌱'),
       color: /^#[0-9a-f]{6}$/i.test(input.color || '') ? input.color : '#609279', is_platform: input.is_platform === true,
-      position: { x: 9 + (Object.keys(this.state.agents).length % 3), y: 7 + (Object.keys(this.state.agents).length % 2) },
+      scene_id: 'plaza', position: { x: 9 + (Object.keys(this.state.agents).length % 3), y: 7 + (Object.keys(this.state.agents).length % 2) },
       status: 'offline', session_epoch: 0, group_id: null, activity: null, run: null, goal: '', diagnostics: { state: 'waiting', calls_used: 0, last_error: null },
       pause_reason: null, next_action_id: null, last_contact_at: null, last_action_at: null, reserved_until: null };
     if (input.invitation_claim !== undefined) {
@@ -171,6 +174,7 @@ export class World extends EventEmitter {
       if (!claim || typeof claim.invite_id !== 'string' || !/^ai_invite_[0-9a-f-]{36}$/i.test(claim.invite_id) || typeof claim.device_hash !== 'string' || !/^[0-9a-f]{64}$/i.test(claim.device_hash)) fail('INVALID_ACTION', '邀请恢复标记无效');
       a.invitation_claim = { invite_id: claim.invite_id, device_hash: claim.device_hash };
     }
+    initializeScene(a, this.now());
     initializeFighter(a);
     initializePersonalGoal(a);
     initializePresence(a);
@@ -261,10 +265,10 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, position: a.position, status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, movement: publicMovement(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), appearance: publicAppearance(a), presence: publicPresence(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
-      places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
+      scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
       cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
   }
@@ -277,8 +281,8 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.16.0-experiences', recommended_skill_version: '0.16.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
-      places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.17.0-scenes', recommended_skill_version: '0.17.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+      scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: GAME_TIMING.invitation_seconds, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
       game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: GAME_TIMING.registration_seconds, turn_seconds: GAME_TIMING.turn_seconds, max_valid_words: 10 },
@@ -295,11 +299,11 @@ export class World extends EventEmitter {
   observation(a) {
     const group = a.group_id ? this.state.groups[a.group_id] : null;
     return clone({ world_api_version: '0.2', run_id: a.run.run_id, session_epoch: a.session_epoch, expires_at: a.run.expires_at,
-      self: { ...this.publicAgent(a), life: publicLife(a, this.now(), { privateInventory: true }) }, nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && distance(a.position, b.position) <= 6).map(b => this.publicAgent(b)),
+      self: { ...this.publicAgent(a), life: publicLife(a, this.now(), { privateInventory: true }) }, nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && sameScene(a, b) && distance(a.position, b.position) <= 6).map(b => this.publicAgent(b)),
       group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
       ...cooperationObservation(this, a),
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
-      places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: opportunitiesFor(this, a), movement: movementOptions(a.position), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
+      scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: opportunitiesFor(this, a), movement: movementOptions(a.position, a.scene_id), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
   }
   join(a, c, args) {
     if (this.state.room.status !== 'active') fail('ROOM_PAUSED', '房间暂停中');
@@ -312,7 +316,7 @@ export class World extends EventEmitter {
     if (occupied.length >= 5) fail('ROOM_FULL', '广场已满，最多允许 5 个 AI 同时活动');
     a.status = 'active'; a.run.has_joined = true; a.last_contact_at = this.now(); a.reserved_until = null; a.next_action_id = uid('act'); a.pause_reason = null;
     seenPresence(a, this.now(), { joined: true });
-    this.event('agent_joined', { agent_id: a.agent_id, name: a.name, text: `${a.name}来到了广场` }, Object.values(this.state.agents).filter(b => b.status === 'active' && distance(a.position, b.position) <= 6).map(b => b.agent_id));
+    this.event('agent_joined', { agent_id: a.agent_id, name: a.name, text: `${a.name}重新连接${a.scene_id === 'adventure' ? '冒险地图' : '社交广场'}` }, Object.values(this.state.agents).filter(b => b.status === 'active' && sameScene(a, b) && distance(a.position, b.position) <= 6).map(b => b.agent_id));
     this.commit(); return this.observation(a);
   }
   callTool(auth, name, args = {}) {
@@ -390,6 +394,7 @@ export class World extends EventEmitter {
       return clone(old.result);
     }
     this.validateSession(a, c, args, { touch: true });
+    if (a.scene_stale_actions?.includes(args.action_id)) fail('STALE_ACTION', '角色已穿过入口，请重新观察当前位置和下一动作ID');
     if (!args.action_id || args.action_id !== a.next_action_id) fail('STALE_SESSION', '请使用服务器发放的 next_action_id');
     if (a.last_action_at !== null && this.now() - a.last_action_at < this.actionIntervalMs) fail('RATE_LIMITED', '动作太快，请稍后使用同一动作 ID 重试', { retry_after_ms: this.actionIntervalMs - (this.now() - a.last_action_at) });
     const backup = clone(this.state); const previousCursor = this.state.sequence; const balanceBefore = economyBalance(a);
@@ -433,13 +438,17 @@ export class World extends EventEmitter {
     this.event('activity_finished', { agent_id: a.agent_id, name: a.name, activity_id: activity.activity_id, activity_name: activity.name,
       place_id: activity.place_id, started_at: activity.started_at, ends_at: activity.ends_at, outcome, ...(cancelled && interrupted ? { interrupted: true } : {}), ...(result ? { result } : {}),
       text: `${a.name}${cancelled ? '结束了' : '完成了'}「${activity.name}」${result ? `：${result.summary}` : ''}` },
-    this.activeIds().filter(id => id === a.agent_id || distance(this.agent(id).position, a.position) <= 6));
+    this.activeIds().filter(id => id === a.agent_id || sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6));
     return { activity: null, outcome, ...(result ? { result } : {}) };
   }
   nextTreasure(a) {
-    let target;
-    do { target = { x: randomInt(Math.max(0, a.position.x - 6), Math.min(WORLD_MAP.width, a.position.x + 7)), y: randomInt(Math.max(0, a.position.y - 6), Math.min(WORLD_MAP.height, a.position.y + 7)) }; } while (distance(a.position, target) === 0 || distance(a.position, target) > 6);
-    a.activity.target = target;
+    const targets = [];
+    for (let y=0;y<WORLD_MAP.height;y++) for (let x=0;x<WORLD_MAP.width;x++) {
+      const path = findPath(a.scene_id, a.position, { x, y }, { maxSteps: 6 });
+      if (path && path.length > 1) targets.push({ x, y });
+    }
+    if (!targets.length) fail('NO_PATH', '当前位置没有可达藏宝点，请重新观察');
+    a.activity.target = targets[randomInt(targets.length)];
   }
   perform(a, type, p, actionId) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
@@ -454,6 +463,7 @@ export class World extends EventEmitter {
     if (type === 'adventure_plan') return startAdventure(this, a, p, fail);
     if (['farm', 'inventory', 'gather', 'trade'].includes(type)) return performLife(this, a, type, p, fail);
     if (type === 'start_activity') {
+      if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '广场活动需要返回plaza；可自主选择adventure_plan retreat返回营地');
       if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
       if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，可能受到怪物攻击；请先返回营地再开始独处活动');
       if (a.adventure?.plan) fail('ADVENTURE_BUSY', '请先用 adventure_plan stop 停止冒险，再开始独处活动');
@@ -482,7 +492,7 @@ export class World extends EventEmitter {
       }
       this.event('activity_started', { agent_id: a.agent_id, name: a.name, activity_id: activity.id, activity_name: activity.name, place_id: activity.place_id,
         started_at: a.activity.started_at, ends_at: a.activity.ends_at, text: `${a.name}开始了「${activity.name}」` },
-      this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6));
+      this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6));
       return { activity: publicActivity(a.activity), ...(activity.content ? { content: clone(activity.content) } : {}) };
     }
     if (type === 'finish_activity') {
@@ -492,7 +502,7 @@ export class World extends EventEmitter {
         if (p.answer !== undefined) fail('INVALID_ACTION', '寻宝收集不接受 answer');
         if (distance(a.position, a.activity.target) !== 0) fail('INVALID_ACTION', '请先走到目标坐标再收集宝物');
         a.activity.progress.collected++;
-        this.event('treasure_collected', { agent_id: a.agent_id, name: a.name, collected: a.activity.progress.collected, total: 3, text: `${a.name}找到了第 ${a.activity.progress.collected} 件宝物` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6));
+        this.event('treasure_collected', { agent_id: a.agent_id, name: a.name, collected: a.activity.progress.collected, total: 3, text: `${a.name}找到了第 ${a.activity.progress.collected} 件宝物` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6));
         if (a.activity.progress.collected === 3) return this.finishActivity(a);
         this.nextTreasure(a); return { activity: publicActivity(a.activity) };
       }
@@ -501,30 +511,31 @@ export class World extends EventEmitter {
       return this.finishActivity(a, { cancelled: p.answer === undefined, answer: p.answer });
     }
     if (type === 'move') {
-      if (!isPositionInBounds(p) || distance(a.position, p) > MAX_MOVE) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 格（横向与纵向距离之和）`, { movement: movementOptions(a.position) });
+      const path = findPath(a.scene_id, a.position, p, { maxSteps: MAX_MOVE });
+      if (!path) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 步，须有不穿地形的合法路径`, { movement: movementOptions(a.position, a.scene_id) });
       cancelGather(this, a, 'moved');
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
-      spendEnergy(this, a, 'move', distance(a.position, p));
-      a.position = { x: p.x, y: p.y };
+      spendEnergy(this, a, 'move', path.length - 1);
+      recordMovement(a, path, this.now(), Math.max(1, path.length - 1) * 200);
       if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
-      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6)); return { position: a.position };
+      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}走到了 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, path };
     }
     if (type === 'say') {
       const text = textField(p.text, 200, '发言'); if (!text) fail('INVALID_ACTION', '发言不能为空');
       if (!['nearby', 'group'].includes(p.channel)) fail('INVALID_ACTION', '发言频道必须是 nearby 或 group');
-      const recipients = p.channel === 'group' ? this.groupOf(a, p.group_id).members : this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 4);
+      const recipients = p.channel === 'group' ? this.groupOf(a, p.group_id).members : this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 4);
       this.event('message', { agent_id: a.agent_id, name: a.name, text, channel: p.channel, ...(p.channel === 'group' ? { group_id: p.group_id } : {}) }, recipients); return {};
     }
     if (type === 'create_group') {
       if (a.group_id) fail('INVALID_ACTION', '每个角色同时只能加入一个小组');
       const group = { group_id: uid('group'), name: `${a.name}的小聚`, members: [a.agent_id], created_at: this.now() };
       this.state.groups[group.group_id] = group; a.group_id = group.group_id;
-      this.event('group_created', { agent_id: a.agent_id, group_id: group.group_id, text: `${a.name}发起了一个公开小组` }, this.activeIds().filter(id => distance(this.agent(id).position, a.position) <= 6)); return { group_id: group.group_id };
+      this.event('group_created', { agent_id: a.agent_id, group_id: group.group_id, text: `${a.name}发起了一个公开小组` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { group_id: group.group_id };
     }
     if (type === 'invite') {
       const group = this.groupOf(a, p.group_id); const target = this.state.agents[p.target_agent_id];
-      if (!target || target.agent_id === a.agent_id || target.status !== 'active' || distance(a.position, target.position) > 4) fail('INVALID_ACTION', '只能邀请 4 格内正在活动的其他角色');
+      if (!target || target.agent_id === a.agent_id || target.status !== 'active' || !sameScene(a, target) || distance(a.position, target.position) > 4) fail('INVALID_ACTION', '只能邀请 4 格内正在活动的其他角色');
       if (target.group_id || group.members.length >= 5) fail('INVALID_ACTION', '对方已有小组或此小组已满');
       if (Object.values(this.state.invitations).some(i => i.group_id === group.group_id && i.from_agent_id === a.agent_id && i.target_agent_id === target.agent_id && i.status === 'pending' && i.expires_at > this.now())) fail('INVITE_PENDING', '同一小组对该角色已有待处理邀请');
       if (Object.values(this.state.invitations).some(i => i.from_agent_id === a.agent_id && i.target_agent_id === target.agent_id && this.now() - i.created_at < 60000)) fail('INVITE_COOLDOWN', '同对象邀请间隔至少 60 秒');
@@ -548,6 +559,7 @@ export class World extends EventEmitter {
       this.event('group_left', { agent_id: a.agent_id, group_id: p.group_id, text: `${a.name}离开了小组` }, recipients); return {};
     }
     if (type === 'propose_game') {
+      if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '多人游戏在广场进行，请先选择retreat回营');
       if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
       if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，请先返回营地再发起多人游戏');
       const group = this.groupOf(a, p.group_id);
@@ -568,6 +580,7 @@ export class World extends EventEmitter {
       this.groupOf(a, game.group_id);
       if (typeof p.accept !== 'boolean') fail('INVALID_ACTION', 'accept 必须为布尔值');
       if (p.accept) {
+        if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '多人游戏在广场进行，请先选择retreat回营');
         if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
         if (a.adventure?.in_field) fail('ADVENTURE_BUSY', '你仍在野外，请先返回营地再参加多人游戏');
         this.checkGameAvailability(a, game.game_type || 'word_chain'); stopAdventure(this, a, 'stopped', '原 AI 选择参加多人游戏，冒险计划结束');

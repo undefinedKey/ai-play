@@ -35,7 +35,7 @@ async function fixture(t, choose, mode = 'dsh-pet') {
 for (const mode of ['dsh-pet', 'model']) test(`${mode}真实狩猎耗尽后唤醒本人，wait不变成休息，随后本人可选择rest`, async t => {
   let answer = action('adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' });
   const f = await fixture(t, () => answer, mode);
-  f.a.position = { x: 19, y: 7 }; f.a.fatigue.energy = 12;
+  f.a.scene_id = 'adventure'; f.a.position = { x: 19, y: 7 }; f.a.fatigue.energy = 12;
   f.a.adventure.hp = f.a.adventure.max_hp = 1000;
   const monster = f.world.state.adventure.monsters[2]; monster.hp = monster.max_hp = 1000; monster.attack = 0;
   await f.runner.decide(); f.advance(5000); f.enqueue();
@@ -52,7 +52,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}真实狩猎耗尽后唤�
   assert.equal(f.a.adventure.plan?.intent, 'rest', JSON.stringify({ error: f.runner.lastError, feedback: f.runner.checkpoint.last_action_feedback, context: f.contexts.at(-1) }));
   assert.equal(f.runner.checkpoint.calls_used, 3);
   assert.ok(f.calls.findLast(c => c.name === 'report_status').args.capabilities.includes('fatigue'));
-  f.advance(12000); assert.ok(f.a.fatigue.energy > 0);
+  f.advance(30000); assert.equal(f.a.scene_id, 'plaza'); assert.ok(f.a.fatigue.energy > 0);
 });
 
 for (const resting of [false, true]) test(`真实劳作疲劳通知后原AI选择${resting ? 'relax' : 'wait'}，没有强制换玩法`, async t => {
@@ -72,7 +72,7 @@ for (const resting of [false, true]) test(`真实劳作疲劳通知后原AI选�
 test('低体力hunt真实拒绝反馈与门槛交回原AI，不重复每轮询请求；下一次可选择rest', async t => {
   const f = await fixture(t, data => data.last_action?.code === 'FATIGUE_EXHAUSTED'
     ? action('adventure_plan', { intent: 'rest' }) : action('adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }));
-  f.a.position = { x: 19, y: 7 }; f.a.fatigue.energy = 5; f.refresh();
+  f.a.scene_id = 'adventure'; f.a.position = { x: 19, y: 7 }; f.a.fatigue.energy = 5; f.refresh();
   await f.runner.decide();
   assert.equal(f.runner.checkpoint.last_action_feedback.code, 'FATIGUE_EXHAUSTED');
   f.advance(5000); assert.equal(f.runner.decisionDue(), false);
@@ -135,8 +135,9 @@ for (const activePlan of [false, true]) test(`UTF-16极限${activePlan ? '含进
   observation.self.fatigue.energy = 0; observation.self.fatigue.attack_multiplier = 0.75;
   observation.self.life.inventory.turnip = 2; observation.self.life.inventory.wheat = 2;
   observation.self.name = '🌷'.repeat(20);
+  observation.self.scene_id = 'adventure';
   Object.assign(observation.self.adventure, { in_field: true, hp: 8, decision_until: observation.server_time + 30000 });
-  if (activePlan) observation.self.adventure.plan = { intent: 'hunt', monster_id: 'ruins_guardian', zone_id: 'ruins', expires_at: observation.server_time + 90000 };
+  if (activePlan) observation.self.adventure.plan = { intent: 'hunt', monster_id: 'ruins_guardian', zone_id: 'ruins', phase: 'to_target', destination_scene_id: 'adventure', expires_at: observation.server_time + 90000 };
   observation.group = { group_id: 'group_' + 'g'.repeat(36), members: [f.a.agent_id, friend] };
   observation.adventure.monsters.forEach((m, i) => { m.behavior = 'attacking'; m.target_agent_id = i === 1 ? friend : f.a.agent_id; });
   const feedback = { type: 'move', status: 'applied', code: 'MOVE_ADJUSTED', requested: { x: 100, y: -100 }, applied: { x: 11, y: 6 } };
@@ -147,7 +148,7 @@ for (const activePlan of [false, true]) test(`UTF-16极限${activePlan ? '含进
   assert.deepEqual(data.energy, [0, 0.75, 12]); assert.equal(data.adventure.monsters.length, 3); assert.deepEqual(data.combat, [observation.self.life.stats.effective_attack, 0, 1, 1000, 3, 0.15]);
   assert.ok(data.adventure.monsters.some(row => row[6] === friend || row[6] === 'speaker' && data.events.at(-1).agent_id === friend)); assert.ok(data.food.some(row => row[0] === 'turnip'));
   assert.equal(data.self.adventure.hp, 8); assert.equal(data.self.adventure.decision_seconds, 30);
-  if (activePlan) assert.deepEqual({ intent: data.self.adventure.plan.intent, monster_id: data.self.adventure.plan.monster_id }, { intent: 'hunt', monster_id: 'ruins_guardian' });
+  if (activePlan) assert.deepEqual(data.self.adventure.plan, ['hunt', 'ruins_guardian', '走向目标', '冒险']);
   assert.deepEqual(data.last_action.requested, feedback.requested); assert.deepEqual(data.last_action.applied, feedback.applied);
   assert.match(prompt, /rest\/relax/); assert.match(prompt, /不强制/); assert.match(prompt, /不向广场复述/);
 });

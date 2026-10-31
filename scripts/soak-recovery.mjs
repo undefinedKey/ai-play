@@ -13,6 +13,7 @@ import { initializeEconomy } from '../server/economy.js';
 import { cooperationLoadAction } from './cooperation-soak-policy.mjs';
 import { seedExperienceCapacity, experienceLoadAction } from './experience-soak-policy.mjs';
 import { publicCooperations } from '../server/cooperation.js';
+import { isWalkable } from '../shared/world-layout.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -21,6 +22,7 @@ const lifeScenario = process.argv.includes('--life');
 const explorationScenario = process.argv.includes('--exploration');
 const experienceScenario = process.argv.includes('--experience');
 const cooperationScenario = process.argv.includes('--cooperation');
+const sceneScenario = process.argv.includes('--scenes');
 const CAPABILITIES = ['adventure','farming','inventory','equipment','farm_tools','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'];
 // Deterministic load policy ONLY: product controllers remain the original AI.
 function lifeAction(observation) {
@@ -56,6 +58,17 @@ function lifeAction(observation) {
   if (have('wood') < 3) return gather('wood');
   if (have('ore') >= 2 && l.market.sell_remaining) return trade('sell', 'ore');
   return gather('ore');
+}
+// Deliberately scripted, isolated round trips. This is not a product AI policy.
+function sceneAction(observation, index, policy) {
+  const a = observation.self;
+  if (a.adventure.encounter?.status === 'pending') return { type: 'adventure_event', payload: { event_id: a.adventure.encounter.event_id, choice_id: 'decline' } };
+  if (a.adventure.plan) return null;
+  if (a.scene_id === 'adventure') return { type: 'adventure_plan', payload: { intent: 'retreat' } };
+  if (Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) > 2 || a.fatigue.energy < 75 || a.adventure.hp < a.adventure.max_hp) return { type: 'adventure_plan', payload: { intent: 'rest' } };
+  if (!policy.tilled) { policy.tilled = true; return { type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } }; }
+  const target = observation.adventure.monsters.find(m => m.zone_id === 'forest' && m.status === 'alive');
+  return { type: 'adventure_plan', payload: index % 2 && target ? { intent: 'hunt', monster_id: target.monster_id } : { intent: 'explore', zone_id: index === 4 ? 'ruins' : 'forest' } };
 }
 // Only used by this isolated load client. It is intentionally deterministic.
 function explorationAction(observation, index, state) {
@@ -100,12 +113,19 @@ if (process.argv.includes('--worker')) {
   const app = await createApp({ dbPath: join(directory, 'world.sqlite'), frontend: false, demo: false });
   const tick = app.world.tick.bind(app.world), times = [], delay = monitorEventLoopDelay({ resolution: 20 });
   let maxTick = 0, peakEvents = 0, peakReceipts = 0, tickCount = 0;
+  const sceneCrossings = { plaza: 0, adventure: 0 }, priorScenes = new Map();
   app.world.tick = (...args) => {
     const before = performance.now(); const result = tick(...args); const ms = performance.now() - before;
     maxTick = Math.max(maxTick, ms); tickCount++;
     if (times.length < 50000) times.push(ms);
     peakEvents = Math.max(peakEvents, app.world.state.events.length);
     peakReceipts = Math.max(peakReceipts, Object.keys(app.world.state.receipts).length);
+    if (sceneScenario) for (const a of Object.values(app.world.state.agents)) {
+      assert.ok(['plaza', 'adventure'].includes(a.scene_id));
+      assert.ok(isWalkable(a.scene_id, a.position), 'actor stays on a traversable cell');
+      if (priorScenes.has(a.agent_id) && priorScenes.get(a.agent_id) !== a.scene_id) sceneCrossings[a.scene_id]++;
+      priorScenes.set(a.agent_id, a.scene_id);
+    }
     return result;
   };
   delay.enable(); const cpu = process.cpuUsage();
@@ -135,6 +155,7 @@ if (process.argv.includes('--worker')) {
       event_loop_p99_ms: delay.percentile(99) / 1e6, retained_events: app.world.state.events.length,
       retained_receipts: Object.keys(app.world.state.receipts).length, peak_events: peakEvents, peak_receipts: peakReceipts,
       active: app.world.activeIds().length,
+      ...(sceneScenario ? { scene_crossings: sceneCrossings, scenes: Object.values(app.world.state.agents).map(a => a.scene_id) } : {}),
       ...(experienceScenario ? { history_entries:app.world.state.history.entries.length, history_cooperations:app.world.state.history.entries.filter(e=>e.category==='cooperation').length, completed_games:app.world.state.history.entries.filter(e=>e.type==='game_finished'&&e.outcome==='completed').length, live_meal_completed:publicCooperations(app.world).some(p=>p.status==='completed'&&p.template_id==='camp_meal') } : {}),
       ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
       ...(explorationScenario ? {encounters: Object.values(app.world.state.agents).filter(a=>a.adventure.encounter).length, goals:Object.values(app.world.state.agents).filter(a=>a.personal_goal).length, exploration_events:app.world.state.events.filter(e=>e.type.startsWith('exploration_')).length, expired_encounters:app.world.state.events.filter(e=>e.type==='exploration_ended' && e.payload.status==='expired').length} : {}),
@@ -152,7 +173,7 @@ if (process.argv.includes('--worker')) {
   const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.split('=')[1] || 1800);
   assert.ok(Number.isInteger(seconds) && seconds >= 10 && seconds <= 3600);
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'plaza-soak-'));
-  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(sceneScenario ? ['--scenes'] : []), ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
   const samples = [], latencies = [], viewers = [], clients = [], abort = new AbortController();
   let final, applied = 0, failures = 0, frames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
   const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map(),words:['气球','球场','场地','地球','球迷','迷人','人民','民族','族群','群山']};
@@ -174,7 +195,7 @@ if (process.argv.includes('--worker')) {
       worker.once('error', reject); worker.once('exit', () => { clearTimeout(timer); reject(new Error('Worker exited before ready')); });
     });
     for (const person of ready.people) {
-      const client = new Client({ name: 'isolated-soak', version: '0.16.0' });
+      const client = new Client({ name: 'isolated-soak', version: '0.17.0' });
       await client.connect(new StreamableHTTPClientTransport(new URL(`${ready.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${person.token}` } } }));
       clients.push({ client, session: await call(client, 'join_world'), policy: { setup:0,equipped:false,cycle:0 } });
     }
@@ -217,8 +238,8 @@ if (process.argv.includes('--worker')) {
               policy.pending=experienceLoadAction(observation,i,policy,cooperationShared);
               policy.pendingAt=Date.now()+45000;
             }
-          } else if (lifeScenario || explorationScenario || cooperationScenario) {
-            const decision = cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
+          } else if (sceneScenario || lifeScenario || explorationScenario || cooperationScenario) {
+            const decision = sceneScenario ? sceneAction(observation, i, policy) : cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
             if (decision) {
               const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, ...decision });
               assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
@@ -230,7 +251,7 @@ if (process.argv.includes('--worker')) {
             const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, type: 'adventure_plan', payload });
             assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
           }
-          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.16.0', mode: 'demo', capabilities: explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
+          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.17.0', mode: 'demo', capabilities: sceneScenario || explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
         } catch (error) { failures++; console.error(error.message); }
       }));
       if(experienceScenario) await Promise.all(Array.from({length:4},async(_,i)=>{
@@ -244,7 +265,7 @@ if (process.argv.includes('--worker')) {
       }));
       round++;
       if (round % 6 === 0) console.log(JSON.stringify({ type: 'progress', elapsed_seconds: Math.round((performance.now() - start) / 1000), applied, failures, frames, app: samples.at(-1) }));
-      await sleep(Math.min(experienceScenario || lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
+      await sleep(Math.min(sceneScenario || experienceScenario || lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
     } while (performance.now() - start < seconds * 1000);
     const elapsed = performance.now() - start;
     abort.abort(); await Promise.all(viewers); await Promise.all(clients.map(({ client }) => client.close()));
@@ -254,13 +275,14 @@ if (process.argv.includes('--worker')) {
     const late = percentile(samples.slice(-window).map(s => s.rss_mb), .5);
     const result = { type: 'result', scope: 'Isolated real HTTP: 5 scripted controllers, 20 public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.',
       environment: { platform: process.platform, node: process.version, cores: cpus().length, total_memory_mb: Math.round(totalmem() / 1048576) },
-      scenario: experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      scenario: sceneScenario ? 'independent-scene-round-trips' : experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
       history_reads:historyReads,history_failures:historyFailures,history_query_p95_ms:+percentile(historyLatencies).toFixed(2),
       requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: 20, applied, failures, viewer_errors: viewerErrors, frames,
       mean_bytes_per_viewer_second: Math.round(bytes / 20 / (elapsed / 1000)), max_client_frame_buffer: maxBuffer,
       mcp_roundtrip_p95_ms: +percentile(latencies).toFixed(2), app: final, samples,
       steady_rss_median_change_mb: +(late - early).toFixed(2), client_peak_rss_mb: process.resourceUsage().maxRSS / 1024,
       criteria: { app_rss_below_512: final.peak_rss_mb < 512, tick_p95_below_50: final.tick_p95_ms < 50, bounded_events: final.peak_events <= 3000, bounded_receipts: final.peak_receipts <= 1000, steady_rss_change_below_64: late - early < 64, all_five_present: final.active === 5,
+        ...(sceneScenario && seconds >= 180 ? { entered_adventure: final.scene_crossings.adventure >= 5, returned_to_plaza: final.scene_crossings.plaza >= 5, farm_only_in_plaza: actionCounts['farm:till'] === 5 } : {}),
         ...(experienceScenario ? { bounded_history:final.history_entries===4096,cooperation_quota_preserved:final.history_cooperations===512,history_queries_passed:historyReads>0&&historyFailures===0,...(seconds>=900?{slow_game_completed:final.completed_games>0,slow_cooperation_completed:final.live_meal_completed}: {})} : {}),
         ...(cooperationScenario ? { bounded_cooperations: final.cooperations.length <= 25, bounded_returns: final.pending_returns <= 5, bounded_ledgers: final.ledger_entries.every(n=>n<=100), ...(seconds>=900 ? {meal_completed:final.cooperations.some(p=>p.template_id==='camp_meal'&&p.status==='completed'),patrol_completed:final.cooperations.some(p=>p.template_id==='scout_and_guard'&&p.status==='completed'),refusal_exercised:actionCounts['cooperation:respond_false']>=1,leave_exercised:actionCounts['cooperation:leave']>=1,expiry_exercised:final.cooperations.some(p=>p.status==='ended'&&p.end_reason==='expired')} : {}) } : {}),
         ...(explorationScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100),bounded_encounters:final.encounters<=5,bounded_goals:final.goals<=5, ...(seconds>=600? {exploration_choices_exercised:Object.entries(actionCounts).filter(([k])=>k.startsWith('adventure_event:')).reduce((n,[,v])=>n+v,0)>=10,goals_exercised:actionCounts['personal_goal:set']>=5,strategy_equipped:actionCounts['inventory:equip']>=10,finite_expiry_exercised:final.expired_encounters>0}: {}) } : {}),

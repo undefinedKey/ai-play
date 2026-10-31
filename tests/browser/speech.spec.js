@@ -38,20 +38,23 @@ async function actor(request, name) {
   } };
 }
 
-test('真实公开发言在两张地图显示，关闭跨视图保留，新发言重新出现', async ({ page, request }) => {
+test('真实公开发言仅在所在场景显示，关闭跨视图保留，新发言重新出现', async ({ page, request }) => {
   const a = await actor(request, '碎碎念旅人');
-  await page.goto(base + '/watch?view=adventure');
+  await page.goto(base + '/watch?view=plaza');
   const speech = page.getByTestId('speech-cloud');
   await expect(speech).toHaveCount(0);
   await a.act('say', { channel: 'nearby', text: '打完这只怪，我想去看看萝卜。' });
   await expect(speech).toContainText('碎碎念旅人');
   await expect(speech).toContainText('打完这只怪，我想去看看萝卜。');
   await expect(speech).toContainText('附近');
+  await page.getByRole('button', { name: '冒险地图', exact: true }).click();
+  await expect(speech).toHaveCount(0);
   await page.getByRole('button', { name: '社交广场', exact: true }).click();
   await expect(speech).toContainText('打完这只怪，我想去看看萝卜。');
   await speech.getByRole('button', { name: /关闭/ }).click();
   await page.getByRole('button', { name: /冒险地图/ }).click();
   await expect(speech).toHaveCount(0);
+  await page.getByRole('button', { name: '社交广场', exact: true }).click();
   await a.act('say', { channel: 'nearby', text: '还是先去营地坐一会儿吧。' });
   await expect(speech).toContainText('还是先去营地坐一会儿吧。');
   await expect(page.getByRole('log')).toContainText('打完这只怪，我想去看看萝卜。');
@@ -63,7 +66,7 @@ test('长句可展开和收起，纯文本渲染，手机窗口可读且无障�
   const a = await actor(request, '说故事的旅人');
   const text = '<img src=x onerror=alert(1)>' + '今天的风很舒服，萝卜也长得不错。'.repeat(7) + '结束啦。';
   await a.act('say', { channel: 'nearby', text });
-  await page.goto(base + '/watch?view=adventure');
+  await page.goto(base + '/watch?view=plaza');
   const speech = page.getByTestId('speech-cloud');
   await speech.getByRole('button', { name: /展开/ }).click();
   await expect(speech).toContainText(text);
@@ -85,7 +88,7 @@ test('公开小组发言有明确标识，时间到后消失但日志保留，�
   const a = await actor(request, '小组旅人');
   const group = await a.act('create_group');
   await page.clock.install();
-  await page.goto(base + '/watch?view=adventure');
+  await page.goto(base + '/watch?view=plaza');
   await a.act('say', { channel: 'group', group_id: group.group_id, text: '这句话说给小组里的朋友们。' });
   const speech = page.getByTestId('speech-cloud');
   await expect(speech).toContainText('小组');
@@ -104,7 +107,7 @@ test('断线只标记最近收到的公开发言，不生成新台词', async ({
   const a = await actor(request, '路边旅人');
   await a.act('say', { channel: 'nearby', text: '我刚刚看到了一只史莱姆。' });
   await page.route('**/api/public/events*', route => route.abort('connectionfailed'));
-  await page.goto(base + '/watch?view=adventure');
+  await page.goto(base + '/watch?view=plaza');
   const speech = page.getByTestId('speech-cloud');
   await expect(speech).toContainText('最近收到');
   await expect(speech).toContainText('我刚刚看到了一只史莱姆。');
@@ -113,7 +116,7 @@ test('断线只标记最近收到的公开发言，不生成新台词', async ({
 
 test('五人真实发言同时挂在头顶，三尺寸同格、边角、移动和关注缩放保持锚点',async({page,request})=>{
   const actors=[];for(let i=0;i<5;i++){const a=await actor(request,i<2?'同名很长的说话同伴':'讲话同伴'+i);await a.act('move',{x:11,y:8});actors.push(a);}
-  await page.goto(base+'/watch?view=adventure');
+  await page.goto(base+'/watch?view=plaza');
   for(let i=0;i<5;i++)await actors[i].act('say',{channel:'nearby',text:`第${i+1}位的真实公开话语，想在这里一起聊天。`});
   const clouds=page.getByTestId('speech-cloud');await expect(clouds).toHaveCount(5);
   async function inspect(label){for(const[width,height]of[[1440,900],[390,844],[390,900]]){

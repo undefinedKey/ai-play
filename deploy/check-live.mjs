@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { SCENES, isWalkable } from '../shared/world-layout.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -13,6 +14,8 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision']) assert.equal(health.capabilities[capability], true, capability);
+assert.deepEqual(world.scenes, SCENES);
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
 assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can']);
@@ -33,7 +36,16 @@ for (const monster of world.adventure.monsters) {
   assert.equal(monster.patrol_interval_ms, 2000);
 }
 const manifest = await (await response('/pixel-world/manifest.json')).json();
+assert.notEqual(manifest.scenes.plaza.image, manifest.scenes.adventure.image);
+for (const scene of SCENES) {
+  assert.equal(manifest.scenes[scene.id].width, scene.map.width * 32);
+  assert.equal(manifest.scenes[scene.id].height, scene.map.height * 32);
+  assert.ok(isWalkable(scene.id, scene.portal.position));
+  for (const prop of scene.props) assert.ok(manifest.props[prop.kind], prop.kind);
+}
 for (const agent of world.agents) {
+  assert.ok(['plaza', 'adventure'].includes(agent.scene_id));
+  assert.ok(isWalkable(agent.scene_id, agent.position));
   assert.equal(agent.life.plots.length, 2);
   for (const plot of agent.life.plots) assert.equal(typeof plot.tilled, 'boolean');
   for (const id of ['hoe', 'watering_can']) {
@@ -51,7 +63,7 @@ for (const agent of world.agents) {
     assert.equal(agent.life.gathering.run_id, undefined);
     assert.equal(agent.life.gathering.session_epoch, undefined);
   }
-  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run']) assert.equal(agent[field], undefined, field);
+  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run', 'scene_migration', 'scene_stale_actions', 'next_action_id']) assert.equal(agent[field], undefined, field);
   assert.ok(['active', 'paused', 'offline', 'never_joined', 'unknown'].includes(agent.presence.state));
   assert.ok([true, false, null].includes(agent.presence.has_joined));
   for (const field of ['first_joined_at', 'last_seen_at', 'last_departed_at']) assert.ok(agent.presence[field] === null || Number.isSafeInteger(agent.presence[field]));
@@ -74,6 +86,7 @@ for (const path of paths) {
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 }
 await response('/watch?view=adventure');
+await response('/watch?view=plaza');
 await response('/watch?view=farm');
 assert.equal((await fetch(`${base}/api/world`, { signal: AbortSignal.timeout(10000) })).status, 401);
-console.log(JSON.stringify({ version, agents: world.agents.length, active: world.agents.filter(a => a.status === 'active').length, pixel_images: paths.size, fatigue: true, appearance: true, public_privacy: true }));
+console.log(JSON.stringify({ version, agents: world.agents.length, active: world.agents.filter(a => a.status === 'active').length, pixel_images: paths.size, independent_scenes: true, scene_locations_valid: true, fatigue: true, appearance: true, public_privacy: true }));

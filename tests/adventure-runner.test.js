@@ -61,9 +61,9 @@ test('真实World中原桌宠决定探索，自动移动不逐步调用模型，
   assert.equal(f.a.adventure.plan, null, '安装和连接不替原AI自动开冒险');
   await f.decide(); f.poll();
   assert.equal(f.a.adventure.plan.intent, 'explore');
-  for (let step = 0; step < 20 && f.a.adventure.plan; step++) {
+  for (let step = 0; step < 40 && f.a.adventure.plan; step++) {
     f.tick();
-    if (f.a.adventure.plan && !f.runner.checkpoint.queue.some(event => event.type === 'adventure_aggro')) assert.equal(f.runner.decisionDue(), false, '移动本身不触发模型，遭怪物锁定可唤醒');
+    if (f.a.adventure.plan && !f.runner.checkpoint.queue.some(event => ['adventure_aggro','scene_changed'].includes(event.type))) assert.equal(f.runner.decisionDue(), false, '普通格子移动不触发模型；真实穿门或怪物锁定会重新观察');
   }
   assert.equal(f.a.adventure.plan, null); assert.equal(f.runner.checkpoint.calls_used, 1);
   assert.equal(f.runner.decisionDue(), true); assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_finished'));
@@ -98,7 +98,8 @@ test('危险唤醒原AI选择撤退，保持原动作回执和预算；计划中
     ? { type: 'adventure_plan', payload: { intent: 'retreat' } }
     : { type: 'adventure_plan', payload: { intent: 'hunt', monster_id: 'ruins_guardian' } });
   await f.decide(); f.poll();
-  f.a.position = { x: 19, y: 7 }; f.a.adventure.hp = 15;
+  // This danger fixture begins already in the ruins, not at coincident plaza coordinates.
+  f.a.scene_id = 'adventure'; f.a.position = { x: 19, y: 7 }; f.a.adventure.hp = 15;
   f.tick(); f.advance(4000);
   assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_danger'));
   assert.equal(f.runner.decisionDue(), true);
@@ -128,6 +129,7 @@ test('拥挤冒险上下文在2000字内保留本人生命、当前目标、主�
   const f = await fixture(t);
   const observation = structuredClone(f.runner.observation);
   const id = 'agent_' + 'a'.repeat(36), groupId = 'group_' + 'g'.repeat(36);
+  observation.self.scene_id = 'adventure';
   observation.self.adventure.plan = { intent: 'hunt', zone_id: 'ruins', monster_id: 'ruins_guardian', started_at: Date.now(), expires_at: Date.now() + 90000 };
   observation.self.adventure.hp = 8;
   observation.nearby_agents = Array.from({ length: 4 }, (_, index) => ({ agent_id: id + index, name: '友'.repeat(20), position: { x: 19, y: 7 }, group_id: groupId, adventure: { hp: 30, plan: { intent: 'hunt', monster_id: 'ruins_guardian' } } }));
@@ -167,7 +169,7 @@ test('探索遭遇主动锁定唤醒原AI，原AI可选择撤退，未下hunt不
     ? { type: 'adventure_plan', payload: { intent: 'explore', zone_id: 'forest' } }
     : (data.event || data.events.some(e => e.type === 'adventure_aggro')) ? { type: 'adventure_plan', payload: { intent: 'retreat' } } : { type: 'wait', payload: {} });
   await f.decide(); f.poll();
-  for (let step = 0; step < 15 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'); step++) f.tick();
+  for (let step = 0; step < 40 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'); step++) f.tick();
   assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'));
   assert.equal(f.runner.decisionDue(), true);
   assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
@@ -175,8 +177,9 @@ test('探索遭遇主动锁定唤醒原AI，原AI可选择撤退，未下hunt不
   const context = decode(f.prompts.at(-1));
   assert.ok(context.event || context.adventure.monsters.some(row => row[6] === 'self' && ['chasing', 'attacking'].includes(row[5])));
   assert.equal(f.a.adventure.plan.intent, 'retreat'); assert.equal(f.runner.checkpoint.calls_used, 2);
-  for (let step = 0; step < 20 && f.a.adventure.plan; step++) f.tick();
+  for (let step = 0; step < 40 && f.a.adventure.plan; step++) f.tick();
   assert.equal(f.a.adventure.in_field, false);
+  assert.equal(f.a.scene_id, 'plaza'); assert.deepEqual(f.a.position, { x: 11, y: 8 });
   assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
 });
 
@@ -187,7 +190,7 @@ test('同样的探索遭遇可由另一原AI选择应战，模型明确hunt后�
     : data.event ? { type: 'adventure_event', payload: { event_id: data.event[0], choice_id: 'decline' } }
     : { type: 'adventure_plan', payload: { intent: 'hunt', monster_id: (data.adventure.monsters.find(row => row[6] === 'self') || data.adventure.monsters.find(row => row[0] === 'forest_slime'))[0] } });
   await f.decide(); f.poll();
-  for (let step = 0; step < 15 && !f.runner.checkpoint.queue.some(e => e.type === 'adventure_aggro'); step++) f.tick();
+  for (let step = 0; step < 40 && f.a.adventure.encounter?.status !== 'pending'; step++) f.tick();
   assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
   await f.decide(); f.poll();
   assert.equal(f.a.adventure.encounter.status, 'declined');
@@ -223,6 +226,7 @@ test('即使普通空闲为90秒，反应保护到期前也给原AI复查机会'
 test('拥挤观察优先保留本人/队友追击者和保护期限，不被最后陌生人aggro覆盖', async t => {
   const f = await fixture(t);
   const observation = structuredClone(f.runner.observation), friend = 'agent_' + 'f'.repeat(36), stranger = 'agent_' + 's'.repeat(36);
+  observation.self.scene_id = 'adventure';
   observation.self.adventure.in_field = true;
   observation.self.adventure.hp = 8;
   observation.self.adventure.decision_until = observation.server_time + 30000;
@@ -257,7 +261,7 @@ test('同组其他角色在报名游戏时，本人在野外仍优先读取怪�
   const invite = f.world.perform(f.a, 'invite', { group_id: f.a.group_id, target_agent_id: b.agent_id });
   f.world.perform(b, 'respond_invite', { invite_id: invite.invite_id, accept: true });
   f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
-  f.a.position = { x: 4, y: 11 }; f.tick();
+  f.a.scene_id = 'adventure'; f.a.position = { x: 4, y: 11 }; f.tick();
   f.world.perform(f.a, 'adventure_event', { event_id: f.a.adventure.encounter.event_id, choice_id: 'decline' }); f.tick();
   f.world.perform(b, 'propose_game', { group_id: b.group_id, game_type: 'word_chain' });
   f.refresh();

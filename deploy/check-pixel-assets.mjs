@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SCENES, WORLD_MAP, isWalkable } from '../shared/world-layout.js';
 
 // Validate the shipped files as well as Vite's copy; the server never needs Pixelbolt.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,7 +56,30 @@ for (const directory of ['public', 'dist']) {
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['hunter_bow','heavy_hammer','heavy_armor']){assert.ok(manifest.equipment[id]);for(const action of Object.keys(manifest.characters.wanderer_1.animations))assert.ok(manifest.equipment[id].animations[action]);}
   for(const id of ['supply_cache','wild_garden','spring']){assert.ok(manifest.discoveries[id]);assert.equal(manifest.discoveries[id].animations.resolved.loop,false);}
-  assert.equal(manifest.release,'0.14.0');
-  assert.equal(images.size, 55);
-  console.log(`${directory}: 55 Pixelbolt images, PNG dimensions and all animation frames verified.`);
+  assert.equal(manifest.release,'0.17.0');
+  for(const scene of SCENES){
+    assert.deepEqual(scene.map,WORLD_MAP);
+    assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);
+    assert.equal(manifest.scenes[scene.id].height,WORLD_MAP.height*32);
+    assert.ok(isWalkable(scene.id,scene.portal.position));
+    const other=SCENES.find(s=>s.id===scene.portal.to_scene_id);
+    assert.deepEqual(scene.portal.to_position,other.portal.position);
+    for(const prop of scene.props){
+      if(prop.kind!=='pond'){
+        const sprite=manifest.props[prop.kind];assert.ok(sprite,prop.kind);
+        assert.deepEqual(sprite.anchor,{x:64,y:120});
+        const atlas=JSON.parse(read(sprite.image.split('/').at(-1).replace('.png','.atlas.json')));
+        assert.deepEqual(atlas.frames.idle.anchor,sprite.anchor,`${prop.kind} contact anchor differs`);
+      }
+      assert.ok(prop.position.x>=0&&prop.position.x<WORLD_MAP.width&&prop.position.y>=0&&prop.position.y<WORLD_MAP.height);
+      for(const cell of prop.footprint)assert.ok(!isWalkable(scene.id,cell));
+    }
+    // Flood fill: every legal tile is reachable from its portal.
+    const seen=new Set(),todo=[scene.portal.position];
+    while(todo.length){const p=todo.pop(),key=`${p.x},${p.y}`;if(seen.has(key)||!isWalkable(scene.id,p))continue;seen.add(key);for(const[dx,dy]of[[0,1],[1,0],[0,-1],[-1,0]])todo.push({x:p.x+dx,y:p.y+dy});}
+    assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id} isolated walkable cell`);
+  }
+  assert.notEqual(read('scene_plaza.png').toString('base64'),read('scene_adventure.png').toString('base64'));
+  assert.equal(images.size, 76);
+  console.log(`${directory}: 76 Pixelbolt images, frames, scene footprints, portals and reachability verified.`);
 }

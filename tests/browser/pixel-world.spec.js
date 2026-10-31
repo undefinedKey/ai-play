@@ -23,7 +23,7 @@ async function actor(api,name) {
   await client.connect(new StreamableHTTPClientTransport(new URL(base+'/mcp'),{requestInit:{headers:{Authorization:`Bearer ${controller.token}`}}}));
   const call=async(name,args={})=>{const response=await client.callTool({name,arguments:args});expect(response.isError,JSON.stringify(response.content)).not.toBe(true);return response.structuredContent||JSON.parse(response.content.find(item=>item.type==='text').text);};
   const joined=await call('join_world');let actionId=joined.next_action_id;const session={run_id:joined.run_id,session_epoch:joined.session_epoch};
-  return {agent,observe:()=>call('observe',session),act:async(type,payload={})=>{const result=await call('act',{...session,action_id:actionId,type,payload});expect(result.status,JSON.stringify(result)).toBe('applied');actionId=result.next_action_id;return result;}};
+  return {agent,observe:()=>call('observe',session),act:async(type,payload={})=>{const result=await call('act',{...session,action_id:(await call('observe',session)).next_action_id,type,payload});expect(result.status,JSON.stringify(result)).toBe('applied');actionId=result.next_action_id;return result;}};
 }
 function tick(ms=2000){clock+=ms;application.world.tick();}
 async function audit(page,prefix) {
@@ -33,7 +33,7 @@ async function audit(page,prefix) {
     const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
     expect(result.violations.map(item=>({id:item.id,nodes:item.nodes.map(node=>node.target)}))).toEqual([]);
     await page.screenshot({path:`artifacts/${prefix}-${width}.png`,fullPage:true});
-    await page.getByTestId('adventure-map').screenshot({path:`artifacts/${prefix}-map-${width}.png`});
+    await page.locator('[data-testid=adventure-map],[data-testid=plaza-map]').screenshot({path:`artifacts/${prefix}-map-${width}.png`});
   }
 }
 
@@ -53,9 +53,9 @@ test('真实 Pixelbolt 素材呈现固定且不同的 AI 外观，两个地图�
   const appearance=(await a.observe()).self.appearance, other=(await b.observe()).self.appearance;
   expect(appearance.sprite_id).not.toBe(other.sprite_id);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(base+'/watch?view=adventure');
+  await page.goto(base+'/watch?view=plaza');
   await expect(page.locator('.pixel-scene-image')).toHaveJSProperty('naturalWidth',768);
-  const unit=page.getByTestId(`adventure-agent-${a.agent.agent_id}`);
+  const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`);
   await expect(unit.locator('.pixel-character')).toHaveAttribute('data-sprite-id',appearance.sprite_id);
   await expect(unit.locator('[data-asset-missing]')).toHaveCount(0);
   await unit.click();
@@ -64,6 +64,8 @@ test('真实 Pixelbolt 素材呈现固定且不同的 AI 外观，两个地图�
   await expect(page.getByTestId('runtime-diagnostics')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('PRIVATE_PIXEL_GOAL');
   await audit(page,'pixel-world-party');
+  await page.getByRole('button',{name:'冒险地图',exact:true}).click();
+  await expect(page.getByTestId(`adventure-agent-${a.agent.agent_id}`)).toHaveCount(0);
   await page.getByRole('button',{name:'社交广场',exact:true}).click();
   await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character')).toHaveAttribute('data-sprite-id',appearance.sprite_id);
   await page.reload();
@@ -102,8 +104,8 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
   await expect(sprite.locator('.pixel-weapon')).toHaveAttribute('data-item','wooden_sword');
   await expect(sprite.locator('.pixel-weapon')).not.toHaveAttribute('data-asset-missing','true');
   await expect(page.getByTestId('equipment-status')).toContainText('实际攻击 8');
-  await page.getByRole('button',{name:/冒险地图/}).click();
-  sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
+  await page.getByRole('button',{name:'社交广场',exact:true}).click();
+  sprite=page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character');
   await expect(page.getByTestId('farm-view')).toHaveCount(0);
   await a.act('move',{x:8,y:8});
   await expect(sprite).toHaveAttribute('data-action','walk');
@@ -128,8 +130,8 @@ test('怪物真实攻击显示受伤，原 AI 应战后才播放攻击动画',as
   const sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
   await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
   let combat;
-  for(let i=0;i<20&&!combat;i++){
-    tick(1001);
+  for(let i=0;i<65&&!combat;i++){
+    tick(1001);await a.observe();
     combat=[...application.world.state.events].reverse().find(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.attacker==='monster');
   }
   expect(combat).toBeTruthy();
@@ -157,8 +159,8 @@ test('连续三个真实战斗tick中，人物与怪物在下一回执前分别�
   const monster=page.getByTestId('monster-forest_boar').locator('.pixel-sprite');
   await a.act('adventure_plan',{intent:'hunt',monster_id:'forest_boar'});
   let hits=[];
-  for(let i=0;i<24&&!hits.some(event=>event.payload.attacker==='agent');i++){
-    tick(1001);
+  for(let i=0;i<70&&!hits.some(event=>event.payload.attacker==='agent');i++){
+    tick(1001);await a.observe();
     hits=application.world.state.events.filter(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.monster_id==='forest_boar'&&event.occurred_at===clock);
   }
   for(let cycle=0;cycle<3;cycle++){

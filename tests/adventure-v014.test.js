@@ -29,7 +29,7 @@ function fixture(t) {
   };
   const discover = (p, sequence = 0, zone_id = 'forest') => {
     raw(p).adventure.discovery_sequence = sequence;
-    raw(p).position = zone_id === 'forest' ? { x: 4, y: 11 } : { x: 19, y: 7 };
+    raw(p).scene_id = 'adventure'; raw(p).position = zone_id === 'forest' ? { x: 4, y: 11 } : { x: 19, y: 7 };
     ok(act(p, 'adventure_plan', { intent: 'explore', zone_id })); advance(1000);
     return observe(p).self.adventure.encounter;
   };
@@ -42,7 +42,7 @@ const resources = a => structuredClone({ life: a.life, fatigue: a.fatigue, adven
 
 test('v0.14目录、固定选择、策略装备与目标边界实际公开；新角色不自动接目标', t => {
   const f = fixture(t), p = f.make(), rules = f.world.getRules(), publicState = spectatorSnapshot(f.world);
-  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.16.0-experiences');
+  assert.equal(rules.max_capabilities, 16); assert.equal(rules.rules_version, '0.17.0-scenes');
   assert.ok(['adventure_event', 'personal_goal'].every(x => rules.allowed_actions.includes(x)));
   assert.equal(rules.adventure.exploration.pending_seconds, 150); assert.equal(rules.adventure.exploration.discovery_cooldown_seconds, 300);
   assert.deepEqual(publicState.adventure.exploration, rules.adventure.exploration);
@@ -106,7 +106,7 @@ test('满生命/满体力、费用不足、库存溢出、错误参数与他人�
   for (const choice_id of ['heal', 'refresh']) {
     const before = resources(f.raw(p)); rejected(f.act(p, 'adventure_event', { event_id: e.event_id, choice_id }), choice_id === 'heal' ? 'FULL_HEALTH' : 'FULL_ENERGY'); assert.deepEqual(resources(f.raw(p)), before);
   }
-  rejected(f.act(other, 'adventure_event', { event_id: e.event_id, choice_id: 'heal' }), 'EVENT_UNAVAILABLE');
+  f.raw(other).scene_id = 'adventure'; rejected(f.act(other, 'adventure_event', { event_id: e.event_id, choice_id: 'heal' }), 'EVENT_UNAVAILABLE');
   for (const payload of [{ event_id: e.event_id, choice_id: 'heal', energy: 999 }, { event_id: e.event_id }, { event_id: e.event_id, choice_id: 'unknown' }]) {
     const before = resources(f.raw(p)); rejected(f.act(p, 'adventure_event', payload), payload.choice_id === 'unknown' ? 'INVALID_CHOICE' : 'INVALID_ACTION'); assert.deepEqual(resources(f.raw(p)), before);
   }
@@ -120,9 +120,9 @@ test('stop/retreat可明确中断；重复探索或换区域不重抽、不刷�
   const f = fixture(t), p = f.make(), e = f.discover(p), ready = f.raw(p).adventure.discovery_ready_at;
   rejected(f.act(p, 'adventure_plan', { intent: 'retreat', zone_id: 'forest' }), 'INVALID_ACTION'); assert.equal(f.raw(p).adventure.encounter.status, 'pending');
   ok(f.act(p, 'adventure_plan', { intent: 'stop' })); assert.equal(f.raw(p).adventure.encounter.status, 'interrupted');
-  f.raw(p).position = { x: 19, y: 7 }; ok(f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'ruins' })); f.advance(1000);
+  f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: 19, y: 7 }; ok(f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'ruins' })); f.advance(1000);
   assert.equal(f.raw(p).adventure.encounter.event_id, e.event_id); assert.equal(f.raw(p).adventure.discovery_ready_at, ready);
-  ok(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.advance(20000); assert.deepEqual(f.raw(p).position, { x: 11, y: 8 });
+  ok(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.advance(30000); assert.deepEqual(f.raw(p).position, { x: 11, y: 8 });
   f.advance(ready - f.now()); const next = f.discover(p, 0, 'ruins'); assert.notEqual(next.event_id, e.event_id);
   const inventory = structuredClone(f.raw(p).life.inventory); ok(f.act(p, 'adventure_plan', { intent: 'retreat' }));
   assert.equal(f.raw(p).adventure.encounter.status, 'interrupted'); assert.deepEqual(f.raw(p).life.inventory, inventory);
@@ -252,7 +252,7 @@ test('诊断两个入口一致接受15项新能力与16上限，拒绝17项且�
 test('三格弓手实际伤害计入奖励和击杀目标，不因旧两格分奖限制漏奖', t => {
   const f = fixture(t), p = f.make(), other = f.make('旁观同伴');
   f.raw(p).life.inventory.hunter_bow = 1; ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'hunter_bow' })); f.goal(p, 'defeat_monster', 'forest_slime');
-  f.goal(other, 'defeat_monster', 'forest_slime'); f.raw(p).position = { x: 6, y: 11 };
+  f.goal(other, 'defeat_monster', 'forest_slime'); f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: 6, y: 11 };
   const m = f.world.state.adventure.monsters[0]; m.hp = 7;
   ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: m.monster_id })); f.advance(1000);
   assert.equal(m.status, 'respawning'); assert.equal(f.raw(p).adventure.kills, 1); assert.equal(f.raw(p).adventure.gold, 6); assert.equal(f.raw(p).adventure.xp, 12);
@@ -263,7 +263,7 @@ test('三格弓手实际伤害计入奖励和击杀目标，不因旧两格分�
 test('重锤/护甲实际攻击间隔、耗能与伤害；重发hunt和迟到tick不能补击', t => {
   const f = fixture(t), p = f.make(); Object.assign(f.raw(p).life.inventory, { heavy_hammer: 1, heavy_armor: 1 });
   for (const item_id of ['heavy_hammer', 'heavy_armor']) ok(f.act(p, 'inventory', { intent: 'equip', item_id }));
-  const a = f.raw(p); a.position = { x: 19, y: 7 };
+  const a = f.raw(p); a.scene_id = 'adventure'; a.position = { x: 19, y: 7 };
   ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' })); f.advance(1000);
   assert.equal(f.raw(p).fatigue.energy, 95); assert.equal(f.raw(p).adventure.hp, 37);
   const firstAt = f.now(), deadline = f.raw(p).adventure.next_attack_at; assert.equal(deadline, firstAt + 3000);
@@ -276,13 +276,13 @@ test('重锤/护甲实际攻击间隔、耗能与伤害；重发hunt和迟到tic
 
 test('有效每击成本决定耗尽边界；低体力伤害只折算一次；营地不能远程射击', t => {
   const f = fixture(t), p = f.make(); Object.assign(f.raw(p).life.inventory, { heavy_hammer: 1, hunter_bow: 1 });
-  ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'heavy_hammer' })); f.raw(p).position = { x: 19, y: 7 };
+  ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'heavy_hammer' })); f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: 19, y: 7 };
   ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' })); f.raw(p).fatigue.energy = 30; f.advance(1000);
   assert.equal(f.raw(p).fatigue.energy, 25); assert.equal(f.world.state.adventure.monsters[2].hp, 60);
   f.raw(p).fatigue.energy = 4.99; f.advance(1000); assert.equal(f.raw(p).adventure.plan, null); assert.equal(f.raw(p).adventure.last_result.kind, 'exhausted');
   assert.equal(f.raw(p).fatigue.energy, 4.99);
-  f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false; ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'hunter_bow' }));
-  f.raw(p).fatigue.energy = 100; const m = f.world.state.adventure.monsters[0]; m.position = { x: 14, y: 8 }; m.home_position = { ...m.position };
+  f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false; ok(f.act(p, 'inventory', { intent: 'equip', item_id: 'hunter_bow' }));
+  f.raw(p).fatigue.energy = 100; f.raw(p).scene_id = 'adventure'; const m = f.world.state.adventure.monsters[0]; m.position = { x: 14, y: 8 }; m.home_position = { ...m.position };
   ok(f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: m.monster_id })); f.advance(2000); assert.equal(m.hp, 18); assert.deepEqual(f.raw(p).position, { x: 13, y: 8 });
 });
 
@@ -310,7 +310,7 @@ test('重启保留冷却/装备/预算/目标截止；中断待选发现，旧�
     const auth = world.authenticate(c.token), joinWorld = () => world.callTool(auth, 'join_world'); let o = joinWorld();
     const act = (type, payload) => { o = world.callTool(auth, 'observe', { run_id: o.run_id, session_epoch: o.session_epoch }); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); };
     const goal = ok(act('personal_goal', { intent: 'set', kind: 'collect_item', target_id: 'wood', target_count: 3 })).personal_goal;
-    const raw = world.agent(a.agent_id); raw.position = { x: 4, y: 11 }; raw.adventure.discovery_sequence = 0; raw.adventure.next_attack_at = now + 15000;
+    const raw = world.agent(a.agent_id); raw.scene_id = 'adventure'; raw.position = { x: 4, y: 11 }; raw.adventure.discovery_sequence = 0; raw.adventure.next_attack_at = now + 15000;
     raw.life.inventory.hunter_bow = 1; raw.life.equipment.weapon = 'hunter_bow'; raw.diagnostics.calls_used = 7;
     ok(act('adventure_plan', { intent: 'explore', zone_id: 'forest' })); now += 1000; world.tick();
     const ready = raw.adventure.discovery_ready_at, eventId = raw.adventure.encounter.event_id, runId = raw.run.run_id, appearance = structuredClone(raw.appearance);

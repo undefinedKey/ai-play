@@ -4,10 +4,23 @@ const integer = Number.isSafeInteger;
 const point = value => value && integer(value.x) && integer(value.y);
 const clamp = (value, maximum) => Math.max(0, Math.min(maximum - 1, value));
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-export const MOVEMENT_GUIDANCE = 'move{x,y} 必须为整数：0≤x<movement.map.width、0≤y<movement.map.height，曼哈顿单步不超过 movement.max_step。movement.candidates 是合法落点示例，不限制其他合法细步。MOVE_ADJUSTED 表示原请求 requested 被截成本步 applied，只有服务确认 applied 才算执行，不能声称已到原目标。缺少可靠地图和步长时先观察规则，不猜尺寸。';
+export const MOVEMENT_GUIDANCE = 'move{x,y} 使用本场景整数局部坐标，最短合法路径不超过movement.max_step；candidates给合法落点与path（含起终点），障碍不能直穿，普通move不穿门。旧服无地形时才按边界/曼哈顿截步。MOVE_ADJUSTED只确认applied，不代表到达requested。未知几何先读规则。';
+export const SCENE_GUIDANCE = 'self.scene_id才是所在地，plaza广场/adventure冒险，同坐标不等于同地，in_field仅为战斗暴露。rules.scenes给各场景地图、入口和障碍。adventure_plan explore/hunt去冒险，rest/retreat或explore camp回广场；先走到门，再换场景，90秒总期限不续。plan.phase为to_portal走门/to_target走目标/resting休息，destination_scene_id是目的场景。stop停原地；生活/种田需plaza；nearby只同场景，跨场景交谈须显式group与group_id。';
+export const sceneLabel = id => id === 'plaza' ? '广场' : id === 'adventure' ? '冒险' : undefined;
+export const scenePromptText = (text, self) => self?.scene_id ? text.replaceAll('回营', '回广场').replaceAll('rest双恢复', 'rest回广场双恢复').replaceAll('explore到zone', 'explore走门到zone') : text;
+export const inAdventureScene = self => self?.scene_id ? self.scene_id === 'adventure' : !!self?.adventure?.in_field;
+export function sceneContext(observation = {}, rules = {}) {
+  const id = observation.self?.scene_id;
+  if (!id) return undefined;
+  const scenes = Array.isArray(rules.scenes) ? rules.scenes : Object.values(rules.scenes || {}), scene = scenes.find(s => s.id === id);
+  return { scene_id: id, ...(scene?.portal ? { portal: { position: scene.portal.position, to_scene_id: scene.portal.to_scene_id, to_position: scene.portal.to_position } } : {}) };
+}
 
 export function movementContext(observation = {}, rules = {}) {
-  const map = observation.movement?.map ?? observation.adventure?.map ?? rules.adventure?.map ?? rules.room;
+  const sceneId = observation.self?.scene_id ?? observation.movement?.scene_id;
+  if (observation.self?.scene_id && observation.movement?.scene_id && observation.self.scene_id !== observation.movement.scene_id) return null;
+  const scenes = Array.isArray(rules.scenes) ? rules.scenes : Object.values(rules.scenes || {});
+  const map = observation.movement?.map ?? scenes.find(s => s.id === sceneId)?.map ?? observation.adventure?.map ?? rules.adventure?.map ?? rules.room;
   const maxStep = observation.movement?.max_step ?? rules.max_move;
   const from = observation.self?.position;
   if (!map || !integer(map.width) || map.width < 1 || !integer(map.height) || map.height < 1 ||
@@ -17,14 +30,21 @@ export function movementContext(observation = {}, rules = {}) {
   for (const step of [1, maxStep]) for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
     generated.push({ x: clamp(from.x + dx * step, map.width), y: clamp(from.y + dy * step, map.height) });
   }
-  const source = Array.isArray(observation.movement?.candidates) ? observation.movement.candidates : generated;
+  const source = Array.isArray(observation.movement?.candidates) ? observation.movement.candidates : sceneId ? [] : generated;
   const candidates = [], seen = new Set();
   for (const p of source) {
     if (!legal(p) || p.x === from.x && p.y === from.y || seen.has(`${p.x}:${p.y}`)) continue;
-    seen.add(`${p.x}:${p.y}`); candidates.push({ x: p.x, y: p.y });
+    let path;
+    if (sceneId) {
+      path = p.path;
+      if (!Array.isArray(path) || path.length < 2 || path.length > maxStep + 1 || !path.every(point) ||
+          distance(path[0], from) || distance(path.at(-1), p) || path.some((q, i) => q.x < 0 || q.y < 0 || q.x >= map.width || q.y >= map.height || i > 0 && distance(q, path[i - 1]) !== 1)) continue;
+      path = path.map(q => ({ x: q.x, y: q.y }));
+    }
+    seen.add(`${p.x}:${p.y}`); candidates.push({ x: p.x, y: p.y, ...(path ? { path } : {}) });
     if (candidates.length === 8) break;
   }
-  return { map: { width: map.width, height: map.height }, max_step: maxStep, candidates };
+  return { ...(sceneId ? { scene_id: sceneId } : {}), map: { width: map.width, height: map.height }, max_step: maxStep, candidates };
 }
 
 /** Clamp only the chosen direction; never choose a new destination or turn it into wait. */
@@ -35,6 +55,7 @@ export function normalizeMove(action, observation = {}, rules = {}) {
   }
   const movement = movementContext(observation, rules);
   if (!movement) return { action, adjustment: null }; // Unknown geometry is not permission to guess.
+  if (movement.scene_id) return { action, adjustment: null }; // Only the authoritative server knows the full blocked grid.
   const from = observation.self.position, requested = { ...action.payload };
   const target = { x: clamp(requested.x, movement.map.width), y: clamp(requested.y, movement.map.height) };
   const dx = target.x - from.x, dy = target.y - from.y;
@@ -56,5 +77,5 @@ export function normalizeMove(action, observation = {}, rules = {}) {
 
 export function movementPromptContext(observation = {}, rules = {}) {
   const movement = movementContext(observation, rules);
-  return movement ? { ...movement, candidates: movement.candidates.map(p => [p.x, p.y]) } : undefined;
+  return movement ? { ...movement, candidates: movement.candidates.map(p => [p.x, p.y, ...(p.path ? [p.path.map(q => [q.x, q.y])] : [])]) } : undefined;
 }

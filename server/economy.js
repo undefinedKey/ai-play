@@ -2,7 +2,7 @@ import { progressPersonalGoal } from './personal-goals.js';
 // The ledger is private, bounded evidence of actual changes, not a public feed.
 export const LEDGER_LIMIT = 100;
 export const MARKET_RULES = {
-  place: { id: 'supply', name: '营地补给柜', x: 12, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
+  place: { id: 'supply', scene_id: 'plaza', name: '营地补给柜', x: 12, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
   max_quantity: 10, window_seconds: 300, buy_limit: 20, sell_limit: 30, stock_policy: 'per_agent_window',
   items: [
     { item_id: 'wood', buy_price: 4, sell_price: 1 }, { item_id: 'ore', buy_price: 6, sell_price: 2 },

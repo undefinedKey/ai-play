@@ -34,7 +34,7 @@ function fixture(t, options = {}) {
   };
   const battle = (p, value = 100) => {
     const a = raw(p), m = world.state.adventure.monsters[2];
-    a.position = { x: 19, y: 7 }; a.adventure.hp = a.adventure.max_hp = 1000; a.fatigue.energy = value;
+    a.scene_id = 'adventure'; a.scene_id = 'adventure'; a.position = { x: 19, y: 7 }; a.adventure.hp = a.adventure.max_hp = 1000; a.fatigue.energy = value;
     m.position = { x: 20, y: 7 }; m.hp = m.max_hp = 1000; m.attack = 0;
     assert.equal(act(p, 'adventure_plan', { intent: 'hunt', monster_id: m.monster_id }).status, 'applied');
     return m;
@@ -80,7 +80,7 @@ test('不足一次攻击时终止狩猎且不会自动重启；重新狩猎门�
   assert.equal(f.observe(p).opportunities.some(o => o.action.payload.intent === 'hunt'), false);
   assert.equal(f.act(p, 'move', { x: 18, y: 7 }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 0);
   assert.equal(f.act(p, 'adventure_plan', { intent: 'retreat' }).status, 'applied');
-  f.advance(10000); assert.deepEqual(f.raw(p).position, { x: 11, y: 8 }); assert.equal(f.raw(p).adventure.plan, null);
+  for(let i=0;i<90 && f.raw(p).adventure.plan;i++) f.advance(1000); assert.deepEqual(f.raw(p).position, { x: 11, y: 8 }); assert.equal(f.raw(p).adventure.plan, null);
   assert.ok(f.raw(p).fatigue.energy < 3, '撤退不会自动开始快速休息');
 });
 
@@ -179,12 +179,12 @@ test('真实步行按格扣体力，原地或非法移动不扣除，角色之�
 
 test('疲劳提醒只有恢复40后才重新触发，不会在阈值附近反复唤醒', t => {
   const f = fixture(t), p = f.make(); f.battle(p, 28); f.advance(1000);
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
   f.act(p, 'adventure_plan', { intent: 'rest' }); f.advance(3000);
   assert.ok(f.raw(p).fatigue.energy > 25 && f.raw(p).fatigue.energy < 40);
   f.act(p, 'adventure_plan', { intent: 'stop' }); f.battle(p, 28); f.advance(1000);
   assert.equal(f.world.state.events.filter(e => e.type === 'fatigue_tired').length, 1);
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
   f.act(p, 'adventure_plan', { intent: 'rest' }); f.advance(10000); assert.ok(f.raw(p).fatigue.energy >= 40);
   f.act(p, 'adventure_plan', { intent: 'stop' }); f.battle(p, 28); f.advance(1000);
   assert.equal(f.world.state.events.filter(e => e.type === 'fatigue_tired').length, 2);
@@ -192,7 +192,7 @@ test('疲劳提醒只有恢复40后才重新触发，不会在阈值附近反复
 
 test('离线暂停营地仅慢恢复，野外不恢复，暂停旧会话不准行动', t => {
   const f = fixture(t), p = f.make(), q = f.make('野外同伴');
-  f.raw(p).fatigue.energy = 10; f.raw(q).fatigue.energy = 10; f.raw(q).position = { x: 1, y: 1 };
+  f.raw(p).fatigue.energy = 10; f.raw(q).fatigue.energy = 10; f.raw(q).scene_id = 'adventure'; f.raw(q).position = { x: 1, y: 1 };
   f.act(p, 'adventure_plan', { intent: 'rest' });
   f.world.ownerControl(p.id, 'pause'); f.world.ownerControl(q.id, 'pause'); f.advance(10000, []);
   assert.equal(f.raw(p).fatigue.energy, 13); assert.equal(f.raw(q).fatigue.energy, 10);
@@ -218,10 +218,10 @@ test('持久化重启按已存时间只结算营地慢恢复，不重置体力�
 
 test('耗尽也能吃食物和换装，但食物不恢复体力或解除野外危险', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p); a.fatigue.energy = 0; a.life.inventory.turnip = 1;
-  a.position = { x: 1, y: 1 }; a.adventure.hp = 20; a.adventure.in_field = true; a.adventure.decision_until = f.now() + 30000;
+  a.scene_id = 'adventure'; a.position = { x: 1, y: 1 }; a.adventure.hp = 20; a.adventure.in_field = true; a.adventure.decision_until = f.now() + 30000;
   assert.equal(f.act(p, 'inventory', { intent: 'use', item_id: 'turnip' }).status, 'applied');
   assert.equal(a.fatigue.energy, 0); assert.equal(a.adventure.hp, 32); assert.equal(a.adventure.in_field, true); assert.equal(a.adventure.decision_until, f.now() + 30000);
-  a.position = { x: 11, y: 8 }; a.adventure.in_field = false; a.life.inventory.wooden_sword = 1;
+  a.scene_id = 'plaza'; a.position = { x: 11, y: 8 }; a.adventure.in_field = false; a.life.inventory.wooden_sword = 1;
   assert.equal(f.act(p, 'inventory', { intent: 'equip', item_id: 'wooden_sword' }).status, 'applied'); assert.equal(a.fatigue.energy, 0);
 });
 
@@ -252,7 +252,7 @@ test('攻击耗尽与体力同步持久化，重新连接不补满或重复扣�
 
 test('静止在野外失去心跳不会产生离线体力或生命恢复', t => {
   const f = fixture(t), p = f.make(); const a = f.raw(p);
-  a.position = { x: 1, y: 1 }; a.fatigue.energy = 20; a.adventure.hp = 20;
+  a.scene_id = 'adventure'; a.position = { x: 1, y: 1 }; a.fatigue.energy = 20; a.adventure.hp = 20;
   f.advance(65000, []);
   assert.equal(a.status, 'offline'); assert.equal(a.fatigue.energy, 20); assert.equal(a.adventure.hp, 20);
   assert.equal(a.adventure.plan, null);
@@ -267,7 +267,7 @@ test('真实HTTP MCP统一执行疲劳门槛，旁观公开体力与形象但不
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${controller.token}` } } }));
   const call = async (name, args = {}) => { const r = await client.callTool({ name, arguments: args }); return r.structuredContent || JSON.parse(r.content[0].text); };
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
-  const a = app.world.agent(created.agent_id); a.position = { x: 11, y: 8 }; a.fatigue.energy = 0;
+  const a = app.world.agent(created.agent_id); a.scene_id = 'plaza'; a.position = { x: 11, y: 8 }; a.fatigue.energy = 0;
   assert.equal((await call('get_rules')).fatigue.hunt_min_energy, 12);
   let next = joined.next_action_id;
   for (const [type, payload] of [['adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }], ['farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }]]) {

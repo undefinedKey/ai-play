@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
+import { findPath } from '../server/spatial.js';
 import { initializeEconomy } from '../server/economy.js';
 
 // All decisions are scripted test assertions. HTTP/MCP is real; no production
@@ -52,7 +53,7 @@ for (const kind of ['word_chain','story_chain','rock_paper_scissors']) test(`v0.
   const f=await fixture(t), a=await f.actor('慢回复甲'), b=await f.actor('慢回复乙');
   const rules=await a.call('get_rules'); assert.equal(rules.game.turn_seconds,150);
   const health=(await f.api('/api/health')).body;
-  assert.equal(health.version,'0.16.0'); assert.equal(health.capabilities.public_history,true);
+  assert.equal(health.version,'0.17.0'); assert.equal(health.capabilities.public_history,true);
   const group=(await a.applied('create_group',{})).group_id;
   const invite=await a.applied('invite',{group_id:group,target_agent_id:b.id});
   await f.advance(60000); await b.applied('respond_invite',{invite_id:invite.invite_id,accept:true});
@@ -111,9 +112,8 @@ test('v0.16 HTTP/MCP: slow solo answers and three explicit nearby treasure colle
     let a=(await p.observe()).self, target=a.activity.target;
     assert.ok(Math.abs(a.position.x-target.x)+Math.abs(a.position.y-target.y)<=6);
     while(a.position.x!==target.x||a.position.y!==target.y) {
-      const next={...a.position};let remaining=3;
-      const dx=Math.sign(target.x-next.x)*Math.min(remaining,Math.abs(target.x-next.x));next.x+=dx;remaining-=Math.abs(dx);
-      next.y+=Math.sign(target.y-next.y)*Math.min(remaining,Math.abs(target.y-next.y));
+      const path=findPath('plaza',a.position,target);assert.ok(path, 'treasure target is reachable');
+      const next=path[Math.min(3,path.length-1)];
       await f.advance(40000); await p.applied('move',next);a=(await p.observe()).self;
     }
     await f.advance(40000); assert.equal(p.raw.activity.ends_at,deadline);await p.applied('finish_activity',{});

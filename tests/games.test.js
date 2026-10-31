@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { spectatorSnapshot } from '../server/spectator.js';
 import { toolDefinitions } from '../server/mcp.js';
+import { findPath } from '../server/spatial.js';
 
 function fixture(t, count = 2) {
   let now = 1000000;
@@ -28,11 +29,12 @@ function fixture(t, count = 2) {
   };
   const go = (person, target) => {
     while (true) {
-      const pos = observe(person).self.position;
+      const self = observe(person).self, pos = self.position;
       if (pos.x === target.x && pos.y === target.y) break;
-      const dx = Math.sign(target.x - pos.x) * Math.min(3, Math.abs(target.x - pos.x));
-      const dy = Math.sign(target.y - pos.y) * Math.min(3 - Math.abs(dx), Math.abs(target.y - pos.y));
-      assert.equal(act(person, 'move', { x: pos.x + dx, y: pos.y + dy }).status, 'applied');
+      const path = findPath(self.scene_id, pos, target);
+      assert.ok(path.length > 1, '目标必须有当前场景内的可行道路');
+      const next = path[Math.min(3, path.length - 1)];
+      assert.equal(act(person, 'move', next).status, 'applied');
     }
   };
   const group = () => {

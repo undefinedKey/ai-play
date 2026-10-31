@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { World } from '../server/world.js';
 import { RIDDLES } from '../server/games.js';
+import { findPath } from '../server/spatial.js';
 import { toolDefinitions } from '../server/mcp.js';
 import { PlazaRunner, parseModelAction, enqueueEvents } from '../runner/runner.js';
 import { DshPetClient, decisionPrompt } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
@@ -97,9 +98,13 @@ test('寻宝沿真实目标多步走动/采集，不睡过空闲60秒且不能�
   const f = await fixture(t, data => {
     const { x, y } = data.self.position, target = data.task.target;
     if (x === target.x && y === target.y) return { type: 'finish_activity', payload: {} };
-    const dx = Math.sign(target.x - x) * Math.min(3, Math.abs(target.x - x));
-    const dy = Math.sign(target.y - y) * Math.min(3 - Math.abs(dx), Math.abs(target.y - y));
-    return { type: 'move', payload: { x: x + dx, y: y + dy } };
+    const path = findPath(data.self.scene_id, { x, y }, target);
+    assert.ok(path.length > 1, '真实寻宝目标必须能沿当前场景道路到达');
+    const steps = path.slice(0, 4);
+    for (let i = 1; i < steps.length; i++) {
+      assert.equal(Math.abs(steps[i].x - steps[i - 1].x) + Math.abs(steps[i].y - steps[i - 1].y), 1);
+    }
+    return { type: 'move', payload: steps.at(-1) };
   });
   f.a.position = { x: 11, y: 8 }; f.world.perform(f.a, 'start_activity', { activity_id: 'treasure_hunt' }); f.refresh();
   let steps = 0;

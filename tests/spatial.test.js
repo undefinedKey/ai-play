@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { World } from '../server/world.js';
-import { WORLD_MAP, MAX_MOVE, isPositionInBounds, movementOptions, stepToward } from '../server/spatial.js';
+import { WORLD_MAP, MAX_MOVE, isPositionInBounds, movementOptions, stepToward, isWalkable, findPath } from '../server/spatial.js';
 
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 function player(t) {
@@ -21,9 +21,10 @@ function player(t) {
 
 test('每个地图格的候选落点都在边界内、非原地、唯一且不超曼哈顿步长', () => {
   for (let x = 0; x < WORLD_MAP.width; x++) for (let y = 0; y < WORLD_MAP.height; y++) {
+    if (!isWalkable('plaza', {x,y})) continue;
     const origin = { x, y }, options = movementOptions(origin);
     assert.deepEqual(options.map, WORLD_MAP); assert.equal(options.max_step, MAX_MOVE);
-    assert.ok(options.candidates.length >= 2 && options.candidates.length <= 8);
+    assert.ok(options.candidates.length >= 1 && options.candidates.length <= 8);
     assert.equal(new Set(options.candidates.map(p => `${p.x},${p.y}`)).size, options.candidates.length);
     for (const point of options.candidates) {
       assert.ok(isPositionInBounds(point)); assert.ok(distance(origin, point) > 0 && distance(origin, point) <= MAX_MOVE);
@@ -50,7 +51,7 @@ test('实际观察给出可执行候选；规则、公开地图与观察使用�
     assert.deepEqual(observation.adventure.map, observation.movement.map);
     for (const point of observation.movement.candidates) {
       p.world.agent(p.id).position = { ...origin };
-      const result = p.act(point); assert.equal(result.status, 'applied'); assert.deepEqual(result.position, point);
+      const result = p.act(point); assert.equal(result.status, 'applied'); assert.deepEqual(result.position, {x:point.x,y:point.y}); assert.deepEqual(result.path,point.path); assert.deepEqual(result.path,findPath('plaza',origin,point));
     }
     observation.movement.map.width = 999; observation.adventure.map.width = 999;
     assert.equal(p.observe().movement.map.width, WORLD_MAP.width);

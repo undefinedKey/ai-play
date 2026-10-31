@@ -15,11 +15,13 @@ function fixture(t, options = {}) {
   const world = new World({ now: () => now, actionIntervalMs: 0, ...options });
   t.after(() => world.close());
   const people = [];
-  const make = (name = '原来的 AI', minutes = 15) => {
+  // Combat-focused fixtures start in adventure; v017-scenes tests traverse the real gateways.
+  const make = (name = '原来的 AI', minutes = 15, scene_id = 'adventure') => {
     const agent = world.createAgent({ name, bio: '保留原来的身份', owner_id: 'PRIVATE_OWNER' });
     const controller = world.createController(agent.agent_id);
     world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: minutes, goal: 'PRIVATE_GOAL' });
     const auth = world.authenticate(controller.token), o = world.callTool(auth, 'join_world');
+    world.agent(agent.agent_id).scene_id = scene_id;
     const p = { agent, controller, auth, session: { run_id: o.run_id, session_epoch: o.session_epoch } }; people.push(p); return p;
   };
   const observe = p => world.callTool(p.auth, 'observe', p.session);
@@ -106,7 +108,7 @@ test('低血量先停在原地等待新决策，主动继续挑战仍可战败�
   const a = f.fighter(p); assert.equal(a.adventure.last_result.kind, 'needs_decision'); assert.equal(a.adventure.hp, 8);
   assert.equal(a.adventure.plan, null); assert.notDeepEqual(a.position, { x: 11, y: 8 });
   const position = { ...a.position }; f.advance(10000); assert.equal(a.adventure.hp, 8); assert.deepEqual(a.position, position);
-  assert.equal(f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }).status, 'applied'); f.advance(1000);
+  assert.equal(f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }).status, 'applied'); f.advance(3000);
   assert.equal(a.adventure.last_result.kind, 'defeated'); assert.equal(a.adventure.hp, 10);
   assert.deepEqual(a.position, { x: 11, y: 8 }); assert.equal(a.adventure.plan, null);
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_danger').length, 1);
@@ -114,10 +116,11 @@ test('低血量先停在原地等待新决策，主动继续挑战仍可战败�
 });
 
 test('撤退和手动停止立即终止攻击，战斗不会因旧贡献继续发奖', t => {
-  const f = fixture(t), p = f.make(); f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(12000);
+  const f = fixture(t), p = f.make(); f.fighter(p).adventure.hp = f.fighter(p).adventure.max_hp = 100; f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(12000);
   const a = f.fighter(p), hp = a.adventure.hp;
-  f.plan(p, 'retreat'); f.advance(20000);
-  assert.equal(a.adventure.hp, hp); assert.deepEqual(a.position, { x: 11, y: 8 }); assert.equal(a.adventure.plan, null);
+  const attacks = f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length;
+  f.plan(p, 'retreat'); f.advance(30000);
+  assert.ok(a.adventure.hp <= hp); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length, attacks); assert.deepEqual(a.position, { x: 11, y: 8 }); assert.equal(a.adventure.plan, null);
   f.plan(p, 'explore', { zone_id: 'forest' }); f.advance(1000);
   f.plan(p, 'stop'); const pos = { ...a.position }; f.advance(10000); assert.deepEqual(a.position, pos);
 });
@@ -159,11 +162,11 @@ test('模拟不补算长时间卡顿，计划最迟90秒结束', t => {
 
 test('冒险与独处活动/多人游戏互斥，聊天和邀请仍可进行', t => {
   const f = fixture(t), p = f.make(); f.plan(p, 'explore', { zone_id: 'forest' });
-  assert.equal(f.act(p, 'start_activity', { activity_id: 'relax' }).error.code, 'ADVENTURE_BUSY');
+  assert.equal(f.act(p, 'start_activity', { activity_id: 'relax' }).error.code, 'SCENE_REQUIRED');
   assert.equal(f.act(p, 'say', { channel: 'nearby', text: '我要去森林，有同伴吗？' }).status, 'applied');
   const group = f.act(p, 'create_group').group_id;
-  assert.equal(f.act(p, 'propose_game', { group_id: group }).error.code, 'ADVENTURE_BUSY');
-  f.plan(p, 'retreat'); f.advance(10000);
+  assert.equal(f.act(p, 'propose_game', { group_id: group }).error.code, 'SCENE_REQUIRED');
+  f.plan(p, 'retreat'); f.advance(20000);
   f.act(p, 'propose_game', { group_id: group }); assert.equal(f.fighter(p).adventure.plan, null);
   assert.equal(f.plan(p, 'hunt', { monster_id: 'forest_slime' }).error.code, 'GAME_BUSY');
 });
@@ -221,6 +224,7 @@ test('切计划或离组会清除贡献；临时协力者只领取一次剩余�
 
 test('奖励与计划结束立即持久化，移动可批量保存且不会使死亡目标重复结算', t => {
   const f = fixture(t), p = f.make();
+  f.fighter(p).position = {x:11,y:8};
   const persisted = () => JSON.parse(f.world.db.prepare('SELECT payload FROM world_state WHERE id=1').get().payload);
   f.plan(p, 'hunt', { monster_id: 'forest_slime' });
   const before = persisted().agents[p.agent.agent_id].position;
@@ -230,7 +234,7 @@ test('奖励与计划结束立即持久化，移动可批量保存且不会使�
   const saved = persisted(); assert.equal(saved.agents[p.agent.agent_id].adventure.gold, 6); assert.equal(saved.agents[p.agent.agent_id].adventure.plan, null);
   assert.equal(saved.adventure.monsters[0].status, 'respawning'); assert.equal(saved.adventure.monsters[0].hp, 0);
   assert.equal(saved.events.filter(e => e.type === 'adventure_loot').length, 1);
-  f.plan(p, 'explore', { zone_id: 'camp' }); f.advance(20000);
+  f.plan(p, 'explore', { zone_id: 'camp' }); f.advance(30000);
   assert.equal(persisted().agents[p.agent.agent_id].adventure.last_result.kind, 'completed');
 });
 
@@ -367,11 +371,12 @@ test('营地边界安全，返回营地立即退出野外，营地内不能远�
 test('野外停止计划后也不能用旧小游戏或独处活动规避风险，聊天邀请仍可用', t => {
   const f = fixture(t), a = f.make('甲'), b = f.make('乙'); const group = f.act(a, 'create_group').group_id;
   const invite = f.act(a, 'invite', { group_id: group, target_agent_id: b.agent.agent_id }); f.act(b, 'respond_invite', { invite_id: invite.invite_id, accept: true });
+  f.fighter(b).scene_id = 'plaza';
   const game = f.act(b, 'propose_game', { group_id: group }).game_id;
   f.plan(a, 'explore', { zone_id: 'forest' }); f.plan(a, 'stop');
   assert.equal(f.fighter(a).adventure.in_field, true);
-  assert.equal(f.act(a, 'start_activity', { activity_id: 'relax' }).error.code, 'ADVENTURE_BUSY');
-  assert.equal(f.act(a, 'respond_game', { game_id: game, accept: true }).error.code, 'ADVENTURE_BUSY');
+  assert.equal(f.act(a, 'start_activity', { activity_id: 'relax' }).error.code, 'SCENE_REQUIRED');
+  assert.equal(f.act(a, 'respond_game', { game_id: game, accept: true }).error.code, 'SCENE_REQUIRED');
   assert.equal(f.act(a, 'say', { channel: 'group', group_id: group, text: '我在野外，需要同伴' }).status, 'applied');
   f.act(a, 'leave_group', { group_id: group }); assert.equal(f.fighter(a).adventure.in_field, true);
 });
@@ -470,7 +475,7 @@ test('房间暂停冻结巡逻，恢复或长时间卡顿后不补算多步', t 
 test('巡逻中的怪物每秒先感知新目标，无需等下一次巡逻步且不替AI反击', t => {
   const f = fixture(t), m = f.world.state.adventure.monsters[2]; f.advance(2000, []);
   assert.equal(m.behavior, 'patrolling'); const before = { ...m.position };
-  const p = f.make(); f.fighter(p).position = { x: 23, y: 7 }; f.plan(p, 'explore', { zone_id: 'ruins' });
+  const p = f.make(); f.fighter(p).position = { x: before.x, y: before.y + 1 }; f.plan(p, 'explore', { zone_id: 'ruins' }); f.plan(p, 'stop');
   f.advance(1000);
   assert.equal(m.target_agent_id, p.agent.agent_id); assert.equal(m.behavior, 'attacking'); assert.deepEqual(m.position, before);
   assert.equal(f.fighter(p).adventure.hp, 32); assert.equal(m.hp, m.max_hp);

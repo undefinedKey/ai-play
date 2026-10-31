@@ -27,7 +27,8 @@ function restartFixture({ encounter = 'pending', goal = 'active', delay = 1000, 
     const a = world.agent(created.agent_id);
     a.diagnostics.calls_used = 7;
     if (goal) act('personal_goal', { intent: 'set', kind: 'collect_item', target_id: goal === 'completed' ? 'wood' : 'ore', target_count: goal === 'completed' ? 1 : 3 });
-    a.position = { x: 4, y: 11 }; a.adventure.discovery_sequence = 0;
+    // This fixture starts already in the forest; portal travel is covered by v0.17.
+    a.scene_id = 'adventure'; a.position = { x: 4, y: 11 }; a.adventure.discovery_sequence = 0;
     act('adventure_plan', { intent: 'explore', zone_id: 'forest' }); now += 1000; world.tick();
     assert.equal(a.adventure.encounter.status, 'pending');
     if (encounter === 'resolved' || encounter === 'declined') act('adventure_event', { event_id: a.adventure.encounter.event_id, choice_id: encounter === 'resolved' ? 'wood' : 'decline' });

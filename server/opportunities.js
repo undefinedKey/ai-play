@@ -16,7 +16,7 @@ function ordinaryOpportunities(world, a) {
   const life = publicLife(a, world.now(), { privateInventory: true, includeLedger: false });
   const inventory = life.inventory || {};
   const held = id => inventory[id] || 0;
-  const atCamp = distance(a.position, ADVENTURE_ZONES[0]) <= ADVENTURE_ZONES[0].radius;
+  const atCamp = a.scene_id === 'plaza' && distance(a.position, ADVENTURE_ZONES[0]) <= ADVENTURE_ZONES[0].radius;
   if (f.hp < f.max_hp || energy < 100) {
     const food = LIFE_RULES.items.find(item => item.kind === 'food' && held(item.id) && (item.heal > 0 && f.hp < f.max_hp || item.energy_restore > 0 && energy < 100));
     if (food) add('eat', `吃${food.name}`, food.energy_restore ? `体力${energy}/100，恢复最多${food.energy_restore}点；野外危险仍在` : `生命${f.hp}/${f.max_hp}，恢复最多${food.heal}点；野外危险仍在`, 'inventory', { intent: 'use', item_id: food.id });

@@ -1,3 +1,4 @@
+import { sameScene } from './spatial.js';
 import { randomUUID } from 'node:crypto';
 import { LIFE_RULES, adjustInventory, campAvailable } from './life.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
@@ -29,7 +30,7 @@ const member = (p, id) => members(p).find(m => m.agent_id === id);
 const records = world => Object.values(world.state.cooperations || {});
 const current = (world, id) => records(world).find(p => ongoing(p) && member(p, id));
 const time = value => Number.isSafeInteger(value) && value >= 0;
-const inCamp = a => a?.position && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
+const inCamp = a => a?.scene_id === 'plaza' && a?.position && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
 const online = (world, a) => a?.status === 'active' && a.run?.status === 'active' && a.run.expires_at > world.now()
   && !!world.state.controllers[a.run.controller_id] && !world.state.controllers[a.run.controller_id].revoked && world.state.room.status === 'active';
 const binding = a => ({ run_id: a.run.run_id, session_epoch: a.session_epoch });
@@ -146,10 +147,10 @@ export function progressCooperation(world, a, { kind, zone_id, source_id, found_
   const p = current(world, a.agent_id);
   if (!p || p.template_id !== 'scout_and_guard' || !ready(world, p) || typeof source_id !== 'string' || p.sources.includes(source_id)) return false;
   const m = member(p, a.agent_id), scout = p.progress[0];
-  if (kind === 'exploration' && m.role_id === 'scout' && zone_id === 'forest' && found_at > p.started_at && scout.progress === 0) {
+  if (a.scene_id === 'adventure' && kind === 'exploration' && m.role_id === 'scout' && zone_id === 'forest' && found_at > p.started_at && scout.progress === 0) {
     p.sources.push(source_id); progress(p, 'scout', at); announce(world, p, 'cooperation_progress'); return true;
   }
-  if (kind === 'monster' && m.role_id === 'guard' && zone_id === 'forest' && scout.progress === 1 && at > scout.completed_at && p.progress[1].progress === 0) {
+  if (a.scene_id === 'adventure' && kind === 'monster' && m.role_id === 'guard' && zone_id === 'forest' && scout.progress === 1 && at > scout.completed_at && p.progress[1].progress === 0) {
     p.sources.push(source_id); progress(p, 'guard', at); complete(world, p, { text: '侦察员先处理森林发现，护卫随后实际击败森林怪物，共同完成林地巡查。战利品仅归原有有效参战者。' }); return true;
   }
   return false;
@@ -166,7 +167,7 @@ export function performCooperation(world, a, p, fail, actionId) {
   if (p.intent === 'propose') {
     const t = template(p.template_id), target = world.state.agents[p.target_agent_id], duration = p.duration_seconds ?? COOPERATION_RULES.default_duration_seconds;
     if (!t || !t.roles.some(r => r.role_id === p.role_id) || !Number.isInteger(duration) || duration < 300 || duration > 1800) fail('INVALID_ACTION', '合作模板、分工或期限无效');
-    if (typeof p.target_agent_id !== 'string' || !target || target === a || !online(world, target) || Math.abs(target.position.x - a.position.x) + Math.abs(target.position.y - a.position.y) > 6) fail('COOPERATION_TARGET', '只能邀请六格内已获准活动的其他角色');
+    if (typeof p.target_agent_id !== 'string' || !target || target === a || !online(world, target) || !sameScene(a, target) || Math.abs(target.position.x - a.position.x) + Math.abs(target.position.y - a.position.y) > 6) fail('COOPERATION_TARGET', '只能邀请六格内已获准活动的其他角色');
     if (current(world, a.agent_id) || current(world, target.agent_id)) fail('COOPERATION_BUSY', '本人或对方已有进行中的约定');
     if (time(a.cooperation_proposed_at) && world.now() - a.cooperation_proposed_at < 60000) fail('COOPERATION_COOLDOWN', '每次发起合作至少间隔60秒');
     if (records(world).filter(p => ongoing(p)).length >= 5 || records(world).filter(p => p.status === 'proposed' && p.target_agent_id === target.agent_id).length >= 2) fail('COOPERATION_LIMIT', '当前待处理合作已达上限');
@@ -276,7 +277,7 @@ export function cooperationOpportunities(world, a) {
   }
   if ((!time(a.cooperation_proposed_at) || world.now() - a.cooperation_proposed_at >= 60000) && records(world).filter(ongoing).length < 5) {
     const target = Object.values(world.state.agents).find(b => b !== a && online(world, b) && !current(world, b.agent_id) &&
-      Math.abs(b.position.x - a.position.x) + Math.abs(b.position.y - a.position.y) <= 6 && records(world).filter(p => p.status === 'proposed' && p.target_agent_id === b.agent_id).length < 2);
+      sameScene(a, b) && Math.abs(b.position.x - a.position.x) + Math.abs(b.position.y - a.position.y) <= 6 && records(world).filter(p => p.status === 'proposed' && p.target_agent_id === b.agent_id).length < 2);
     if (target) add('propose', `邀请${target.name}共同备餐`, '自己承担供菜职责；对方可拒绝或等待，未接受不扣物资', { intent: 'propose', template_id: 'camp_meal', target_agent_id: target.agent_id, role_id: 'supplier' });
   }
   return options;

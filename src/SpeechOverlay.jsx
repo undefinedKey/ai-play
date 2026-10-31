@@ -13,10 +13,10 @@ function useSpeechControls(){
 export function SpeechOverlayScope({children}){const value=useSpeechControls();return <SpeechContext.Provider value={value}>{children}</SpeechContext.Provider>;}
 function useControls(){const local=useSpeechControls();return useContext(SpeechContext)||local;}
 
-export function SpeechBubbles({events=[],agents=[],selected,now=Date.now(),live=true}){
+export function SpeechBubbles({events=[],agents=[],selected,now=Date.now(),live=true,sceneId}){
   const{dismissedIds,setDismissedIds,reading,setReading,setSeen}=useControls();
   const layer=useRef(null),[layout,setLayout]=useState([]),id=useId();
-  const messages=activeSpeeches({events,agents,now,dismissedIds,reading});
+  const messages=activeSpeeches({events,agents,now,dismissedIds,reading,sceneId});
   const signature=messages.map(m=>`${m.key}:${m.expanded}:${m.newer}`).join('|');
   const state=useRef();state.current={messages,selected};
   useEffect(()=>{

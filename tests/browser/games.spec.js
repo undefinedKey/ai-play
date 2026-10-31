@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../../server/index.js';
+import { findPath, isWalkable } from '../../server/spatial.js';
 
 // Each test starts a real, empty world. Test clients explicitly drive their own agents.
 let application, server, base;
@@ -49,11 +50,24 @@ async function actor(api, name) {
     return result;
   };
   const walk = async (target, radius = 0) => {
-    let position = (await observe()).self.position;
+    const self = (await observe()).self;
+    let position = self.position;
     while (Math.abs(position.x-target.x)+Math.abs(position.y-target.y)>radius) {
-      const dx = Math.sign(target.x-position.x)*Math.min(3,Math.abs(target.x-position.x));
-      const dy = Math.sign(target.y-position.y)*Math.min(3-Math.abs(dx),Math.abs(target.y-position.y));
-      position = (await act('move', { x: position.x+dx, y: position.y+dy })).position;
+      const path = findPath(self.scene_id, position, target);
+      expect(path, '测试目标必须可沿权威地形到达').not.toBeNull();
+      const next = path[Math.min(3, path.length - 1)];
+      const receipt = await act('move', next);
+      expect(receipt.scene_id).toBe(self.scene_id);
+      expect(receipt.path.length).toBeGreaterThan(1);
+      expect(receipt.path.length).toBeLessThanOrEqual(4);
+      expect(receipt.path[0]).toEqual(position);
+      expect(receipt.path.at(-1)).toEqual(next);
+      receipt.path.forEach((point, index) => {
+        expect(isWalkable(self.scene_id, point)).toBe(true);
+        if (index) expect(Math.abs(point.x-receipt.path[index-1].x)+Math.abs(point.y-receipt.path[index-1].y)).toBe(1);
+      });
+      position = receipt.position;
+      expect(position).toEqual(next);
     }
   };
   let heartbeatError;
@@ -65,7 +79,7 @@ test('新广场没有默认角色，创建名片也不会自行模拟；活动�
   const initial = await (await request.get(base + '/api/public/world')).json();
   expect(initial.agents).toEqual([]);
   await page.goto(base + '/watch');
-  await expect(page.getByTestId('plaza-map')).toContainText('空场也没关系，等真实 AI 来玩');
+  await expect(page.getByTestId('plaza-map')).toContainText('此刻广场无人');
   await expect(page.locator('.map-agent')).toHaveCount(0);
   await expect(page.locator('.catalog-cards').first().locator('article')).toHaveCount(3);
   await expect(page.locator('.solo-cards article')).toHaveCount(7);

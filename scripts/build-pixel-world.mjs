@@ -3,6 +3,8 @@
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { sceneGround, sceneProp } from '../art/pixel-world/scenes.mjs';
+import { SCENES } from '../shared/world-layout.js';
 const ROOT = resolve(import.meta.dirname, '..');
 const TOOL = resolve(process.env.PIXELBOLT_ROOT || join(ROOT, 'data/tools/Pixelbolt'));
 const PIN = 'ce12f75cc524e63e90d4bd183aecc3a46a6b44ee';
@@ -326,7 +328,7 @@ function recipe(name,frames,w=48,h=48){
  });
  return {version:1,name,width:w,height:h,palette,frames:sourceFrames,animations,sheet:{columns:Math.min(8,frames.length),padding:0}};
 }
-const manifest={version:1,release:'0.14.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:9.1,y:9.3}}};
+const manifest={version:1,release:'0.17.0',tool:{name:'Pixelbolt',version:'0.10.0',commit:PIN},tile_size:32,map:{width:24,height:16},scene:{image:'/pixel-world/scene.png',width:768,height:512},scenes:{plaza:{image:'/pixel-world/scene_plaza.png',width:768,height:512},adventure:{image:'/pixel-world/scene_adventure.png',width:768,height:512}},props:{},farm_scene:{image:'/pixel-world/farm_scene.png',width:640,height:400},characters:{},monsters:{},crops:{},equipment:{},accessories:{},tools:{},tool_icons:{},items:{},landmarks:{},discoveries:{},effects:{},placements:{campfire:{x:11,y:8}}};
 function cli(args){return JSON.parse(execFileSync(process.execPath,[CLI,...args],{encoding:'utf8',maxBuffer:16*1024*1024}));}
 function exportRecipe(r,group,id=r.name){
  const path=join(SOURCE,`${r.name}.pixel.json`);
@@ -368,7 +370,13 @@ for(const id of ['hoe','watering_can'])for(const level of [1,2,3]){
  exportRecipe(recipe(`${id}_${level}`,poses.map(p=>({...p,g:toolOverlay(id,level,p.action,p.frame)}))),'tools');
  exportRecipe(recipe(`${id}_${level}_icon`,[{name:'idle',action:'idle',duration:1000,g:toolIcon(id,level)}],32,32),'tool_icons');
 }
-exportRecipe(recipe('scene',[{name:'world',action:'idle',g:scene()}],768,512),null,'scene');
+exportRecipe(recipe('scene',[{name:'world',action:'idle',g:sceneGround(Grid,'plaza')}],768,512),null,'scene');
+for(const scene of SCENES)exportRecipe(recipe(`scene_${scene.id}`,[{name:'world',action:'idle',g:sceneGround(Grid,scene.id)}],768,512),null);
+for(const kind of new Set(SCENES.flatMap(scene=>scene.props.map(prop=>prop.kind)).filter(kind=>kind!=='pond'))){
+ const source=recipe(`prop_${kind}`,[{name:'idle',action:'idle',g:sceneProp(Grid,kind)}],128,128);source.frames[0].anchor=[64,120];
+ exportRecipe(source,'props',kind);
+ if(manifest.props[kind])manifest.props[kind].anchor={x:64,y:120};
+}
 exportRecipe(recipe('farm_scene',[{name:'farm',action:'idle',g:farmScene()}],640,400),null,'farm_scene');
 if(!only||only==='campfire'){
  const source=JSON.parse(readFileSync(join(TOOL,'examples/campfire.fluid.json'),'utf8'));source.name='campfire';writeFileSync(join(SOURCE,'campfire.fluid.json'),JSON.stringify(source,null,2)+'\n');

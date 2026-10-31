@@ -162,10 +162,16 @@ test('真实CLI启动时世界503仍保持恢复循环，服务恢复后原授�
   const exited = new Promise(done => child.once('exit', done));
   t.after(async () => { child.kill('SIGKILL'); await exited; });
   const until = async check => { const deadline = Date.now() + 8000; while (!check()) { assert.equal(child.exitCode, null, stderr); assert.ok(Date.now() < deadline, stdout + stderr); await new Promise(done => setTimeout(done, 25)); } };
-  await until(() => stdout.includes('已启动')); assert.equal(posts, 0);
-  available = true; await until(() => joined && posts > 0);
-  assert.equal(child.exitCode, null); assert.equal(JSON.parse(readFileSync(cpPath)).run_id, observation.run_id);
-  assert.ok(JSON.parse(readFileSync(cpPath)).calls_used >= 7);
+  try {
+    await until(() => stdout.includes('已启动')); assert.equal(posts, 0);
+    available = true; await until(() => joined && posts > 0);
+    assert.equal(child.exitCode, null); assert.equal(JSON.parse(readFileSync(cpPath)).run_id, observation.run_id);
+    assert.ok(JSON.parse(readFileSync(cpPath)).calls_used >= 7);
+  } finally {
+    // The temporary directory's after-hook was registered first. Reap the
+    // running writer before it can delete a Windows-open checkpoint directory.
+    child.kill('SIGKILL'); await exited;
+  }
 });
 
 test('单独复制Skill目录可import共享runtime并运行pets，无node_modules依赖', async t => {

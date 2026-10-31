@@ -1,0 +1,61 @@
+{
+  "frames": {
+    "world": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 768,
+        "h": 512
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 768,
+        "h": 512
+      },
+      "sourceSize": {
+        "w": 768,
+        "h": 512
+      },
+      "duration": 200,
+      "pivot": {
+        "x": 0.5,
+        "y": 1
+      },
+      "anchor": {
+        "x": 384,
+        "y": 512
+      }
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [
+        "world"
+      ],
+      "loop": true,
+      "duration": 200
+    }
+  },
+  "meta": {
+    "app": "Pixelbolt",
+    "version": "1",
+    "image": "scene_adventure.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 768,
+      "h": 512
+    },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "idle",
+        "from": 0,
+        "to": 0,
+        "direction": "forward"
+      }
+    ]
+  }
+}

@@ -33,17 +33,17 @@ export function publicSpeechHistory({events=[],agents=[],selected,filter='all',n
   const chosen=agents.find(a=>a.agent_id===selected);
   return events.filter(event=>['message','say','chat'].includes(event?.type)&&['nearby','group'].includes(event.payload?.channel)&&typeof event.payload?.text==='string'&&event.payload.text.trim()&&Number.isFinite(at(event.occurred_at))&&at(event.occurred_at)<=now)
     .filter(event=>filter==='selected'?event.payload.agent_id===selected:filter==='group'?chosen?.group_id&&event.payload.channel==='group'&&event.payload.group_id===chosen.group_id:true)
-    .map(event=>({key:speechEventKey(event),eventId:event.event_id,agentId:event.payload.agent_id,groupId:event.payload.group_id,name:agents.find(a=>a.agent_id===event.payload.agent_id)?.name||'历史角色',channel:event.payload.channel,text:event.payload.text,occurredAt:at(event.occurred_at)})).reverse().sort((a,b)=>b.occurredAt-a.occurredAt).slice(0,70);
+    .map(event=>({key:speechEventKey(event),eventId:event.event_id,agentId:event.payload.agent_id,sceneId:event.payload.scene_id??event.scene_id,groupId:event.payload.group_id,name:agents.find(a=>a.agent_id===event.payload.agent_id)?.name||'历史角色',channel:event.payload.channel,text:event.payload.text,occurredAt:at(event.occurred_at)})).reverse().sort((a,b)=>b.occurredAt-a.occurredAt).slice(0,70);
 }
 
 /** Newest receipt per active actor; reading history never enters this selector. */
-export function activeSpeeches({events=[],agents=[],now=Date.now(),dismissedIds=new Set(),reading={}}) {
+export function activeSpeeches({events=[],agents=[],now=Date.now(),dismissedIds=new Set(),reading={},sceneId}) {
   const active=new Map(agents.filter(a=>(a.presence?.state||a.status)==='active').map(a=>[a.agent_id,a]));
   const latest=new Map();
-  for(const message of publicSpeechHistory({events,agents,now}))if(active.has(message.agentId)&&!latest.has(message.agentId))latest.set(message.agentId,message);
+  for(const message of publicSpeechHistory({events,agents,now}))if(active.has(message.agentId)&&(!sceneId||(message.sceneId===sceneId&&active.get(message.agentId).scene_id===sceneId))&&!latest.has(message.agentId))latest.set(message.agentId,message);
   return [...latest.values()].flatMap(message=>{
     const held=reading[message.agentId];
-    if(held&&!dismissedIds.has(held.key))return [{...held,name:active.get(message.agentId).name,expanded:true,newer:held.key!==message.key}];
+    if(held&&(!sceneId||held.sceneId===sceneId)&&!dismissedIds.has(held.key))return [{...held,name:active.get(message.agentId).name,expanded:true,newer:held.key!==message.key}];
     return now-message.occurredAt<SPEECH_LIFETIME_MS&&!dismissedIds.has(message.key)?[message]:[];
   });
 }

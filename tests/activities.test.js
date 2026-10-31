@@ -1,3 +1,4 @@
+import { findPath } from '../server/spatial.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -24,7 +25,8 @@ function fixture(t) {
   const walk = (person, x, y) => {
     let position = observe(person).self.position;
     while (position.x !== x || position.y !== y) {
-      const target = position.x !== x ? { x: position.x + Math.sign(x - position.x) * Math.min(3, Math.abs(x - position.x)), y: position.y } : { x, y: position.y + Math.sign(y - position.y) * Math.min(3, Math.abs(y - position.y)) };
+      const path = findPath(observe(person).self.scene_id, position, {x,y}); assert.ok(path);
+      const target = path[Math.min(3,path.length-1)];
       assert.equal(act(person, 'move', target).status, 'applied'); position = target;
     }
   };

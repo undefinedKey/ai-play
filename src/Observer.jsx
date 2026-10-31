@@ -1,4 +1,4 @@
-import React,{createContext,useContext} from 'react';
+import React,{createContext,useContext,useEffect,useRef,useState} from 'react';
 import {CharacterSprite} from './PixelWorld.jsx';
 import {presenceState,presenceLabel,publicName,recordTime} from './observer-state.js';
 import {mapDimensions,projectMapPoint} from './map-projection.js';
@@ -6,15 +6,18 @@ import {gatheringState} from './life-state.js';
 import {encounterState,goalState} from './journey-state.js';
 import {cooperationSummary} from './cooperation-state.js';
 import {SpeechBubbles} from './SpeechOverlay.jsx';
+import {sceneName} from './scene-state.js';
 
 export const CameraContext=createContext(null);
 export function MapCamera({children,speech}){
+  const frame=useRef(null),[scale,setScale]=useState(1);
+  useEffect(()=>{const observer=new ResizeObserver(entries=>setScale(entries[0].contentRect.width/768));if(frame.current)observer.observe(frame.current);return()=>observer.disconnect();},[]);
   const camera=useContext(CameraContext);
   const point=camera?.point;
   const position=point?projectMapPoint(point,mapDimensions(camera.map)):null;
   const x=position?Math.max(25,Math.min(75,parseFloat(position.left))):50;
   const y=position?Math.max(25,Math.min(75,parseFloat(position.top))):50;
-  return <div className={`world-camera ${point?'focused':''}`} data-testid="world-camera" data-camera-mode={camera?.mode||'overview'}><div className="world-camera-layer" style={point?{transformOrigin:`${x}% ${y}%`,transform:`translate(${50-x}%,${50-y}%) scale(2)`}:undefined}>{children}</div>{speech&&<SpeechBubbles {...speech}/>}</div>;
+  return <div ref={frame} className={`world-camera ${point?'focused':''}`} data-testid="world-camera" data-camera-mode={camera?.mode||'overview'} style={{'--world-scale':scale}}><div className="world-camera-layer" style={point?{transformOrigin:`${x}% ${y}%`,transform:`translate(${50-x}%,${50-y}%) scale(2)`}:undefined}>{children}</div>{speech&&<SpeechBubbles {...speech}/>}</div>;
 }
 
 export function ObserverStatus({world,agent,live,now}){
@@ -28,7 +31,7 @@ export function ObserverStatus({world,agent,live,now}){
   const cooperation=cooperationSummary(world,agent?.agent_id,live?now:world.server_time||now);
   const intent=discovery?.pending?`${discovery.title} · ${discovery.label}`:gathering?(gathering.awaiting?'采集计时结束，等待确认':`正在采集${gathering.name} · ${gathering.seconds} 秒`):{explore:'正在探索',hunt:'正在讨伐',rest:'在营地休息',retreat:'返回营地'}[plan?.intent];
   return <section className="observer-status" data-testid="observer-status" aria-label="当前观察状态">
-    {agent?<><span className="observer-avatar" aria-hidden="true"><CharacterSprite agent={agent} portrait/></span><div><strong>{publicName(agent,world.agents)}</strong><span>{!live?'最近记录 · ':''}{presenceLabel(agent)}{agent.status!=='offline'&&agent.position?` · (${agent.position.x}, ${agent.position.y})`:''}</span><span>{intent||activity||(agent.status==='active'?'当前没有执行计划，下一步由 AI 决定。':presenceState(agent)==='paused'?'活动已暂停，不会继续执行计划。':`最近在场：${recordTime(agent.presence?.last_seen_at,now)}`)}</span>{cooperation&&<span className="observer-cooperation-line" data-testid="cooperation-summary">合作 · {cooperation.text}</span>}{goal&&<span className="observer-goal-line">公开目标 · {goal.label} · {goal.progress}/{goal.target}</span>}</div><div className="observer-vitals">{agent.adventure&&<span>生命 <b>{agent.adventure.hp}/{agent.adventure.max_hp}</b></span>}{agent.fatigue&&<span>体力 <b>{Math.round(agent.fatigue.energy)}/{agent.fatigue.max_energy||100}</b></span>}</div></>:<div><strong>世界概况 · {active} 位活动中{paused?`，${paused} 位暂停`:''}</strong><span>{active?'选择一位角色，查看它当前的活动。':'此刻没有 AI 活动。历史记录保留，等待原 AI 再次连接。'}</span>{latest&&<span>最近公开记录：{recordTime(latest.occurred_at,now)}</span>}</div>}
+    {agent?<><span className="observer-avatar" aria-hidden="true"><CharacterSprite agent={agent} portrait/></span><div><strong>{publicName(agent,world.agents)}</strong><span>{!live?'最近记录 · ':''}{presenceLabel(agent)} · {sceneName(agent.scene_id)}{agent.status!=='offline'&&agent.position?` · (${agent.position.x}, ${agent.position.y})`:''}</span><span>{intent||activity||(agent.status==='active'?'当前没有执行计划，下一步由 AI 决定。':presenceState(agent)==='paused'?'活动已暂停，不会继续执行计划。':`最近在场：${recordTime(agent.presence?.last_seen_at,now)}`)}</span>{cooperation&&<span className="observer-cooperation-line" data-testid="cooperation-summary">合作 · {cooperation.text}</span>}{goal&&<span className="observer-goal-line">公开目标 · {goal.label} · {goal.progress}/{goal.target}</span>}</div><div className="observer-vitals">{agent.adventure&&<span>生命 <b>{agent.adventure.hp}/{agent.adventure.max_hp}</b></span>}{agent.fatigue&&<span>体力 <b>{Math.round(agent.fatigue.energy)}/{agent.fatigue.max_energy||100}</b></span>}</div></>:<div><strong>世界概况 · {active} 位活动中{paused?`，${paused} 位暂停`:''}</strong><span>{active?'选择一位角色，查看它当前的活动。':'此刻没有 AI 活动。历史记录保留，等待原 AI 再次连接。'}</span>{latest&&<span>最近公开记录：{recordTime(latest.occurred_at,now)}</span>}</div>}
   </section>;
 }
 

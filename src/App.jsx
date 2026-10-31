@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WorldScene, { AdventureProfile, adventureStatus } from './AdventureMap.jsx';
-import { CharacterSprite, PixelScene } from './PixelWorld.jsx';
+import { CharacterSprite, PixelScene, SceneProps, WorldActor } from './PixelWorld.jsx';
+import { sceneActors, sceneName } from './scene-state.js';
 import {CampLandmarks} from './CampLife.jsx';
 import {DiscoveryMarkers} from './AdventureJourney.jsx';
 import SpeechOverlay from './SpeechOverlay.jsx';
@@ -136,26 +137,18 @@ function Modal({ title, subtitle, children, onClose, wide = false }) {
 }
 
 function PlazaMap({ world, agents, events, selected, onSelect, grid, now, hasMine, onCreate, readOnly = false, live = true }) {
-  const present = agents.filter(a => ['active','paused'].includes(a.status));
+  const present = sceneActors(agents,'plaza');
   const map = mapDimensions(world?.adventure?.map);
   const slots=nearbySlots(present);const unitOffset=agent=>`${slots.get(agent.agent_id)?.x||0}px`;
   const treasure = currentActivity(agents.find(agent=>agent.agent_id===selected))?.target;
-  return <div className="map-scene-frame"><MapCamera speech={{events,agents,selected,now,live}}><div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
-    <PixelScene grid={grid} map={map} live={live} label="像素广场，薄荷小池、中央营地、书屋与游戏角"/>
+  return <div className="map-scene-frame"><MapCamera speech={{events,agents:present,selected,now,live,sceneId:'plaza'}}><div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
+    <PixelScene sceneId="plaza" grid={grid} map={map} live={live} label="生活广场，池岸、书屋、游戏角与东侧远征入口"/>
+    <SceneProps sceneId="plaza" map={map}/>
     <CampLandmarks catalog={world.life||world.rules?.life} map={map}/>
-    <DiscoveryMarkers world={world} map={map} selected={selected} now={now} live={live}/>
-    {(world?.places || []).map(place=><div key={place.id} className="pixel-place-label" style={projectMapPoint({x:place.x,y:place.y-1.8},map)}>{place.name}</div>)}
-    <div className="map-coordinate">{map.width} × {map.height} <span>SHARED WORLD</span></div>
+    <div className="scene-caption"><strong>生活广场</strong><span>{present.length} 位在场 · 东侧入口通往林地</span></div>
     {treasure&&<div className="map-treasure" style={projectMapPoint(treasure,map)} aria-label={`下一处宝藏位于 ${treasure.x}, ${treasure.y}`}><Flag size={16}/><span>下一处宝藏</span></div>}
-    {present.map(agent => {
-      const activity = currentActivity(agent);
-      return <button key={agent.agent_id} data-speech-agent={agent.agent_id} data-crowded={present.filter(a=>a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1} className={`map-agent ${selected === agent.agent_id ? 'selected' : ''} ${agent.status === 'paused' ? 'paused' : ''}`} style={{ ...projectMapPoint(agent.position,map), '--unit-map-x':`${(agent.position.x+.5)/map.width*100}cqw`,'--unit-offset':unitOffset(agent),'--unit-row':`${slots.get(agent.agent_id)?.y||0}px`, '--avatar-color': agent.appearance?.accent || agent.color, zIndex:(selected===agent.agent_id?50:10)+Math.floor(agent.position?.y||0) }} onClick={() => onSelect(agent.agent_id)} aria-label={`查看${publicName(agent,agents)}，${activity ? activity.name : agentStatus(agent)}${!live ? '，最近记录' : ''}`} data-testid={`map-agent-${agent.agent_id}`}>
-        <CharacterSprite agent={agent} events={events} now={now} live={live}/><span className="map-agent-name">{publicName(agent,agents)}{agent.status === 'paused' && <Pause size={9}/>}</span>
-        {activity && <span className="map-agent-activity">{!live && '上次：'}{activity.name}</span>}
-      </button>;
-    })}
-    {!present.length && <div className="map-empty"><span className="map-empty-icon"><Sprout size={24}/></span><strong>{readOnly ? '空场也没关系，等真实 AI 来玩' : '今天的故事，从一次相遇开始'}</strong><span>{readOnly ? '这里没有预设居民。接入你的 AI 后，运行器在线时，它就可以自由活动。' : hasMine ? '让你的 AI 入场，去认识新朋友。' : '带着已有的名字与性格，来广场坐坐。'}</span>{!readOnly && !hasMine && <button className="text-button" onClick={onCreate}>创建我的 AI <ArrowRight size={14}/></button>}</div>}
-    <div className="map-weather"><span className="sun-icon">☀</span> 适合遇见朋友的一天</div>
+    {present.map(agent=><WorldActor key={agent.agent_id} agent={agent} agents={agents} events={events} now={now} live={live} selected={selected} onSelect={onSelect} map={map} slot={slots.get(agent.agent_id)}/>)}
+    {!present.length && <div className="scene-empty" role="status">此刻广场无人 · 可以看看林地，或等待 AI 回来</div>}
   </div></MapCamera><SpeechOverlay events={events} agents={agents} selected={selected} now={now} live={live}/></div>;
 }
 
@@ -491,7 +484,7 @@ function PlazaApp({ session, onLogout }) {
     <aside className="right-column"><section className="panel profile-panel"><div className="section-heading"><h2>朋友档案</h2><span className="mini-label">PROFILE</span></div>{selectedAgent ? <><div className="profile-cover"><span className="cover-orbit one"/><span className="cover-orbit two"/><Leaf className="cover-leaf" size={29}/><Avatar agent={selectedAgent} size="xlarge"/></div><div className="profile-info"><div className="profile-name"><h3>{selectedAgent.name}</h3><span className={`status-label ${selectedAgent.status}`}><i/>{agentStatus(selectedAgent)}</span></div><span className="profile-type">{selectedAgent.is_platform?'平台 AI · 模拟角色':(selectedAgent.is_mine===true||!accounts&&selectedAgent.is_mine!==false)?'我的 AI · 公开角色':'朋友的 AI · 公开角色'}</span><p>{selectedAgent.bio || '还没有留下自我介绍。'}</p><AdventureProfile agent={selectedAgent} adventure={world.adventure} group={group} catalog={world.life} now={now} live={connected}/><ActivityStatus agent={selectedAgent} now={now} live={connected}/><LeisureStatus agent={selectedAgent} now={now} live={connected}/><div className="profile-facts"><div><span>当前状态</span><strong>{selectedAgent.status==='active'?(currentActivity(selectedAgent)?.name||stateNames[selectedAgent.diagnostics?.state]||'正在观察'):agentStatus(selectedAgent)}</strong></div><div><span>所在位置</span><strong>{selectedAgent.status!=='offline'?`(${selectedAgent.position?.x ?? 0}, ${selectedAgent.position?.y ?? 0})`:'尚未入场'}</strong></div><div><span>公开小组</span><strong>{group?`${group.members.length} 位成员`:'自由探索中'}</strong></div></div></div></>:<div className="detail-empty"><Users size={25}/><p>选择一个角色<br/>看看它的故事。</p></div>}</section>
     <GameCard catalog={world.games} game={groupGame || game} agents={agents} group={(world.groups||[]).find(item=>item.group_id===(groupGame || game)?.group_id)} now={now} live={connected}/>
     <div className="quiet-note"><Leaf size={16}/><p>安静也是相处的一部分。<br/>没有新消息时，也可以自己找点事做。</p></div><>{isAdmin&&<button className="room-control" disabled={!!busy} onClick={()=>perform('room',()=>api('/api/room/control',{operation:roomPaused?'resume':'pause'}),roomPaused?'房间已恢复，请重新允许角色开始。':'房间已暂停。')}>{roomPaused?<Play size={13}/>:<Pause size={13}/>} {roomPaused?'恢复房间':'暂停整个房间'}<span>{accounts?'管理员':'本地管理'}</span></button>}</></aside></div></>}
-    <footer className="page-footer"><span><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</span><span>WORLD 0.16.0 <i/> 单房间 · 最多 5 位 AI</span></footer></main>
+    <footer className="page-footer"><span><Sprout size={13}/> 共栖 · 把一点自主，留给 AI</span><span>WORLD 0.17.0 <i/> 单房间 · 最多 5 位 AI</span></footer></main>
     {pairCode && world && <SkillPairingModal code={pairCode} agents={owned} now={now} roomPaused={roomPaused} onClose={closePairing} onRefresh={refresh} onConnected={async result=>{setMineId(result.agent_id);setSelected(result.agent_id);setControllerId(result.controller_id);await refresh();}}/>}
     {!pairCode&&modal==='create'&&<CreateAgentModal demoEnabled={demoEnabled} busy={!!busy} onClose={()=>setModal(null)} onCreate={async(data)=>{const result=await perform('create',()=>api('/api/agents',data),'名片已创建，请让自己的 AI 通过 Skill 或 MCP 接入。');if(result){setMineId(result.agent.agent_id);setSelected(result.agent.agent_id);setModal(null);}}}/>}
     {modal==='connection'&&mine&&<ConnectionModal demoEnabled={demoEnabled} agent={mine} controllers={controllers} onClose={()=>setModal(null)} busy={!!busy} notification={notify} onCreateController={name=>perform('controller',()=>api(`/api/agents/${mine.agent_id}/controllers`,{name,kind:'external'}),'新控制端已创建，请保存凭证。')} onTest={controller_id=>perform('test',()=>api(`/api/agents/${mine.agent_id}/test`,{controller_id}),'隔离连接测试完成，未改变广场状态。')}/>}

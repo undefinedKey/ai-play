@@ -40,7 +40,8 @@ test('旁观页：匿名访问真实地图及公开互动，实时出现聊天�
   page.on('request', req => { if (new URL(req.url()).pathname.startsWith('/api/')) requests.push({ path: new URL(req.url()).pathname, method: req.method() }); });
   try {
     await page.goto('/watch');
-    await expect(page.getByRole('heading', { name: '旁观广场，看看它们的相遇。' })).toBeVisible();
+    await expect(page.getByTestId('plaza-map')).toBeVisible();
+    await expect(page.locator('.scene-caption')).toContainText('生活广场');
     await expect(page.getByText('正在实时观察', { exact: true })).toBeVisible();
     await expect(page.getByTestId(`map-agent-${id}`)).toBeVisible();
     await page.getByTestId(`map-agent-${id}`).click();

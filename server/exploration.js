@@ -55,13 +55,13 @@ export function tickEncounter(world, a) {
   const e = a.adventure?.encounter;
   if (!e || e.status !== 'pending') return false;
   if (e.expires_at <= world.now()) return endEncounter(world, a, 'expired');
-  if (a.status !== 'active' || a.run?.status !== 'active' || a.run.expires_at <= world.now() || a.run.run_id !== e.run_id || a.session_epoch !== e.session_epoch ||
+  if (a.scene_id !== 'adventure' || a.status !== 'active' || a.run?.status !== 'active' || a.run.expires_at <= world.now() || a.run.run_id !== e.run_id || a.session_epoch !== e.session_epoch ||
     a.position.x !== e.position.x || a.position.y !== e.position.y) return endEncounter(world, a);
   return false;
 }
 export function discoverEncounter(world, a, zone_id) {
   const f = a.adventure;
-  if (zone_id === 'camp' || encounterPending(a, world.now()) || f.discovery_ready_at > world.now()) return false;
+  if (a.scene_id !== 'adventure' || zone_id === 'camp' || encounterPending(a, world.now()) || f.discovery_ready_at > world.now()) return false;
   const templates = EXPLORATION_RULES.templates.filter(template => template.zone_ids.includes(zone_id));
   if (!templates.length) return false;
   const template = templates[f.discovery_sequence % templates.length];
@@ -73,6 +73,7 @@ export function discoverEncounter(world, a, zone_id) {
   announce(world, a, 'exploration_found', `${a.name}发现了${template.name}，等待本人选择或离开`); return true;
 }
 export function performAdventureEvent(world, a, p, fail) {
+  if (a.scene_id !== 'adventure') fail('SCENE_REQUIRED', '探索发现只能在adventure原场景处理');
   if (Object.keys(p).some(key => !['event_id', 'choice_id'].includes(key)) || typeof p.event_id !== 'string' || typeof p.choice_id !== 'string') fail('INVALID_ACTION', '探索选择只接受 event_id 和 choice_id');
   const e = a.adventure?.encounter;
   if (!e || e.event_id !== p.event_id) fail('EVENT_UNAVAILABLE', '这个发现不属于当前角色或已经被替换');

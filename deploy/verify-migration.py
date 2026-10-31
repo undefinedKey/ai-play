@@ -145,7 +145,7 @@ def compare_cooperations(old, new):
     assert new.get('cooperations', {}) == expected, 'cooperation terms, bindings, sources, escrow and progress preserved'
     return agents
 
-def compare_states(old, new, project_root=None, require_history=False):
+def compare_states(old, new, project_root=None, require_history=False, require_scenes=False):
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
     expected_agents = compare_cooperations(old, new)
@@ -167,6 +167,16 @@ def compare_states(old, new, project_root=None, require_history=False):
             assert a['adventure'][field] == b['adventure'][field]
         compare_v014_records(old, new, key, a, b)
         assert b['life']['gathering'] is None
+    if require_scenes or any('scene_id' in a for a in [*old['agents'].values(), *new['agents'].values()]):
+        if project_root is None:
+            assert '__file__' in globals(), 'explicit application root required for embedded migration verification'
+            project_root = Path(__file__).resolve().parent.parent
+        helper = Path(project_root).resolve() / 'deploy/verify-scenes.mjs'
+        assert helper.is_file(), 'tracked scene verification helper required'
+        result = subprocess.run(['node', str(helper)], input=json.dumps({'old': old, 'new': new}), capture_output=True,
+            text=True, encoding='utf-8', timeout=60)
+        assert result.returncode == 0, 'scene location preservation/migration verification failed'
+        assert json.loads(result.stdout).get('scene_locations_preserved') is True
     if require_history or 'history' in old or 'history' in new:
         assert 'history' in new, 'existing public history must not disappear'
         if project_root is None:
@@ -196,13 +206,14 @@ def verify(path, root=Path('/')):
             assert hashlib.sha256(old_env).digest() == hashlib.sha256((root / 'etc/ai-plaza/server.env').read_bytes()).digest()
         old = read_database(Path(directory) / 'world.sqlite')
     new = read_database(root / 'var/lib/ai-plaza/world.sqlite')
-    compare_states(old, new, project_root=root / 'opt/ai-plaza', require_history=True)
+    compare_states(old, new, project_root=root / 'opt/ai-plaza', require_history=True, require_scenes=True)
     return {'agents': len(old['agents']), 'life_inventory_plots_tools_equipment_preserved': True,
         'appearance_growth_preserved': True, 'grants_and_budgets_preserved': True, 'controller_credentials_preserved': True,
         'existing_ledger_and_market_preserved': True, 'server_configuration_preserved': True,
         'exploration_goals_and_cooldowns_preserved': True,
         'cooperations_consents_escrow_returns_preserved': True,
         'public_history_preserved': True,
+        'scene_locations_preserved': True,
         'sqlite_integrity': 'ok', 'backup': str(path)}
 
 if __name__ == '__main__':

@@ -12,8 +12,8 @@ const ITEMS = [
   { id: 'wheat', name: '小麦', kind: 'food', heal: 18 },
   { id: 'turnip_soup', name: '萝卜浓汤', kind: 'food', heal: 32, energy_restore: 0 },
   { id: 'wheat_bread', name: '麦香面包', kind: 'food', heal: 0, energy_restore: 24 },
-  { id: 'wood', name: '木材', kind: 'material' },
-  { id: 'ore', name: '矿石', kind: 'material' },
+  { id: 'wood', scene_id: 'plaza', name: '木材', kind: 'material' },
+  { id: 'ore', scene_id: 'plaza', name: '矿石', kind: 'material' },
   ...EQUIPMENT,
 ];
 const CROPS = [
@@ -44,13 +44,13 @@ const TOOLS = [
   ] },
 ];
 export const LIFE_RULES = {
-  farm_place: { id: 'farm', name: '营地农田', x: 12, y: 8, service_center: { x: 11, y: 8 }, radius: 2 },
+  farm_place: { id: 'farm', scene_id: 'plaza', name: '营地农田', x: 12, y: 8, service_center: { x: 11, y: 8 }, radius: 2 },
   plots_per_agent: 2, crops: CROPS, items: ITEMS, recipes: RECIPES, tools: TOOLS,
   gathering: { tool_required: false, resources: [
-    { id: 'wood', item_id: 'wood', name: '营地拾枝处', x: 10, y: 8, radius: 1, duration_seconds: 12, energy_cost: 4, yield_count: 1, cooldown_seconds: 8 },
-    { id: 'ore', item_id: 'ore', name: '营地碎矿堆', x: 12, y: 8, radius: 1, duration_seconds: 18, energy_cost: 6, yield_count: 1, cooldown_seconds: 12 },
+    { id: 'wood', scene_id: 'plaza', item_id: 'wood', name: '营地拾枝处', x: 10, y: 8, radius: 1, duration_seconds: 12, energy_cost: 4, yield_count: 1, cooldown_seconds: 8 },
+    { id: 'ore', scene_id: 'plaza', item_id: 'ore', name: '营地碎矿堆', x: 12, y: 8, radius: 1, duration_seconds: 18, energy_cost: 6, yield_count: 1, cooldown_seconds: 12 },
   ], description: '徒手安全采集，无工具前置，每次只完成一份。开始预扣体力，完成才领奖；取消、走路、暂停、失联或重启不领奖不退已花体力，不自动继续。资源按本人冷却，不是共享库存。' },
-  cooking_place: { id: 'kitchen', name: '营地料理台', x: 10, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
+  cooking_place: { id: 'kitchen', scene_id: 'plaza', name: '营地料理台', x: 10, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
   market: MARKET_RULES,
   strategy_equipment: STRATEGY_EQUIPMENT_RULES,
   description: '每个角色有两块专属田、个人仓库和持久的锄头/水壶。空地先用锄头开垦，种植消耗1种子，用水壶浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子，收获后需重新开垦。开垦/浇水各耗对应工具1耐久，工具升级降低该动作体力消耗；repair按当前等级repair_cost维修，upgrade消耗下一等级upgrade_cost，均回满耐久、各耗2体力；最高3级。工具独立于战斗装备，不可复制或装备到武器护甲槽。离线仍生长，没人替你耕作。农田、制作、工具维护与换装在营地半径2内进行，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
@@ -126,6 +126,7 @@ function announce(world, a, type, text, extra = {}) {
   world.event(type, { agent_id: a.agent_id, name: a.name, text, ...extra }, [...new Set([a.agent_id, ...world.activeIds()])]);
 }
 export function campAvailable(world, a, fail) {
+  if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
   const farm = LIFE_RULES.farm_place, position = a.position;
   if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
   if (a.adventure?.plan || a.adventure?.in_field || a.activity) fail('ACTIVITY_BUSY', '请先结束当前计划或活动，并返回安全营地');
@@ -313,7 +314,7 @@ export function tickLife(world) {
       const authorized = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active' && a.run.expires_at > world.now() &&
         a.run.run_id === job.run_id && a.session_epoch === job.session_epoch && world.now() - a.last_contact_at < 45000;
       if (!authorized) changed = cancelGather(world, a, 'interrupted') || changed;
-      else if (!resource || Math.abs(a.position.x - resource.x) + Math.abs(a.position.y - resource.y) > resource.radius) changed = cancelGather(world, a, 'moved') || changed;
+      else if (a.scene_id !== 'plaza' || !resource || Math.abs(a.position.x - resource.x) + Math.abs(a.position.y - resource.y) > resource.radius) changed = cancelGather(world, a, 'moved') || changed;
       else if (job.ends_at <= world.now()) {
         if (count(a, resource.item_id) > Number.MAX_SAFE_INTEGER - resource.yield_count) changed = cancelGather(world, a, 'inventory_full') || changed;
         else {

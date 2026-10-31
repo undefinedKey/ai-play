@@ -18,7 +18,7 @@ function fixture(t, persisted = false) {
     world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id, max_calls: 100, duration_minutes: 60, goal: 'PRIVATE_OWNER_GOAL' });
     const p = { id: a.agent_id, c, auth: world.authenticate(c.token) };
     const o = world.callTool(p.auth, 'join_world'); p.session = { run_id: o.run_id, session_epoch: o.session_epoch };
-    raw(p).position = { x: 11, y: 8 }; people.push(p); return p;
+    raw(p).scene_id = 'plaza'; raw(p).position = { x: 11, y: 8 }; people.push(p); return p;
   };
   const observe = p => world.callTool(p.auth, 'observe', p.session);
   const request = (p, type, payload) => ({ ...p.session, action_id: observe(p).next_action_id, type, payload });
@@ -81,7 +81,7 @@ test('交菜与料理失败原子：非法角色/私有注入/缺菜/低体力/�
   f.raw(a).life.inventory.turnip = 4; ok(f.coop(a, 'contribute', f.params(p)));
   for (const [setup, code] of [[() => { f.raw(b).fatigue.energy = 3; }, 'FATIGUE_EXHAUSTED'],
     [() => { f.raw(b).fatigue.energy = 50; f.raw(a).life.inventory.turnip_soup = Number.MAX_SAFE_INTEGER; }, 'INVENTORY_FULL'],
-    [() => { f.raw(a).life.inventory.turnip_soup = 0; f.raw(a).position = { x: 0, y: 0 }; }, 'NOT_AT_CAMP']]) {
+    [() => { f.raw(a).life.inventory.turnip_soup = 0; f.raw(a).scene_id = 'adventure'; f.raw(a).position = { x: 0, y: 0 }; }, 'NOT_AT_CAMP']]) {
     setup(); const before = balances(f, a, b), project = structuredClone(f.project(p));
     reject(f.coop(b, 'cook', f.params(p)), code); assert.deepEqual(balances(f, a, b), before); assert.deepEqual(f.project(p), project);
   }
@@ -149,7 +149,7 @@ test('明确召回/撤销/固定期限结束，未用托管返回且已完成真
 });
 
 test('关系管理允许探索待选且不取消计划；交菜烹饪仍被待选约束拒绝', t => {
-  const f = fixture(t), a = f.make(), b = f.make(); f.raw(a).position = { x: 4, y: 11 }; f.raw(b).position = { x: 4, y: 11 };
+  const f = fixture(t), a = f.make(), b = f.make(); f.raw(a).scene_id = 'adventure'; f.raw(a).position = { x: 4, y: 11 }; f.raw(b).scene_id = 'adventure'; f.raw(b).position = { x: 4, y: 11 };
   ok(f.act(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(1000);
   const encounter = structuredClone(f.raw(a).adventure.encounter), p = f.form(a, b);
   assert.deepEqual(f.raw(a).adventure.encounter, encounter); reject(f.coop(a, 'contribute', f.params(p)), 'ENCOUNTER_PENDING');
@@ -175,16 +175,16 @@ test('公开快照、跨owner和非收件事件不泄漏待接收对象/回应/�
 test('Lv20与40秒决策间隔：先探索再单独一击森林怪完成巡查，无侦察员虚构战利品', t => {
   const f = fixture(t), scout = f.make(), guard = f.make(); const p = f.form(scout, guard, 'scout_and_guard');
   f.raw(guard).adventure.level = 20; f.raw(guard).adventure.max_hp = 135; f.raw(guard).adventure.hp = 135;
-  f.raw(guard).position = { x: 6, y: 12 }; ok(f.act(guard, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_boar' })); f.advance(6000);
+  f.raw(guard).scene_id = 'adventure'; f.raw(guard).position = { x: 6, y: 12 }; ok(f.act(guard, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_boar' })); f.advance(6000);
   assert.equal(f.project(p).progress[1].progress, 0, 'earlier kill cannot be backfilled');
-  f.raw(guard).position = { x: 11, y: 8 }; f.raw(guard).adventure.in_field = false;
-  f.advance(40000); f.raw(scout).position = { x: 4, y: 11 }; f.raw(scout).adventure.discovery_sequence = 0;
+  f.raw(guard).scene_id = 'plaza'; f.raw(guard).position = { x: 11, y: 8 }; f.raw(guard).adventure.in_field = false;
+  f.advance(40000); f.raw(scout).scene_id = 'adventure'; f.raw(scout).position = { x: 4, y: 11 }; f.raw(scout).adventure.discovery_sequence = 0;
   ok(f.act(scout, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(1000);
   const event = f.raw(scout).adventure.encounter; f.advance(40000);
   ok(f.act(scout, 'adventure_event', { event_id: event.event_id, choice_id: 'wood' }));
   assert.equal(f.project(p).progress[0].progress, 1); const scoutGold = f.raw(scout).adventure.gold;
-  f.raw(scout).position = { x: 11, y: 8 }; f.raw(scout).adventure.in_field = false; f.advance(40000);
-  f.raw(guard).position = { x: 6, y: 12 }; ok(f.act(guard, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_boar' })); f.advance(6000);
+  f.raw(scout).scene_id = 'plaza'; f.raw(scout).position = { x: 11, y: 8 }; f.raw(scout).adventure.in_field = false; f.advance(40000);
+  f.raw(guard).scene_id = 'adventure'; f.raw(guard).position = { x: 6, y: 12 }; ok(f.act(guard, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_boar' })); f.advance(6000);
   assert.equal(f.project(p).status, 'completed'); assert.equal(f.raw(scout).adventure.gold, scoutGold); assert.equal(f.raw(scout).adventure.kills, 0);
   assert.equal(f.raw(guard).adventure.kills, 2); assert.equal(f.project(p).public_result.items_by_agent, undefined);
 });
@@ -219,7 +219,7 @@ test('终态最多20条，历史裁剪不丢独立待退款；有退款仍可单
 });
 
 test('过去发现和拒绝不能计巡查；300秒发现冷却保留，重新发现才有真实进度', t => {
-  const f = fixture(t), a = f.make(), b = f.make(); f.raw(a).position = { x: 4, y: 11 }; f.raw(b).position = { x: 4, y: 11 };
+  const f = fixture(t), a = f.make(), b = f.make(); f.raw(a).scene_id = 'adventure'; f.raw(a).position = { x: 4, y: 11 }; f.raw(b).scene_id = 'adventure'; f.raw(b).position = { x: 4, y: 11 };
   f.raw(a).adventure.discovery_sequence = 0;
   ok(f.act(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(1000);
   const old = f.raw(a).adventure.encounter, p = f.form(a, b, 'scout_and_guard');
@@ -227,8 +227,8 @@ test('过去发现和拒绝不能计巡查；300秒发现冷却保留，重新�
   const deadline = f.raw(a).adventure.discovery_ready_at;
   ok(f.act(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(1000);
   assert.equal(f.raw(a).adventure.encounter.event_id, old.event_id); assert.equal(f.raw(a).adventure.discovery_ready_at, deadline);
-  for (const p of [a, b]) { f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false; }
-  f.advance(deadline - f.now() + 1); f.raw(a).position = { x: 4, y: 11 };
+  for (const p of [a, b]) { f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false; }
+  f.advance(deadline - f.now() + 1); f.raw(a).scene_id = 'adventure'; f.raw(a).position = { x: 4, y: 11 };
   ok(f.act(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(1000);
   const fresh = f.raw(a).adventure.encounter;
   ok(f.act(a, 'adventure_event', { event_id: fresh.event_id, choice_id: 'decline' })); assert.equal(f.project(p).progress[0].progress, 0);

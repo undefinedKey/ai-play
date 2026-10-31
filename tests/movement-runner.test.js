@@ -86,7 +86,7 @@ async function fixture(t, { mode = 'model', choose = () => move(100, -100), duri
     listTools: async () => ({ tools: Object.keys(toolDefinitions).map(name => ({ name })) }),
     callTool: async ({ name, arguments: args }) => {
       tools.push({ name, args: structuredClone(args) });
-      if (name === 'act') await beforeAct?.({ world, a: world.agent(record.agent_id) });
+      if (name === 'act') await beforeAct?.({ world, a: world.agent(record.agent_id), advance: ms => { now += ms; } });
       const result = world.callTool(auth, name, args);
       if (name === 'act' && loseFirstReceipt && !lost) { lost = true; throw new Error('simulated lost response'); }
       return { structuredContent: result };
@@ -108,46 +108,45 @@ async function fixture(t, { mode = 'model', choose = () => move(100, -100), duri
   return { runner, world, get a() { return world.agent(record.agent_id); }, requests, tools, logs, checkpointPath, advance: ms => { now += ms; } };
 }
 
-for (const mode of ['model', 'dsh-pet']) test(`${mode}共享运行器用最新位置截步并保留requested/applied真实回执`, async t => {
+for (const mode of ['model', 'dsh-pet']) test(`${mode}新场景交给服务校验原目标，不再直线截步穿过障碍`, async t => {
   const f = await fixture(t, { mode, duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
   f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'ruins' });
   await f.runner.decide();
   const submitted = f.tools.find(call => call.name === 'act').args;
-  assert.deepEqual(submitted.payload, { x: 12, y: 6 }, '模型思考时角色从9,7走到10,7，应以最新10,7截步');
-  assert.deepEqual(f.a.position, submitted.payload);
-  assert.deepEqual(f.runner.checkpoint.last_action_feedback, { type: 'move', status: 'applied', code: 'MOVE_ADJUSTED', requested: { x: 100, y: -100 }, applied: { x: 12, y: 6 } });
+  assert.deepEqual(submitted.payload, { x: 100, y: -100 }, '新地形不能用旧曼哈顿钳制伪造合法步点');
+  assert.deepEqual(f.a.position, { x: 10, y: 7 });
+  assert.equal(f.runner.checkpoint.last_action_feedback.status, 'rejected');
+  assert.equal(f.runner.checkpoint.last_action_feedback.code, 'INVALID_ACTION');
   assert.equal(f.runner.checkpoint.calls_used, 1); assert.equal(f.runner.checkpoint.pending_movement, undefined);
   assert.ok(f.tools.filter(call => call.name === 'observe').length >= 3);
   assert.equal(f.requests[0].movement.max_step, 3); assert.equal(f.requests[0].movement.map.width, 24);
-  assert.ok(f.logs.some(log => log.includes('未宣称到达原目标')));
+  assert.ok(!f.logs.some(log => log.includes('服务已确认移动到')));
   f.advance(6000); await f.runner.decide();
-  assert.equal(f.requests.at(-1).last_action.code, 'MOVE_ADJUSTED');
-  assert.deepEqual(f.requests.at(-1).last_action.applied, { x: 12, y: 6 });
+  assert.equal(f.requests.at(-1).last_action.code, 'INVALID_ACTION');
 });
 
-test('移动结果未知时保持归一化pending与元信息，恢复回执不按新位置二次改坐标', async t => {
-  const f = await fixture(t, { loseFirstReceipt: true });
+test('场景移动结果未知时保持原pending，恢复已确认路径不按新位置二次改坐标', async t => {
+  const f = await fixture(t, { choose: () => move(10, 7), loseFirstReceipt: true });
   await assert.rejects(f.runner.decide(), { code: 'WORLD_UNAVAILABLE' });
   const saved = JSON.parse(readFileSync(f.checkpointPath, 'utf8'));
-  assert.deepEqual(saved.pending_action.payload, { x: 11, y: 6 });
-  assert.deepEqual(saved.pending_movement.requested, { x: 100, y: -100 });
-  assert.deepEqual(saved.pending_movement.applied, saved.pending_action.payload);
+  assert.deepEqual(saved.pending_action.payload, { x: 10, y: 7 });
+  assert.equal(saved.pending_movement, undefined); assert.equal(saved.pending_scene_id, 'plaza');
   f.a.position = { x: 20, y: 15 }; // World may advance after an acknowledged action whose reply was lost.
   await f.runner.connect();
   await f.runner.activate(await f.runner.call('get_control_state', {}));
   assert.equal(f.tools.filter(call => call.name === 'act').length, 1);
   assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.pending_movement, undefined);
-  assert.deepEqual(f.runner.checkpoint.last_action_feedback.applied, { x: 11, y: 6 });
+  assert.equal(f.runner.checkpoint.last_action_feedback, undefined);
   assert.equal(f.runner.checkpoint.calls_used, 1);
 });
 
-test('归一化之后世界再次变化仍由服务拒绝，反馈不能把尝试落点说成已到达', async t => {
-  const f = await fixture(t, { beforeAct: ({ a }) => { a.position = { x: 20, y: 15 }; } });
+test('观察之后世界再次变化仍由服务拒绝，反馈不能把尝试落点说成已到达', async t => {
+  const f = await fixture(t, { choose: () => move(10, 7), beforeAct: ({ a }) => { a.position = { x: 20, y: 15 }; } });
   await f.runner.decide();
   assert.equal(f.runner.checkpoint.last_action_feedback.status, 'rejected');
   assert.equal(f.runner.checkpoint.last_action_feedback.code, 'INVALID_ACTION');
-  assert.deepEqual(f.runner.checkpoint.last_action_feedback.requested, { x: 100, y: -100 });
-  assert.deepEqual(f.runner.checkpoint.last_action_feedback.applied, { x: 11, y: 6 });
+  assert.equal(f.runner.checkpoint.last_action_feedback.requested, undefined);
+  assert.equal(f.runner.checkpoint.last_action_feedback.applied, undefined);
   assert.deepEqual(f.a.position, { x: 20, y: 15 });
   assert.ok(!f.logs.some(log => log.includes('服务已确认移动到')));
 });
@@ -164,4 +163,65 @@ test('动态地图/合法候选进入原桌宠，不硬编码24×16；巡逻/普
     { event_id: 'lock', type: 'adventure_aggro', payload: { agent_id: 'self', monster_id: 'm', target_agent_id: 'self' } },
   ], 'self');
   assert.deepEqual(queue.queue.map(event => event.event_id), ['lock']);
+});
+
+test('场景候选只采用服务提供的连续路径，局部坐标不能跨场景或自行造穿障碍路线', () => {
+  const observation = { self: { scene_id: 'plaza', position: { x: 1, y: 1 } }, movement: { scene_id: 'plaza', map: { width: 6, height: 6 }, max_step: 3,
+    candidates: [{ x: 2, y: 2, path: [{ x: 1, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 2 }] },
+      { x: 3, y: 1, path: [{ x: 1, y: 1 }, { x: 3, y: 1 }] }, { x: 1, y: 2 }] } };
+  const movement = movementContext(observation, {});
+  assert.equal(movement.scene_id, 'plaza'); assert.equal(movement.candidates.length, 1);
+  assert.deepEqual(movement.candidates[0].path, [{ x: 1, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 2 }]);
+  assert.deepEqual(normalizeMove(move(100, -100), observation), { action: move(100, -100), adjustment: null });
+  assert.equal(movementContext({ ...observation, movement: { ...observation.movement, scene_id: 'adventure' } }), null);
+  assert.deepEqual(movementContext({ self: observation.self }, oldRules).candidates, []);
+});
+
+for (const mode of ['model', 'dsh-pet']) test(`${mode}生成期间真实穿门丢弃旧选择，不换新action_id重发或ACK旧批次`, async t => {
+  const f = await fixture(t, { mode, choose: () => move(22, 7), duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
+  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  const oldId = f.a.next_action_id;
+  f.runner.checkpoint.queue.push({ event_id: 'scene-test-message', type: 'message', payload: { agent_id: 'peer', channel: 'group', text: '远程同伴消息' } });
+  await f.runner.decide();
+  assert.equal(f.a.scene_id, 'adventure'); assert.notEqual(f.a.next_action_id, oldId);
+  assert.equal(f.tools.filter(call => call.name === 'act').length, 0);
+  assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.last_action_feedback.code, 'STALE_ACTION');
+  assert.equal(f.runner.checkpoint.event_batch.events[0].event_id, 'scene-test-message');
+  assert.equal(f.runner.checkpoint.calls_used, 1); assert.equal(f.runner.checkpoint.next_action_id, f.a.next_action_id);
+});
+
+test('最后观察后穿门的STALE_ACTION回执重新观察并保留批次，不陷入旧动作重试', async t => {
+  const f = await fixture(t, { choose: () => move(10, 7), beforeAct: ({ world, a, advance }) => {
+    a.position = { x: 22, y: 8 }; world.perform(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' }); advance(2000); world.tick();
+  } });
+  f.runner.checkpoint.queue.push({ event_id: 'before-door', type: 'message', payload: { agent_id: 'peer', text: '请自己决定' } });
+  await f.runner.decide();
+  assert.equal(f.tools.filter(call => call.name === 'act').length, 1);
+  assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.last_action_feedback.code, 'STALE_ACTION');
+  assert.equal(f.runner.observation.self.scene_id, 'adventure'); assert.equal(f.runner.checkpoint.event_batch.events[0].event_id, 'before-door');
+  assert.equal(f.runner.checkpoint.calls_used, 1);
+});
+
+test('模型选择wait时跨门也先重观察，不能ACK旧场景消息', async t => {
+  const f = await fixture(t, { choose: () => ({ type: 'wait', payload: {} }), duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
+  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.runner.checkpoint.queue.push({ event_id: 'before-wait-door', type: 'message', payload: { agent_id: 'peer', text: '旧场景消息' } });
+  await f.runner.decide();
+  assert.equal(f.a.scene_id, 'adventure'); assert.equal(f.runner.checkpoint.last_action_feedback.code, 'STALE_ACTION');
+  assert.equal(f.runner.checkpoint.event_batch.events[0].event_id, 'before-wait-door');
+  assert.equal(f.runner.checkpoint.calls_used, 1); assert.equal(f.tools.filter(c => c.name === 'act').length, 0);
+});
+
+test('checkpoint中尚无服务回执的旧场景动作不能在换图后恢复执行', async t => {
+  const f = await fixture(t), oldId = f.a.next_action_id;
+  f.runner.checkpoint.pending_action = { ...f.runner.session(), action_id: oldId, ...move(10, 7) };
+  f.runner.checkpoint.pending_scene_id = 'plaza'; f.runner.checkpoint.calls_used = 3;
+  f.runner.checkpoint.event_batch = { id: 'retained', events: [{ event_id: 'unacked', type: 'message', payload: { text: '待处理' } }] };
+  f.runner.checkpoint.pending_batch_id = 'retained'; f.runner.save();
+  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.advance(2000); f.world.tick(); await f.runner.recoverPending();
+  assert.equal(f.a.scene_id, 'adventure'); assert.equal(f.runner.checkpoint.pending_action, null);
+  assert.equal(f.runner.checkpoint.pending_scene_id, undefined); assert.equal(f.runner.checkpoint.event_batch.id, 'retained');
+  assert.equal(f.runner.checkpoint.calls_used, 3); assert.equal(f.tools.filter(c => c.name === 'act').length, 0);
+  assert.equal(f.runner.checkpoint.next_action_id, f.a.next_action_id); assert.notEqual(f.a.next_action_id, oldId);
 });

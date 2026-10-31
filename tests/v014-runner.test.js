@@ -44,6 +44,7 @@ test('探索与公开目标解析严格，不接收自报奖励、私人身份�
 
 test('pending选择在极限2000UTF16内保留主人/消息/三威胁/成本/食物/移动回执', async t => {
   const f = await fixture(t), observation = structuredClone(f.runner.observation), self = observation.self;
+  self.scene_id = 'adventure';
   self.adventure.encounter = { event_id: 'encounter_' + 'e'.repeat(36), status: 'pending', expires_at: observation.server_time + 150000,
     choices: [{ choice_id: 'wood', energy_cost: 4, items: { wood: 2 }, heal: 0, restore_energy: 0 }, { choice_id: 'ore', energy_cost: 4, items: { ore: 1 }, heal: 0, restore_energy: 0 }, { choice_id: 'decline', energy_cost: 0, items: {}, heal: 0, restore_energy: 0 }] };
   self.adventure.hp = 8; self.fatigue.energy = 1; self.life.inventory.wheat_bread = 1; self.life.inventory.turnip = 1;
@@ -65,7 +66,7 @@ test('pending选择在极限2000UTF16内保留主人/消息/三威胁/成本/食
 });
 
 for (const mode of ['dsh-pet', 'model']) test(`${mode}探索发现可等待或拒绝，旧hunt被真实拒绝，选择由原AI提交`, async t => {
-  const f = await fixture(t, mode); f.a.adventure.discovery_sequence = 0;
+  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.adventure.discovery_sequence = 0;
   await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const encounter = f.a.adventure.encounter; assert.equal(encounter.status, 'pending');
   const deadline = encounter.expires_at, inventory = structuredClone(f.a.life.inventory);
@@ -154,7 +155,7 @@ for (const kind of ['word_chain', 'riddle']) test(kind + '在长主人要求和�
 
 
 for (const mode of ['dsh-pet', 'model']) test(mode + '探索实际收益在新聊天到来后仍交还原AI', async t => {
-  const f = await fixture(t, mode); f.a.adventure.discovery_sequence = 0;
+  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.adventure.discovery_sequence = 0;
   await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const eventId = f.a.adventure.encounter.event_id; assert.ok(f.runner.observation.self.adventure.encounter.choices.some(c => c.choice_id === 'wood'));
   await f.decide(action('adventure_event', { event_id: eventId, choice_id: 'wood' }));
@@ -168,7 +169,7 @@ for (const mode of ['dsh-pet', 'model']) test(mode + '探索实际收益在新�
 
 
 test('pending的格式重试实际告知原AI纠正，只有后续合法回答才执行', async t => {
-  const f = await fixture(t); await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
+  const f = await fixture(t); f.a.scene_id = 'adventure'; await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const eventId = f.a.adventure.encounter.event_id, prompts = [], flags = [], before = f.runner.checkpoint.calls_used;
   f.runner.petClient.decide = async context => {
     const prompt = decisionPrompt(context); assert.ok(prompt.length <= 2000); prompts.push(prompt); flags.push(context.correction);

@@ -24,7 +24,7 @@ v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集�
 
 `get_action_result` 查询未知动作结果。重复同 ID/同内容不能重复产生副作用；相同 ID 改内容会冲突。确定性拒绝后使用新的 ID；限流未执行则保留原 ID。
 
-`observe.movement` 返回 `map:{width,height}`、`max_step`、`candidates:[{x,y},...]`。`move {x,y}` 仍是细步接口，坐标整数且 `0≤x<width`、`0≤y<height`，曼哈顿距离不超 `max_step`；候选不是完整白名单。v0.8.2 运行器先用最新观察沿请求方向截步，再持久化为唯一 pending 动作，记录 `requested` / `applied`。调整不代表服务已执行，最终以回执 `status` 为准；未知回执不可改坐标重试。非整数、字符串或未知字段仍是格式错误，不会被转换成行动。
+`observe.movement` 返回当前 `scene_id`、`map:{width,height}`、`max_step`、`candidates:[{x,y,path:[{x,y},...]},...]`。path 含起终点；最短合法路径不超过 max_step，不可穿障碍。候选不是完整白名单，普通 move 不会穿门。仅旧服缺少 scene 时保留边界/曼哈顿截步。新服务以真实路径回执为准；STALE_ACTION 表示跨门后的旧编号，先重新 observe，不换编号重发旧意图。非整数、字符串或未知字段仍是格式错误。
 
 `get_control_state` 不需要在线，但必须保有授权。`pause_self` 与 `leave_world` 只能控制当前自己的运行，不能恢复或扩大预算。
 

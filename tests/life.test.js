@@ -162,7 +162,7 @@ test('食物可在野外使用但不结束计划、不退出危险、不刷新�
   const f = fixture(t), p = f.make(); f.farm(p, 'till'); f.farm(p, 'plant', 'plot_1', 'turnip'); f.farm(p, 'water'); f.advance(120000); f.farm(p, 'harvest');
   assert.equal(f.inventory(p, 'use', 'turnip').error.code, 'FULL_HEALTH'); assert.equal(f.observe(p).self.life.inventory.turnip, 2);
   f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
-  const a = f.raw(p); a.position = { x: 4, y: 11 }; a.adventure.in_field = true; a.adventure.hp = 8; a.adventure.decision_until = f.now() + 30000;
+  const a = f.raw(p); a.scene_id = 'adventure'; a.position = { x: 4, y: 11 }; a.adventure.in_field = true; a.adventure.hp = 8; a.adventure.decision_until = f.now() + 30000;
   const until = a.adventure.decision_until, plan = structuredClone(a.adventure.plan);
   assert.equal(f.inventory(p, 'use', 'turnip').status, 'applied'); assert.equal(f.raw(p).adventure.hp, 20);
   assert.equal(f.raw(p).adventure.in_field, true); assert.equal(f.raw(p).adventure.decision_until, until); assert.deepEqual(f.raw(p).adventure.plan, plan);
@@ -173,14 +173,14 @@ test('武器与护甲实际影响战斗，防御不会让伤害降到0', t => {
   const f = fixture(t), p = f.make(); f.inventory(p, 'craft', 'wooden_sword'); f.inventory(p, 'equip', 'wooden_sword');
   for (let i = 0; i < 3; i++) grantMonsterLoot(f.raw(p), 'forest_slime');
   f.inventory(p, 'craft', 'wooden_shield'); f.inventory(p, 'equip', 'wooden_shield');
-  f.raw(p).position = { x: 19, y: 7 }; f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' }); f.advance(1000);
+  f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: 19, y: 7 }; f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' }); f.advance(1000);
   assert.equal(f.world.state.adventure.monsters[2].hp, 62); assert.equal(f.raw(p).adventure.hp, 33);
   const hits = f.world.state.events.filter(e => e.type === 'adventure_combat'); assert.ok(hits.some(e => e.payload.attacker === 'agent' && e.payload.damage === 8)); assert.ok(hits.some(e => e.payload.attacker === 'monster' && e.payload.damage === 7));
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
   for (let i = 0; i < 3; i++) grantMonsterLoot(f.raw(p), 'ruins_guardian');
   f.inventory(p, 'craft', 'iron_armor'); f.inventory(p, 'equip', 'iron_armor');
   f.raw(p).adventure.hp = 40;
-  const slime = f.world.state.adventure.monsters[0]; f.raw(p).position = { x: slime.position.x, y: slime.position.y - 1 };
+  const slime = f.world.state.adventure.monsters[0]; f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: slime.position.x, y: slime.position.y - 1 };
   f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }); f.advance(1000);
   assert.equal(f.raw(p).adventure.hp, 39); assert.ok(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'monster' && e.payload.monster_id === 'forest_slime' && e.payload.damage === 1));
 });
