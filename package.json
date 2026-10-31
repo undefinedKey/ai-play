@@ -1,6 +1,6 @@
 {
   "name": "ai-plaza",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node server/index.js",
     "start": "node server/index.js --production",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-static-transfer.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.js",
     "test:e2e": "playwright test",
     "runner": "node runner/cli.js",
@@ -29,6 +29,7 @@
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.51.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "sharp": "0.35.5",
     "vite": "^6.1.0"
   }
 }

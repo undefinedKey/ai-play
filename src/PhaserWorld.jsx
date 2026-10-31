@@ -7,18 +7,24 @@ import {sameRenderPacket} from './render-packet.js';
 import {NightLighting} from './Survival.jsx';
 import {sceneFireLights} from './survival-state.js';
 
+let rendererRequest;
+const requestRenderer=()=>rendererRequest??=import('./phaser-renderer.js');
+
 export default function PhaserWorld({sceneId,live,children,cycle,survival}) {
   const host=useRef(null),engine=useRef(null),assets=usePixelManifest();
   const [status,setStatus]=useState('loading'),[retry,setRetry]=useState(0),[scale,setScale]=useState(1),[partial,setPartial]=useState(false),[importFailed,setImportFailed]=useState(false);
   const registry=useMemo(()=>{const entries=new Map();return{entries,set(id,value){if(sameRenderPacket(entries.get(id),value))return;entries.set(id,value);engine.current?.invalidate();},delete(id){if(entries.delete(id))engine.current?.invalidate();}};},[]);
   const context=useMemo(()=>({registry,scale}),[registry,scale]);
+  // Start the critical renderer in parallel with the manifest, before CSS
+  // sprites enqueue the larger atlases. The same promise is reused below.
+  useEffect(()=>{void requestRenderer().catch(()=>{});},[]);
   useEffect(()=>{const observer=new ResizeObserver(entries=>{setScale(entries[0].contentRect.width/(WORLD_MAP.width*32));engine.current?.invalidate();});observer.observe(host.current);return()=>observer.disconnect();},[]);
   useEffect(()=>{
     if(!assets)return;
     let cancelled=false,instance;
     setStatus('loading');setImportFailed(false);setPartial(sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]));
     // Phaser stays outside the initial React bundle and owns only the visible main map.
-    import('./phaser-renderer.js').then(module=>{
+    requestRenderer().then(module=>{
       if(cancelled)return;
       instance=module.createWorldRenderer({parent:host.current,assets,registry,sceneId,phase:cycle?.phase,lights:sceneFireLights(survival,sceneId),onReady:()=>{if(!cancelled)setStatus('ready');},onPartial:()=>{if(!cancelled)setPartial(true);},onError:()=>{if(!cancelled)setStatus('fallback');}});
       engine.current=instance;

@@ -4,6 +4,8 @@
 
 所有 PNG 均由内置 `image_gen` 生成；源文件和 `public/pixel-world/ink_*.png` 保持字节一致。构建只产生采样矩形、脚点、动作和持物元数据，不改变原图像素。各图集不严格等分，使用实测裁切与接触点。RGBA 预览可能有深色底，实际透明性以 alpha 为准。
 
+从 v0.22.1 起，正式构建还用固定 Sharp 版本产生 `dist/*.png.webp` 传输副本：Q90 RGB 有损编码、alphaQuality100，尺寸与透明通道逐像素校验，保留所有原 PNG。此步骤仅压缩发布格式，不重绘、裁切或缩放图像；完整报告写入 `dist/static-transfer-manifest.json`。不支持或未明确接受 WebP 的请求仍取得原 PNG。
+
 - 人物、怪物及补充动作：`actor-prompts.json`、`actor-supplement-prompt.txt`、`actor-geometry.json`、`actors.mjs`。
 - 工具、装备、饰品与物品：`inventory-prompts.json`、`inventory.mjs`。
 - 农场、作物、火焰、发现物、长凳和石柱：`farm-effects-prompts.md`、`farm-effects-provenance.json`、`farm-effects.mjs`。

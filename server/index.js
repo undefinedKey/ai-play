@@ -11,6 +11,7 @@ import { SkillPairingStore, approvalOptions } from './skill-pairing.js';
 import { attachSpectator } from './spectator.js';
 import { recoverAgentInvitations } from './agent-invite-recovery.js';
 import { removePlatformAgents } from './remove-platform-agents.js';
+import { staticTransfer } from './static-transfer.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const fail = (code, message) => Object.assign(new Error(message), { code });
@@ -102,7 +103,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     }
     next();
   });
-  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.22.0', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, cooperation: true, public_history: true, head_speech_bubbles: true, independent_scenes: true, terrain_collision: true, phaser_renderer: true, scene_subscriptions: true, continuous_movement: true, combat_timeline: true, resource_nodes: true, day_cycle: true, survival: true, tree_ecology: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, version: '0.22.1', mode: accounts ? 'accounts' : 'local-prototype', capabilities: { skill_pairing: true, public_spectator: true, runtime_health: true, reliable_events: true, recovery: true, world_activities: true, adventure: true, monster_ai: true, monster_patrol: true, movement_candidates: true, farming: true, farm_tools: true, inventory: true, equipment: true, opportunities: true, fatigue: true, persistent_appearance: true, pixel_world: true, gathering: true, cooking: true, trading: true, exploration_events: true, strategic_equipment: true, personal_goals: true, cooperation: true, public_history: true, head_speech_bubbles: true, independent_scenes: true, terrain_collision: true, phaser_renderer: true, scene_subscriptions: true, continuous_movement: true, combat_timeline: true, resource_nodes: true, day_cycle: true, survival: true, tree_ecology: true, passwordless_login: !!accounts, skill_invites: !!accounts } }));
   const spectator = attachSpectator(app, world, config.spectator);
   app.post('/api/skill/pair', (req, res) => {
     res.status(201).json(skillPairing.create(req.body, req.socket.remoteAddress, config.publicUrl?.origin || baseUrl));
@@ -300,6 +301,7 @@ export async function createApp({ dbPath = resolve(ROOT, 'data/world.sqlite'), d
     app.use(vite.middlewares);
   } else if (frontend) {
     if (!existsSync(resolve(ROOT, 'dist/index.html'))) throw new Error('请先执行 npm run build');
+    app.use(staticTransfer(resolve(ROOT, 'dist')));
     app.use(express.static(resolve(ROOT, 'dist')));
     app.get('/{*path}', (_req, res) => res.sendFile(resolve(ROOT, 'dist/index.html')));
   }
