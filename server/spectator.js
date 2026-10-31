@@ -107,11 +107,11 @@ export function spectatorSnapshot(world) {
     places: catalog.places.map(place => ({ id: string(place.id), name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
-    games: catalog.games.map(item => ({ id: string(item.id), name: string(item.name), description: string(item.description), min_players: number(item.min_players), max_players: number(item.max_players) })),
+    games: catalog.games.map(item => ({ id: string(item.id), name: string(item.name), description: string(item.description), min_players: number(item.min_players), max_players: number(item.max_players), registration_seconds:number(item.registration_seconds),turn_seconds:number(item.turn_seconds) })),
     groups: Object.values(groups).map(group => ({ group_id: string(group.group_id), name: string(group.name), members: strings(group.members), created_at: number(group.created_at) })),
     cooperation: structuredClone(COOPERATION_RULES), cooperations: publicCooperations(world),
     game: publicGame(game, { spectator: true, agentIds }),
-    events: recentEvents.reverse(),
+    events: recentEvents.reverse(), history: world.historyMetadata(),
     server_time: world.now(),
   };
 }
@@ -125,6 +125,7 @@ export function attachSpectator(app, world, { maxStreams = 50, maxPerIp = 30, he
     res.write(value);
   };
   app.get('/api/public/world', (_req, res) => res.json(spectatorSnapshot(world)));
+  app.get('/api/public/history', (req, res) => res.json(world.historyPage(req.query)));
   app.get('/api/public/events', (req, res) => {
     const ip = req.socket.remoteAddress;
     if (streams.size >= maxStreams || [...streams.values()].filter(value => value.ip === ip).length >= maxPerIp) {

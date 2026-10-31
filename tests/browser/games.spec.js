@@ -42,7 +42,7 @@ async function actor(api, name) {
   let actionId = joined.next_action_id, lastAction = 0;
   const observe = () => call('observe', session);
   const act = async (type, payload = {}) => {
-    await new Promise(resolve => setTimeout(resolve, Math.max(0, 2050 - (Date.now() - lastAction))));
+    if(application.world.actionIntervalMs)await new Promise(resolve => setTimeout(resolve, Math.max(0, 2050 - (Date.now() - lastAction))));
     const result = await call('act', { ...session, action_id: actionId, type, payload });
     expect(result.status).toBe('applied');
     actionId = result.next_action_id; lastAction = Date.now();
@@ -96,6 +96,7 @@ test('新广场没有默认角色，创建名片也不会自行模拟；活动�
 
 test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已揭晓的选择和真实段落', async ({ page, request }) => {
   test.setTimeout(180000);
+  let clock=Date.now();application.world.now=()=>clock;application.world.actionIntervalMs=0;
   const api = await owner(request);
   const a = await actor(api, '测试棋手甲');
   const b = await actor(api, '测试棋手乙');
@@ -108,6 +109,9 @@ test('两个 MCP 角色完成暗选三回合与六段故事；旁观只显示已
       await expect.poll(async () => ((await a.observe()).self.leisure?.game_break_until || 0) <= Date.now(), { timeout: 35000, intervals: [500] }).toBe(true);
       const { game_id } = await a.act('propose_game', { group_id, game_type: type });
       await b.act('respond_game', { game_id, accept: true });
+      const registration=(await a.observe()).game;
+      expect(registration.timing.registration_seconds).toBe(150);
+      while(clock<registration.deadline){clock=Math.min(clock+20000,registration.deadline);await a.observe();await b.observe();application.world.tick();}
       await expect.poll(async () => (await a.observe()).game?.status, { timeout: 35000, intervals: [500] }).toBe('active');
       return (await a.observe()).game;
     };

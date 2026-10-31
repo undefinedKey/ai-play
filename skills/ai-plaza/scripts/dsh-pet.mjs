@@ -1,4 +1,5 @@
 import { cooperationContext, cooperationInstructions, cooperationPrompt, cooperationActivityKey } from './cooperation.mjs';
+import { HOST_PREFLIGHT_MS, MODEL_REQUEST_MS, remainingSeconds, registrationSeconds } from './timing.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -213,9 +214,9 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
       ...(progress.last_result ? { last_result: { ...pick(progress.last_result, ['kind', 'at']), text: text(progress.last_result.text, 80) } } : {}) } },
     nearby: (observation.nearby_agents || []).slice(0, 4).map(teammate),
     group: observation.group ? pick(observation.group, ['group_id', 'members']) : undefined,
-    invitations: (observation.invitations || []).slice(0, 2).map(i => pick(i, ['invite_id', 'from_agent_id', 'group_id'])),
+    invitations: (observation.invitations || []).slice(0, 2).map(i => ({ ...pick(i, ['invite_id', 'from_agent_id', 'group_id']), remaining_seconds: remainingSeconds(i.expires_at, observation.server_time ?? Date.now()) })),
     game: observation.game?.status === 'recruiting' && !progress.in_field ? {
-      ...pick(observation.game, ['game_id', 'status', 'game_type']), responded: observation.game.responses?.[self.agent_id],
+      ...pick(observation.game, ['game_id', 'status', 'game_type']), remaining_seconds: remainingSeconds(observation.game.deadline, observation.server_time ?? Date.now()), responded: observation.game.responses?.[self.agent_id],
     } : undefined,
     adventure: {
       zones: (adventure.zones || []).map(z => [z.id, text(z.name, 20), z.x, z.y, z.danger]),
@@ -419,7 +420,7 @@ function originalDecisionPrompt({ observation = {}, events = [], rules = {}, own
     personal_goal: goalContext(self, observation.server_time ?? Date.now()),
     food: foodContext(observation, rules),
     movement: movementPromptContext(observation, rules),
-    self: { ...compactAgent(self), activity: activity ? pick(activity, ['activity_id', 'ends_at']) : null,
+    self: { ...compactAgent(self), activity: activity ? { activity_id: activity.activity_id, remaining_seconds: remainingSeconds(activity.ends_at, observation.server_time ?? Date.now()) } : null,
       ...(foodContext(observation, rules) ? { hp: self.adventure.hp, max_hp: self.adventure.max_hp } : {}) },
     nearby: (observation.nearby_agents || []).slice(0, 4).map(compactAgent),
     places: places.map(p => [p.id, p.x, p.y, p.radius]),
@@ -432,9 +433,9 @@ function originalDecisionPrompt({ observation = {}, events = [], rules = {}, own
       ...(activity.target ? { target: pick(activity.target, ['x', 'y']) } : {}),
       ...(activity.progress ? { progress: pick(activity.progress, ['collected', 'total']) } : {}),
     } : undefined,
-    invitations: (observation.invitations || []).slice(0, 2).map(i => pick(i, ['invite_id', 'from_agent_id', 'group_id'])),
+    invitations: (observation.invitations || []).slice(0, 2).map(i => ({ ...pick(i, ['invite_id', 'from_agent_id', 'group_id']), remaining_seconds: remainingSeconds(i.expires_at, observation.server_time ?? Date.now()) })),
     group: observation.group ? pick(observation.group, ['group_id', 'members']) : undefined,
-    game: game ? { ...pick(game, ['game_id', 'status', 'turn_id', 'current_agent_id', 'deadline']), game_type: gameType,
+    game: game ? { ...pick(game, ['game_id', 'status', 'turn_id', 'current_agent_id']), remaining_seconds: remainingSeconds(game.deadline, observation.server_time ?? Date.now()), game_type: gameType,
       joined: game.participants?.includes(self.agent_id),
       ...(game.status === 'recruiting' ? { responded: game.responses?.[self.agent_id] } : {}),
       ...(gameType === 'word_chain' ? pick(game, ['last_word']) : {}),
@@ -453,7 +454,7 @@ function originalDecisionPrompt({ observation = {}, events = [], rules = {}, own
   if (data.group) delete data.self.group_id; // The group ID is already present below.
   const liveGame = game && !['finished', 'ended'].includes(game.status);
   const socialActions = (data.invitations.length ? 'respond_invite{invite_id,accept}；' : '') +
-    (liveGame ? 'leave_game{game_id}；' : activity ? '' : observation.group ? 'propose_game{group_id,game_type}(选games.id，至少2人，30秒报名)；invite{group_id,target_agent_id}；leave_group{group_id}；' : 'create_group{}；') +
+    (liveGame ? 'leave_game{game_id}；' : activity ? '' : observation.group ? `propose_game{group_id,game_type}(选games.id，至少2人，${registrationSeconds(rules)}秒报名)；invite{group_id,target_agent_id}；leave_group{group_id}；` : 'create_group{}；') +
     (game?.status === 'recruiting' ? 'respond_game{game_id,accept}(responded已有值则已报名/谢绝)；' : '') +
     (game?.status === 'active' ? gameType === 'rock_paper_scissors' ? 'submit_move{game_id,turn_id,choice:rock|paper|scissors}；每轮暗选一次，已在submitted_agent_ids则等揭晓，石胜剪/剪胜布/布胜石，共3轮。' :
       gameType === 'story_chain' ? 'submit_story{game_id,turn_id,text}；仅轮到自己续写≤200字，共6段，承接segments末段。' :
@@ -648,9 +649,14 @@ export class DshPetClient {
     if (!this.petId) fail('PET_NOT_READY', '请先选择原桌宠');
     const body = prepared || this.prepareDecision(context);
     if (!body || typeof body.text !== 'string' || body.text.length > 2000) fail('PET_CONTEXT_TOO_LARGE', '公开观察超过桌宠消息上限，未发送模型请求');
-    await this.preflight({ signal, force: true });
+    const preflightSignal = AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(HOST_PREFLIGHT_MS)]);
+    try { await this.preflight({ signal: preflightSignal, force: true }); }
+    catch (error) {
+      if (preflightSignal.aborted && !signal?.aborted) fail('PET_UNAVAILABLE', '原桌宠预检在10秒内未完成，未发送模型请求');
+      throw error;
+    }
     const result = await this.request(`/chat?pet=${encodeURIComponent(this.petId)}&surface=any`, {
-      body: { text: body.text }, signal, model: true, onRequest,
+      body: { text: body.text }, signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(MODEL_REQUEST_MS)]), model: true, onRequest,
     });
     if (!result.ok || typeof result.text !== 'string') fail('PET_GENERATION_FAILED', '原桌宠未能生成回复；请检查其模型配置，桥不会配置或替换模型');
     return expandDecisionReferences(result.text, body.references);

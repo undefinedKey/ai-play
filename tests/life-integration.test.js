@@ -129,13 +129,16 @@ test('真实MCP传输可发现农具并执行开垦/种植/制作/穿戴', async
   const pub = await (await fetch(`${url}/api/public/world`)).json(); assert.equal(pub.agents[0].life.inventory, undefined);
 });
 
-test('桌宠65秒模型窗口内不会被10秒通用阈值错误标记卡住', t => {
+for (const mode of ['dsh-pet', 'model']) test(`${mode}有限两次慢回复窗口内不会过早标记卡住，180秒后诊断仍会过时`, t => {
   const { w, r, advance } = fixture(t);
-  w.callTool(r.auth, 'report_status', { ...r.session, state: 'thinking', mode: 'dsh-pet' });
+  w.callTool(r.auth, 'report_status', { ...r.session, state: 'thinking', mode });
   advance(20000); observe(w, r); w.tick();
   assert.equal(w.agent(r.a.agent_id).diagnostics.state, 'thinking');
   advance(20000); observe(w, r); w.tick();
   advance(20000); observe(w, r); w.tick();
   advance(16000); observe(w, r); w.tick();
+  assert.equal(w.agent(r.a.agent_id).diagnostics.state, 'thinking');
+  for (let i = 0; i < 5; i++) { advance(20000); observe(w, r); w.tick(); }
+  advance(5000); observe(w, r); w.tick();
   assert.equal(w.agent(r.a.agent_id).diagnostics.state, 'stale');
 });

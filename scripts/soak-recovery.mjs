@@ -11,6 +11,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { createApp } from '../server/index.js';
 import { initializeEconomy } from '../server/economy.js';
 import { cooperationLoadAction } from './cooperation-soak-policy.mjs';
+import { seedExperienceCapacity, experienceLoadAction } from './experience-soak-policy.mjs';
 import { publicCooperations } from '../server/cooperation.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -18,6 +19,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const percentile = (values, fraction = .95) => [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)] || 0;
 const lifeScenario = process.argv.includes('--life');
 const explorationScenario = process.argv.includes('--exploration');
+const experienceScenario = process.argv.includes('--experience');
 const cooperationScenario = process.argv.includes('--cooperation');
 const CAPABILITIES = ['adventure','farming','inventory','equipment','farm_tools','fatigue','recovery','reliable_events','runtime_health','gathering','cooking','trading','exploration_events','strategic_equipment','personal_goals','cooperation'];
 // Deterministic load policy ONLY: product controllers remain the original AI.
@@ -121,6 +123,10 @@ if (process.argv.includes('--worker')) {
     return { token: c.token };
   });
   if (cooperationScenario) for (const [index, raw] of Object.values(app.world.state.agents).entries()) { raw.position = {x:11,y:8}; raw.life.inventory.turnip = index === 0 ? 100 : 0; if ([2,3].includes(index)) { raw.adventure.level=20; raw.adventure.xp=570; raw.adventure.hp=raw.adventure.max_hp=135; } delete raw.life.ledger; initializeEconomy(raw,app.world.now()); }
+  if (experienceScenario) {
+    for (const [i,a] of Object.values(app.world.state.agents).entries()) { a.position={x:11,y:8}; if(i===3) a.life.inventory.turnip=8; delete a.life.ledger; initializeEconomy(a,app.world.now()); }
+    seedExperienceCapacity(app.world);
+  }
   const { server, url } = await app.start(0);
   const metrics = () => {
     const used = process.cpuUsage(cpu);
@@ -129,6 +135,7 @@ if (process.argv.includes('--worker')) {
       event_loop_p99_ms: delay.percentile(99) / 1e6, retained_events: app.world.state.events.length,
       retained_receipts: Object.keys(app.world.state.receipts).length, peak_events: peakEvents, peak_receipts: peakReceipts,
       active: app.world.activeIds().length,
+      ...(experienceScenario ? { history_entries:app.world.state.history.entries.length, history_cooperations:app.world.state.history.entries.filter(e=>e.category==='cooperation').length, completed_games:app.world.state.history.entries.filter(e=>e.type==='game_finished'&&e.outcome==='completed').length, live_meal_completed:publicCooperations(app.world).some(p=>p.status==='completed'&&p.template_id==='camp_meal') } : {}),
       ...(cooperationScenario ? { cooperations:publicCooperations(app.world).map(p=>({template_id:p.template_id,status:p.status,end_reason:p.end_reason})), pending_returns:Object.values(app.world.state.agents).filter(a=>a.cooperation_return).length } : {}),
       ...(explorationScenario ? {encounters: Object.values(app.world.state.agents).filter(a=>a.adventure.encounter).length, goals:Object.values(app.world.state.agents).filter(a=>a.personal_goal).length, exploration_events:app.world.state.events.filter(e=>e.type.startsWith('exploration_')).length, expired_encounters:app.world.state.events.filter(e=>e.type==='exploration_ended' && e.payload.status==='expired').length} : {}),
       ...((lifeScenario || explorationScenario || cooperationScenario) ? { ledger_entries: Object.values(app.world.state.agents).map(a => a.life.ledger?.entries?.length || 0),
@@ -145,10 +152,11 @@ if (process.argv.includes('--worker')) {
   const seconds = Number(process.argv.find(arg => arg.startsWith('--seconds='))?.split('=')[1] || 1800);
   assert.ok(Number.isInteger(seconds) && seconds >= 10 && seconds <= 3600);
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'plaza-soak-'));
-  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+  const worker = fork(fileURLToPath(import.meta.url), ['--worker', ...(experienceScenario ? ['--experience'] : []), ...(lifeScenario ? ['--life'] : []), ...(explorationScenario ? ['--exploration'] : []), ...(cooperationScenario ? ['--cooperation'] : [])], { env: { ...process.env, PLAZA_SOAK_DIR: directory }, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
   const samples = [], latencies = [], viewers = [], clients = [], abort = new AbortController();
   let final, applied = 0, failures = 0, frames = 0, bytes = 0, maxBuffer = 0, viewerErrors = 0, exited = false;
-  const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map()};
+  const actionCounts = {}, cooperationShared = {agentIds:[], modes:new Map(),words:['气球','球场','场地','地球','球迷','迷人','人民','民族','族群','群山']};
+  let historyReads=0, historyFailures=0; const historyLatencies=[];
   const exit = new Promise(resolveExit => worker.once('exit', code => { exited = true; resolveExit(code); }));
   worker.on('message', message => { if (message.type === 'metrics') samples.push(message); if (message.type === 'final') final = message; });
   const call = async (client, name, args = {}) => {
@@ -166,7 +174,7 @@ if (process.argv.includes('--worker')) {
       worker.once('error', reject); worker.once('exit', () => { clearTimeout(timer); reject(new Error('Worker exited before ready')); });
     });
     for (const person of ready.people) {
-      const client = new Client({ name: 'isolated-soak', version: '0.15.0' });
+      const client = new Client({ name: 'isolated-soak', version: '0.16.0' });
       await client.connect(new StreamableHTTPClientTransport(new URL(`${ready.url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${person.token}` } } }));
       clients.push({ client, session: await call(client, 'join_world'), policy: { setup:0,equipped:false,cycle:0 } });
     }
@@ -200,7 +208,16 @@ if (process.argv.includes('--worker')) {
         try {
           const observation = await call(client, 'observe', { run_id: session.run_id, session_epoch: session.session_epoch });
           const a = observation.self;
-          if (lifeScenario || explorationScenario || cooperationScenario) {
+          if (experienceScenario) {
+            if(policy.pending && Date.now()>=policy.pendingAt) {
+              const decision=policy.pending;
+              const result=await call(client,'act',{run_id:session.run_id,session_epoch:session.session_epoch,action_id:observation.next_action_id,...decision});
+              assert.equal(result.status,'applied',JSON.stringify(result)); applied++; actionCounts[decision.type]=(actionCounts[decision.type]||0)+1; policy.pending=null;
+            } else if(!policy.pending) {
+              policy.pending=experienceLoadAction(observation,i,policy,cooperationShared);
+              policy.pendingAt=Date.now()+45000;
+            }
+          } else if (lifeScenario || explorationScenario || cooperationScenario) {
             const decision = cooperationScenario ? cooperationLoadAction(observation,i,policy,cooperationShared) : lifeScenario ? lifeAction(observation) : explorationAction(observation,i,policy);
             if (decision) {
               const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, ...decision });
@@ -213,12 +230,21 @@ if (process.argv.includes('--worker')) {
             const result = await call(client, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: observation.next_action_id, type: 'adventure_plan', payload });
             assert.equal(result.status, 'applied', JSON.stringify(result)); applied++;
           }
-          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.15.0', mode: 'demo', capabilities: explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
+          await call(client, 'report_connection', { run_id: session.run_id, runtime_version: '0.16.0', mode: 'demo', capabilities: explorationScenario || cooperationScenario ? CAPABILITIES : undefined, health: { world: 'connected', host: 'not_applicable', model: 'idle', waiting_reason: a.life.gathering ? 'activity_running' : a.adventure.plan ? 'plan_running' : 'idle', counters: { requests: 0, replies: 0, retries: 0, local_failures: 0 }, token_usage: null } });
         } catch (error) { failures++; console.error(error.message); }
+      }));
+      if(experienceScenario) await Promise.all(Array.from({length:4},async(_,i)=>{
+        const before=performance.now();
+        try { const suffix=i%2?'&category=cooperation':`&agent_id=${cooperationShared.agentIds[i]}`;
+          const response=await fetch(`${ready.url}/api/public/history?limit=50${suffix}`); assert.equal(response.status,200);
+          const body=await response.json();assert.ok(body.items.length<=50);assert.equal(body.retention.max_entries,4096);
+          if(body.next_cursor) {const next=await fetch(`${ready.url}/api/public/history?limit=50${suffix}&before=${encodeURIComponent(body.next_cursor)}`);assert.equal(next.status,200);const page=await next.json();assert.ok(page.items.every(e=>e.sequence<body.items.at(-1).sequence));}
+          historyReads++;historyLatencies.push(performance.now()-before);
+        } catch(error) {historyFailures++;console.error(error.message);}
       }));
       round++;
       if (round % 6 === 0) console.log(JSON.stringify({ type: 'progress', elapsed_seconds: Math.round((performance.now() - start) / 1000), applied, failures, frames, app: samples.at(-1) }));
-      await sleep(Math.min(lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
+      await sleep(Math.min(experienceScenario || lifeScenario || explorationScenario || cooperationScenario ? 3000 : 10000, Math.max(0, seconds * 1000 - (performance.now() - start))));
     } while (performance.now() - start < seconds * 1000);
     const elapsed = performance.now() - start;
     abort.abort(); await Promise.all(viewers); await Promise.all(clients.map(({ client }) => client.close()));
@@ -228,17 +254,19 @@ if (process.argv.includes('--worker')) {
     const late = percentile(samples.slice(-window).map(s => s.rss_mb), .5);
     const result = { type: 'result', scope: 'Isolated real HTTP: 5 scripted controllers, 20 public SSE viewers; no model calls or production records. Separate child application process; client load measured separately.',
       environment: { platform: process.platform, node: process.version, cores: cpus().length, total_memory_mb: Math.round(totalmem() / 1048576) },
-      scenario: cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      scenario: experienceScenario ? 'slow-decisions-at-history-capacity' : cooperationScenario ? 'voluntary-cooperation' : lifeScenario ? 'pacifist-living-from-zero' : explorationScenario ? 'exploration-strategy-goals' : 'adventure', action_counts: actionCounts,
+      history_reads:historyReads,history_failures:historyFailures,history_query_p95_ms:+percentile(historyLatencies).toFixed(2),
       requested_seconds: seconds, elapsed_seconds: +(elapsed / 1000).toFixed(2), actors: 5, viewers: 20, applied, failures, viewer_errors: viewerErrors, frames,
       mean_bytes_per_viewer_second: Math.round(bytes / 20 / (elapsed / 1000)), max_client_frame_buffer: maxBuffer,
       mcp_roundtrip_p95_ms: +percentile(latencies).toFixed(2), app: final, samples,
       steady_rss_median_change_mb: +(late - early).toFixed(2), client_peak_rss_mb: process.resourceUsage().maxRSS / 1024,
       criteria: { app_rss_below_512: final.peak_rss_mb < 512, tick_p95_below_50: final.tick_p95_ms < 50, bounded_events: final.peak_events <= 3000, bounded_receipts: final.peak_receipts <= 1000, steady_rss_change_below_64: late - early < 64, all_five_present: final.active === 5,
+        ...(experienceScenario ? { bounded_history:final.history_entries===4096,cooperation_quota_preserved:final.history_cooperations===512,history_queries_passed:historyReads>0&&historyFailures===0,...(seconds>=900?{slow_game_completed:final.completed_games>0,slow_cooperation_completed:final.live_meal_completed}: {})} : {}),
         ...(cooperationScenario ? { bounded_cooperations: final.cooperations.length <= 25, bounded_returns: final.pending_returns <= 5, bounded_ledgers: final.ledger_entries.every(n=>n<=100), ...(seconds>=900 ? {meal_completed:final.cooperations.some(p=>p.template_id==='camp_meal'&&p.status==='completed'),patrol_completed:final.cooperations.some(p=>p.template_id==='scout_and_guard'&&p.status==='completed'),refusal_exercised:actionCounts['cooperation:respond_false']>=1,leave_exercised:actionCounts['cooperation:leave']>=1,expiry_exercised:final.cooperations.some(p=>p.status==='ended'&&p.end_reason==='expired')} : {}) } : {}),
         ...(explorationScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100),bounded_encounters:final.encounters<=5,bounded_goals:final.goals<=5, ...(seconds>=600? {exploration_choices_exercised:Object.entries(actionCounts).filter(([k])=>k.startsWith('adventure_event:')).reduce((n,[,v])=>n+v,0)>=10,goals_exercised:actionCounts['personal_goal:set']>=5,strategy_equipped:actionCounts['inventory:equip']>=10,finite_expiry_exercised:final.expired_encounters>0}: {}) } : {}),
         ...(lifeScenario ? { bounded_ledgers: final.ledger_entries.every(n => n <= 100), ...(seconds >= 600 ? { life_cycle_exercised: ['gather:start','inventory:repair','farm:harvest','inventory:craft','inventory:use','trade:buy','trade:sell'].every(key => actionCounts[key] >= 5) } : {}) } : {}) } };
     console.log(JSON.stringify(result));
-    assert.equal(failures + viewerErrors, 0); assert.ok(frames >= 20); assert.ok(applied >= 5);
+    assert.equal(failures + viewerErrors, 0); assert.ok(frames >= 20); assert.ok(applied >= (experienceScenario && seconds < 120 ? 0 : 5));
     assert.ok(Object.values(result.criteria).every(Boolean));
   } finally {
     abort.abort(); await Promise.allSettled(clients.map(({ client }) => client.close()));

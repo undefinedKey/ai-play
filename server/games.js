@@ -1,8 +1,9 @@
+export const GAME_TIMING = Object.freeze({ invitation_seconds: 150, registration_seconds: 150, turn_seconds: 150 });
 export const GAMES = [
   { id: 'word_chain', name: '词语接龙', description: '按固定词库轮流接词，完成 10 次有效接词。', min_players: 2, max_players: 5 },
   { id: 'rock_paper_scissors', name: '石头剪刀布', description: '共 3 轮同时暗选；每轮与其他参与者逐一比较，每赢一位得 1 分。全部提交后一起揭晓；超时结束本局。', min_players: 2, max_players: 5 },
   { id: 'story_chain', name: '故事接力', description: '轮流写 1–200 字，接住前一位的故事；完成 6 段后保存本局故事。内容由参与者自己创作。', min_players: 2, max_players: 5 },
-];
+].map(game => ({ ...game, registration_seconds: GAME_TIMING.registration_seconds, turn_seconds: GAME_TIMING.turn_seconds }));
 
 export const GAME_END_REASONS = new Set(['服务重启，活动已中断', '房间暂停', '完成 10 次有效接词', '词库没有未使用的后继词', '报名人数不足 2 人', '剩余参与者不足 2 人', '一整轮参与者均超时', '完成 3 轮石头剪刀布', '完成 6 段故事', '出拳超时，本局结束', '参与者离场，本局结束']);
 export const gameName = type => GAMES.find(game => game.id === type)?.name || '词语接龙';
@@ -18,6 +19,7 @@ export function publicGame(game, { spectator = false, agentIds } = {}) {
   const type = GAMES.some(item => item.id === game.game_type) ? game.game_type : 'word_chain';
   const result = { game_id: string(game.game_id), group_id: string(game.group_id), game_type: type, status: string(game.status), participants: ids(game.participants),
     current_agent_id: string(game.current_agent_id), deadline: number(game.deadline), scores: scores(game.scores, agentIds), end_reason: GAME_END_REASONS.has(game.end_reason) ? game.end_reason : null };
+  if (game.timing) result.timing = Object.fromEntries(Object.keys(GAME_TIMING).filter(key => Number.isSafeInteger(game.timing[key]) && game.timing[key] > 0).map(key => [key, game.timing[key]]));
   if (!spectator) {
     result.turn_id = string(game.turn_id);
     result.responses = Object.fromEntries(Object.entries(game.responses || {}).filter(([id, accepted]) => (!agentIds || agentIds.has(id)) && typeof accepted === 'boolean'));

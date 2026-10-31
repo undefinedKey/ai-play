@@ -81,6 +81,10 @@ elif cmd=='node':
     elif 'check-live.mjs' in ' '.join(args):
         log('new:health')
         if stage=='health': sys.exit(1)
+    elif 'verify-history.mjs' in ' '.join(args):
+        # Node/model behavior remains simulated in this release fault drill.
+        # The real projector and SQLite migration run in migration-v016.test.js.
+        print(json.dumps({'public_history_preserved':True}))
     else: log('prepare:node')
 elif cmd=='curl': print(json.dumps({'ok':s['server'],'version':version(),'mode':'accounts'}))
 elif cmd=='runuser':
@@ -101,9 +105,10 @@ elif cmd=='systemctl':
             s['server_stop_failed']=True;save();sys.exit(1)
     if 'start' in args:
         s['server']=True;save();log('server:start:'+version())
-        if version()=='0.15.0':
+        if version()=='0.16.0':
             with closing(sqlite3.connect(r/'var/lib/ai-plaza/world.sqlite')) as db, db:
                 v=json.loads(db.execute('SELECT payload FROM world_state').fetchone()[0]);v['migrated_fixture']=True
+                v['history']={'version':1,'archive_id':'archive_00000000-0000-0000-0000-000000000000','started_at':1000,'next_sequence':1,'revision':0,'imported_count':0,'entries':[]}
                 for a in v['agents'].values():
                     if stage=='migration': a['life']['inventory']['wood']=999
                 db.execute('UPDATE world_state SET payload=?',(json.dumps(v),))
@@ -140,6 +145,7 @@ class RecoveryDrills(unittest.TestCase):
     def test_plot_loss_and_sqlite_integrity_fail_closed(self):
         old=template(); new=copy.deepcopy(old)
         MIGRATION.compare_states(old,new)
+        with self.assertRaises(AssertionError): MIGRATION.compare_states(old,new,require_history=True)
         for field in ['encounter', 'discovery_ready_at', 'next_attack_at', 'discovery_sequence']:
             damaged=copy.deepcopy(new);damaged['agents']['a']['adventure'][field]=None
             with self.assertRaises(AssertionError): MIGRATION.compare_states(old,damaged)
@@ -158,16 +164,17 @@ class RecoveryDrills(unittest.TestCase):
             return text
         for folder in ['opt/ai-plaza','candidate/deploy','candidate/tests','etc/ai-plaza','home/dsh/.ai-plaza','home/dsh/.agents/skills/ai-plaza','home/dsh/.config/ai-plaza','bin']:
             (r/folder).mkdir(parents=True,exist_ok=True)
-        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.14.2"}'); (r/'candidate/package.json').write_text('{"version":"0.15.0"}')
+        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.15.0"}'); (r/'candidate/package.json').write_text('{"version":"0.16.0"}')
         release=rewrite((REPO/'deploy/release.sh').read_text()).replace('"$EUID" == 0','1 == 1')
         release=release.replace('set -euo pipefail','set -euo pipefail\nexport PATH="'+prefix+'/bin:$PATH"')
         release=release.replace('-C / var/lib/ai-plaza','-C "'+prefix+'" var/lib/ai-plaza')
         release=release.replace('"$backup" "$stamp" || restored=0','"$backup" "$stamp" --root "'+prefix+'" || restored=0')
         (r/'candidate/deploy/release.sh').write_text(release,newline='\n')
         shutil.copyfile(REPO/'deploy/release-data.py',r/'candidate/deploy/release-data.py')
+        (r/'candidate/deploy/verify-history.mjs').write_text('// Simulated only in this release fault drill.\n')
         (r/'etc/ai-plaza/server.env').write_text('FIXTURE_ONLY=true\n')
         (r/'home/dsh/.config/ai-plaza/bridge.env').write_text('FIXTURE_ONLY=true\n')
-        skill=r/'home/dsh/.agents/skills/ai-plaza'; (skill/'config.json').write_text('{}'); (skill/'version.json').write_text('{"version":"0.14.2"}')
+        skill=r/'home/dsh/.agents/skills/ai-plaza'; (skill/'config.json').write_text('{}'); (skill/'version.json').write_text('{"version":"0.15.0"}')
         cp={'run_id':'same-run','max_calls':20,'calls_used':7,'expires_at':9999999999999}
         (r/'home/dsh/.ai-plaza/client.json.bridge.json').write_text(json.dumps(cp)); (r/'home/dsh/.ai-plaza/client.json').write_text('{"agent_id":"a"}')
         original=template();write_db(r/'var/lib/ai-plaza/world.sqlite',original)
@@ -178,7 +185,7 @@ class RecoveryDrills(unittest.TestCase):
         python.write_text('#!/usr/bin/env bash\nexec "'+Path(sys.executable).as_posix()+'" "$@"\n',newline='\n');python.chmod(0o755)
         skill_stub="import os,json,subprocess;from pathlib import Path\n"+(
             "raise SystemExit(1)" if failure=='skill' else
-            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.15.0\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
+            "p=Path(os.environ['FIXTURE_ROOT'])/'home/dsh/.agents/skills/ai-plaza/version.json';p.write_text('{\"version\":\"0.16.0\"}');subprocess.run(['runuser','start','ai-plaza-bridge.service'],check=True)")
         source=remote_literal().replace('REVISION',repr('a'*40)).replace('MIGRATION',repr((REPO/'deploy/verify-migration.py').read_text())).replace('SKILL',repr(skill_stub))
         source=rewrite(source).replace('"--backup",sys.argv[4]', '"--backup",sys.argv[4],"--root",'+repr(prefix))
         path=r/'orchestrator.py';path.write_text(source)
@@ -194,18 +201,18 @@ class RecoveryDrills(unittest.TestCase):
             return
         self.assertTrue(state['server'],details);self.assertTrue(state['bridge'],details)
         if failure=='success':
-            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.15.0')
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.16.0')
         elif failure=='skill':
-            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((skill/'version.json').read_text())['version'],'0.14.2')
-            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.15.0')
+            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((skill/'version.json').read_text())['version'],'0.15.0')
+            self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.16.0')
         else:
-            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.14.2')
+            self.assertNotEqual(result.returncode,0);self.assertEqual(json.loads((r/'opt/ai-plaza/package.json').read_text())['version'],'0.15.0')
             self.assertEqual(read_db(r/'var/lib/ai-plaza/world.sqlite'),original)
         if failure=='prepare': self.assertNotIn('bridge:stop',trace)
         else: self.assertLess(trace.index('prepare:tests'),trace.index('bridge:stop'))
         if failure in ['migration','health']:
             self.assertTrue(list((r/'var/backups/ai-plaza').glob('failed-data-*/world.sqlite')))
-            self.assertLess(trace.index('server:start:0.14.2'),trace.rindex('bridge:start'))
+            self.assertLess(trace.index('server:start:0.15.0'),trace.rindex('bridge:start'))
 
     def test_release_faults(self):
         for failure in ['prepare','bridge-stop','server-stop','lingering','health','migration','skill','success']:

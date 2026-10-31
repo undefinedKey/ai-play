@@ -192,3 +192,78 @@ test('旧活动目录不宣称新游戏存在，旧word_chain类型可省略', (
   const data = decode(decisionPrompt({ observation: { self: { agent_id: 'old', position: { x: 1, y: 1 } }, activities: [{ id: 'read', name: '阅读', place_id: 'reading', duration_seconds: 45 }], game: { game_id: 'g', status: 'active', current_agent_id: 'old', turn_id: 't', last_word: '天气' } }, rules: { words: ['气球'] } }));
   assert.deepEqual(data.games, [['word_chain', '词语接龙']]); assert.equal(data.game.game_type, 'word_chain'); assert.deepEqual(data.words, ['气球']);
 });
+
+for (const gameType of ['word_chain', 'rock_paper_scissors', 'story_chain']) test(`${gameType}原桌宠40–60秒思考节奏可完成真实报名与整局`, async t => {
+  let turns = 0;
+  const slow = () => {
+    // Logical time advances in lease-sized chunks, independently of generation.
+    for (let i = 0; i < (turns++ % 2 ? 4 : 6); i++) {
+      f.advance(10000);
+      for (const agent of Object.values(f.world.state.agents)) if (agent.status === 'active') agent.last_contact_at = f.world.now();
+      f.world.tick();
+    }
+  };
+  const f = await fixture(t, data => {
+    assert.ok(data.game.remaining_seconds > 0); slow();
+    if (data.game.status === 'recruiting') return { type: 'respond_game', payload: { game_id: data.game.game_id, accept: true } };
+    if (gameType === 'word_chain') return { type: 'submit_word', payload: { game_id: data.game.game_id, turn_id: data.game.turn_id, word: data.words[0] } };
+    if (gameType === 'story_chain') return { type: 'submit_story', payload: { game_id: data.game.game_id, turn_id: data.game.turn_id, text: '原AI选择续写的片段' } };
+    return { type: 'submit_move', payload: { game_id: data.game.game_id, turn_id: data.game.turn_id, choice: 'rock' } };
+  });
+  const b = companion(f);
+  f.world.perform(b, 'propose_game', { group_id: b.group_id, game_type: gameType }); f.refresh();
+  const deadline = f.world.state.game.deadline; await f.runner.decide();
+  assert.equal(f.world.state.game.responses[f.a.agent_id], true); assert.equal(f.world.state.game.deadline, deadline);
+  f.world.startGame(); f.refresh();
+  for (let i = 0; f.world.state.game.status === 'active' && i < 14; i++) {
+    const g = f.world.state.game;
+    if (gameType === 'rock_paper_scissors' || g.current_agent_id === f.a.agent_id) { await f.runner.decide(); }
+    if (f.world.state.game.status !== 'active') break;
+    const next = f.world.state.game;
+    if (gameType === 'rock_paper_scissors' || next.current_agent_id === b.agent_id) {
+      slow();
+      const payload = { game_id: next.game_id, turn_id: next.turn_id };
+      const data = decode(decisionPrompt({ observation: f.world.observation(b), rules: f.world.getRules() }));
+      if (gameType === 'word_chain') f.world.perform(b, 'submit_word', { ...payload, word: data.words[0] });
+      else if (gameType === 'story_chain') f.world.perform(b, 'submit_story', { ...payload, text: '另一原AI选择的片段' });
+      else f.world.perform(b, 'submit_move', { ...payload, choice: 'scissors' });
+    }
+    f.refresh();
+  }
+  assert.equal(f.world.state.game.status, 'finished');
+  assert.ok(!f.world.state.events.some(event => event.type === 'game_timeout'));
+  assert.equal(f.runner.checkpoint.calls_used, f.prompts.length);
+});
+
+test('150秒新规则与30秒旧规则按实际截止显示；等待和已报名/非本人回合不空转', async t => {
+  const f = await fixture(t), b = companion(f);
+  const rules = f.world.getRules(); assert.equal(rules.game.turn_seconds, 150);
+  f.world.perform(f.a, 'propose_game', { group_id: f.a.group_id, game_type: 'story_chain' }); f.refresh();
+  f.runner.lastDecisionAt = f.world.now() - 90000; assert.equal(f.runner.decisionDue(), false);
+  f.world.perform(b, 'respond_game', { game_id: f.world.state.game.game_id, accept: true }); f.world.startGame(); f.refresh();
+  await f.runner.decide(); f.advance(10000); assert.equal(f.runner.decisionDue(), false, 'wait完成起30秒内不空转');
+  f.advance(20000); assert.equal(f.runner.decisionDue(), true);
+  f.world.nextTurn(b.agent_id); f.refresh(); f.advance(90000); assert.equal(f.runner.decisionDue(), false);
+  const observation = f.world.observation(f.a); observation.server_time = 100000;
+  observation.game.deadline = 130000;
+  observation.invitations = [{ invite_id: 'legacy', from_agent_id: b.agent_id, group_id: 'g', expires_at: 125000 }];
+  const data = decode(decisionPrompt({ observation, rules: { ...rules, cooperation: undefined, games: undefined, game: { registration_seconds: 30 } } }));
+  assert.equal(data.game.remaining_seconds, 30); assert.equal(data.invitations[0].remaining_seconds, 25);
+});
+
+test('慢回复越过真实回合期限仍提交原ID并记录STALE_TURN，不替AI改成下一回合', async t => {
+  let chosenTurn;
+  const f = await fixture(t, data => {
+    chosenTurn = data.game.turn_id;
+    for (let i = 0; i < 16; i++) {
+      f.advance(10000); for (const agent of Object.values(f.world.state.agents)) if (agent.status === 'active') agent.last_contact_at = f.world.now(); f.world.tick();
+    }
+    return { type: 'submit_story', payload: { game_id: data.game.game_id, turn_id: chosenTurn, text: '这段迟到了' } };
+  });
+  const b = companion(f); f.world.perform(f.a, 'propose_game', { group_id: f.a.group_id, game_type: 'story_chain' });
+  f.world.perform(b, 'respond_game', { game_id: f.world.state.game.game_id, accept: true }); f.world.startGame(); f.refresh();
+  await f.runner.decide();
+  assert.notEqual(f.world.state.game.turn_id, chosenTurn); assert.equal(f.acts.at(-1).payload.turn_id, chosenTurn);
+  assert.equal(f.runner.checkpoint.last_action_feedback.code, 'STALE_TURN'); assert.equal(f.world.state.game.segments.length, 0);
+  assert.equal(f.runner.checkpoint.calls_used, 1);
+});

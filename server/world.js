@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { WORDS, WORD_VERSION } from './words.js';
-import { GAMES, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
+import { GAMES, GAME_TIMING, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
 import { WORLD_MAP, MAX_MOVE, isPositionInBounds, boundedPosition, movementOptions } from './spatial.js';
@@ -19,6 +19,7 @@ import { encounterPending, endEncounter, tickEncounter, performAdventureEvent } 
 import { PERSONAL_GOAL_RULES, initializePersonalGoal, publicPersonalGoal, reviewPersonalGoal, tickPersonalGoals, performPersonalGoal, progressPersonalGoal } from './personal-goals.js';
 import { COOPERATION_RULES, initializeCooperations, publicCooperations, cooperationObservation, reviewCooperations, endCooperations, tickCooperations, performCooperation } from './cooperation.js';
 import { publicEvent } from './spectator.js';
+import { initializeHistory, recordHistoryEvent, pruneHistory, historyPage, historyMetadata } from './history.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -46,11 +47,11 @@ const ACTIVITIES = [
   { id: 'relax', name: '花园休息', place_id: 'garden', duration_seconds: 60, description: '在花园休息一会儿，不必发言或等待其他角色。' },
   { id: 'read', name: '读一篇小故事', place_id: 'reading', duration_seconds: 45, description: '阅读广场原创短文；感受由角色自己决定。',
     content: { title: '一张空椅子', source: '广场原创', text: '雨停后，园丁把池边的椅子擦干，留下一张纸条：“这里可以坐。”午后，一个旅人坐下来修补背包。傍晚，他离开时把椅子挪回树荫下，又在纸条背面画了一片叶子。第二天，园丁没有问是谁画的，只在叶子旁边添了一滴水。' } },
-  { id: 'solo_game', name: '心算小挑战', place_id: 'play', duration_seconds: 60, description: '开始后获得一道加法题，在限时内用 finish_activity 的 answer 提交整数答案；答对得 1 分，答错或未答得 0 分。',
+  { id: 'solo_game', name: '心算小挑战', place_id: 'play', duration_seconds: 150, description: '开始后获得一道加法题，在限时内用 finish_activity 的 answer 提交整数答案；答对得 1 分，答错或未答得 0 分。',
     task: { kind: 'addition', answer_type: 'integer' } },
-  { id: 'riddle', name: '猜谜小屋', place_id: 'reading', duration_seconds: 90, description: '开始后获得一道谜语，用 finish_activity 的字符串 answer 提交答案；答对得 1 分。', task: { kind: 'riddle', answer_type: 'string' } },
-  { id: 'sequence', name: '数列挑战', place_id: 'play', duration_seconds: 90, description: '寻找等差数列规律，用 finish_activity 的整数 answer 填出下一项；答对得 1 分。', task: { kind: 'sequence', answer_type: 'integer' } },
-  { id: 'treasure_hunt', name: '地图寻宝', place_id: 'garden', duration_seconds: 240, description: '依次走到 3 个随机目标格，再用 finish_activity 空参数收集；移动不会取消寻宝，限时内每找到一个得 1 分。', task: { kind: 'treasure_hunt', answer_type: 'none' } },
+  { id: 'riddle', name: '猜谜小屋', place_id: 'reading', duration_seconds: 150, description: '开始后获得一道谜语，用 finish_activity 的字符串 answer 提交答案；答对得 1 分。', task: { kind: 'riddle', answer_type: 'string' } },
+  { id: 'sequence', name: '数列挑战', place_id: 'play', duration_seconds: 150, description: '寻找等差数列规律，用 finish_activity 的整数 answer 填出下一项；答对得 1 分。', task: { kind: 'sequence', answer_type: 'integer' } },
+  { id: 'treasure_hunt', name: '地图寻宝', place_id: 'garden', duration_seconds: 900, description: '依次走到距当前位置最多6格的3个随机目标格，再用 finish_activity 空参数收集；移动不会取消寻宝，限时内每找到一个得1分。', task: { kind: 'treasure_hunt', answer_type: 'none' } },
 ];
 const publicActivity = activity => activity ? {
   activity_id: activity.activity_id, name: activity.name, place_id: activity.place_id, started_at: activity.started_at, ends_at: activity.ends_at,
@@ -75,12 +76,13 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
     for (const a of Object.values(this.state.agents)) { initializeLife(a); initializeEconomy(a, this.now()); initializePersonalGoal(a); initializePresence(a, { legacy: true, events: this.state.events }); }
+    initializeHistory(this); this.historyMaintenanceAt = this.now() + 60000;
     initializeCooperations(this, { restore: !!saved });
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
         endEncounter(this, a); reviewPersonalGoal(this, a, 'restarted');
         cancelGather(this, a, 'restarted');
-        this.finishActivity(a, { cancelled: true });
+        this.finishActivity(a, { cancelled: true, interrupted: true });
         departPresence(a, this.now());
         a.session_epoch++; a.status = 'offline'; a.group_id = null; a.last_contact_at = null; a.reserved_until = null; a.next_action_id = null;
         a.diagnostics = { ...a.diagnostics, state: 'waiting', calls_used: a.diagnostics?.calls_used || 0, last_error: null };
@@ -112,6 +114,7 @@ export class World extends EventEmitter {
     const cursor = String(++this.state.sequence);
     const event = { event_id: `evt_${cursor}`, type, occurred_at: this.now(), world_revision: revision, cursor, payload, recipients: [...new Set(recipients)] };
     this.state.events.push(event);
+    recordHistoryEvent(this, event);
     if (this.state.events.length > 3000) this.state.events.splice(0, this.state.events.length - 3000);
     return event;
   }
@@ -247,7 +250,7 @@ export class World extends EventEmitter {
     departPresence(a, this.now());
     stopAdventure(this, a, 'interrupted', '控制已暂停、转交或离线，冒险计划停止');
     if (leaveField) leaveAdventureField(this, a);
-    this.finishActivity(a, { cancelled: true });
+    this.finishActivity(a, { cancelled: true, interrupted: leaveField });
     this.removeFromGame(a.agent_id);
     if (a.group_id) {
       const group = this.state.groups[a.group_id];
@@ -262,7 +265,7 @@ export class World extends EventEmitter {
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
-      cooperation: COOPERATION_RULES, cooperations: publicCooperations(this),
+      cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
   }
   ownerSnapshot() {
@@ -271,12 +274,14 @@ export class World extends EventEmitter {
     snap.controllers = Object.values(this.state.controllers).filter(c => !c.revoked).map(({ token_hash, revoked, ...c }) => clone(c));
     return snap;
   }
+  historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
+  historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.15.0-cooperation', recommended_skill_version: '0.15.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.16.0-experiences', recommended_skill_version: '0.16.0', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
-      invitation_seconds: 30, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
-      game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: 30, turn_seconds: 30, max_valid_words: 10 },
+      invitation_seconds: GAME_TIMING.invitation_seconds, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
+      game: { type: 'word_chain', word_version: WORD_VERSION, words: WORDS, registration_seconds: GAME_TIMING.registration_seconds, turn_seconds: GAME_TIMING.turn_seconds, max_valid_words: 10 },
       words: WORDS, word_version: WORD_VERSION, allowed_actions: ACTIONS, notice: '这是公开广场；其他参与者可能使用模型处理你的公开发言。模拟运行器不调用模型。' };
   }
   validateSession(a, c, args, { touch = false } = {}) {
@@ -409,7 +414,7 @@ export class World extends EventEmitter {
     this.commit(); return clone(result);
   }
   groupOf(a, id) { const group = this.state.groups[id]; if (!group || a.group_id !== id || !group.members.includes(a.agent_id)) fail('NOT_IN_GROUP', '你不在此小组'); return group; }
-  finishActivity(a, { cancelled = false, answer } = {}) {
+  finishActivity(a, { cancelled = false, interrupted = false, answer } = {}) {
     if (!a.activity) { delete a.activity_answer; return null; }
     const activity = publicActivity(a.activity);
     let result;
@@ -426,14 +431,14 @@ export class World extends EventEmitter {
     const outcome = cancelled ? 'cancelled' : 'completed';
     if (!cancelled) recordExperience(a, { kind: 'activity', id: activity.activity_id, name: activity.name }, this.now());
     this.event('activity_finished', { agent_id: a.agent_id, name: a.name, activity_id: activity.activity_id, activity_name: activity.name,
-      place_id: activity.place_id, started_at: activity.started_at, ends_at: activity.ends_at, outcome, ...(result ? { result } : {}),
+      place_id: activity.place_id, started_at: activity.started_at, ends_at: activity.ends_at, outcome, ...(cancelled && interrupted ? { interrupted: true } : {}), ...(result ? { result } : {}),
       text: `${a.name}${cancelled ? '结束了' : '完成了'}「${activity.name}」${result ? `：${result.summary}` : ''}` },
     this.activeIds().filter(id => id === a.agent_id || distance(this.agent(id).position, a.position) <= 6));
     return { activity: null, outcome, ...(result ? { result } : {}) };
   }
   nextTreasure(a) {
     let target;
-    do { target = { x: randomInt(0, WORLD_MAP.width), y: randomInt(0, WORLD_MAP.height) }; } while (distance(a.position, target) === 0);
+    do { target = { x: randomInt(Math.max(0, a.position.x - 6), Math.min(WORLD_MAP.width, a.position.x + 7)), y: randomInt(Math.max(0, a.position.y - 6), Math.min(WORLD_MAP.height, a.position.y + 7)) }; } while (distance(a.position, target) === 0 || distance(a.position, target) > 6);
     a.activity.target = target;
   }
   perform(a, type, p, actionId) {
@@ -521,8 +526,9 @@ export class World extends EventEmitter {
       const group = this.groupOf(a, p.group_id); const target = this.state.agents[p.target_agent_id];
       if (!target || target.agent_id === a.agent_id || target.status !== 'active' || distance(a.position, target.position) > 4) fail('INVALID_ACTION', '只能邀请 4 格内正在活动的其他角色');
       if (target.group_id || group.members.length >= 5) fail('INVALID_ACTION', '对方已有小组或此小组已满');
+      if (Object.values(this.state.invitations).some(i => i.group_id === group.group_id && i.from_agent_id === a.agent_id && i.target_agent_id === target.agent_id && i.status === 'pending' && i.expires_at > this.now())) fail('INVITE_PENDING', '同一小组对该角色已有待处理邀请');
       if (Object.values(this.state.invitations).some(i => i.from_agent_id === a.agent_id && i.target_agent_id === target.agent_id && this.now() - i.created_at < 60000)) fail('INVITE_COOLDOWN', '同对象邀请间隔至少 60 秒');
-      const invitation = { invite_id: uid('invite'), group_id: group.group_id, from_agent_id: a.agent_id, target_agent_id: target.agent_id, expires_at: this.now() + 30000, created_at: this.now(), status: 'pending' };
+      const invitation = { invite_id: uid('invite'), group_id: group.group_id, from_agent_id: a.agent_id, target_agent_id: target.agent_id, expires_at: this.now() + GAME_TIMING.invitation_seconds * 1000, created_at: this.now(), status: 'pending' };
       this.state.invitations[invitation.invite_id] = invitation;
       this.event('invitation', { ...invitation, agent_id: a.agent_id, text: `${a.name}邀请${target.name}加入小组` }, [a.agent_id, target.agent_id]); return { invite_id: invitation.invite_id, expires_at: invitation.expires_at };
     }
@@ -551,10 +557,10 @@ export class World extends EventEmitter {
       this.checkGameAvailability(a, gameType);
       stopAdventure(this, a, 'stopped', '原 AI 发起了多人游戏，冒险计划结束');
       this.state.game = { game_id: uid('game'), game_type: gameType, group_id: group.group_id, status: 'recruiting', participants: [a.agent_id], responses: { [a.agent_id]: true }, current_agent_id: null,
-        turn_id: null, deadline: this.now() + 30000, last_word: null, words: [], scores: {}, end_reason: null, valid_count: 0, timeouts: {}, consecutive_skips: 0, word_version: WORD_VERSION };
+        timing: { ...GAME_TIMING }, turn_id: null, deadline: this.now() + GAME_TIMING.registration_seconds * 1000, last_word: null, words: [], scores: {}, end_reason: null, valid_count: 0, timeouts: {}, consecutive_skips: 0, word_version: WORD_VERSION };
       if (gameType === 'rock_paper_scissors') Object.assign(this.state.game, { round: 1, max_rounds: 3, submitted_agent_ids: [], rounds: [], private_choices: {} });
       if (gameType === 'story_chain') Object.assign(this.state.game, { segments: [], max_segments: 6 });
-      this.event('game_proposed', { agent_id: a.agent_id, game_id: this.state.game.game_id, group_id: group.group_id, game_type: gameType, text: `${a.name}发起${gameName(gameType)}，30 秒内可报名` }, group.members); return { game_id: this.state.game.game_id };
+      this.event('game_proposed', { agent_id: a.agent_id, game_id: this.state.game.game_id, group_id: group.group_id, game_type: gameType, text: `${a.name}发起${gameName(gameType)}，${this.state.game.timing.registration_seconds} 秒内可报名` }, group.members); return { game_id: this.state.game.game_id };
     }
     if (type === 'respond_game') {
       const game = this.state.game;
@@ -626,14 +632,14 @@ export class World extends EventEmitter {
     game.private_choices = {}; game.submitted_agent_ids = [];
     this.event('round_revealed', { game_id: game.game_id, round: game.round, choices, scores, text: `石头剪刀布第 ${game.round} 轮揭晓` }, this.state.groups[game.group_id]?.members || game.participants);
     if (game.round >= game.max_rounds) this.finishGame('完成 3 轮石头剪刀布');
-    else { game.round++; game.turn_id = uid('turn'); game.deadline = this.now() + 30000; this.turnEvent(); }
+    else { game.round++; game.turn_id = uid('turn'); game.deadline = this.now() + (game.timing?.turn_seconds ?? GAME_TIMING.turn_seconds) * 1000; this.turnEvent(); }
   }
   startGame() {
     const game = this.state.game;
     game.participants = game.participants.filter(id => this.state.agents[id]?.status === 'active' && this.state.agents[id].group_id === game.group_id);
     if (game.participants.length < 2) { this.finishGame('报名人数不足 2 人'); return; }
     for (const id of game.participants) { this.finishActivity(this.agent(id), { cancelled: true }); stopAdventure(this, this.agent(id), 'stopped', '多人游戏已开始，冒险计划结束'); }
-    game.status = 'active'; game.current_agent_id = game.game_type === 'rock_paper_scissors' ? null : game.participants[0]; game.turn_id = uid('turn'); game.deadline = this.now() + 30000;
+    game.status = 'active'; game.current_agent_id = game.game_type === 'rock_paper_scissors' ? null : game.participants[0]; game.turn_id = uid('turn'); game.deadline = this.now() + (game.timing?.turn_seconds ?? GAME_TIMING.turn_seconds) * 1000;
     game.scores = Object.fromEntries(game.participants.map(id => [id, 0]));
     if ((game.game_type || 'word_chain') === 'word_chain') { game.last_word = '天气'; game.words = ['天气']; }
     this.event('game_started', { game_id: game.game_id, game_type: game.game_type || 'word_chain', group_id: game.group_id, ...(game.last_word ? { word: game.last_word } : {}), text: game.last_word ? '词语接龙开始！从「天气」接起' : `${gameName(game.game_type)}开始了` }, this.state.groups[game.group_id]?.members || game.participants);
@@ -645,7 +651,7 @@ export class World extends EventEmitter {
     const g = this.state.game;
     if (g.participants.length < 2) { this.finishGame('剩余参与者不足 2 人'); return; }
     g.current_agent_id = nextId || g.participants[(g.participants.indexOf(g.current_agent_id) + 1) % g.participants.length];
-    g.turn_id = uid('turn'); g.deadline = this.now() + 30000; this.turnEvent();
+    g.turn_id = uid('turn'); g.deadline = this.now() + (g.timing?.turn_seconds ?? GAME_TIMING.turn_seconds) * 1000; this.turnEvent();
   }
   finishGame(reason) {
     const g = this.state.game; if (!g || g.status === 'finished') return;
@@ -668,6 +674,7 @@ export class World extends EventEmitter {
   }
   tick() {
     let changed = false; const now = this.now();
+    if (now >= this.historyMaintenanceAt) { changed = pruneHistory(this) || changed; this.historyMaintenanceAt = now + 60000; }
     const fatigueRecovery = captureFatigueRecovery(this);
     for (const a of Object.values(this.state.agents)) {
       if (a.run?.status === 'active' && a.run.expires_at <= now) { this.pause(a, '授权时间已到'); changed = true; }
@@ -677,7 +684,7 @@ export class World extends EventEmitter {
       }
       if (a.status === 'active' && a.activity?.ends_at <= now) { this.finishActivity(a); changed = true; }
       if (a.reserved_until && a.reserved_until <= now) { a.reserved_until = null; changed = true; }
-      const thinkingTimeout = a.diagnostics.mode === 'dsh-pet' ? 75000 : 10000;
+      const thinkingTimeout = 180000; // Bounded preflight plus up to two slow model attempts; never extends the lease.
       if (a.diagnostics.state === 'thinking' && now - a.diagnostics.reported_at > thinkingTimeout) { a.diagnostics.state = 'stale'; changed = true; }
       if (tickEncounter(this, a)) changed = true;
     }

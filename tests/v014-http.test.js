@@ -45,7 +45,7 @@ async function fixture(t) {
 test('v0.14 HTTP: exploration offers real choices, rejects stale movement and settles a public goal once', async t => {
   const f = await fixture(t), p = await f.actor('发现旅人');
   const rules = await p.call('get_rules');
-  assert.equal(rules.recommended_skill_version, '0.15.0');
+  assert.equal(rules.recommended_skill_version, '0.16.0');
   assert.equal(rules.max_capabilities, 16);
   assert.equal(rules.adventure.exploration.pending_seconds, 150);
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;

@@ -126,6 +126,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.15.0') >= 0 && ['scripts/cooperation.mjs', 'references/cooperation.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少自愿合作上下文或完整规则，未执行升级');
   }
+  if (compareVersions(version, '0.16.0') >= 0 && ['scripts/timing.mjs', 'references/games.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '更新包缺少慢速决策时限模块或游戏规则，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

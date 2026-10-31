@@ -5,15 +5,16 @@ import {mapDimensions,projectMapPoint} from './map-projection.js';
 import {gatheringState} from './life-state.js';
 import {encounterState,goalState} from './journey-state.js';
 import {cooperationSummary} from './cooperation-state.js';
+import {SpeechBubbles} from './SpeechOverlay.jsx';
 
 export const CameraContext=createContext(null);
-export function MapCamera({children}){
+export function MapCamera({children,speech}){
   const camera=useContext(CameraContext);
   const point=camera?.point;
   const position=point?projectMapPoint(point,mapDimensions(camera.map)):null;
   const x=position?Math.max(25,Math.min(75,parseFloat(position.left))):50;
   const y=position?Math.max(25,Math.min(75,parseFloat(position.top))):50;
-  return <div className={`world-camera ${point?'focused':''}`} data-testid="world-camera" data-camera-mode={camera?.mode||'overview'}><div className="world-camera-layer" style={point?{transformOrigin:`${x}% ${y}%`,transform:`translate(${50-x}%,${50-y}%) scale(2)`}:undefined}>{children}</div></div>;
+  return <div className={`world-camera ${point?'focused':''}`} data-testid="world-camera" data-camera-mode={camera?.mode||'overview'}><div className="world-camera-layer" style={point?{transformOrigin:`${x}% ${y}%`,transform:`translate(${50-x}%,${50-y}%) scale(2)`}:undefined}>{children}</div>{speech&&<SpeechBubbles {...speech}/>}</div>;
 }
 
 export function ObserverStatus({world,agent,live,now}){

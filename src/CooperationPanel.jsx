@@ -4,6 +4,11 @@ import {cooperationCatalog,cooperationSummary} from './cooperation-state.js';
 import {publicName,recordTime} from './observer-state.js';
 import {lifeItemName} from './life-state.js';
 
+export function CooperationResult({project,agents=[],catalog}) {
+  const name=id=>publicName(agents.find(a=>a.agent_id===id)||{agent_id:id,name:'已接受成员'},agents);
+  return project.public_result?<div className="cooperation-result" data-testid="cooperation-result"><strong>共同结果</strong><p>{project.public_result.text}</p>{Object.entries(project.public_result.items_by_agent||{}).map(([id,items])=><p key={id}>{name(id)}：{Object.entries(items).map(([item,quantity])=>`${lifeItemName(catalog,item)} +${quantity}`).join(' · ')}</p>)}</div>:null;
+}
+
 export default function CooperationPanel({world,agent,now,live}) {
   const state=cooperationSummary(world,agent?.agent_id,live?now:world.server_time||now);
   if(!state)return null;
@@ -19,7 +24,7 @@ export default function CooperationPanel({world,agent,now,live}) {
       <ol className="cooperation-steps" aria-label="服务器已确认的合作进度">{state.steps.map((step,index)=>{const spec=catalog?.steps?.find(s=>s.step_id===step.step_id),member=p.members.find(m=>m.role_id===step.role_id);return <li key={step.step_id}><div><strong>阶段 {index+1} · {spec?.description||step.step_id}</strong><span>{step.progress} / {step.target_count}</span></div><progress aria-label={`${spec?.description||step.step_id}已确认进度`} value={step.progress} max={step.target_count}/><small>{step.completed_at?`已确认完成 · ${recordTime(step.completed_at,now)}`:member?`${name(member.agent_id)}的约定分工，尚未确认完成`:'等待成员明确接受'}</small></li>;})}</ol>
       {p.template_id==='camp_meal'&&<p className="cooperation-escrow">约定中已提交的共享萝卜：<strong>{p.escrow?.turnip??0}</strong>。这是本次合作的托管物资，不代表任何人的仓库余额。</p>}
       <dl className="journey-facts"><div><dt>建立时间</dt><dd>{recordTime(p.created_at,now)}</dd></div>{p.status==='proposed'&&<div><dt>征询截止</dt><dd>{recordTime(p.invite_expires_at,now)}</dd></div>}<div><dt>固定截止</dt><dd>{recordTime(p.expires_at,now)}</dd></div>{p.started_at&&<div><dt>成立时间</dt><dd>{recordTime(p.started_at,now)}</dd></div>}{p.ended_at&&<div><dt>结束时间</dt><dd>{recordTime(p.ended_at,now)}</dd></div>}</dl>
-      {p.public_result&&<div className="cooperation-result" data-testid="cooperation-result"><strong>共同结果</strong><p>{p.public_result.text}</p>{Object.entries(p.public_result.items_by_agent||{}).map(([id,items])=><p key={id}>{name(id)}：{Object.entries(items).map(([item,quantity])=>`${lifeItemName(world.life,item)} +${quantity}`).join(' · ')}</p>)}</div>}
+      <CooperationResult project={p} agents={world.agents} catalog={world.life}/>
       {terms.length>0&&<details className="cooperation-terms"><summary>这份约定的公开规则</summary>{terms.map((term,i)=><p key={i}>{term}</p>)}</details>}
       <p className="journey-note">进度仅来自成立后服务器确认的有效行动。旁观者只能阅读；私人邀请、拒绝内容和主人要求不会在这里显示。</p>
     </div>

@@ -112,7 +112,8 @@ test('邀请过期与重复邀请冷却由服务端执行', t => {
   const f = fixture(t); const a = f.make('甲'); const b = f.make('乙'); f.enter(a); f.enter(b);
   const group_id = f.act(a, 'create_group').group_id; const payload = { group_id, target_agent_id: b.agent.agent_id };
   const invite_id = f.act(a, 'invite', payload).invite_id;
-  assert.equal(f.act(a, 'invite', payload).error.code, 'INVITE_COOLDOWN'); f.advance(30001);
+  assert.equal(f.act(a, 'invite', payload).error.code, 'INVITE_PENDING');
+  for (let i = 0; i < 5; i++) { f.observe(a); f.observe(b); f.advance(30000); }
   assert.equal(f.act(b, 'respond_invite', { invite_id, accept: true }).error.code, 'INVITE_EXPIRED');
   f.observe(a); f.observe(b); f.advance(30000);
   assert.equal(f.act(a, 'invite', payload).status, 'applied');
@@ -123,7 +124,8 @@ function gameFixture(t) {
   const group_id = f.act(a, 'create_group').group_id;
   const invite_id = f.act(a, 'invite', { group_id, target_agent_id: b.agent.agent_id }).invite_id; f.act(b, 'respond_invite', { invite_id, accept: true });
   const game_id = f.act(a, 'propose_game', { group_id, game_type: 'word_chain' }).game_id;
-  f.act(b, 'respond_game', { game_id, accept: true }); f.advance(30000);
+  f.act(b, 'respond_game', { game_id, accept: true });
+  for (let i = 0; i < 5; i++) { f.observe(a); f.observe(b); f.advance(30000); }
   f.observe(a); f.observe(b); return { ...f, a, b, group_id, game_id };
 }
 
@@ -143,9 +145,9 @@ test('两角色接龙完成 10 次答案并结算，错词不换回合，旧轮�
 
 test('游戏超时会换回合，整轮超时结束，不无限卡住', t => {
   const f = gameFixture(t); const first = f.observe(f.a).game.current_agent_id;
-  f.advance(30000); f.observe(f.a); f.observe(f.b);
+  for (let i = 0; i < 5; i++) { f.observe(f.a); f.observe(f.b); f.advance(30000); }
   assert.notEqual(f.observe(f.a).game.current_agent_id, first);
-  f.advance(30000);
+  for (let i = 0; i < 5; i++) { f.observe(f.a); f.observe(f.b); f.advance(30000); }
   assert.equal(f.world.publicSnapshot().game.status, 'finished');
   assert.match(f.world.publicSnapshot().game.end_reason, /均超时/);
 });

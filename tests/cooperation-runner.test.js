@@ -51,7 +51,7 @@ test('最坏上下文同时保留合作复核、探索、个人目标、三危�
   assert.ok(prompt.includes('confirm')); assert.ok(prompt.includes('leave')); assert.ok(prompt.includes('4萝卜')); assert.ok(prompt.includes('各得1'));
 });
 
-for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active', 'return', 'discovery', 'game', 'solo', 'gather']) test(`2000字符合作 ${phase} 路径与纠正提示`, () => {
+for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active', 'return', 'discovery', 'game', 'recruiting', 'solo', 'gather']) test(`2000字符合作 ${phase} 路径与纠正提示`, () => {
   const c = cooperationFixture(), o = c.observation, self = o.self;
   const invite = { cooperation_id: 'cooperation_' + 'i'.repeat(36), revision: 1, template_id: 'camp_meal', from_agent_id: o.nearby_agents[0].agent_id,
     role_id: 'cook', invite_expires_at: o.server_time + 150000, expires_at: o.server_time + 900000 };
@@ -61,9 +61,10 @@ for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active',
   if (phase === 'proposed_and_invited') { o.cooperation.status = 'proposed'; o.cooperation.invite_expires_at = o.server_time + 150000; o.cooperation.members = o.cooperation.members.slice(0, 1); }
   if (phase === 'active') o.cooperation.status = 'active';
   if (phase === 'return') o.cooperation_return = { cooperation_id: 'cooperation_' + 'r'.repeat(36), item_id: 'turnip', quantity: 4 };
-  if (['game', 'solo', 'gather'].includes(phase)) {
+  if (['game', 'recruiting', 'solo', 'gather'].includes(phase)) {
     self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = []; self.position = { x: 11, y: 8 };
-    if (phase === 'game') o.game = { game_id: 'game_' + 'z'.repeat(36), turn_id: 'turn_' + 't'.repeat(36), status: 'active', game_type: 'word_chain', participants: [self.agent_id], current_agent_id: self.agent_id, last_word: '天气' };
+    if (phase === 'game') o.game = { game_id: 'game_' + 'z'.repeat(36), turn_id: 'turn_' + 't'.repeat(36), deadline: o.server_time + 150000, status: 'active', game_type: 'word_chain', participants: [self.agent_id], current_agent_id: self.agent_id, last_word: '天气' };
+    if (phase === 'recruiting') o.game = { game_id: 'game_' + 'z'.repeat(36), deadline: o.server_time + 123000, status: 'recruiting', game_type: 'story_chain', participants: [o.nearby_agents[0].agent_id], responses: {} };
     if (phase === 'solo') self.activity = { activity_id: 'puzzle', ends_at: o.server_time + 90000, task: { kind: 'puzzle', prompt: '2+3=?', answer_type: 'integer' } };
     if (phase === 'gather') self.life.gathering = { resource_id: 'wood', ends_at: o.server_time + 12000 };
   }
@@ -72,6 +73,7 @@ for (const phase of ['invited', 'two_invites', 'proposed_and_invited', 'active',
   assert.ok(p.includes('cooperation')); assert.ok(p.includes('纠正') || p.includes('纠正上次格式') || p.includes('上次'));
   const plain = decisionPrompt({ ...c, correction: false }); assert.notEqual(p, plain); assert.ok(plain.length <= 2000);
   if (phase === 'two_invites') { const d = decode(p); assert.equal(d.余邀 ?? d.coop.other_invitations, 1); }
+  if (phase === 'recruiting') { const d = decode(p); assert.ok(p.includes('respond_game')); assert.equal(d.game[3] ?? d.game.remaining_seconds, 123); }
   if (['invited', 'two_invites'].includes(phase)) assert.ok(p.includes('respond') && p.includes('拒绝') && p.includes('4萝卜') && p.includes('各得1'));
 });
 
@@ -114,7 +116,7 @@ test('已过期的私人邀请有真实不可响应提示；不合目录不宣�
 for (const activity of ['story', 'story_emoji', 'read', 'treasure', 'scout']) test(`${activity}合作期间保留真实内容、行动入口和长消息`, () => {
   const c = cooperationFixture(), o = c.observation, self = o.self;
   self.adventure.encounter = null; self.adventure.in_field = false; o.adventure.monsters = [];
-  if (activity.startsWith('story')) o.game = { game_id: 'game-' + 'g'.repeat(36), turn_id: 'turn-' + 't'.repeat(36), status: 'active', game_type: 'story_chain', current_agent_id: self.agent_id,
+  if (activity.startsWith('story')) o.game = { game_id: 'game-' + 'g'.repeat(36), turn_id: 'turn-' + 't'.repeat(36), deadline: o.server_time + 150000, status: 'active', game_type: 'story_chain', current_agent_id: self.agent_id,
     participants: [self.agent_id], segments: [{ agent_id: o.nearby_agents[0].agent_id, text: (activity === 'story_emoji' ? '🐈' : '故').repeat(200) }] };
   if (activity === 'read') { self.activity = { activity_id: 'read', ends_at: o.server_time + 60000 }; o.activities = [{ id: 'read', content: { title: '纸页', text: '书'.repeat(200) } }]; }
   if (activity === 'treasure') self.activity = { activity_id: 'treasure_hunt', ends_at: o.server_time + 60000, task: { kind: 'treasure_hunt', prompt: '走到target再采集', answer_type: 'none' }, target: { x: 13, y: 8 }, progress: { collected: 1, total: 3 } };
@@ -122,6 +124,7 @@ for (const activity of ['story', 'story_emoji', 'read', 'treasure', 'scout']) te
   const prepared = prepareDecisionPrompt(c), p = prepared.text; assert.ok(p.length <= 2000); assert.ok(p.includes(c.ownerGoal)); assert.ok(p.includes(c.events[0].payload.text));
   if (activity === 'story') { assert.ok(p.includes('故'.repeat(200))); assert.ok(p.includes('submit_story')); }
   if (activity === 'story_emoji') {
+    assert.equal(decode(p).game[2], 150); assert.ok(p.includes('余秒'));
     assert.ok(prepared.cooperationReviewDeferred); assert.ok(p.includes('🐈'.repeat(200))); assert.ok(p.includes('leave_game') && p.includes('intent:leave,cooperation_id'));
     assert.ok(!p.includes('intent:confirm|leave')); assert.ok(p.includes('结束或退出活动后重看完整复核条款'));
     const deadline = o.cooperation.expires_at; o.game.status = 'finished';

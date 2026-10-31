@@ -12,7 +12,7 @@ function fixture(t, count = 2) {
     const agent = world.createAgent({ name: `测试参与者${index}`, owner_id: `owner${index}` });
     const controller = world.createController(agent.agent_id);
     const auth = world.authenticate(controller.token);
-    world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id });
+    world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 60 });
     world.callTool(auth, 'join_world');
     return { id: agent.agent_id, auth, owner: { id: `owner${index}` } };
   });
@@ -46,7 +46,7 @@ function fixture(t, count = 2) {
   const start = (game_type, group_id = group()) => {
     const game_id = act(people[0], 'propose_game', { group_id, ...(game_type ? { game_type } : {}) }).game_id;
     for (const person of people.slice(1)) assert.equal(act(person, 'respond_game', { game_id, accept: true }).status, 'applied');
-    advance(30000);
+    advance(world.getRules().game.registration_seconds * 1000);
     assert.equal(world.state.game.status, 'active');
     return game_id;
   };
@@ -80,7 +80,7 @@ test('数列是真实题面和真实计分，移动取消，超时不补答案',
   f.act(p, 'start_activity', { activity_id: 'sequence' });
   assert.equal(f.act(p, 'finish_activity', { answer: '3' }).error.code, 'INVALID_ACTION');
   f.act(p, 'move', { x: 18, y: 12 }); assert.equal(f.observe(p).self.activity, null);
-  f.act(p, 'start_activity', { activity_id: 'sequence' }); f.advance(90000);
+  f.act(p, 'start_activity', { activity_id: 'sequence' }); f.advance(150000);
   assert.equal(f.observe(p).self.activity, null);
   assert.equal(f.world.state.events.filter(event => event.type === 'activity_finished').at(-1).payload.result.score, 0);
 });
@@ -105,7 +105,7 @@ test('地图寻宝按真实坐标依次收集三件，移动继续、重试不�
 test('寻宝限时保留实际分数，暂停立即清除活动', t => {
   const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 11, y: 8 });
   const activity = f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).activity;
-  f.go(p, activity.target); f.act(p, 'finish_activity'); f.advance(240000);
+  f.go(p, activity.target); f.act(p, 'finish_activity'); f.advance(900000);
   const result = f.world.state.events.filter(event => event.type === 'activity_finished').at(-1).payload.result;
   assert.deepEqual({ score: result.score, max_score: result.max_score }, { score: 1, max_score: 3 });
   f.go(p, { x: 11, y: 8 }); f.act(p, 'start_activity', { activity_id: 'treasure_hunt' });
@@ -158,7 +158,7 @@ test('石头剪刀布超时、暂停或离线结束且销毁未揭晓选择', t 
     if (f.world.agent(b.id).status !== 'active') { f.world.ownerControl(b.id, 'resume'); f.world.callTool(b.auth, 'join_world'); const invitation = f.act(a, 'invite', { group_id, target_agent_id: b.id }); f.act(b, 'respond_invite', { invite_id: invitation.invite_id, accept: true }); }
     const game_id = f.start('rock_paper_scissors', group_id), turn_id = f.observe(a).game.turn_id;
     f.act(a, 'submit_move', { game_id, turn_id, choice: 'paper' });
-    if (ending === 'timeout') f.advance(30000);
+    if (ending === 'timeout') f.advance(f.world.getRules().game.turn_seconds * 1000);
     else if (ending === 'pause') f.world.ownerControl(b.id, 'pause');
     else { f.advance(30000, false); f.observe(a); f.advance(15000, false); }
     assert.equal(f.world.state.game.status, 'finished'); assert.ok(!Object.hasOwn(f.world.state.game, 'private_choices'));
@@ -185,7 +185,7 @@ test('三人故事接力仅当前轮可续写，六段原文保留且可切换�
   assert.equal(f.world.state.game.status, 'finished');
   assert.deepEqual(spectatorSnapshot(f.world).game.segments.map(segment => segment.text), texts);
   assert.deepEqual(f.people.map(person => f.world.state.game.scores[person.id]), [2, 2, 2]);
-  f.advance(30000); // A completed game leaves a short intermission before any new proposal.
+  f.advance(30000); // Voluntary elapsed time; there is no enforced intermission.
   const next = f.start(undefined, group_id), game = f.observe(f.people[0]).game;
   assert.equal(game.game_type, 'word_chain'); assert.equal(game.last_word, '天气');
   assert.equal(f.act(f.people[0], 'submit_story', { game_id: next, turn_id: game.turn_id, text: '错误游戏' }).error.code, 'STALE_TURN');
@@ -194,8 +194,8 @@ test('三人故事接力仅当前轮可续写，六段原文保留且可切换�
 
 test('故事超时换轮、一整轮无人续写结束，退出和房间暂停立即生效', t => {
   const f = fixture(t), group_id = f.group(); f.start('story_chain', group_id);
-  const first = f.world.state.game.current_agent_id; f.advance(30000);
-  assert.notEqual(f.world.state.game.current_agent_id, first); f.advance(30000);
+  const first = f.world.state.game.current_agent_id; f.advance(150000);
+  assert.notEqual(f.world.state.game.current_agent_id, first); f.advance(150000);
   assert.equal(f.world.state.game.end_reason, '一整轮参与者均超时');
   const game_id = f.start('story_chain', group_id);
   f.act(f.people[1], 'leave_game', { game_id }); assert.equal(f.world.state.game.end_reason, '剩余参与者不足 2 人');
@@ -208,7 +208,7 @@ test('游戏报名不足、未知类型、非参与者动作和私有结束原�
   assert.equal(f.act(a, 'propose_game', { group_id, game_type: 'unknown' }).error.code, 'INVALID_ACTION');
   const game_id = f.act(a, 'propose_game', { group_id, game_type: 'rock_paper_scissors' }).game_id;
   assert.equal(f.act(a, 'propose_game', { group_id, game_type: 'story_chain' }).error.code, 'GAME_BUSY');
-  f.advance(30000); assert.equal(f.world.state.game.end_reason, '报名人数不足 2 人');
+  f.advance(150000); assert.equal(f.world.state.game.end_reason, '报名人数不足 2 人');
   assert.equal(f.act(b, 'submit_move', { game_id, turn_id: null, choice: 'rock' }).error.code, 'STALE_TURN');
   f.start('story_chain', group_id); f.world.finishGame('PRIVATE_OWNER_REASON');
   assert.ok(!JSON.stringify(f.world.publicSnapshot()).includes('PRIVATE_OWNER_REASON'));

@@ -26,7 +26,7 @@ async function fixture(t, accounts = false) {
   const actor = async (name, owner) => {
     const a = app.world.createAgent({ name, owner_id: owner?.id || name }), controller = app.world.createController(a.agent_id);
     app.world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 30, max_calls: 100, goal: 'PRIVATE_' + name });
-    const client = new Client({ name: 'cooperation-http-test', version: '0.15.0' });
+    const client = new Client({ name: 'cooperation-http-test', version: '0.16.0' });
     await client.connect(new StreamableHTTPClientTransport(new URL(url + '/mcp'), { requestInit: { headers: { Authorization: `Bearer ${controller.token}` } } }));
     const call = async (name, args = {}) => { const result = await client.callTool({ name, arguments: args }); return result.structuredContent || JSON.parse(result.content[0].text); };
     const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
@@ -55,7 +55,7 @@ test('v0.15 HTTP: two AIs consent, explicitly escrow/cook, and receive the agree
   supplier.raw.life.inventory.turnip = 8;
   for (const p of [supplier, chef]) { delete p.raw.life.ledger; initializeEconomy(p.raw, f.time()); }
   const rules = await supplier.call('get_rules'), tools = await supplier.client.listTools();
-  assert.equal(rules.recommended_skill_version, '0.15.0'); assert.equal(rules.max_capabilities, 16);
+  assert.equal(rules.recommended_skill_version, '0.16.0'); assert.equal(rules.max_capabilities, 16);
   assert.ok(tools.tools.find(t => t.name === 'act').inputSchema.properties.type.enum.includes('cooperation'));
   assert.equal((await f.api('/api/health')).body.capabilities.cooperation, true);
   const invite = await f.propose(supplier, chef, 'camp_meal', 'supplier');

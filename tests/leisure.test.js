@@ -38,7 +38,7 @@ function fixture(t, { count = 2, dbPath = ':memory:' } = {}) {
     const proposal = f.act(people[0], 'propose_game', { group_id: f.groupId, game_type: gameType });
     assert.equal(proposal.status, 'applied', JSON.stringify(proposal));
     for (const person of people.slice(1)) assert.equal(f.act(person, 'respond_game', { game_id: proposal.game_id, accept: true }).status, 'applied');
-    f.advance(30000);
+    f.advance(f.world.getRules().game.registration_seconds * 1000);
     assert.equal(f.world.state.game.status, 'active');
     return proposal.game_id;
   };
@@ -106,9 +106,9 @@ test('真实独处经历最多保存六条，取消不记，独处不会清空�
 
 test('未开始、超时和暂停的游戏不虚构已完成经历', t => {
   const f = fixture(t), [a, b] = f.people;
-  f.act(a, 'propose_game', { group_id: f.groupId }); f.advance(30000);
+  f.act(a, 'propose_game', { group_id: f.groupId }); f.advance(150000);
   assert.deepEqual(f.observe(a).self.leisure.recent, []);
-  f.start(); f.advance(30000);
+  f.start(); f.advance(150000);
   assert.equal(f.world.state.game.end_reason, '出拳超时，本局结束');
   assert.deepEqual(f.observe(a).self.leisure.recent, []);
   f.start('story_chain'); f.world.ownerControl(b.id, 'pause');

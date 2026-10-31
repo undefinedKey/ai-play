@@ -5,6 +5,7 @@ import { DshPetClient, leisureContext, LEISURE_GUIDANCE, ADVENTURE_GUIDANCE, MON
 import { EXPLORATION_GUIDANCE, STRATEGY_GUIDANCE, PERSONAL_GOAL_GUIDANCE } from './v014-context.mjs';
 import { movementContext, normalizeMove, MOVEMENT_GUIDANCE } from './movement.mjs';
 import { COOPERATION_GUIDANCE, supportsCooperation, validCooperation, cooperationStamp, cooperationFocus, cooperationActivityKey, cooperationReviewIsDeferred, relevantCooperationEvent } from './cooperation.mjs';
+import { MODEL_REQUEST_MS, DECISION_WATCHDOG_MS, remainingSeconds } from './timing.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
@@ -410,7 +411,7 @@ export class PlazaRunner extends EventEmitter {
         }
         this.checkpoint.cursor = result.next_cursor ?? this.checkpoint.cursor;
         this.save();
-        if (this.now() - this.lastCycleAt > 120000) await this.pause('运行器调度超过 120 秒没有完成，已自动暂停');
+        if (this.now() - this.lastCycleAt > DECISION_WATCHDOG_MS) await this.pause('运行器调度超过 180 秒没有完成，已自动暂停');
         if (this.now() - this.lastReportAt > 15000) await this.report(this.modelAbort ? 'thinking' : 'waiting');
         failures = 0;
         // Also protects against a server implementing only immediate polling.
@@ -525,11 +526,15 @@ export class PlazaRunner extends EventEmitter {
     // reaction window without waiting the full 60–90s ordinary idle interval.
     if (Number.isFinite(protection) && this.observation.self.adventure.in_field && protection > serverNow && protection - serverNow <= 10000 && elapsed >= 10000) return true;
     if (!this.observation?.self?.adventure?.in_field && game?.status === 'recruiting' && game.responses?.[selfId] === undefined && leisure.available_games.includes(game.game_type || 'word_chain') && elapsed >= 10000) return true;
+    if (game?.status === 'recruiting' && game.responses?.[selfId] !== undefined) return false;
     if (game?.status === 'active' && (game.participants?.includes(selfId) || game.current_agent_id === selfId)) {
       const needsTurn = game.game_type === 'rock_paper_scissors'
         ? game.participants?.includes(selfId) && !game.submitted_agent_ids?.includes(selfId)
         : game.current_agent_id === selfId;
-      // Even an intentional wait gets another opportunity before a 30-second turn expires.
+      if (!needsTurn) return false; // Already submitted or another actor's turn: events wake us.
+      const waiting = this.checkpoint.game_wait;
+      if (waiting?.game_id === game.game_id && waiting.turn_id === game.turn_id && this.now() - waiting.at < 30000) return false;
+      // The window is server-owned; this review never extends a turn or submits for the AI.
       if (needsTurn && elapsed >= Math.min(this.idleMs, 10000)) return true;
     }
     const activity = this.observation?.self?.activity;
@@ -550,11 +555,24 @@ export class PlazaRunner extends EventEmitter {
   }
 
   async decide() {
+    // Two finite preflight/model attempts fit within one bounded decision. A
+    // hung tool or adapter must not keep an authorized character running forever.
+    const generation = this.authorityGeneration, runId = this.checkpoint?.run_id;
+    const watchdog = setTimeout(() => {
+      if (this.running && this.active && this.authorityGeneration === generation && this.checkpoint?.run_id === runId) {
+        void this.pause('运行器决策超过 180 秒没有完成，已自动暂停').catch(error => this.log(error.message));
+      }
+    }, DECISION_WATCHDOG_MS);
+    try { return await this.performDecision(); }
+    finally { clearTimeout(watchdog); }
+  }
+
+  async performDecision() {
     if (this.now() < (this.checkpoint.model_retry_at || 0)) return;
     this.initialDecisionPending = false;
     this.lastDecisionAt = this.now();
     if (this.checkpoint.pending_action) { await this.recoverPending(); return; }
-    const observation = await this.call('observe', this.session());
+    let observation = await this.call('observe', this.session());
     if (!this.active) return;
     this.observation = observation; this.observedAt = this.now(); this.actionFeedback(observation);
     this.checkpoint.next_action_id = observation.next_action_id;
@@ -589,6 +607,11 @@ export class PlazaRunner extends EventEmitter {
     else {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
+          if (attempt) {
+            observation = await this.call('observe', this.session());
+            if (!this.active || this.authorityGeneration !== generation) return;
+            this.observation = observation; this.observedAt = this.now();
+          }
           action = await this.modelDecision(observation, events, attempt === 1);
           if (this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) return;
           if (action.type !== 'wait' && Array.isArray(this.rules?.allowed_actions) && !this.rules.allowed_actions.includes(action.type)) throw new RunnerError('INVALID_MODEL_OUTPUT', '动作不在当前服务器规则中');
@@ -658,7 +681,11 @@ export class PlazaRunner extends EventEmitter {
       this.save();
       if (adjustment) this.log(`移动请求 (${adjustment.requested.x},${adjustment.requested.y}) 已截为本步 (${adjustment.applied.x},${adjustment.applied.y})，等待服务确认；未宣称到达原目标。`);
       await this.recoverPending();
-    } else if (action?.type === 'wait') this.ackBatch(batchId);
+    } else if (action?.type === 'wait') {
+      if (observation.game?.status === 'active') this.checkpoint.game_wait = { game_id: observation.game.game_id, turn_id: observation.game.turn_id, at: this.now() };
+      else delete this.checkpoint.game_wait;
+      this.ackBatch(batchId);
+    }
     this.health.waiting_reason = this.waitingReason();
     if (this.active) await this.report('waiting');
   }
@@ -741,11 +768,13 @@ export class PlazaRunner extends EventEmitter {
     await this.report('thinking');
     const controller = new AbortController();
     this.modelAbort = controller;
-    const timeout = setTimeout(() => controller.abort(), this.mode === 'dsh-pet' ? 65000 : 10000);
+    let timeout;
     const onRequest = async () => {
       if (!this.running || !this.active || controller.signal.aborted || this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) throw new RunnerError('STALE_SESSION', '运行已暂停');
       if (timestamp(this.checkpoint.expires_at) <= this.now()) throw new RunnerError('RUN_EXPIRED', '本次授权时间已到');
       if (this.checkpoint.calls_used >= this.checkpoint.max_calls) throw new RunnerError('BUDGET_EXHAUSTED', '模型调用预算已用完');
+      clearTimeout(timeout);
+      timeout = setTimeout(() => controller.abort(), MODEL_REQUEST_MS);
       this.checkpoint.calls_used++;
       this.checkpoint.last_model_at = this.now();
       const counters = this.ensureCounters();
@@ -790,7 +819,10 @@ export class PlazaRunner extends EventEmitter {
       // and the last receipt are enough for a decision; never replay that ledger.
       const v014Guidance = [this.rules?.adventure?.exploration ? EXPLORATION_GUIDANCE : '', this.rules?.life?.strategy_equipment ? STRATEGY_GUIDANCE : '', this.rules?.personal_goals ? PERSONAL_GOAL_GUIDANCE : ''].filter(Boolean).join('\n');
       const cooperationGuidance = supportsCooperation(this.rules) ? COOPERATION_GUIDANCE : '';
-      const decisionObservation = observation.self?.life ? { ...observation, self: { ...observation.self, life: { ...observation.self.life, ledger: undefined } } } : observation;
+      const decisionObservation = { ...observation,
+        ...(observation.self?.life ? { self: { ...observation.self, life: { ...observation.self.life, ledger: undefined } } } : {}),
+        ...(observation.game ? { game: { ...observation.game, remaining_seconds: remainingSeconds(observation.game.deadline, observation.server_time) } } : {}),
+        ...(observation.invitations ? { invitations: observation.invitations.map(invite => ({ ...invite, remaining_seconds: remainingSeconds(invite.expires_at, observation.server_time) })) } : {}) };
       await onRequest();
       const response = await this.fetchImpl(`${baseUrl}/chat/completions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.model.apiKey}` },

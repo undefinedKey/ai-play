@@ -113,7 +113,7 @@ test('心算题真实校验答案：格式无效不结束，错误与超时均�
   const result = f.act(p, 'finish_activity', { answer: solve(started.activity) + 1 });
   assert.equal(result.outcome, 'completed'); assert.equal(result.result.score, 0);
   assert.equal(f.act(p, 'start_activity', { activity_id: 'solo_game' }).status, 'applied');
-  f.advance(60000, [p]);
+  f.advance(150000, [p]);
   assert.equal(finished(f.world).at(-1).payload.result.score, 0);
   assert.match(finished(f.world).at(-1).payload.result.summary, /未提交答案/);
 });
@@ -137,14 +137,14 @@ test('移动、主动结束、暂停、召回、离线和到期都会取消活�
 
 test('报名接龙后不能再开始独处活动；已开始的活动在接龙开局时取消', t => {
   const f = fixture(t), a = f.make('朋友甲'), b = f.make('朋友乙');
-  assert.equal(f.act(a, 'start_activity', { activity_id: 'relax' }).status, 'applied');
+  assert.equal(f.act(a, 'start_activity', { activity_id: 'treasure_hunt' }).status, 'applied');
   const group = f.act(a, 'create_group').group_id;
   const invite = f.act(a, 'invite', { group_id: group, target_agent_id: b.agent.agent_id });
   f.act(b, 'respond_invite', { invite_id: invite.invite_id, accept: true });
   const game = f.act(a, 'propose_game', { group_id: group });
   f.act(b, 'respond_game', { game_id: game.game_id, accept: true });
   assert.equal(f.act(b, 'start_activity', { activity_id: 'relax' }).error.code, 'GAME_BUSY');
-  f.advance(30000, [a, b]);
+  f.advance(150000, [a, b]);
   assert.equal(f.world.state.game.status, 'active'); assert.equal(f.observe(a).self.activity, null);
   assert.equal(finished(f.world).at(-1).payload.outcome, 'cancelled');
 });

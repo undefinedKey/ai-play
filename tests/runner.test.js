@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PlazaRunner, parseModelAction, enqueueEvents, decodeToolResult } from '../runner/runner.js';
+import { MODEL_REQUEST_MS, HOST_PREFLIGHT_MS, DECISION_WATCHDOG_MS } from '../skills/ai-plaza/scripts/timing.mjs';
 
 const toolNames = ['get_rules', 'test_connection', 'join_world', 'observe', 'get_events', 'act', 'get_action_result', 'get_control_state', 'report_status', 'pause_self', 'leave_world'];
 const snapshot = () => ({ run_id: 'run-1', session_epoch: 2, expires_at: Date.now() + 600000,
@@ -174,6 +175,46 @@ test('无效模型输出只纠正一次，两个实际请求都计入预算', as
   assert.equal(sent, 2);
   assert.equal(f.runner.checkpoint.calls_used, 2);
   assert.equal(f.calls.filter(x => x.name === 'act').length, 0);
+  await f.runner.stop();
+});
+
+test('两次65秒格式纠错均在有限生成窗口内，重读观察、不扩大预算或触发旧120秒看门狗', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let sent = 0, release;
+  const reachRequest = async count => {
+    for (let i = 0; i < 20 && sent < count; i++) { await new Promise(setImmediate); t.mock.timers.tick(0); }
+    assert.equal(sent, count);
+  };
+  const f = fixture({ mode: 'model', fetchImpl: async (url, options) => {
+    sent++; await new Promise(resolve => { release = resolve; });
+    assert.equal(options.signal.aborted, false);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: sent === 1 ? '无效格式' : '{"type":"wait","payload":{}}' } }] }) };
+  } });
+  await activate(f); const originalDeadline = f.runner.checkpoint.expires_at;
+  const decision = f.runner.decide(); await reachRequest(1);
+  f.advance(65000); t.mock.timers.tick(65000); release();
+  await reachRequest(2); f.advance(65000); t.mock.timers.tick(65000); release(); await decision;
+  assert.equal(sent, 2); assert.equal(f.runner.checkpoint.calls_used, 2); assert.equal(f.runner.active, true);
+  assert.equal(f.runner.checkpoint.expires_at, originalDeadline);
+  assert.ok(f.calls.filter(call => call.name === 'observe').length >= 2);
+  assert.equal(MODEL_REQUEST_MS, 75000); assert.equal(HOST_PREFLIGHT_MS, 10000);
+  assert.ok(DECISION_WATCHDOG_MS >= 2 * (MODEL_REQUEST_MS + HOST_PREFLIGHT_MS) && DECISION_WATCHDOG_MS <= 180000);
+  await f.runner.stop();
+});
+
+test('75秒真实请求上限仍取消并记一次预算，不能无限等待或自动补动作', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let sent = 0, signal;
+  const f = fixture({ mode: 'model', fetchImpl: async (url, options) => {
+    sent++; signal = options.signal;
+    await new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(Object.assign(new Error('超时'), { name: 'AbortError' })), { once: true }));
+  } });
+  await activate(f); const decision = f.runner.decide();
+  for (let i = 0; i < 20 && !sent; i++) { await new Promise(setImmediate); t.mock.timers.tick(0); }
+  assert.equal(sent, 1); t.mock.timers.tick(74999); assert.equal(signal.aborted, false);
+  f.advance(75000); t.mock.timers.tick(1); await decision;
+  assert.equal(signal.aborted, true); assert.equal(f.runner.checkpoint.calls_used, 1);
+  assert.equal(f.calls.filter(call => call.name === 'act').length, 0); assert.ok(f.runner.checkpoint.event_batch);
   await f.runner.stop();
 });
 
