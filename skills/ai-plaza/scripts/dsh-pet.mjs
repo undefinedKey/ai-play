@@ -90,8 +90,12 @@ function lifeContext(self, now, catalog) {
 function foodContext(observation, rules) {
   const self = observation.self;
   if (!self?.life) return undefined;
+  const restoresBody = item => item.heal > 0 && self.adventure?.hp < self.adventure?.max_hp || item.energy_restore > 0 && self.fatigue?.energy < 100;
   const food = (observation.life || rules.life)?.items?.filter(item => item.kind === 'food' && self.life.inventory?.[item.id] > 0 &&
-    (item.heal > 0 && self.adventure?.hp < self.adventure?.max_hp || item.energy_restore > 0 && self.fatigue?.energy < 100 || supportsSurvival(observation, rules) && item.satiety_restore > 0 && self.survival.satiety < (self.survival.max_satiety ?? 100)))
+    (restoresBody(item) || supportsSurvival(observation, rules) && item.satiety_restore > 0 && self.survival.satiety < (self.survival.max_satiety ?? 100)))
+    // Tiny passive hunger must not evict a held food that restores the current
+    // health/energy deficit. This only orders facts; the AI still chooses.
+    .sort((a, b) => Number(restoresBody(b)) - Number(restoresBody(a)))
     .map(item => [item.id, item.heal || 0, self.life.inventory[item.id], ...(item.satiety_restore > 0 && supportsSurvival(observation, rules) ? [item.energy_restore || 0, item.satiety_restore] : item.energy_restore > 0 ? [item.energy_restore] : [])]) || [];
   return food.length ? food : undefined;
 }
@@ -365,6 +369,12 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget) delete data.movement; // Camp supplies outrank optional fine-step examples; finite exploration remains an explicit action.
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.life && !farming) delete data.life.plots; // Existing crops/current farm work outrank unrelated prices.
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.life && cooking && !farming) delete data.life.tools; // Tool maintenance details return for farm work; keep the costs of presently usable food and market choices.
+    if (minimumPrompt(data, { ownerGoal, correction }).length > budget && !farming && !ownedStrategy) {
+      // Current recipes, prices and the independent action menu outrank an
+      // optional introduction to unowned gear/new goals. Do not sacrifice the
+      // trading quota or food ingredients merely to retain that introduction.
+      delete data.gear_offer; delete data.goal_offer;
+    }
   }
   if (data.supply && minimumPrompt(data, { ownerGoal, correction }).length > budget) {
     // A long owner's goal or incoming conversation outranks a complete shop /
@@ -398,7 +408,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     data.adventure.monsters = data.adventure.monsters.map(row => row.slice(0, 7));
   }
   if (render().length > budget && data.opportunities?.length && !away && !plan && !threatened.size) data.adventure.monsters = [];
-  while (render().length > budget && data.food?.length > 1) data.food.pop();
+  while (minimumPrompt(data, { ownerGoal, correction, adventure: !!(away || plan || threatened.size) }).length > budget && data.food?.length > 1) data.food.pop();
   if (render().length > budget && data.food) { data.adventure.zones = []; delete data.self.adventure.level; }
   if (render().length > budget && data.life?.tools && !away && !plan && !threatened.size) {
     const concise = minimumPrompt(data, { ownerGoal, correction });
