@@ -251,6 +251,68 @@ test('坏输出消耗最后一个预算时不追加纠错，也不丢弃未确�
   } finally { await f.runner.stop(); }
 });
 
+test('历史救援风暴合为一次待确认摘要，保留聊天且不每五秒打断已运行计划', async () => {
+  const f = fixture({ mode: 'model' }); await activate(f);
+  f.runner.mode = 'dsh-pet'; const inputs = [];
+  f.runner.petClient = { decide: async context => { inputs.push(context); f.advance(6000); return '{"type":"wait","payload":{}}'; } };
+  f.observation.self.adventure = { hp: 100, max_hp: 100, plan: { intent: 'rest', expires_at: f.control.run.expires_at } };
+  f.observation.self.survival = { satiety: 70 };
+  const rescues = Array.from({ length: 30 }, (_, i) => ({ event_id: `rescue-${i}`, type: 'survival_rescued', occurred_at: f.runner.now() - 300000 + i * 1000,
+    payload: { agent_id: 'agent-a', kind: 'starving', text: '倒地获救，恢复10点生命并获得120秒保护' } }));
+  const chat = { event_id: 'friend-chat', type: 'message', payload: { agent_id: 'agent-b', text: '一起探索吗？' } };
+  f.runner.checkpoint.queue.push(...rescues, chat);
+  try {
+    await f.runner.decide();
+    assert.equal(inputs.length, 1); assert.equal(inputs[0].events.length, 1); assert.equal(inputs[0].events[0].event_id, 'rescue-29');
+    assert.match(inputs[0].events[0].payload.text, /历史救援/); assert.match(inputs[0].events[0].payload.text, /当前观察/);
+    assert.equal(f.runner.checkpoint.last_acked_batch.event_ids.length, 30);
+    assert.deepEqual(new Set(f.runner.checkpoint.last_acked_batch.event_ids), new Set(rescues.map(e => e.event_id)));
+    assert.deepEqual(f.runner.checkpoint.queue.map(e => e.event_id), ['friend-chat']);
+    f.advance(6000); await f.runner.decide();
+    assert.equal(inputs[1].events[0].payload.text, chat.payload.text);
+    f.advance(6000); assert.equal(f.runner.decisionDue(), false, '历史库存耗尽后遵守计划复查间隔');
+    assert.equal(f.runner.checkpoint.calls_used, 2); assert.equal(f.calls.filter(c => c.name === 'act').length, 0);
+  } finally { await f.runner.stop(); }
+});
+
+test('救援摘要只有有效决定才确认，模型请求期间的新救援保持独立唤醒', async () => {
+  const f = fixture({ mode: 'model' }); await activate(f); f.runner.mode = 'dsh-pet'; let sent = 0;
+  f.runner.petClient = { decide: async () => {
+    sent++; f.advance(6000);
+    if (sent === 3) f.runner.checkpoint.queue.push({ event_id: 'new-rescue', type: 'survival_rescued', occurred_at: f.runner.now(), payload: { agent_id: 'agent-a' } });
+    return sent < 3 ? '坏格式' : '{"type":"wait","payload":{}}';
+  } };
+  f.runner.checkpoint.queue.push(...[1, 2, 3].map(i => ({ event_id: `old-${i}`, type: 'survival_rescued', occurred_at: f.runner.now() - 60000 + i, payload: { agent_id: 'agent-a' } })));
+  try {
+    await f.runner.decide();
+    assert.equal(f.runner.checkpoint.last_acked_batch, undefined);
+    assert.equal(f.runner.checkpoint.event_batch.events[0].event_id, 'old-3');
+    assert.deepEqual(f.runner.checkpoint.event_batch.coalesced_event_ids, ['old-1', 'old-2']);
+    assert.equal(f.runner.healthReport().pending_events, 3, '合批尚未确认的原通知仍计入积压');
+    f.advance(31000); await f.runner.decide();
+    assert.deepEqual(new Set(f.runner.checkpoint.last_acked_batch.event_ids), new Set(['old-1', 'old-2', 'old-3']));
+    assert.deepEqual(f.runner.checkpoint.queue.map(e => e.event_id), ['new-rescue']);
+    f.advance(6000); assert.equal(f.runner.decisionDue(), true); await f.runner.decide();
+    assert.deepEqual(f.runner.checkpoint.last_acked_batch.event_ids, ['new-rescue']);
+    assert.equal(f.runner.healthReport().pending_events, 0);
+    assert.equal(f.runner.checkpoint.calls_used, 4);
+  } finally { await f.runner.stop(); }
+});
+
+test('带救援摘要的未知动作仍用原ID恢复，恢复回执后才确认整个批次', async () => {
+  const f = fixture(); await activate(f);
+  const action = { ...f.runner.session(), action_id: 'already-paid', type: 'inventory', payload: { intent: 'use', item_id: 'turnip' } };
+  f.runner.checkpoint.pending_action = structuredClone(action);
+  f.runner.checkpoint.pending_batch_id = 'saved-rescue-batch';
+  f.runner.checkpoint.event_batch = { id: 'saved-rescue-batch', events: [{ event_id: 'rescue-latest', type: 'survival_rescued', payload: { agent_id: 'agent-a' } }], coalesced_event_ids: ['rescue-earlier'] };
+  try {
+    await f.runner.performDecision();
+    assert.deepEqual(f.calls.find(c => c.name === 'act').args, action);
+    assert.deepEqual(new Set(f.runner.checkpoint.last_acked_batch.event_ids), new Set(['rescue-earlier', 'rescue-latest']));
+    assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.calls_used, 0);
+  } finally { await f.runner.stop(); }
+});
+
 test('两次65秒格式纠错均在有限生成窗口内，重读观察、不扩大预算或触发旧120秒看门狗', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let sent = 0, release;

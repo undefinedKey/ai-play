@@ -608,7 +608,7 @@ export class PlazaRunner extends EventEmitter {
     const generation = this.authorityGeneration;
     if (!this.checkpoint.event_batch) {
       this.checkpoint.batch_sequence = (this.checkpoint.batch_sequence || 0) + 1;
-      let events;
+      let events, coalescedEventIds = [];
       if (this.mode === 'dsh-pet') {
         // The compact host prompt can guarantee delivery of one message. Urgent
         // danger must not sit behind older join/activity events in that queue.
@@ -621,13 +621,30 @@ export class PlazaRunner extends EventEmitter {
         const deliverMessage = message >= 0 && (urgent < 0 || (this.checkpoint.priority_batches || 0) >= 2);
         const selected = deliverMessage ? message : [danger, aggro, cooperation, message, notice].find(index => index >= 0) ?? 0;
         this.checkpoint.priority_batches = selected === urgent && message >= 0 ? (this.checkpoint.priority_batches || 0) + 1 : 0;
-        events = this.checkpoint.queue.splice(selected, 1);
+        const selectedEvent = this.checkpoint.queue[selected];
+        if (selectedEvent?.type === 'survival_rescued' && selectedEvent.payload?.agent_id === observation.self.agent_id) {
+          // Repeated rescues during an outage describe the same recovery need.
+          // Present the latest once, but retain every original ID in the durable
+          // batch until a valid decision/receipt acknowledges this summary.
+          const rescues = this.checkpoint.queue.filter(event => event.type === 'survival_rescued' && event.payload?.agent_id === observation.self.agent_id);
+          const latest = rescues.reduce((current, event) => Number.isFinite(timestamp(current.occurred_at)) && Number.isFinite(timestamp(event.occurred_at)) && timestamp(current.occurred_at) > timestamp(event.occurred_at) ? current : event);
+          coalescedEventIds = rescues.filter(event => event !== latest).map(event => event.event_id).filter(Boolean);
+          this.checkpoint.queue = this.checkpoint.queue.filter(event => !rescues.includes(event));
+          events = [latest];
+        } else events = this.checkpoint.queue.splice(selected, 1);
       } else events = this.checkpoint.queue.splice(0, 25);
       this.checkpoint.event_batch = { id: `${runId}:${this.checkpoint.batch_sequence}`, run_id: runId,
-        events, attempts: 0 };
+        events, attempts: 0, ...(coalescedEventIds.length ? { coalesced_event_ids: coalescedEventIds } : {}) };
     }
     const batchId = this.checkpoint.event_batch.id;
-    const events = this.checkpoint.event_batch.events;
+    const events = this.checkpoint.event_batch.events.map(event => {
+      // The durable event is unchanged. An old rescue must not tell a fully
+      // recovered AI that its old 10 HP/120 second protection are current.
+      const age = (observation.server_time ?? this.now()) - timestamp(event.occurred_at);
+      return event.type === 'survival_rescued' && Number.isFinite(age) && age >= 30000
+        ? { ...event, payload: { ...event.payload, text: `历史救援（${Math.floor(age / 1000)}秒前，当前状态以当前观察为准）：${event.payload?.text || ''}` } }
+        : event;
+    });
     this.save();
     let action;
     if (this.mode === 'demo') action = this.demoDecision(observation, events);
@@ -744,7 +761,7 @@ export class PlazaRunner extends EventEmitter {
     const batch = this.checkpoint.event_batch;
     const held = batch.cooperation_review_deferred ? batch.events.filter(event => event.type === 'cooperation_review') : [];
     if (held.length) this.checkpoint.deferred_cooperation_events = held;
-    this.checkpoint.last_acked_batch = { id, event_ids: batch.events.filter(event => !held.includes(event)).map(event => event.event_id).filter(Boolean), at: this.now() };
+    this.checkpoint.last_acked_batch = { id, event_ids: [...new Set([...batch.events.filter(event => !held.includes(event)).map(event => event.event_id), ...(batch.coalesced_event_ids || [])].filter(Boolean))], at: this.now() };
     delete this.checkpoint.event_batch;
     this.save();
   }
@@ -1016,7 +1033,7 @@ export class PlazaRunner extends EventEmitter {
     const sameRun = !connection || this.lastControl?.run?.run_id === this.checkpoint?.run_id;
     return { ...this.health,
       ...(sameRun ? { counters: this.checkpoint ? { ...this.ensureCounters() } : { requests: 0, replies: 0, retries: 0, local_failures: 0 },
-        pending_events: (this.checkpoint?.queue?.length || 0) + (this.checkpoint?.event_batch?.events?.length || 0) + (this.checkpoint?.deferred_cooperation_events?.length || 0), dropped_events: this.checkpoint?.dropped_events || 0,
+        pending_events: (this.checkpoint?.queue?.length || 0) + (this.checkpoint?.event_batch?.events?.length || 0) + (this.checkpoint?.event_batch?.coalesced_event_ids?.length || 0) + (this.checkpoint?.deferred_cooperation_events?.length || 0), dropped_events: this.checkpoint?.dropped_events || 0,
         ...(!this.health.error_code && this.checkpoint?.event_gap_at ? { error_code: 'EVENT_GAP' } : {}) } : {}),
       token_usage: sameRun ? this.checkpoint?.token_usage || null : null };
   }

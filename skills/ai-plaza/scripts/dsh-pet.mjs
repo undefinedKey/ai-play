@@ -63,11 +63,13 @@ export const SUPPLIES_GUIDANCE = '服务目录支持时，可自主gather{intent
 
 function opportunitiesContext(observation) {
   const candidates = normalizedOpportunities(observation).filter(o => ['adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'start_activity'].includes(o.action?.type));
-  // Keep one adventure and one life option visible even when a crowded chat
-  // requires a smaller catalog. This changes presentation, never chooses for AI.
+  // Preserve distinct everyday choices before secondary catalogs. A rest/eat
+  // pair must not hide every executable gathering/exploration payload.
   const firstAdventure = candidates.find(o => o.action.type === 'adventure_plan');
   const firstLife = candidates.find(o => ['farm', 'inventory', 'gather', 'trade'].includes(o.action.type)) || candidates.find(o => o.action.type === 'start_activity');
-  return [...new Set([firstAdventure, firstLife, ...candidates].filter(Boolean))].map(o => ({
+  const explore = candidates.find(o => o.action.type === 'adventure_plan' && o.action.payload.intent === 'explore');
+  const gather = candidates.find(o => o.action.type === 'gather' && o.action.payload.intent === 'start');
+  return [...new Set([firstAdventure, firstLife, explore, gather, ...candidates].filter(Boolean))].map(o => ({
     label: text(o.label, 18), reason: text(o.reason, 24), action: { type: o.action.type,
       payload: pick(o.action.payload, ['intent', 'zone_id', 'monster_id', 'mode', 'plot_id', 'crop_id', 'item_id', 'slot', 'activity_id', 'resource_id', 'node_id', 'quantity', 'event_id', 'choice_id', 'goal_id', 'kind', 'target_id', 'target_count', 'duration_seconds', 'cooperation_id', 'revision', 'template_id', 'target_agent_id', 'role_id', 'accept', 'site_id', 'fire_id', 'lit']) },
   }));
@@ -89,7 +91,7 @@ function foodContext(observation, rules) {
   const self = observation.self;
   if (!self?.life) return undefined;
   const food = (observation.life || rules.life)?.items?.filter(item => item.kind === 'food' && self.life.inventory?.[item.id] > 0 &&
-    (item.heal > 0 && self.adventure?.hp < self.adventure?.max_hp || item.energy_restore > 0 && self.fatigue?.energy < 100 || supportsSurvival(observation, rules) && item.satiety_restore > 0 && self.survival.satiety <= (rules.survival.hungry_at ?? 30)))
+    (item.heal > 0 && self.adventure?.hp < self.adventure?.max_hp || item.energy_restore > 0 && self.fatigue?.energy < 100 || supportsSurvival(observation, rules) && item.satiety_restore > 0 && self.survival.satiety < (self.survival.max_satiety ?? 100)))
     .map(item => [item.id, item.heal || 0, self.life.inventory[item.id], ...(item.satiety_restore > 0 && supportsSurvival(observation, rules) ? [item.energy_restore || 0, item.satiety_restore] : item.energy_restore > 0 ? [item.energy_restore] : [])]) || [];
   return food.length ? food : undefined;
 }
@@ -288,6 +290,15 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     (data.adventure.zones.length ? 'zones=[id,名,x,y,危险度]；' : '') + (data.adventure.monsters.length ? hostile ? `monsters=[id,x,y,hp,attack,behavior,target${compactThreats ? '' : ',aggro,leash,homeX,homeY'}]，target=self表示你；` : 'monsters=[id,名,zone,x,y,hp,max_hp,attack,status]；' : '') + (data.activities ? 'activities=[id,place]；places=[id,x,y,半径]；' : '') + '不返回身份/凭据/action_id。\n' +
     (correction ? '上次格式无效，只返回合法动作JSON。\n' : '') + '公开数据：';
   const render = () => instruction() + JSON.stringify(data, (key, value) => ['gear_offer', 'goal_offer', 'explore_offer'].includes(key) ? undefined : value);
+  const dailyMenu = !away && !plan && !threatened.size && !data.gathering;
+  const choiceFloor = dailyMenu && (!ownedStrategy || endedGoal(data.personal_goal) || data.discovery) ? Math.min(4, data.opportunities.length) : 2;
+  if (dailyMenu && render().length > budget) {
+    // Finished goals and discoveries are history, not obligations. Compress
+    // those before the current actions; fresh resolution events remain below.
+    if (endedGoal(data.personal_goal)) data.personal_goal = compactGoal(data.personal_goal);
+    if (!events.some(e => /^exploration_/.test(e.type || '') && e.payload?.agent_id === self.agent_id)) delete data.discovery;
+    if (endedGoal(data.personal_goal) || data.discovery) { delete data.gear_offer; delete data.goal_offer; }
+  }
   if (!data.opportunities.length) delete data.opportunities;
   if (data.gathering) { delete data.supply; delete data.life; } // A running job offers cancel/wait, not an unrelated craft catalog.
   // Keep the original AI's goal, own health/plan, real target IDs and latest social
@@ -349,7 +360,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
   if (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.personal_goal) delete data.personal_goal.title;
   if (data.supply && !away && !plan && !threatened.size) {
     data.adventure.monsters = []; // A distant monster catalog must not hide peaceful alternatives at camp.
-    while (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.opportunities?.length > 2) data.opportunities.pop();
+    while (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.opportunities?.length > choiceFloor) data.opportunities.pop();
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.opportunities) for (const opportunity of data.opportunities) delete opportunity.label;
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget) delete data.movement; // Camp supplies outrank optional fine-step examples; finite exploration remains an explicit action.
     if (minimumPrompt(data, { ownerGoal, correction }).length > budget && data.life && !farming) delete data.life.plots; // Existing crops/current farm work outrank unrelated prices.
@@ -374,7 +385,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     const concise = minimumPrompt(data, { ownerGoal, correction });
     if (concise.length <= budget) return concise;
   }
-  while (render().length > budget && data.opportunities?.length > 2) data.opportunities.pop();
+  while (render().length > budget && data.opportunities?.length > choiceFloor) data.opportunities.pop();
   if (render().length > budget && data.opportunities) for (const opportunity of data.opportunities) delete opportunity.label;
   if (render().length > budget && data.opportunities?.length) data.adventure.zones = data.adventure.zones.filter(row => row[0] === 'camp');
   if (render().length > budget && data.life) delete data.life.plots; // Ready/water/plant actions still identify the current plot in opportunities.

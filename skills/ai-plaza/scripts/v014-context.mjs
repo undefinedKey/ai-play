@@ -14,7 +14,7 @@ export function goalContext(self, now) {
     progress: goal.progress, status: goal.status, seconds: left(goal.expires_at, now), title: bounded(goal.title, 60) } : undefined;
 }
 
-export const compactGoal = goal => goal ? [goal.goal_id, goal.status, goal.kind, goal.target_id, goal.progress, goal.target_count, goal.seconds] : undefined;
+export const compactGoal = goal => Array.isArray(goal) ? goal : goal ? [goal.goal_id, goal.status, goal.kind, goal.target_id, goal.progress, goal.target_count, goal.seconds] : undefined;
 export const GOAL_TUPLE_GUIDANCE = 'personal_goal=[id,状态,种类,目标,进度,总量,余秒]；personal_goal{intent:confirm|cancel,goal_id}复核不续期、不自动做。\n';
 
 export function discoveryContext(self) {
