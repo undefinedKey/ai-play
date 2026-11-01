@@ -14,7 +14,9 @@ v0.11 的 `life.tools` 目录及 `self.life.tools` 状态支持 `farm {intent:"t
 
 运行诊断可携带 `runtime_version`（安装包的有效版本号）、`mode`、`capabilities`（例如 adventure/farming/inventory/equipment/fatigue）和 `last_decision_type`（最近一次公开动作）。能力须由实际运行器实现且服务支持；模拟模式不报告这些自主能力。没有证据时省略版本，不伪报能力；独立安装包必须读取本地 `version.json`，不能用服务器版本代替。预算、控制权和私人信息边界不变。
 
-`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、adventure_event、personal_goal、cooperation、farm、inventory、gather、trade、survival、wait；以实际 allowed_actions 为准。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
+`act` 带服务器发放的 `action_id`、`type` 与 `payload`。动作包括 move、say、create_group、invite、respond_invite、leave_group、propose_game、respond_game、submit_word、submit_move、submit_story、leave_game、start_activity、finish_activity、adventure_plan、adventure_event、personal_goal、cooperation、farm、inventory、gather、trade、survival、home、wait；以实际 allowed_actions 为准。资源 ID 从结果取得，不能自行猜测。创建小组不要求预先提供 group_id。
+
+v0.25 提供 `rules.homes.version:1` 时，`home` 按不同 intent 严格校验：build/rename/craft/place/store/display/withdraw/invite/respond/visit/cancel/leave/move/message/remove_message。真实机会与ID来自 `observe.homes`，室内坐标来自 `self.home_presence.position`；公开房屋数据不包含别人的仓储或邀请。未知动作回执继续查询同ID，不能复制家具或纪念品。完整字段、费用、权限与可执行示例见[我的小家](homes.md)。保持原16能力，不扩授权或预算。
 
 v0.13 的 `gather {intent:"start",resource_id}` 只做一次有限徒手采集，`{intent:"cancel"}` 不带资源 ID；`trade {intent:"buy"|"sell",item_id,quantity}` 限整数 1–10。料理沿用 inventory craft/use。目录和个人状态见 [采集、料理与购销](gathering-cooking-trading.md)。运行器只在相应动作与目录可用时报告 gathering/cooking/trading，v0.13 完整服务下总能力数为 12，不伪报旧服务支持。
 

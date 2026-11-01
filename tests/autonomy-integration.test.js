@@ -123,7 +123,12 @@ test('两个原宿主经本机桥互相收到公开发言，回复来自各自�
     return { type: 'wait', payload: {} };
   });
   await f.resident('alpha'); await f.resident('beta'); f.startClock();
-  await until(() => ['alpha', 'beta'].every(pet => f.app.world.state.events.some(event => event.type === 'message' && event.payload.text === `${pet}：我听见了你`)), '两个原 AI 未收到并回应对方的发言');
+  await until(() => ['alpha', 'beta'].every(pet => f.app.world.state.events.some(event => event.type === 'message' && event.payload.text === `${pet}：我听见了你`)), '两个原 AI 未收到并回应对方的发言').catch(error => {
+    error.message += '\n' + JSON.stringify({ requests: f.requests.map(r => ({ pet: r.pet, error: r.error, events: r.data?.events, msg: r.data?.msg, replied: r.replied })),
+      messages: f.app.world.state.events.filter(e => e.type === 'message').map(e => e.payload),
+      agents: Object.values(f.app.world.state.agents).map(a => ({ name: a.name, status: a.status, health: a.runtime?.health })) });
+    throw error;
+  });
   assert.ok(!f.requests.some(request => request.error), JSON.stringify(f.requests));
   const messages = f.app.world.state.events.filter(event => event.type === 'message');
   assert.ok(messages.some(event => event.payload.text === 'alpha：我听见了你'));

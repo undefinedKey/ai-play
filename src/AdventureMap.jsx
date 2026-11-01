@@ -16,7 +16,9 @@ import FarmPanel, { EquipmentStatus } from './FarmPanel.jsx';
 import CampLife,{CampLandmarks} from './CampLife.jsx';
 import AdventureJourney,{DiscoveryMarkers} from './AdventureJourney.jsx';
 import CooperationPanel from './CooperationPanel.jsx';
-import { Compass, Flag, Heart, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
+import HomeView from './HomeView.jsx';
+import { selectedHome } from './home-state.js';
+import { Compass, Flag, Heart, Home, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
 const intentNames = { explore: '探索', hunt: '讨伐', rest: '营地休息', retreat: '返回营地' };
 const clamp = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
@@ -57,6 +59,7 @@ function FieldStatus({ agent, adventure, now, live }) {
   const state = agent.adventure;
   if (state?.in_field === undefined) return null;
   const active = agent.status === 'active';
+  if(agent.home_presence)return <div className={`adventure-field-status protected ${!live?'recorded':''}`} data-testid="adventure-field-status"><Shield size={14}/><div><strong>{!live?'最近记录 · ':''}小屋室内 · 安全空间</strong><span>屋内有照明，真实饱食仍会消耗。是否补给或外出，由原 AI 决定。</span></div></div>;
   const encounter=state.encounter;
   if(encounter?.status==='pending'){
     const remaining=Math.max(0,Math.ceil((encounter.expires_at-now)/1000));
@@ -87,39 +90,44 @@ function AdventureMap({ world, selected, onSelect, grid, live, now }) {
     <DiscoveryMarkers world={{...world,agents:present}} map={map} selected={selected} now={now} live={live}/>
     <div className="scene-caption"><strong>林地冒险</strong><span>{present.length} 位在场 · 入口通往生活广场</span></div>
     {adventure.monsters.map(monster=><MonsterUnit key={monster.monster_id} monster={monster} agents={present} events={world.events} now={now} map={map} live={live}/>)}
-    {present.map(agent=><WorldActor key={agent.agent_id} agent={agent} agents={world.agents} events={world.events} now={now} live={live} selected={selected} onSelect={onSelect} map={map} slot={slots.get(agent.agent_id)} adventure/>)}    </PhaserWorld>
+    {present.map(agent=><WorldActor key={agent.agent_id} agent={agent} agents={world.agents} events={world.events} now={now} live={live} selected={selected} onSelect={onSelect} map={map} slot={slots.get(agent.agent_id)} adventure/>)}
+    </PhaserWorld>
   </div></MapCamera><SpeechOverlay events={world.events} agents={world.agents} selected={selected} now={now} live={live}/></div>;
 }
 
 export default function WorldScene({ world, selected, onSelect, grid, onGrid, live, now=world.server_time, plaza, onViewChange, scopeControls, readOnly=false }) {
-  const [view,setView]=useState(()=>{const requested=new URLSearchParams(location.search).get('view');return ['adventure','farm'].includes(requested)?requested:'plaza';});
+  const [view,setView]=useState(()=>{const requested=new URLSearchParams(location.search).get('view');return ['adventure','farm','home'].includes(requested)?requested:'plaza';});
+  const [requestedHome,setRequestedHome]=useState(()=>new URLSearchParams(location.search).get('home'));
   const [following,setFollowing]=useState(null),[located,setLocated]=useState(null),[resetKey,setResetKey]=useState(0);
   const [selectedResource,setSelectedResource]=useState(null);
   const [resetZoom,setResetZoom]=useState(2);
   const displayNow=live?now:Number(world.server_time)||now;
   const agent=world.agents.find(a=>a.agent_id===selected);
+  const home=selectedHome(world.homes,world.agents,selected,requestedHome);
   const followed=world.agents.find(a=>a.agent_id===following);
   const currentScene=view==='adventure'?'adventure':'plaza';
-  const sound=useWorldAudio(world,currentScene,live);
-  const priorScene=useRef({id:following,scene:followed?.scene_id});
-  useEffect(()=>{if(following&&followed&&priorScene.current.id===following&&priorScene.current.scene!==followed.scene_id){setFollowing(null);setLocated(null);}priorScene.current={id:following,scene:followed?.scene_id};},[following,followed?.scene_id]);
+  const sound=useWorldAudio(world,currentScene,live&&view!=='home');
+  const followedSpace=followed?.home_presence?.home_id||followed?.scene_id;
+  const priorScene=useRef({id:following,scene:followedSpace});
+  useEffect(()=>{if(following&&followed&&priorScene.current.id===following&&priorScene.current.scene!==followedSpace){setFollowing(null);setLocated(null);}priorScene.current={id:following,scene:followedSpace};},[following,followedSpace]);
   const cameraPoint=following&&actorScene(followed)===currentScene&&followed?.status!=='offline'?followed.position:located?.scene_id===currentScene?located.position:null;
   const manual=()=>{setFollowing(null);setLocated(null);};
   const restore=(zoom=2)=>{manual();setResetZoom(zoom);setResetKey(value=>value+1);};
-  const changeView=value=>{restore();setSelectedResource(null);setView(value);onViewChange?.(value);const url=new URL(location.href);url.searchParams.set('view',value);history.replaceState(null,'',url.pathname+url.search+url.hash);};
+  const changeView=(value,homeId=null)=>{restore();setSelectedResource(null);setView(value);setRequestedHome(homeId);onViewChange?.(value);const url=new URL(location.href);url.searchParams.set('view',value);if(value==='home'&&homeId)url.searchParams.set('home',homeId);else url.searchParams.delete('home');history.replaceState(null,'',url.pathname+url.search+url.hash);};
   const choose=value=>{onSelect(value);restore();};
   const locate=()=>{setFollowing(null);setLocated({scene_id:agent.scene_id,position:{...agent.position}});};
-  const canLocate=agent&&['active','paused'].includes(agent.status)&&actorScene(agent)===currentScene&&view!=='farm';
-  const elsewhere=agent&&actorScene(agent)&&actorScene(agent)!==currentScene;
+  const canLocate=agent&&['active','paused'].includes(agent.status)&&actorScene(agent)===currentScene&&!['farm','home'].includes(view);
+  const actorHome=agent?.home_presence?.home_id;
+  const elsewhere=agent&&(actorHome?(view!=='home'||home?.home_id!==actorHome):actorScene(agent)&&(view==='home'||actorScene(agent)!==currentScene));
   return <SpeechOverlayScope selected={selected}><CameraContext.Provider value={{point:following?null:cameraPoint,agent:following&&actorScene(followed)===currentScene?followed:null,map:world.adventure?.map,mode:following?'following':located?'located':'overview',now:displayNow,live,resetKey,resetZoom,onManual:manual,onReset:restore,sound:sound.enabled,onSound:sound.toggle}}><ResourceSelection.Provider value={{selected:selectedResource,select:setSelectedResource}}>
     <DayCycle world={world} live={live} now={displayNow}/>
-    <div className="world-view-switch" role="group" aria-label="世界视图"><button onClick={()=>changeView('adventure')} aria-pressed={view==='adventure'} className={view==='adventure'?'active':''}><Swords size={15}/> 冒险地图</button><button onClick={()=>changeView('plaza')} aria-pressed={view==='plaza'} className={view==='plaza'?'active':''}><Map size={15}/> 社交广场</button><button onClick={()=>changeView('farm')} aria-pressed={view==='farm'} className={view==='farm'?'active':''}><Sprout size={15}/> 农作区</button><small>{view==='farm'?'广场营地近景':'独立场景 · 通过入口往返'}</small>{view!=='farm'&&onGrid&&<button className={`map-grid-toggle ${grid?'active':''}`} aria-pressed={grid} onClick={()=>onGrid(!grid)}>网格</button>}</div>
-    <div className="observer-controls">{readOnly?<div className="observer-selection" data-testid="observer-selection" tabIndex={-1}><strong>{agent?publicName(agent,world.agents):'世界概况'}</strong><span>{agent?presenceLabel(agent):'点击地图中的角色查看详情'}</span></div>:<label>观察对象<select aria-label="观察对象" value={agent?.agent_id||''} onChange={event=>choose(event.target.value)}><option value="">世界概况</option>{world.agents.filter(a=>['active','paused'].includes(presenceState(a))).map(a=><option key={a.agent_id} value={a.agent_id}>{publicName(a,world.agents)} · {presenceLabel(a)}</option>)}<optgroup label="历史与未入场">{world.agents.filter(a=>!['active','paused'].includes(presenceState(a))).map(a=><option key={a.agent_id} value={a.agent_id}>{publicName(a,world.agents)} · {presenceLabel(a)}</option>)}</optgroup></select></label>}<div className="camera-actions">{elsewhere?<><span className="scene-elsewhere" role="status">在{sceneName(agent.scene_id)}</span><button onClick={()=>changeView(agent.scene_id)}>查看所在地</button></>:<><button disabled={!canLocate} onClick={locate}>定位角色</button><button disabled={!canLocate&&!following} aria-pressed={!!following} onClick={()=>{if(following)restore();else {setFollowing(agent.agent_id);setLocated({scene_id:agent.scene_id,position:{...agent.position}});}}}>{following?'退出关注':'关注角色'}</button><button onClick={()=>restore(1)}>恢复全图</button></>}</div></div>
+    <div className="world-view-switch" role="group" aria-label="世界视图"><button onClick={()=>changeView('adventure')} aria-pressed={view==='adventure'} className={view==='adventure'?'active':''}><Swords size={15}/> 冒险地图</button><button onClick={()=>changeView('plaza')} aria-pressed={view==='plaza'} className={view==='plaza'?'active':''}><Map size={15}/> 社交广场</button><button onClick={()=>changeView('farm')} aria-pressed={view==='farm'} className={view==='farm'?'active':''}><Sprout size={15}/> 农作区</button><button onClick={()=>changeView('home')} aria-pressed={view==='home'} className={view==='home'?'active':''}><Home size={15}/> 我的小家</button><small>{view==='home'?'独立小屋 · 布置与串门由 AI 决定':view==='farm'?'广场营地近景':'独立场景 · 通过入口往返'}</small>{view!=='farm'&&onGrid&&<button className={`map-grid-toggle ${grid?'active':''}`} aria-pressed={grid} onClick={()=>onGrid(!grid)}>网格</button>}</div>
+    <div className="observer-controls">{readOnly?<div className="observer-selection" data-testid="observer-selection" tabIndex={-1}><strong>{agent?publicName(agent,world.agents):'世界概况'}</strong><span>{agent?presenceLabel(agent):'点击地图中的角色查看详情'}</span></div>:<label>观察对象<select aria-label="观察对象" value={agent?.agent_id||''} onChange={event=>choose(event.target.value)}><option value="">世界概况</option>{world.agents.filter(a=>['active','paused'].includes(presenceState(a))).map(a=><option key={a.agent_id} value={a.agent_id}>{publicName(a,world.agents)} · {presenceLabel(a)}</option>)}<optgroup label="历史与未入场">{world.agents.filter(a=>!['active','paused'].includes(presenceState(a))).map(a=><option key={a.agent_id} value={a.agent_id}>{publicName(a,world.agents)} · {presenceLabel(a)}</option>)}</optgroup></select></label>}<div className="camera-actions">{elsewhere?<><span className="scene-elsewhere" role="status">在{actorHome?'小屋室内':sceneName(agent.scene_id)}</span><button onClick={()=>changeView(actorHome?'home':agent.scene_id,actorHome)}>查看所在地</button></>:view==='home'?<span className="scene-elsewhere">旁观切换不会移动 AI</span>:<><button disabled={!canLocate} onClick={locate}>定位角色</button><button disabled={!canLocate&&!following} aria-pressed={!!following} onClick={()=>{if(following)restore();else {setFollowing(agent.agent_id);setLocated({scene_id:agent.scene_id,position:{...agent.position}});}}}>{following?'退出关注':'关注角色'}</button><button onClick={()=>restore(1)}>恢复全图</button></>}</div></div>
 
     {sound.unavailable&&<p className="camera-status" role="status">当前浏览器暂时无法播放音效，画面仍正常显示。</p>}
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
-    {view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={displayNow}/>:React.cloneElement(plaza,{onSelect:choose,now:displayNow})}
-    <ResourceInspector world={world} selected={selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/><FireInspector world={world} selected={selectedResource} onClose={()=>setSelectedResource(null)} live={live}/>
+    {view==='home'?<HomeView world={world} home={home} requestedHome={requestedHome} selected={selected} onSelect={choose} onHome={id=>changeView('home',id)} now={displayNow} live={live} grid={grid}/>:view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={displayNow}/>:React.cloneElement(plaza,{onSelect:choose,now:displayNow,onHomeEntrance:()=>changeView('home')})}
+    <ResourceInspector world={world} selected={view==='home'?null:selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/><FireInspector world={world} selected={view==='home'?null:selectedResource} onClose={()=>setSelectedResource(null)} live={live}/>
     {scopeControls}
     <ObserverStatus world={world} agent={agent} live={live} now={now}/><SurvivalStatus world={world} agent={agent} live={live}/>
     <CooperationPanel world={world} agent={agent} now={now} live={live}/>

@@ -1,3 +1,4 @@
+import { HOME_RULES, publicHomes, publicHomePresence, publicHomeTravel } from './homes.js';
 import { SCENE_IDS, SCENES, publicMovement, publicPath, publicAction, publicHurt } from './spatial.js';
 import { randomBytes } from 'node:crypto';
 import jsonPatch from 'fast-json-patch';
@@ -25,6 +26,7 @@ const task = value => value ? { kind: string(value.kind), prompt: string(value.p
 const activity = value => value ? { activity_id: string(value.activity_id), name: string(value.name), place_id: string(value.place_id), started_at: number(value.started_at), ends_at: number(value.ends_at), ...(value.task ? { task: task(value.task) } : {}), ...(value.target ? { target: position(value.target) } : {}), ...(value.progress ? { progress: { collected: number(value.progress.collected), total: number(value.progress.total) } } : {}) } : null;
 const activityResult = value => value ? { summary: string(value.summary), ...(number(value.score) !== undefined ? { score: number(value.score) } : {}), ...(number(value.max_score) !== undefined ? { max_score: number(value.max_score) } : {}) } : undefined;
 const publicEventFields = {
+  ...Object.fromEntries(['home_built','home_renamed','home_crafted','home_furnished','home_displayed','home_withdrawn','home_travel_started','home_travel_cancelled','home_entered','home_left','home_moved','home_movement_finished','home_message','home_message_removed'].map(type => [type, ['agent_id','name','home_id','text','kind','instance_id','item_id','message_id','expires_at','reason']])),
   fire_built: ['agent_id', 'name', 'site_id', 'fire_id', 'kind', 'fuel_seconds', 'text'],
   fire_fueled: ['agent_id', 'name', 'site_id', 'fire_id', 'fuel_seconds', 'text'],
   fire_extinguished: ['agent_id', 'name', 'site_id', 'fire_id', 'fuel_seconds', 'text'],
@@ -98,6 +100,7 @@ export function publicEvent(event, agentIds) {
   const raw = event.payload || {};
   if (event.type === 'message' && !['nearby', 'group'].includes(raw.channel)) return null;
   const payload = {};
+  if (typeof raw.home_id === 'string' && /^home_[A-Za-z0-9_-]{1,100}$/.test(raw.home_id)) payload.home_id = raw.home_id;
   if (SCENE_IDS.includes(raw.scene_id)) payload.scene_id = raw.scene_id;
   for (const key of fields) {
     if (key === 'path') { const path = publicPath(raw.scene_id, raw.path); if (path) payload.path = path; continue; }
@@ -126,9 +129,9 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent), action:publicAction(agent), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), survival: publicSurvivor(world, agent), presence: publicPresence(agent) })),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent), action:publicAction(agent), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), survival: publicSurvivor(world, agent), presence: publicPresence(agent), home_presence: publicHomePresence(agent), home_travel: publicHomeTravel(agent) })),
     scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
-    resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
+    homes: publicHomes(world), home_rules: structuredClone(HOME_RULES), resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
     places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
@@ -144,7 +147,7 @@ export function spectatorSnapshot(world) {
 /** Scope only an already-public snapshot; subscriptions never change AI perception. */
 export function scopeSpectatorSnapshot(snapshot, scene = null) {
   return { ...snapshot, scope: { scene_id: scene, events: scene ? 'scene' : 'world', roster: 'world' },
-    ...(scene ? { survival: { ...snapshot.survival, sites: (snapshot.survival?.sites || []).filter(s => s.scene_id === scene), fires: (snapshot.survival?.fires || []).filter(f => f.scene_id === scene) }, resources: { ...snapshot.resources, nodes: (snapshot.resources?.nodes || []).filter(node => node.scene_id === scene) }, events: snapshot.events.filter(event => event.payload.scene_id === scene || event.type === 'day_phase_changed'
+    ...(scene ? { survival: { ...snapshot.survival, sites: (snapshot.survival?.sites || []).filter(s => s.scene_id === scene), fires: (snapshot.survival?.fires || []).filter(f => f.scene_id === scene) }, resources: { ...snapshot.resources, nodes: (snapshot.resources?.nodes || []).filter(node => node.scene_id === scene) }, events: snapshot.events.filter(event => (event.payload.scene_id === scene && !event.payload.home_id) || event.type === 'day_phase_changed'
       || (event.type === 'scene_changed' && event.payload.from_scene_id === scene)
       || (scene === 'plaza' && cooperationEvents.has(event.type) && event.payload.template_id === 'camp_meal')),
       ...(scene === 'plaza' ? { adventure: { ...snapshot.adventure, monsters: [] } } : {}) } : {}) };

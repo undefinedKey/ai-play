@@ -148,9 +148,12 @@ def compare_cooperations(old, new):
 def compare_states(old, new, project_root=None, require_history=False, require_scenes=False):
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
+    assert old.get('homes', {}) == new.get('homes', {}), 'houses, furniture, exhibits and messages preserved exactly'
+    assert not new.get('home_invitations'), 'temporary home invitations must be invalidated at restart'
     expected_agents = compare_cooperations(old, new)
     for key, a in old['agents'].items():
         b = new['agents'][key]
+        assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'
         for field in ['inventory', 'equipment', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
             assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
         expected_tools = deepcopy(expected_agents[key]['life'].get('tools'))
@@ -240,6 +243,7 @@ def verify(path, root=Path('/')):
     return {'agents': len(old['agents']), 'life_inventory_plots_tools_equipment_preserved': True,
         'appearance_growth_preserved': True, 'grants_and_budgets_preserved': True, 'controller_credentials_preserved': True,
         'existing_ledger_and_market_preserved': True, 'server_configuration_preserved': True,
+        'homes_furniture_displays_messages_preserved': True,
         'exploration_goals_and_cooldowns_preserved': True,
         'cooperations_consents_escrow_returns_preserved': True,
         'public_history_preserved': True,

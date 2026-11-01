@@ -8,6 +8,7 @@ import { discoveryContext, DISCOVERY_GUIDANCE, goalContext, compactGoal, GOAL_TU
 import { resourcePromptNotice, resourceJobContext, supportsResources } from './resources-context.mjs';
 import { survivalPromptNotice, supportsSurvival } from './survival-context.mjs';
 import { parseActionJson } from './action-json.mjs';
+import { supportsHomes, outdoorHomeOffer, homeDecisionPrompt, HOME_ID_FIELDS } from './homes-context.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -574,6 +575,14 @@ function originalDecisionPrompt({ observation = {}, events = [], rules = {}, own
 function baseDecisionPrompt(context = {}) {
   const budget = context.budget ?? 2000;
   const coop = cooperationContext(context.observation, context.rules, context.events, context.cooperationFocus);
+  if (supportsHomes(context.rules) && (context.observation?.self?.home_presence || context.observation?.self?.home_travel)) {
+    if (coop?.current || coop?.invitations || coop?.returns || coop?.notice) {
+      const references = {}, prompt = cooperationPrompt(context, { energy: fatigueContext(context.observation.self), food: foodContext(context.observation, context.rules) }, coop, references);
+      if (prompt.length > budget) fail('PET_CONTEXT_TOO_LARGE', `屋内合作条款与消息为 ${prompt.length} 字符，未发送模型请求`);
+      return { text: prompt, references };
+    }
+    return homeDecisionPrompt(context, { energy: fatigueContext(context.observation.self), food: foodContext(context.observation, context.rules), coop });
+  }
   if (!coop) {
     const message = context.events?.findLast(e => /message|chat/.test(e.type || '') && typeof e.payload?.text === 'string');
     const groupId = message?.payload?.channel === 'group' ? message.payload.group_id || context.observation?.group?.group_id : undefined;
@@ -626,6 +635,23 @@ function baseDecisionPrompt(context = {}) {
 }
 export function prepareDecisionPrompt(context = {}) {
   const budget = Math.min(2000, context.budget ?? 2000);
+  // The independent room has its own legal movement/actions. Outdoor node,
+  // monster and farming catalogs describe a different space and are omitted.
+  if (supportsHomes(context.rules) && (context.observation?.self?.home_presence || context.observation?.self?.home_travel)) {
+    const notice = context.observation.self.home_travel ? survivalPromptNotice(context.observation, context.rules, 'critical', context.events) : '';
+    const prepared = baseDecisionPrompt({ ...context, survivalCritical: true, budget: budget - notice.length });
+    return { ...prepared, text: notice + prepared.text };
+  }
+  const homeOffer = outdoorHomeOffer(context);
+  if (homeOffer) {
+    // Reserve a real choice before optional historical/gear exposition. Danger,
+    // active plans and cooperation bypass this branch in outdoorHomeOffer.
+    const withoutOffer = { ...context, budget: budget - homeOffer.length, homesOfferReserved: true };
+    if (!context.homesOfferReserved) {
+      try { const prepared = prepareDecisionPrompt(withoutOffer); return { ...prepared, text: prepared.text.replace('公开数据：', homeOffer + '公开数据：') }; }
+      catch (error) { if (error.code !== 'PET_CONTEXT_TOO_LARGE') throw error; }
+    }
+  }
   const messageLength = Math.max(0, ...(context.events || []).map(e => typeof e.payload?.text === 'string' ? e.payload.text.length : 0));
   const own = context.observation?.self, life = context.observation?.life || context.rules?.life;
   const preparedSupplies = supportsResources(context.observation, context.rules) && (own?.adventure?.gold > 0 ||
@@ -690,6 +716,7 @@ export function expandDecisionReferences(content, references) {
   try { action = parseActionJson(content); } catch { return content; }
   if (!action?.payload || Array.isArray(action.payload) || typeof action.payload !== 'object') return content;
   const fields = { inventory: ['item_id'], trade: ['item_id'], gather: ['node_id'], survival: ['site_id', 'fire_id'], cooperation: ['cooperation_id', 'target_agent_id'], personal_goal: ['goal_id', 'target_id'], adventure_event: ['event_id'], adventure_plan: ['monster_id'],
+    home: HOME_ID_FIELDS,
     invite: ['target_agent_id', 'group_id'], respond_invite: ['invite_id'], leave_group: ['group_id'], say: ['group_id'],
     respond_game: ['game_id'], leave_game: ['game_id'], submit_word: ['game_id', 'turn_id'], submit_move: ['game_id', 'turn_id'], submit_story: ['game_id', 'turn_id'] }[action.type] || [];
   for (const key of fields) {

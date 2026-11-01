@@ -60,9 +60,11 @@ export function publicSurvival(world) {
   return { version: 1, sites: structuredClone(CAMP_SITES), fires: Object.values(world.state.survival?.fires || {}).map(f => publicFire(f, world.now())).filter(Boolean), server_time: world.now() };
 }
 export function litCampfireNear(world, a) {
+  if (a.home_presence) return null;
   return Object.values(world.state.survival?.fires || {}).map(f => publicFire(f, world.now())).find(f => f?.lit && f.scene_id === a.scene_id && Math.abs(f.position.x - a.position.x) + Math.abs(f.position.y - a.position.y) <= 2) || null;
 }
 export function survivalLight(world, a, now = world.now(), position = a.position, torchFuel = a.survival?.torch?.fuel_seconds || 0) {
+  if (a.home_presence && world.state.homes?.[a.home_presence.home_id]) return { lit: true, source_id: a.home_presence.home_id, kind: 'indoor', radius: null };
   if (survivalPhaseAt(world.state, now).phase !== 'night') return { lit: true, source_id: null, kind: 'daylight', radius: null };
   if (a.survival?.torch?.lit && torchFuel > 0) return { lit: true, source_id: a.agent_id, kind: 'torch', radius: SURVIVAL_RULES.torch.light_radius };
   for (const raw of Object.values(world.state.survival?.fires || {})) {

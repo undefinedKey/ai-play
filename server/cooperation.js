@@ -30,7 +30,7 @@ const member = (p, id) => members(p).find(m => m.agent_id === id);
 const records = world => Object.values(world.state.cooperations || {});
 const current = (world, id) => records(world).find(p => ongoing(p) && member(p, id));
 const time = value => Number.isSafeInteger(value) && value >= 0;
-const inCamp = a => a?.scene_id === 'plaza' && a?.position && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
+const inCamp = a => !a?.home_presence && !a?.home_travel && a?.scene_id === 'plaza' && a?.position && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
 const online = (world, a) => a?.status === 'active' && a.run?.status === 'active' && a.run.expires_at > world.now()
   && !!world.state.controllers[a.run.controller_id] && !world.state.controllers[a.run.controller_id].revoked && world.state.room.status === 'active';
 const binding = a => ({ run_id: a.run.run_id, session_epoch: a.session_epoch });
@@ -275,7 +275,7 @@ export function cooperationOpportunities(world, a) {
     add('leave', p.status === 'proposed' ? '撤回本人的合作提案' : '退出本人的合作', '不替同伴选行动；未用托管退还原贡献者，不取消个人玩法', { intent: 'leave', cooperation_id: p.cooperation_id });
     return options.slice(0, 2);
   }
-  if ((!time(a.cooperation_proposed_at) || world.now() - a.cooperation_proposed_at >= 60000) && records(world).filter(ongoing).length < 5) {
+  if (!a.home_presence && !a.home_travel && (!time(a.cooperation_proposed_at) || world.now() - a.cooperation_proposed_at >= 60000) && records(world).filter(ongoing).length < 5) {
     const target = Object.values(world.state.agents).find(b => b !== a && online(world, b) && !current(world, b.agent_id) &&
       sameScene(a, b) && Math.abs(b.position.x - a.position.x) + Math.abs(b.position.y - a.position.y) <= 6 && records(world).filter(p => p.status === 'proposed' && p.target_agent_id === b.agent_id).length < 2);
     if (target) add('propose', `邀请${target.name}共同备餐`, '自己承担供菜职责；对方可拒绝或等待，未接受不扣物资', { intent: 'propose', template_id: 'camp_meal', target_agent_id: target.agent_id, role_id: 'supplier' });

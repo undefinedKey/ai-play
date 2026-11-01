@@ -4,7 +4,7 @@ import { MOTION_RULES, metric, pathLength, samplePath, facingBetween } from '../
 export { WORLD_MAP, SCENE_IDS, SCENES, sceneDefinition };
 export const MOVEMENT_RULES = { version: 2, modes: { walk: { speed: MOTION_RULES.walk_speed, energy_multiplier: 1 }, run: { speed: MOTION_RULES.run_speed, energy_multiplier: 2 } }, max_step: 3, simulation_ms: 100 };
 export const MAX_MOVE = 3;
-export const sameScene = (a, b) => SCENE_IDS.includes(a?.scene_id) && a.scene_id === b?.scene_id;
+export const sameScene = (a, b) => SCENE_IDS.includes(a?.scene_id) && a.scene_id === b?.scene_id && (a.home_presence?.home_id || null) === (b.home_presence?.home_id || null);
 export function isPositionInBounds(p) { return Number.isFinite(p?.x) && Number.isFinite(p?.y) && p.x >= 0 && p.x <= WORLD_MAP.width-1 && p.y >= 0 && p.y <= WORLD_MAP.height-1; }
 // A physical position may be between two walkable cardinal grid centers. Never
 // accept a diagonal through the corner of a blocker.

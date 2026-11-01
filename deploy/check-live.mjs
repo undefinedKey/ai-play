@@ -16,6 +16,17 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.equal(world.home_rules.version, 1);
+assert.deepEqual(world.home_rules.map, { width: 10, height: 8 });
+assert.deepEqual(world.home_rules.door, { x: 5, y: 7 });
+assert.ok(Array.isArray(world.homes));
+for (const home of world.homes) {
+  assert.ok(world.agents.some(a => a.agent_id === home.owner_agent_id));
+  assert.ok(home.furniture.length <= 12 && home.displays.length <= 4 && home.messages.length <= 20);
+  assert.equal(home.storage, undefined); assert.equal(home.invitations, undefined);
+}
+assert.equal(world.home_invitations, undefined);
+assert.ok(!world.events.some(e => ['home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)));
 for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision','phaser_renderer','scene_subscriptions']) assert.equal(health.capabilities[capability], true, capability);
 for(const scene of ['plaza','adventure']) {
   const scoped=await(await response(`/api/public/world?scene=${scene}`)).json();

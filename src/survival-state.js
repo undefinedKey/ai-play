@@ -7,7 +7,7 @@ export function sceneFireLights(survival,sceneId){return (survival?.fires||[]).f
 export function survivalStatus(agent,phase){
  const s=agent?.survival;if(!s)return null;
  const protection=s.protected_until?'救援保护中':null;
- const light=s.light?.lit?(s.light.kind==='daylight'?'日光照亮':s.light.kind==='torch'?'个人火把照亮':'篝火照亮'):'身处暗处';
+ const light=s.light?.lit?(s.light.kind==='indoor'?'小屋灯光照亮':s.light.kind==='daylight'?'日光照亮':s.light.kind==='torch'?'个人火把照亮':'篝火照亮'):'身处暗处';
  const danger=phase==='night'&&!s.light?.lit;
  return {satiety:Math.max(0,Math.round(s.satiety)),satietyLabel:{fed:'饱食',hungry:'饥饿',starving:'饥荒'}[s.satiety_state]||'饱食',light,danger,protection,
   warning:protection||(s.satiety_state==='starving'?'需要食物补给':danger?(s.danger_in_seconds>0?`暗处风险约 ${Math.ceil(s.danger_in_seconds)} 秒后开始`:'黑暗正在伤害角色'):s.satiety_state==='hungry'?'饱食度偏低，可自行决定补给':null)};

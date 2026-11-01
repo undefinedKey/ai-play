@@ -1,3 +1,4 @@
+import { homeLightUntil, cancelHomeTravel, detachHomes } from './homes.js';
 import { randomUUID } from 'node:crypto';
 import { SURVIVAL_RULES, siteDefinition, fireDefinition, fireFuel, publicFire, publicSurvival, publicSurvivor, initializeSurvivor, survivalLight, survivalPhaseAt, survivalRound } from './survival-state.js';
 import { adjustInventory, cancelGather } from './life.js';
@@ -118,10 +119,11 @@ export function captureSurvival(world) {
     const until = active ? Math.min(now, a.run.expires_at, (a.last_contact_at ?? -45000) + 45000) : a.survival.last_at;
     const m = a.movement;
     const maxDistance = m ? Math.min(pathLength(m.path), (m.settled_distance || 0) + (m.mode === 'run' ? a.fatigue.energy / (combatStats(a).move_energy_per_tile * 2) : Infinity)) : 0;
-    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity) : until;
+    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity, a.home_travel?.expires_at ?? Infinity) : until;
     const frame = { from: a.survival.last_at, until: Math.max(a.survival.last_at, until), scene_id: a.scene_id, position: { ...a.position }, maxDistance, moveUntil,
       satiety: a.survival.satiety, movement: a.movement ? { ...a.movement, path: a.movement.path.map(p => ({ ...p })) } : null, torch: a.survival.torch ? { ...a.survival.torch } : null,
-      stop_at: Infinity, recovery_windows: [] };
+      home_presence: a.home_presence ? { home_id: a.home_presence.home_id, entered_at: a.home_presence.entered_at } : null,
+      home_until: homeLightUntil(world, a), stop_at: Infinity, recovery_windows: [] };
     let darkness = a.survival.darkness_seconds, starvation = a.survival.starvation_seconds, satiety = frame.satiety;
     for (let t = frame.from; t < frame.until;) {
       const slice = survivalSlice(world, a, frame, t); if (!(slice.dt > 0)) break;
@@ -143,6 +145,8 @@ export function captureSurvival(world) {
 function survivalSlice(world, a, interval, t) {
   const phase = survivalPhaseAt(world.state, t), boundaries = [interval.until, t + 100, phase.next_at];
   const zeroAt = interval.from + interval.satiety / SURVIVAL_RULES.satiety_per_second * 1000;
+  if (interval.home_until > t) boundaries.push(interval.home_until);
+  if (interval.home_presence?.entered_at > t) boundaries.push(interval.home_presence.entered_at);
   if (zeroAt > t) boundaries.push(zeroAt);
   if (interval.torch?.lit) { const until = interval.from + interval.torch.fuel_seconds * 1000; if (until > t) boundaries.push(until); }
   for (const fire of Object.values(world.state.survival?.fires || {})) {
@@ -156,7 +160,8 @@ function survivalSlice(world, a, interval, t) {
     position = samplePath(m.path, travelled).position;
   }
   const torchFuel = interval.torch?.lit ? Math.max(0, interval.torch.fuel_seconds - (t - interval.from) / 1000) : 0;
-  const lit = survivalLight(world, { ...a, scene_id: interval.scene_id, survival: { ...a.survival, torch: interval.torch } }, t, position, torchFuel).lit;
+  const home_presence = interval.home_presence && t >= interval.home_presence.entered_at && t < interval.home_until ? interval.home_presence : null;
+  const lit = survivalLight(world, { ...a, home_presence, scene_id: interval.scene_id, survival: { ...a.survival, torch: interval.torch } }, t, position, torchFuel).lit;
   return { end, dt, lit };
 }
 function environmentHit(world, a, kind, damage) {
@@ -164,10 +169,12 @@ function environmentHit(world, a, kind, damage) {
   a.adventure.hp = Math.max(0, a.adventure.hp - damage);
   a.hurt = { action_id: `environment_${randomUUID()}`, started_at: world.now(), ends_at: world.now() + 360, damage };
   cancelGather(world, a, 'hurt'); cancelSurvivalTravel(world, a, 'hurt');
+  cancelHomeTravel(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
   stopAdventure(world, a, 'needs_decision', '环境风险中断了当前计划，请自主选择应对方式');
   stopMovement(a, world.now()); world.finishActivity(a, { cancelled: true, interrupted: true });
   announce(world, a, 'survival_damage', { kind, damage, hp: a.adventure.hp }, `${a.name}受到${kind === 'darkness' ? '黑暗' : '饥饿'}影响，损失${damage}点生命`);
   if (a.adventure.hp === 0) {
+    detachHomes(world, a, 'rescued');
     changeScene(world, a, 'plaza', { x: 11, y: 8 }, 'rescue'); a.adventure.hp = 10; leaveAdventureField(world, a);
     a.survival.protected_until = world.now() + SURVIVAL_RULES.rescue_protection_seconds * 1000;
     a.survival.darkness_seconds = 0; a.survival.dark_hits = 0; a.survival.starvation_seconds = 0; a.survival.hunger_hits = 0;

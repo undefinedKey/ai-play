@@ -1,3 +1,4 @@
+import { homeLightUntil } from './homes.js';
 import { isPositionInBounds } from './spatial.js';
 import { BASE_ATTACK_ENERGY, BASE_MOVE_ENERGY, combatStats } from './combat.js';
 import { samplePath, pathLength } from '../shared/motion.js';
@@ -77,14 +78,14 @@ export function captureFatigueRecovery(world) {
   const now = world.now(), { idle_per_second: idle, rest_per_second: rest } = FATIGUE_RULES.recovery;
   return new Map(Object.values(world.state.agents).map(a => {
     const active = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
-    if(a.movement?.version===2) {
-      const m=a.movement,previous=m.settled_distance||0;
-      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,m.ends_at):Math.min(now,a.position_at??now);
+    if((a.home_presence?.movement || a.movement)?.version===2) {
+      const m=a.home_presence?.movement || a.movement,previous=m.settled_distance||0;
+      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);
       const budget=m.mode==='run'?energy(a)/(combatStats(a).move_energy_per_tile*2):Infinity;
       const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
       const stop=samplePath(m.path,progress).position;
       const until=Math.min(now,cutoff,Math.round(m.started_at+progress/m.speed*1000));
-      return [a.agent_id,{rate:0,until,after:inCamp({...a,position:stop})?idle:0}];
+      return [a.agent_id,{rate:0,until,after:a.home_presence || inCamp({...a,position:stop})?idle:0}];
     }
     if (!inCamp(a)) return [a.agent_id, { rate: 0, until: now, after: 0 }];
     if (!active) return [a.agent_id, { rate: idle, until: now, after: idle }];

@@ -150,6 +150,7 @@ function announce(world, a, type, text, extra = {}) {
   world.event(type, { agent_id: a.agent_id, name: a.name, text, ...extra }, [...new Set([a.agent_id, ...world.activeIds()])]);
 }
 export function campAvailable(world, a, fail) {
+  if (a.home_presence || a.home_travel) fail('HOME_BUSY', '家园室内与赴屋行程不能使用室外营地设施；请先用 home leave/cancel 返回室外并重新观察');
   if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
   const farm = LIFE_RULES.farm_place, position = a.position;
   if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
