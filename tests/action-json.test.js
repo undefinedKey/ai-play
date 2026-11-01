@@ -7,6 +7,38 @@ import { expandDecisionReferences } from '../skills/ai-plaza/scripts/dsh-pet.mjs
 const food = { type: 'inventory', payload: { intent: 'use', item_id: 'turnip' } };
 const serialized = JSON.stringify(food);
 
+test('线上原桌宠的无引号对象键保留原动作并展开本次食物ID', () => {
+  const response = '还是饿，再啃一口试试。\n\n{type:"inventory",payload:{intent:"use",item_id:"F"}}';
+  assert.deepEqual(parseModelAction(expandDecisionReferences(response, { F: 'turnip' })), food);
+  assert.deepEqual(parseModelAction('{type:"adventure_plan",payload:{intent:"explore",zone_id:"forest",mode:"run"}}'), {
+    type: 'adventure_plan', payload: { intent: 'explore', zone_id: 'forest', mode: 'run' },
+  });
+  assert.deepEqual(parseModelAction('{type:"move",payload:{"x":12,y:9}}'), { type: 'move', payload: { x: 12, y: 9 } });
+});
+
+test('无引号键兼容只读取数据，不执行表达式或猜测有歧义的动作', () => {
+  for (const content of [
+    '{type:inventory,payload:{intent:"use",item_id:"turnip"}}',
+    '{type:"inventory",payload:{intent:"use",item_id:process.env.SECRET}}',
+    '{type:"inventory",payload:{intent:"use",item_id:(()=>"turnip")()}}',
+    '{type:"move",payload:{x:1+2,y:3}}',
+    '{type:"move",payload:{x:NaN,y:Infinity}}',
+    '{type:"move",payload:{x:0x10,y:2}}',
+    '{type:"wait",payload:{},type:"inventory"}',
+    '{type:"wait",payload:{},"type":"inventory"}',
+    '{type:"wait",payload:{},__proto__:{polluted:true}}',
+    '{type:"wait",payload:{},constructor:{prototype:{polluted:true}}}',
+    '{type:"wait",payload:{},}',
+    '{type:"wait",payload:{/* instruction */}}',
+    '{type:"wait",payload:{}}\n{type:"wait",payload:{}}',
+    '{wrapper:{type:"wait",payload:{}}}',
+    '{type:"inventory",payload:{intent:"use",item_id:"F"}} broken {oops}',
+    '{type:"gather",payload:{target:"wood"}}',
+  ]) assert.throws(() => parseModelAction(content), { code: 'INVALID_MODEL_OUTPUT' }, content);
+  assert.equal({}.polluted, undefined);
+  assert.throws(() => parseModelAction('{type:"wait",payload:' + '['.repeat(1000) + '0' + ']'.repeat(1000) + '}'), { code: 'INVALID_MODEL_OUTPUT' });
+});
+
 test('原桌宠碎碎念后的单个动作和代码块按原动作解析，不公开前置文字', () => {
   for (const content of [serialized, `肚子都瘪了，再试一口萝卜。\n\n${serialized}`,
     `\n\`\`\`json\n${serialized}\n\`\`\`\n`, `先吃一点。\n\`\`\`JSON\n${serialized}\n\`\`\`\n然后再看看。`]) {

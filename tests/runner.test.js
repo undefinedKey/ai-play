@@ -178,6 +178,79 @@ test('无效模型输出只纠正一次，两个实际请求都计入预算', as
   await f.runner.stop();
 });
 
+test('持续坏输出跨轮直接纠错且不再双调，真实成功后清错并保留事件与预算', async () => {
+  const prompts = [];
+  const f = fixture({ mode: 'model', fetchImpl: async (_url, options) => {
+    prompts.push(JSON.parse(options.body).messages[1].content); f.advance(6000);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: prompts.length < 4 ? '坏格式' : '{"type":"inventory","payload":{"intent":"use","item_id":"turnip"}}' } }] }) };
+  } });
+  await activate(f);
+  f.runner.rules.allowed_actions = ['inventory'];
+  f.runner.checkpoint.queue.push({ event_id: 'hungry-1', type: 'survival_warning', payload: { agent_id: 'agent-a', kind: 'hunger' } });
+  const maxCalls = f.runner.checkpoint.max_calls, expiresAt = f.runner.checkpoint.expires_at;
+  try {
+    await f.runner.decide();
+    const batchId = f.runner.checkpoint.event_batch.id;
+    assert.equal(prompts.length, 2); assert.equal(f.runner.decisionDue(), false);
+    f.advance(31000); await f.runner.decide();
+    assert.equal(prompts.length, 3, '后续故障轮只发一次纠错请求');
+    assert.equal(f.runner.checkpoint.event_batch.id, batchId);
+    assert.deepEqual(f.runner.checkpoint.event_batch.events.map(e => e.event_id), ['hungry-1']);
+    assert.equal(f.calls.filter(c => c.name === 'act').length, 0);
+    assert.ok(JSON.parse(prompts[2]).format_correction);
+    f.advance(31000); await f.runner.decide();
+    assert.equal(prompts.length, 4); assert.ok(JSON.parse(prompts[3]).format_correction);
+    assert.equal(f.runner.checkpoint.calls_used, 4); assert.equal(f.runner.checkpoint.max_calls, maxCalls); assert.equal(f.runner.checkpoint.expires_at, expiresAt);
+    assert.equal(f.runner.checkpoint.consecutive_errors, 0); assert.equal(f.runner.checkpoint.model_retry_at, 0);
+    assert.equal(f.runner.health.error_code, null);
+    assert.equal(f.runner.checkpoint.output_correction_pending, undefined);
+    assert.equal(f.runner.checkpoint.pending_action, null); assert.equal(f.runner.checkpoint.event_batch, undefined);
+    assert.deepEqual(f.runner.checkpoint.last_acked_batch.event_ids, ['hungry-1']);
+    const actions = f.calls.filter(c => c.name === 'act');
+    assert.equal(actions.length, 1); assert.equal(actions[0].args.payload.item_id, 'turnip');
+    assert.equal(f.calls.filter(c => c.name === 'report_status').at(-1).args.last_error, null);
+  } finally { await f.runner.stop(); }
+});
+
+test('旧checkpoint中的坏输出状态在重启后仍直接纠错，不清批次或增加授权', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'plaza-correction-'));
+  const path = join(directory, 'checkpoint.json'); let prompts = [];
+  const first = fixture({ mode: 'model', checkpointPath: path, fetchImpl: async () => {
+    first.advance(6000); return { ok: true, json: async () => ({ choices: [{ message: { content: '坏格式' } }] }) };
+  } });
+  await activate(first); await first.runner.decide(); await first.runner.stop();
+  const legacy = JSON.parse(readFileSync(path, 'utf8')); delete legacy.output_correction_pending;
+  writeFileSync(path, JSON.stringify(legacy));
+  const restored = fixture({ mode: 'model', checkpointPath: path, fetchImpl: async (_url, options) => {
+    prompts.push(JSON.parse(JSON.parse(options.body).messages[1].content));
+    return { ok: true, json: async () => ({ choices: [{ message: { content: '{"type":"wait","payload":{}}' } }] }) };
+  } });
+  restored.control.run.has_joined = true;
+  try {
+    await activate(restored); restored.advance(60000); await restored.runner.decide();
+    assert.equal(prompts.length, 1); assert.ok(prompts[0].format_correction, '旧版持久错误应在首次恢复请求中纠正');
+    assert.equal(restored.runner.checkpoint.calls_used, 3); assert.equal(restored.runner.checkpoint.max_calls, legacy.max_calls);
+    assert.equal(restored.runner.checkpoint.expires_at, legacy.expires_at); assert.equal(restored.runner.checkpoint.output_correction_pending, undefined);
+    assert.equal(restored.runner.checkpoint.last_acked_batch.id, legacy.event_batch.id);
+    assert.equal(restored.calls.filter(c => c.name === 'act').length, 0, 'AI选择wait仍不替它行动');
+  } finally { await restored.runner.stop(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('坏输出消耗最后一个预算时不追加纠错，也不丢弃未确认事件伪造成功', async () => {
+  let requests = 0;
+  const f = fixture({ mode: 'model', fetchImpl: async () => {
+    requests++; return { ok: true, json: async () => ({ choices: [{ message: { content: '坏格式' } }] }) };
+  } });
+  await activate(f); f.runner.checkpoint.max_calls = 1;
+  try {
+    await f.runner.decide();
+    assert.equal(requests, 1); assert.equal(f.runner.checkpoint.calls_used, 1); assert.ok(f.runner.checkpoint.event_batch);
+    assert.equal(f.runner.checkpoint.last_acked_batch, undefined); assert.equal(f.calls.filter(c => c.name === 'act').length, 0);
+    await assert.rejects(f.runner.modelDecision(f.observation, []), { code: 'BUDGET_EXHAUSTED' });
+    assert.equal(requests, 1); assert.equal(f.runner.checkpoint.max_calls, 1);
+  } finally { await f.runner.stop(); }
+});
+
 test('两次65秒格式纠错均在有限生成窗口内，重读观察、不扩大预算或触发旧120秒看门狗', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let sent = 0, release;

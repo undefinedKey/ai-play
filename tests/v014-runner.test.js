@@ -63,7 +63,8 @@ test('pending选择在极限2000UTF16内保留主人/消息/三威胁/成本/食
     events: [{ type: 'message', payload: { agent_id: friend, text: message } }] }), data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes(ownerGoal)); assert.equal(data.events[0].text, message);
   const original = decisionPrompt({ observation, rules: f.runner.rules, ownerGoal, correction: false, lastActionFeedback: feedback, events: [{ type: 'message', payload: { agent_id: friend, text: message } }] });
-  assert.ok(original.length <= 2000); assert.notEqual(prompt, original); assert.match(prompt, /纠正\{type,payload\}的键\/类型/); assert.deepEqual(decode(original), data);
+  assert.ok(original.length <= 2000); assert.notEqual(prompt, original); assert.match(prompt, /纠正/); assert.deepEqual(decode(original), data);
+  assert.ok(prompt.includes('{"type":"wait","payload":{}}'));
   assert.match(prompt, /adventure_event\{event_id,choice_id\}/);
   assert.equal(data.event[0], self.adventure.encounter.event_id); assert.equal(data.event[2].length, 3); assert.equal(data.event[1], 150);
   assert.equal(data.foes.length, 3); assert.equal(data.E, 1); assert.equal(data.food.length, 2);
@@ -137,7 +138,8 @@ test('长消息下野外目标复核仍含完整目标语义，不能盲目确�
   assert.equal(data.foes.length, 3); assert.equal(data.E[0], 1); assert.equal(data.food.length, 2); assert.equal(data.protection, 30);
   assert.equal(data.plan[1], 'ruins_guardian'); assert.ok(data.combat); assert.deepEqual(data.receipt.slice(2), [[999, -999], [4, 11]]);
   const corrected = decisionPrompt({ observation, rules: f.runner.rules, ownerGoal, correction: true, lastActionFeedback: { status: 'applied', code: 'MOVE_ADJUSTED', requested: { x: 999, y: -999 }, applied: { x: 4, y: 11 } }, events: [{ type: 'message', payload: { agent_id: friend, text: message } }] });
-  assert.ok(corrected.length <= 2000); assert.notEqual(corrected, prompt); assert.deepEqual(decode(corrected), data); assert.match(corrected, /纠正\{type,payload\}的键\/类型/);
+  assert.ok(corrected.length <= 2000); assert.notEqual(corrected, prompt); assert.deepEqual(decode(corrected), data); assert.match(corrected, /纠正/);
+  assert.ok(corrected.includes('{"type":"wait","payload":{}}'), '纠正提示给出合法 JSON 示例，避免模仿未加引号的键');
 });
 
 

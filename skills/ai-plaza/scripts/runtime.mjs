@@ -207,6 +207,9 @@ export class PlazaRunner extends EventEmitter {
     this.loadedCheckpoint = true;
     if (this.checkpoint) {
       this.ensureCounters();
+      // Older packages only persisted the diagnostic. Keep the correction due
+      // across reconnect/startup, before handshake clears transient health.
+      if (this.checkpoint.health?.error_code === 'INVALID_MODEL_OUTPUT' && this.checkpoint.consecutive_errors > 0) this.checkpoint.output_correction_pending = true;
       for (const key of ['last_model_success_at', 'last_request_at', 'last_host_success_at', 'last_world_success_at']) {
         if (Number.isFinite(this.checkpoint.health?.[key])) this.health[key] = this.checkpoint.health[key];
       }
@@ -629,20 +632,28 @@ export class PlazaRunner extends EventEmitter {
     let action;
     if (this.mode === 'demo') action = this.demoDecision(observation, events);
     else {
-      for (let attempt = 0; attempt < 2; attempt++) {
+      // An invalid reply gets one immediate correction. If that also fails,
+      // later timed attempts are already corrections, not fresh double calls.
+      // Retain the batch and exact budget; only a validated choice clears this.
+      const continuingCorrection = this.checkpoint.output_correction_pending === true;
+      for (let attempt = 0; attempt < (continuingCorrection ? 1 : 2); attempt++) {
         try {
           if (attempt) {
             observation = await this.call('observe', this.session());
             if (!this.active || this.authorityGeneration !== generation) return;
             this.observation = observation; this.observedAt = this.now();
           }
-          action = await this.modelDecision(observation, events, attempt === 1);
+          action = await this.modelDecision(observation, events, continuingCorrection || attempt === 1);
           if (this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) return;
           if (action.type !== 'wait' && Array.isArray(this.rules?.allowed_actions) && !this.rules.allowed_actions.includes(action.type)) throw new RunnerError('INVALID_MODEL_OUTPUT', '动作不在当前服务器规则中');
           if (action.type === 'survival' && !supportsSurvival(observation, this.rules)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供生存协议');
           if (action.type === 'gather' && action.payload.intent === 'plant' && !(this.rules?.resources?.version === 2 && observation.resources?.version === 2 && this.rules.resources.trees?.planting)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供种树协议');
           this.checkpoint.consecutive_errors = 0;
           this.checkpoint.model_retry_at = 0;
+          delete this.checkpoint.output_correction_pending;
+          this.lastError = null;
+          this.health.error_code = null;
+          this.save();
           break;
         } catch (error) {
           if (!this.active || this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch || error.name === 'AbortError' && this.abort.signal.aborted) return;
@@ -650,6 +661,7 @@ export class PlazaRunner extends EventEmitter {
           if (error.code === 'WORLD_UNAVAILABLE') { this.connectionFailure(error); return; }
           if (error.code === 'BUDGET_EXHAUSTED') { await this.pause('模型调用预算已用完'); return; }
           this.checkpoint.consecutive_errors = (this.checkpoint.consecutive_errors || 0) + 1;
+          if (error.code === 'INVALID_MODEL_OUTPUT') this.checkpoint.output_correction_pending = true;
           const local = HOST_ERRORS.has(error.code) || ['PET_CONTEXT_TOO_LARGE', 'MODEL_CONFIG', 'PET_URL'].includes(error.code);
           if (local) this.ensureCounters().local_failures++;
           Object.assign(this.health, { waiting_reason: HOST_ERRORS.has(error.code) ? 'host_unavailable' : local || error.code === 'INVALID_MODEL_OUTPUT' ? 'local_error' : 'model_unavailable',
@@ -660,7 +672,7 @@ export class PlazaRunner extends EventEmitter {
           this.save();
           await this.report('waiting', error.message);
           // Only malformed output gets one correction; failures do not trigger unbounded retries.
-          if (error.code !== 'INVALID_MODEL_OUTPUT' || attempt !== 0 || this.checkpoint.calls_used >= this.checkpoint.max_calls) return;
+          if (error.code !== 'INVALID_MODEL_OUTPUT' || continuingCorrection || attempt !== 0 || this.checkpoint.calls_used >= this.checkpoint.max_calls) return;
         }
       }
     }

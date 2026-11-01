@@ -252,10 +252,14 @@ export function survivalOpportunities(world, a) {
   const current = publicSurvivor(world, a), sceneSites = SURVIVAL_RULES.sites.filter(s => s.scene_id === a.scene_id);
   if (!current) return [];
   const opportunities = [];
+  // Keep the legacy flat fields for older hosts, and publish the same executable
+  // envelope as every other opportunity. Reading this catalog never acts.
+  const add = (id, name, description, payload) => opportunities.push({ id, type: 'survival', ...payload,
+    name, description, label: name, reason: description, action: { type: 'survival', payload } });
   const fire = publicSurvival(world).fires.find(f => f.scene_id === a.scene_id && f.fuel_seconds < f.max_fuel_seconds - 60);
-  if (fire && quantity(a, 'wood') > 0) opportunities.push({ id: `fuel_${fire.fire_id}`, type: 'survival', intent: 'fuel', fire_id: fire.fire_id, item_id: 'wood', quantity: 1, name: '为共享火塘添柴', description: '需要真实到达火塘附近，由本人决定' });
+  if (fire && quantity(a, 'wood') > 0) add(`fuel_${fire.fire_id}`, '为共享火塘添柴', '需要真实到达火塘附近，由本人决定', { intent: 'fuel', fire_id: fire.fire_id, item_id: 'wood', quantity: 1 });
   if (!current.light.lit || ['dusk', 'night'].includes(survivalPhaseAt(world.state, world.now()).phase)) {
-    for (const site of sceneSites.slice(0, 2)) opportunities.push({ id: `camp_${site.id}`, type: 'survival', intent: 'approach', site_id: site.id, name: `前往${site.name}`, description: '只到达，不自动建造、添柴或休息' });
+    for (const site of sceneSites.slice(0, 2)) add(`camp_${site.id}`, `前往${site.name}`, '只到达，不自动建造、添柴或休息', { intent: 'approach', site_id: site.id });
   }
   return opportunities;
 }

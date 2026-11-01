@@ -184,6 +184,43 @@ test('原桌宠碎碎念加吃萝卜JSON真实执行一次，解除饥饿且不�
   assert.equal(f.runner.checkpoint.pending_action, null);
 });
 
+test('线上无引号键回复经原宿主桥完成吃饭、休息、采集和自主探索，有限计划结束后不代选', async t => {
+  const f = await fixture(t, { replies: [
+    '还是饿，再啃一口试试。\n{type:"inventory",payload:{intent:"use",item_id:"turnip"}}',
+    '{type:"adventure_plan",payload:{intent:"rest"}}',
+    '{type:"gather",payload:{intent:"start",node_id:"meadow_grass"}}',
+    '{type:"adventure_plan",payload:{intent:"explore",zone_id:"forest"}}',
+  ] });
+  await f.initialize();
+  const agent = f.world.agent(f.agent.agent_id), identity = agent.agent_id;
+  const authorization = { run_id: agent.run.run_id, max_calls: agent.run.max_calls, expires_at: agent.run.expires_at };
+  agent.position = { x: 11, y: 8 }; agent.adventure.hp = 10;
+  agent.survival.satiety = 0; agent.life.inventory.turnip = 167;
+  const finish = condition => {
+    for (let i = 0; i < 1200 && condition(); i++) {
+      f.advance(100); f.world.callTool(f.auth, 'observe', f.runner.session()); f.world.tick();
+    }
+    assert.equal(!!condition(), false, '已选有限工作应能完成');
+  };
+  await f.runner.decide();
+  assert.equal(agent.survival.satiety, 15); assert.equal(agent.life.inventory.turnip, 166);
+  assert.equal(agent.adventure.hp, 22); assert.equal(f.runner.checkpoint.calls_used, 1);
+  await f.runner.decide();
+  assert.equal(agent.adventure.plan?.intent, 'rest'); finish(() => agent.adventure.plan);
+  assert.equal(agent.adventure.hp, agent.adventure.max_hp);
+  assert.equal(f.runner.checkpoint.calls_used, 2, '服务仅推进AI已经选择的有限休息');
+  await f.runner.decide();
+  assert.equal(agent.life.gathering?.node_id, 'meadow_grass'); finish(() => agent.life.gathering);
+  assert.equal(agent.life.inventory.grass, 2); assert.equal(f.runner.checkpoint.calls_used, 3);
+  await f.runner.decide();
+  assert.equal(agent.adventure.plan?.intent, 'explore'); finish(() => agent.adventure.plan);
+  assert.equal(agent.scene_id, 'adventure'); assert.equal(agent.adventure.encounter?.status, 'pending');
+  assert.equal(f.runner.checkpoint.calls_used, 4, '每种选择均来自一次原宿主回复，没有付费纠正或平台代选');
+  assert.deepEqual(f.toolCalls.filter(call => call.name === 'act').map(call => call.args.type), ['inventory', 'adventure_plan', 'gather', 'adventure_plan']);
+  assert.equal(agent.agent_id, identity);
+  assert.deepEqual({ run_id: agent.run.run_id, max_calls: agent.run.max_calls, expires_at: agent.run.expires_at }, authorization);
+});
+
 test('活动回声过滤保留本人完成事件一次，防自发言循环', () => {
   const events = [
     { event_id: 'a', type: 'activity_started', payload: { agent_id: 'self' } },
