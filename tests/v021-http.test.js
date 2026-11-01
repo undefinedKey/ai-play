@@ -26,7 +26,7 @@ async function fixture(t) {
     const controller = await api(`/api/agents/${id}/controllers`, { kind: 'external', name: '真实生存验收客户端' }, owner); assert.equal(controller.status, 201);
     const goal = `PRIVATE_V021_OWNER_GOAL_${id}`;
     const grant = await api(`/api/agents/${id}/control`, { operation: 'start', controller_id: controller.body.controller_id, duration_minutes: 60, max_calls: 10000, goal }, owner); assert.equal(grant.status, 200);
-    const client = new Client({ name: 'v021-http-survival-validation', version: '0.22.1' }); clients.push(client);
+    const client = new Client({ name: 'v021-http-survival-validation', version: '0.23.0' }); clients.push(client);
     await client.connect(new StreamableHTTPClientTransport(new URL(url + '/mcp'), { requestInit: { headers: { Authorization: `Bearer ${controller.body.token}` } } }));
     const call = async (name, args = {}) => { const result = await client.callTool({ name, arguments: args }); assert.notEqual(result.isError, true, JSON.stringify(result.content)); return result.structuredContent || JSON.parse(result.content.find(c => c.type === 'text').text); };
     const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
@@ -74,7 +74,7 @@ test('v021 real HTTP/MCP survival day: axe, felling, planting, shared fire, cook
   const f = await fixture(t), p = await f.actor('自主生存旅人', 'v021_survivor'), dark = await f.actor('暗处风险对照', 'v021_dark');
   const initial = await p.observe(), epoch = f.app.world.state.day_cycle.epoch_at, grants = actorsGrants();
   function actorsGrants() { return [p, dark].map(a => structuredClone(a.raw.run)); }
-  assert.equal((await f.api('/api/health')).body.version, '0.22.1');
+  assert.equal((await f.api('/api/health')).body.version, '0.23.0');
   assert.deepEqual(initial.self.position, { x: 9, y: 7 }); assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 });
   assert.ok((await p.client.listTools()).tools.find(x => x.name === 'act').inputSchema.properties.type.enum.includes('survival'));
   await gather(f, p, 'camp_stones'); assert.equal(held(p, 'ore'), 1);

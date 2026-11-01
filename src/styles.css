@@ -322,6 +322,7 @@
 @media(max-width:760px){.camera-hud{right:5px;bottom:5px;gap:0;padding:2px}.camera-hud output{min-width:40px;font-size:11px}}
 
 .combat-number{position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:2px 5px;border:1px solid #ffe8ba;background:#6f3328;color:#fff5d9;font:bold 13px ui-monospace,monospace;box-shadow:1px 2px 0 #203b3544;pointer-events:none;z-index:10}
+.world-camera .combat-number{top:auto;bottom:calc(60px * var(--world-scale,1));transform:translateX(-50%) scale(calc(1 / var(--camera-zoom,1)));transform-origin:50% 100%;white-space:nowrap}
 .world-camera .renderer-notice{bottom:60px}
 
 /* v0.20: an open ink wilderness. Camera scale preserves the body's native size. */

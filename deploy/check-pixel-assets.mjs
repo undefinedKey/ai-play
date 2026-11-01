@@ -116,7 +116,9 @@ for(const directory of ['public','dist']){
   for(const group of ['equipment','accessories','tools'])for(const sprite of Object.values(manifest[group]))assert.ok(['hand','head','chest'].includes(sprite.attachment_slot),`${group}: missing attachment slot`);
   for(const id of ['forest_slime','forest_boar','ruins_guardian']){
     const monster=manifest.monsters[id];assert.ok(monster,id);
-    for(const action of actions.slice(0,5))for(const direction of directions){const animation=monster.animations[`${action}_${direction}`];assert.equal(animation.frames.length,4);assert.deepEqual(animation.frames.map(f=>f.duration),body.animations[`${action}_${direction}`].frames.map(f=>f.duration));}
+    // Monsters have their own weight and cadence. Directions of one species
+    // must agree, while worn items above still follow the human body exactly.
+    for(const action of actions.slice(0,5))for(const direction of directions){const animation=monster.animations[`${action}_${direction}`],baseline=monster.animations[`${action}_south`];assert.equal(animation.frames.length,4);assert.deepEqual(animation.frames.map(f=>f.duration),baseline.frames.map(f=>f.duration));}
   }
   for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew','grass','pine_cone','torch','roasted_berry'])assert.ok(manifest.items[`item_${id}`]);
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);

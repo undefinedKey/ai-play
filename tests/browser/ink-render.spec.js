@@ -40,7 +40,7 @@ test('v022全部八个形象、三类怪物、四向动作与持物接触诊断'
  await page.getByRole('button',{name:'冒险地图',exact:true}).click();await ready(page);await expect(page.locator('.adventure-monster')).toHaveCount(3);const monsters=await page.evaluate(drawInkContactSheet,{monsters:true,id:'monster-contact-sheet'});expect(monsters.actorCount).toBe(3);await page.locator('#monster-contact-sheet').screenshot({path:'artifacts/v022-monster-contacts.png'});
 });
 
-test('v022桌面双倍采样和手机原生采样切换只改变画布，不移动世界人物',async({page,request})=>{
+test('桌面按图形后端采样和手机原生采样切换只改变画布，不移动世界人物',async({page,request})=>{
  const a=await actor(request,1,'wanderer_1',12),before=JSON.stringify({position:a.position,scene:a.scene_id});app.world.commit();
  await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/watch?view=plaza');await ready(page);
  const unit=page.getByTestId(`map-agent-${a.agent_id}`),foot=[await unit.getAttribute('data-foot-x'),await unit.getAttribute('data-foot-y')];

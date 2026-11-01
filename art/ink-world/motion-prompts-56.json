@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "release": "0.23.0",
+  "tool": "image_gen",
+  "mode": "built-in identity-preserving edits",
+  "generated_at": "2026-11-01",
+  "layout": {
+    "columns": [
+      "south",
+      "north",
+      "east"
+    ],
+    "rows": [
+      "walk passing left",
+      "walk passing right",
+      "running opposite flight",
+      "standing hurt recoil",
+      "standing downward swing follow-through"
+    ],
+    "note": "Layout is three columns and five rows, not guaranteed equal cell crops. Use measured source rectangles; actual output1024x1536."
+  },
+  "entries": [
+    {
+      "id": "wanderer_5",
+      "source_file": "wanderer_5.png",
+      "output_file": "motion-wanderer_5.png",
+      "generated_source_file": "exec-343bcf01-568d-4ebf-81fb-04d396e1c630.png",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 2251813,
+      "sha256": "b8ee45894410a065631cef6b4d0d7da1610dc6b794f863330644cb758b9cd163",
+      "alpha_zero_fraction": 0.6413212,
+      "prompt": "Use case: identity-preserve. The attached local sprite sheet is the EDIT TARGET and sole character identity reference. Produce a NEW supplementary animation sheet for EXACTLY the SAME rust-red ponytailed wanderer (wanderer_5): same high tousled rust red ponytail tied up, angular pale face with very large dark eyes, rust orange rolled-sleeve worn jacket over mustard ochre vest, charcoal slim trousers and dark brown boots, same slender roughly three-head-tall silhouette and uneven black ink crosshatching. Match the original hand-drawn cut-paper wilderness art precisely; do not redesign the face, hair, outfit, palette or age. Output portrait 1024 x 1536, genuine alpha transparency. EXACTLY 3 columns x 5 rows = 15 full-body cutouts. Columns left to right: SOUTH front view, NORTH back view with NO face, EAST profile facing RIGHT. Each cell about341x307; full figure about230-250px tall, broad fully transparent gutters, consistent scale, no cropping, hair and boots wholly inside the cell. ROW 1: WALK PASSING LEFT, weight on one planted straight leg beneath hips; the other knee passing forward and bent, heel raised; arms naturally counter-swing. NOT a wide contact stride. ROW 2: WALK PASSING RIGHT, opposite support leg and opposite arm positions, clearly different from row1; legs close under the hips. ROW 3: OPPOSITE RUNNING FLIGHT stride to the reference fourth-row run: switch leading leg and leading arm, both feet briefly off ground, brisk bent elbows, ponytail trails. ROW 4: STANDING HURT RECOIL, chin and chest flinch backward, torso leans backward, one open hand guards chest, knees slightly buckle but the character remains UPRIGHT ON FEET; NO kneeling, sitting, squatting or touching ground. ROW 5: STANDING TOOL-SWING FOLLOW-THROUGH, torso leans forward from hips, both empty hands finish low in front at knee height as if just swinging an axe down, feet apart on ground; body remains standing; NO tool, NO axe, NO weapon, NO kneeling or crouching. All hands EMPTY in all 15 cells. No texts, labels, numbers, arrows, grid lines, panel frames, ground plane, ground contact lines, shadows, clouds, scenery, background gradients or paper rectangle. Only 15 separated character silhouettes with true alpha zero elsewhere. This sheet supplements rather than replaces the existing identities and main keyframes.",
+      "repair_prompt": "Edit the attached NEW 3-column x 5-row sprite sheet. Keep exact character identity, rendering style, colors, output layout, true transparency and all 15 full-body cells. Preserve rows 4 and 5 unchanged: standing recoil and standing follow-through. The FIRST TWO ROWS MUST BE REDRAWN as narrow WALK PASSING poses, not wide strides. In row1, the LEFT LEG is planted STRAIGHT VERTICALLY directly below pelvis, and RIGHT KNEE is lifted FORWARD and bent 90 degrees so its boot is raised beside the planted leg; there is ONLY ONE boot touching the foot baseline, both boots remain near the body vertical center. In row2 reverse the support: RIGHT LEG planted straight under pelvis, LEFT KNEE lifted and bent90degrees forward, opposite arms. Neither walking row may have a leg extended straight ahead or far backward. East/right profile especially needs a distinct raised bent knee passing the straight support leg, like the middle of a normal walking cycle. South front and north back show the same true passing poses. THIRD ROW opposite running flight: for the right-facing east profile specifically show LEFT LEG forward with knee bent high and right leg far back, right elbow forward/left elbow back; reverse the displayed visible-side leading limb versus reference. Keep broad transparent gutters and all hair/boots within each cell. No new objects, no effects, no text, no floor, no shadows, no background; all hands empty.",
+      "repair_input": "artifacts/motion-wanderer_5-draft.png",
+      "repair_reason": "Initial east walking rows remained contact strides; repaired to single-support passing poses.",
+      "inspection": "Identity, clothing, high ponytail and ink contours preserved. Fifteen whole figures; front/back/east columns, two bent-knee passing rows, high-knee run flight, standing chest-guarding recoil, standing bent-forward downward swing finish. No weapon or ground shadow. Foot baselines and hand attachment points require per-pose atlas measurements before runtime integration.",
+      "before_spacing_sha256": "20e02acce83666acde748003a3e934c7109baeb13e2578890032983a1ff04597",
+      "before_spacing_generated_source_file": "exec-83cde5bc-ee52-4880-9eb6-2017c70333df.png",
+      "spacing_repair_prompt_file": "motion-spacing-prompt-5.txt",
+      "spacing_repair_reason": "Original row rectangles overlapped neighboring silhouettes at four cells; regenerated smaller figures with larger transparent gutters. Final connected-component sampling has no neighboring-figure trim."
+    },
+    {
+      "id": "wanderer_6",
+      "source_file": "wanderer_6.png",
+      "output_file": "motion-wanderer_6.png",
+      "generated_source_file": "exec-7f825a4d-795e-4f97-90d4-f2abd359491c.png",
+      "width": 1024,
+      "height": 1536,
+      "bytes": 2316794,
+      "sha256": "18af15a8108ff54e48bd7ad2e5b72f79d17210356310b25ee11b8d4d623027d9",
+      "alpha_zero_fraction": 0.6711190541585287,
+      "prompt": "Use case: identity-preserve. Attached file is EDIT TARGET and sole identity reference: the SAME blond wanderer_6 wearing the worn blue newsboy cap, blue long-tailed jacket over brown waistcoat and pale shirt, charcoal trousers and dark brown boots. Preserve the exact tousled straw-blond hair, blue cap silhouette, large black eyes, slender angular proportions and scratchy rough black ink hand-drawn cut-paper style. Do not redesign character or costume. Produce one NEW supplementary portrait transparent 1024x1536 sprite sheet, EXACTLY 3 columns and5 rows=15 full-body cutouts, no other sprites. Columns are SOUTH/front, NORTH/back(NO face), EAST/right-facing profile. Each figure approximately230-250px tall, broad fully TRANSPARENT gutters, all heads hats hands boots wholly within each341x307 cell, consistent scale. Row1 WALK PASSING LEFT: LEFT leg is planted STRAIGHT VERTICALLY directly below hips, RIGHT knee lifted forward and bent90 degrees, raised boot beside the support leg, only one boot contacts baseline. Neither leg is extended far ahead/back. Row2 WALK PASSING RIGHT: reverse row1 support leg and opposite arm, RIGHT planted straight under hips, LEFT knee lifted bent90degrees; narrow passing silhouettes, NOT wide contact strides. East profile needs the raised bent knee passing the straight planted leg clearly visible. Row3 OPPOSITE RUNNING FLIGHT: energetic opposite-side limb phase to reference row4, one knee HIGH forward and bent, other leg bent back, both boots off baseline, arms counter-swing; distinct from the old stretched-leg running frame. Row4 STANDING HURT RECOIL: chest/chin lean backward, knees buckle slightly, one open hand guards chest and other hand braces, both feet remain on ground; absolutely no sitting/kneeling/squatting or touching ground. Row5 STANDING TOOL SWING FOLLOW THROUGH: feet apart, torso bends forward from hips, empty hands extend low in front around knee height as if ending a downward chop, remains upright on feet; NO kneeling/crouching. All15 sprites have EMPTY HANDS, no weapon or tool. True alpha transparent background outside silhouettes, no colored background gradient, paper, shadows, ground line, scenery, text, labels, numbers, grid or borders. Treat it as identity-preserving animation artwork, not a character redesign.",
+      "inspection": "Identity, blue cap, blond hair, jacket tails and ink contours preserved. Fifteen whole figures; front/back/east columns, two passing support phases (east silhouettes naturally close), bent-knee running flight, upright standing recoil and standing forward tool follow-through with empty hands. No kneeling/crouching. Foot baselines and hand attachment points require per-pose atlas measurements before runtime integration."
+    }
+  ],
+  "visual_evidence": "artifacts/v023-motion-assets-56-browser.png",
+  "notes": "Original PNG files were copied unchanged from built-in tool output. No programmatic pixel editing, crop, resize, recolor or alpha rewrite. Browser-composited read-only preview was used to inspect transparent output; production source remains the original transparent PNG."
+}

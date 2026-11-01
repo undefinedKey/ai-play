@@ -9,14 +9,14 @@ export function RenderSpace({position,depth=0,anchor=[24,43],offset={x:0,y:0},al
   const renderer=useContext(WorldRenderContext);
   return <SpaceContext.Provider value={renderSpace(position,{depth,anchor,offset,alpha,screenSize,viewportScale:renderer?.scale})}>{children}</SpaceContext.Provider>;
 }
-export function useRenderSprite(definition,frame,{facing='south',action='idle',layer=0,ground=false,attachment}={}) {
+export function useRenderSprite(definition,frame,{facing='south',action='idle',layer=0,ground=false,attachment,pose}={}) {
   const renderer=useContext(WorldRenderContext),space=useContext(SpaceContext),id=useId();
   const registry=renderer?.registry;
   useLayoutEffect(()=>{
     if(!registry)return;
-    const packet=spriteRenderPacket(definition,frame,space,{facing,action,layer,ground,attachment});
+    const packet=spriteRenderPacket(definition,frame,space,{facing,action,layer,ground,attachment,pose});
     if(packet)registry.set(id,packet);else registry.delete(id);
-  },[registry,id,definition,frame,space,ground,layer,facing,action,attachment]);
+  },[registry,id,definition,frame,space,ground,layer,facing,action,attachment,pose]);
   useLayoutEffect(()=>()=>registry?.delete(id),[registry,id]);
-  return space&&!ground&&frame?spriteGeometry(definition,frame,space.anchor,facing,attachment):null;
+  return space&&!ground&&frame?spriteGeometry(definition,frame,space.anchor,facing,attachment,pose):null;
 }

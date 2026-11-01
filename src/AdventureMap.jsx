@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CharacterSprite, PixelScene, PixelSprite, usePixelManifest, usePixelNow, SceneProps, WorldActor } from './PixelWorld.jsx';
+import { CharacterSprite, PixelScene, PixelSprite, usePixelManifest, usePixelNow, useActorMotion, SceneProps, WorldActor } from './PixelWorld.jsx';
 import { mapDimensions, projectMapPoint as point } from './map-projection.js';
 import { sceneActors, sceneName, actorScene, confirmedPosition } from './scene-state.js';
-import { monsterAction, movementFacing, actionPose } from './pixel-state.js';
+import { monsterAction, movementFacing, actorFacing } from './pixel-state.js';
 import PhaserWorld from './PhaserWorld.jsx';
 import {RenderSpace} from './world-render-context.jsx';
-import {sampleMotion} from '../shared/motion.js';
 import {useWorldAudio} from './world-audio.js';
 import {ResourceLayer,ResourceSelection,ResourceInspector,DayCycle} from './Wilderness.jsx';
 import {FireLayer,FireInspector,SurvivalStatus} from './Survival.jsx';
@@ -40,16 +39,16 @@ function MonsterUnit({ monster, agents, events, now, map, live }) {
   },[monster.position?.x,monster.position?.y]);
   const actionNow=usePixelNow(now,live&&monster.status==='alive');
   const action=monsterAction(monster,events,actionNow,Date.now()-movement.at<900);
-  const position=confirmedPosition(monster,actionNow,live);
-  const sampled=sampleMotion(monster,actionNow),timeline=actionPose(monster,action,actionNow);
-  const facing=monster.action?.facing||monster.facing||movement.facing;
+  const position=confirmedPosition(monster,actionNow,live&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const facing=actorFacing(monster,action,actionNow,movement.facing);
+  const timeline=useActorMotion(monster,action,actionNow,{enabled:live&&monster.status==='alive',facing,definition:assets?.monsters?.[monster.monster_id],events});
   const receipt=[...(events||[])].reverse().find(event=>event.type==='adventure_combat'&&event.payload?.monster_id===monster.monster_id);
   const key=`${action}:${receipt?.event_id||receipt?.occurred_at||''}`;
   const pose=useRef({key,at:Date.now()});
   if(pose.current.key!==key)pose.current={key,at:Date.now()};
   const behavior = monsterBehavior(monster, agents);
   return <div className={`adventure-monster ${monster.status === 'alive' ? '' : 'defeated'} behavior-${monster.behavior || 'idle'}`} style={{...point(position,map),zIndex:101+(position?.y || 0)*10}} data-testid={`monster-${monster.monster_id}`} data-behavior={monster.behavior || 'idle'} role="img" tabIndex={0} aria-label={`${monster.name}，${monster.status === 'alive' ? `生命 ${monster.hp}/${monster.max_hp}，${behavior}` : '等待重生'}`}>
-    <RenderSpace position={position} depth={101+(position?.y||0)*10} anchor={[24,43.2]} alpha={monster.status==='alive'?1:.3}><PixelSprite definition={assets?.monsters?.[monster.monster_id]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} facing={monster.movement?sampled.facing:facing} animate={live && monster.status==='alive' && action!=='idle'}/></RenderSpace><span className="monster-name">{monster.name}</span>{monster.hurt&&actionNow>=monster.hurt.started_at&&actionNow<monster.hurt.ends_at&&<span className="combat-number" aria-hidden="true">−{monster.hurt.damage}</span>}
+    <RenderSpace position={position} depth={101+(position?.y||0)*10} anchor={[24,43.2]} alpha={monster.status==='alive'?1:.3}><PixelSprite definition={assets?.monsters?.[monster.monster_id]} action={action} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={live && monster.status==='alive' && action!=='idle'}/></RenderSpace><span className="monster-name">{monster.name}</span>{monster.hurt&&actionNow>=monster.hurt.started_at&&actionNow<monster.hurt.ends_at&&<span className="combat-number" aria-hidden="true">−{monster.hurt.damage}</span>}
     {monster.status === 'alive' ? <><span className="unit-health"><i style={{ width: `${clamp(monster.hp / monster.max_hp * 100, 100)}%` }}/></span>{monster.behavior && monster.behavior !== 'idle' && <span className="monster-intent">{behavior}</span>}</> : <small>等待重生</small>}
   </div>;
 }

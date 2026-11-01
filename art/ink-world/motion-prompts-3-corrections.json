@@ -1,0 +1,31 @@
+{
+  "version": "0.23.0",
+  "mode": "built-in image_gen",
+  "transparent_background": true,
+  "dimensions": {
+    "width": 1024,
+    "height": 1536
+  },
+  "base_provenance": "motion-prompts-34.json",
+  "output": "motion-wanderer_3.png",
+  "calls": [
+    {
+      "prompt": "Use case: precise-object-edit / identity-preserve. Edit this SAME TIDE navy/teal character supplementary sprite sheet. Keep all identity, original ink style, exact 3-column5-row layout, transparent background and rows4/5 unchanged. Columns SOUTH/front, NORTH/back/no face, EAST/right. Correct rows1/2 to compact passing steps: planted leg vertical under hip, free knee bent with boot beside support shin, not stretched forward. SOUTH row1 support boot picture LEFT and raised knee picture RIGHT; row2 support boot picture RIGHT and raised knee picture LEFT. NORTH row1 support boot picture RIGHT and raised knee picture LEFT, row2 the exact opposite. EAST row1 free knee slightly forward and boot beneath hips; EAST row2 free knee bends behind with boot beneath seat; support leg vertical. Row3 MUST be a DIFFERENT, opposite running stride: front view has big leading sole toward BOTTOM LEFT and the trailing leg extends RIGHT, with left-side arm forward and right-side arm back, unlike current pose's leading sole bottom right. North swaps the corresponding leg and arm. EAST row3 nearer arm swings BACK to LEFT of torso with fist visibly left of the hip, farther arm swings forward RIGHT but is partly behind body; near leg reaches forward right, far leg trails left; both feet in air. Do not repeat current east fist-up-in-front silhouette. Keep full-body cutouts within fifteen separate cells, wide transparent gutters,1024x1536. Keep exact tousled navy hair with whale-fin tuft, pale collar, teal tunic, charcoal trousers, worn brown boots and same head/body proportions. Empty hands; no tools/weapons/armor/text/borders/shadows/ground/background. Preserve rows4 and5 as existing upright recoil and standing follow-through, never crouch.",
+      "references": [
+        "motion-wanderer_3.png before correction; original source exec-36cd1e36-ce6f-491a-a2b8-9445c959dc7b.png"
+      ],
+      "source": "exec-51dedcde-f29c-43fd-8ec4-d50355f8a7f4.png",
+      "selected": false
+    },
+    {
+      "prompt": "Use case: precise-object-edit / identity-preserve. Keep exactly the SAME FIFTEEN TIDE poses, identity, clothing, hair, expressions, all joint poses and original ink style in this 3-column by5-row transparent1024x1536 sprite sheet. ONLY improve spacing by drawing every complete cutout SMALLER within its own cell. Each cell is341px wide and307px high. Every entire character, including the top hair-fin and lowest boot, must fit within about220px TOTAL HEIGHT, centered horizontally and vertically in the cell. Leave at least40px completely transparent margin ABOVE and BELOW every cutout. Thus each row has a broad uninterrupted transparent horizontal gutter separating it from the next row, at least70px high between silhouettes. No hair, finger or boot may approach a cell boundary. In particular, row4 column3 hurt boots must be far above row5 column3 follow-through hair; currently their bounding rectangles overlap. Preserve all pose shapes: row1 compact passing, row2 opposite passing, row3 opposite running leap, row4 UPRIGHT standing hurt recoil with guarded chest, row5 STANDING downward tool follow-through (empty hands). Keep south/front,north/back,east/right columns and exact outfit navy hair fin, teal tunic, pale collar,dark pants,brown boots. Do NOT add/delete poses; do NOT change art style or proportions; only reduce their occupied size and increase clear spacing. Entire background genuine alpha transparency, no paper/shadow/ground/outline frame/text/grid/checkerboard. The transparent horizontal gutters must span the whole1024px width with no stray pixels or shading.",
+      "references": [
+        "motion-wanderer_3.png before spacing correction; source exec-51dedcde-f29c-43fd-8ec4-d50355f8a7f4.png"
+      ],
+      "source": "exec-09c7ad15-ff27-4d5a-a733-fe2954ddadeb.png",
+      "selected": true,
+      "note": "Second targeted correction only enlarges transparent gutters; prior hurt/work source rectangles overlapped. Original earlier variants retained in ignored artifacts; final PNG copied unchanged."
+    }
+  ],
+  "inspection": "Compact passing poses now distinct in all directions; front leading run boot switched, side arm overlap changed. Standing recoil and follow-through kept. East run/hurt apparent vertical separation improved; final sampling measured separately. Source PNG copied unchanged."
+}

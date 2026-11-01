@@ -1,0 +1,90 @@
+{
+  "version": "0.23.0",
+  "mode": "built-in image_gen",
+  "tool": "image_gen",
+  "transparent_background": true,
+  "output_dimensions": {
+    "width": 1024,
+    "height": 1536
+  },
+  "edit_targets": [
+    "wanderer_1.png",
+    "wanderer_2.png"
+  ],
+  "layout": {
+    "columns": [
+      "south",
+      "north",
+      "east"
+    ],
+    "rows": [
+      "passing_left",
+      "passing_right",
+      "opposite_run_stride",
+      "standing_hurt_recoil",
+      "standing_swing_followthrough"
+    ]
+  },
+  "assets": [
+    {
+      "id": "wanderer_1",
+      "path": "motion-wanderer_1.png",
+      "source": "exec-d223cbf3-5341-4f1e-85b7-cb36d2adb158.png",
+      "source_unchanged": true,
+      "checks": {
+        "identity": "Original leaf/brown hair/moss tunic retained; front and side passing, standing hurt, standing follow-through present.",
+        "limitations": "North passing poses have weaker support-leg alternation than front/side; assess in actual cycle before selecting both."
+      },
+      "attempts": [
+        {
+          "source": "exec-dcc51f78-c278-4a8f-8fbc-a5953db03a89.png",
+          "references": [
+            "wanderer_1.png"
+          ],
+          "prompt": "Use case: identity-preserve. EDIT the supplied original wanderer_1 character sheet into a NEW supplementary animation sheet for the SAME character, retaining the exact original angular brown hair with one small leaf, muted moss-green buttoned tunic, dark trousers and worn brown boots, large expressive head/small body proportions, rough uneven black ink contour, scratchy hand-drawn hatching and muted wilderness palette. The reference is the identity/edit target, NOT a layout to repeat. Output exactly THREE COLUMNS and FIVE ROWS, FIFTEEN separate complete full-body sprites, portrait canvas 1024x1536. Columns left-to-right: SOUTH front view; NORTH true back view without any face; EAST right-facing side profile. Each approximate 341x307 cell has its own full body, about 240 px tall, with broad transparent gutters; every hair tip, hand and foot stays inside its cell. Rows top to bottom: 1 WALK PASSING LEFT: left leg supports body, right knee passing forward, feet close beneath hips (not wide-stride, not running); 2 WALK PASSING RIGHT: opposite leg support, opposite knee passing forward, clearly inverse arm/leg pose to row1; 3 RUN OPPOSITE AIRBORNE STRIDE: a long stretched running stride opposite to the old source sheet's fourth row, swapping which leg and arm lead, both feet airborne; 4 STANDING HURT RECOIL: torso recoils slightly backward, shoulders flinch, elbows draw hands protectively toward chest, feet remain standing and staggered, no crouch, no squat, no kneeling; 5 STANDING DOWNWARD SWING FOLLOW-THROUGH: empty working hand finishes downward-forward near waist height after swinging a tool, torso slightly tilted forward, knees only slightly flexed, stays upright, no crouch or kneeling. All poses empty-handed: absolutely no weapon, tool, armor, accessory changes, props, impact particles, shadows, ground lines, text, labels, borders, grid, scene or backdrop. Keep same original identity, hairstyle, outfit, proportions and overall ink style in all fifteen poses. Genuine alpha transparency everywhere outside the silhouettes, no opaque color, glow, halo or checkerboard. This is a game animation sprite sheet, not a scene.",
+          "selected": false,
+          "note": "Standing recoil/follow-through clear; passing side poses were too wide and run repeated original."
+        },
+        {
+          "source": "exec-a0125cc4-3501-4fc5-9e31-f1c7bef52526.png",
+          "references": [
+            "exec-dcc51f78-c278-4a8f-8fbc-a5953db03a89.png",
+            "wanderer_1.png"
+          ],
+          "prompt": "Use case: precise-object-edit / identity-preserve. Edit image 1 (the new 3-column x5-row supplement) ONLY to correct its first THREE rows. Image 2 is the original identity and ORIGINAL RUN POSE reference. Keep image1 rows4 and5 exactly in their existing standing recoil and standing downward follow-through poses, retain the same identity and style everywhere. Preserve the 1024x1536 transparent sheet, 3 columns SOUTH/front, NORTH/back/no-face, EAST/right-facing, FIVE rows. Fix rows1 and2 into genuine compact MID-STEP PASSING poses, not contact strides: a straight support leg goes almost vertically from hip to its grounded foot; the other leg is BENT at the knee, passing close beside the support knee, with that free boot directly below or only slightly ahead of the hip. Do not spread the feet far apart. Row1 has one support leg, row2 the opposite support leg, arms counter-swing. EAST profiles in particular must show one vertical planted support leg and the other bent knee close beneath body, NOT two spread diagonals. Fix row3 to the OPPOSITE running stride to image2 original row4: invert which shoulder/arm and leg overlap in front; the visible near arm now trails backwards to the LEFT and the far arm swings forward to the RIGHT, while the legs are in the opposite leading configuration to image2. It must be recognizably a different running keyframe, not the same leap. This is still a long airborne stride, no ground contact line. Keep original green tunic, brown hair leaf, clothes and proportions. Both corrected walk rows are upright small-step transition poses, the run row alone has a wide stride. All FIFTEEN full bodies stay completely inside their own cells with generous transparent gutters. No text, labels, props, weapons, tools, shadows, backgrounds or extra sprites. Genuine alpha outside cutouts. No other changes.",
+          "selected": false,
+          "note": "Passing became compact but opposite support/stride was still insufficient."
+        },
+        {
+          "source": "exec-d223cbf3-5341-4f1e-85b7-cb36d2adb158.png",
+          "references": [
+            "exec-a0125cc4-3501-4fc5-9e31-f1c7bef52526.png"
+          ],
+          "prompt": "Use case: precise-object-edit. Edit ONLY ROW TWO and ROW THREE of this transparent 3-column by5-row character sprite sheet. Preserve rows1,4,5 and all original brown hair/leaf/green tunic identity, ink style, dimensions and transparent gutters. The current row2 wrongly repeats row1; make row2 the clearly OPPOSITE leg support. For SOUTH at row2 column1: the foot on the LEFT SIDE OF THE PICTURE is planted below body; the RIGHT-SIDE knee is lifted and its boot off ground. Row1 currently plants the right-side foot, so row2 must visibly reverse it. For NORTH row2 column2, also swap the leg support and opposite arm swing compared with row1. For EAST row2 column3, show the nearer leg lifted with knee bent back so its boot is UNDER THE SEAT, while the farther support leg is straight vertically down under the body; this must visibly differ from row1's forward raised knee. Keep passing feet compact beneath hips, no wide stride. ROW THREE currently repeats the original run leap: redraw the run to swap limbs, especially front and side. SOUTH row3 column1 should have large leading boot stretched toward BOTTOM LEFT, the trailing leg stretched to RIGHT, LEFT arm forward/up and RIGHT arm back; this is opposite to current large boot pointing bottom right. NORTH row3 column2 swaps the corresponding leg and arm. EAST row3 column3: NEAR ARM is swung strongly BACK TO THE LEFT with bent elbow and hand left of torso; FAR ARM is thrust forward right but its forearm partially hidden by body; NEAR LEG is stretched FORWARD RIGHT and FAR LEG stretched BACK LEFT, visibly inverse arm-leg overlap to the source. Both running feet remain in the air. DO NOT repeat the same rightward raised near fist from current row3 east. Keep exactly15 full-body sprites, 1024x1536, no text/labels/borders/background/ground/shadow/weapons/tools. True transparent alpha. Do not change any other row.",
+          "selected": true,
+          "note": "Front/side passing differ; front alternate run changed. Reached two targeted corrections; north passing limitation recorded."
+        }
+      ]
+    },
+    {
+      "id": "wanderer_2",
+      "path": "motion-wanderer_2.png",
+      "source": "exec-90bbbda3-2dd0-4a02-8af7-8496d80480f8.png",
+      "source_unchanged": true,
+      "checks": {
+        "identity": "Original tan broad hat, rust hair, ochre split-hem coat, dark vest and boots retained.",
+        "poses": "Compact opposite passing front/back; different side passing; airborne stride; standing guarded recoil; upright downward swing follow-through."
+      },
+      "attempts": [
+        {
+          "source": "exec-90bbbda3-2dd0-4a02-8af7-8496d80480f8.png",
+          "references": [
+            "wanderer_2.png"
+          ],
+          "prompt": "Use case: identity-preserve. EDIT the supplied original wanderer_2 character sheet into a NEW supplementary animation sheet of the SAME tan wide-brim hat traveler: retain exact hat shape, reddish brown hair, worried narrow pale face, mustard ochre weathered long split-hem coat, dark brown vest, charcoal trousers and dark boots, large head/small lanky body proportions, rough uneven black ink contours, scratchy hatching and desaturated palette. The supplied image is the edit/identity target, not the layout to repeat. Make a 1024x1536 portrait transparent sprite sheet, exactly THREE COLUMNS by FIVE ROWS, FIFTEEN full-body independent cutouts, about240px tall each. Columns: SOUTH front view, NORTH true back without face, EAST right profile. Broad transparent gutters, full hat/hands/feet inside every approximate341x307 cell. Row1 WALK PASSING LEFT: compact mid-step with a vertical planted support leg beneath hip and other knee bent close beside it. In FRONT row1 put the planted boot at picture RIGHT and raised knee at picture LEFT; in BACK row1 put planted boot picture LEFT and raised knee picture RIGHT. EAST has support leg vertical, free knee passing slightly forward and its boot beneath hips. Row2 WALK PASSING RIGHT: clearly reverse support and swing from row1; FRONT planted boot picture LEFT, raised knee picture RIGHT; BACK planted boot picture RIGHT, raised knee picture LEFT. EAST has nearer knee bent back, free boot beneath seat, farther support leg vertical under body. These are two SMALL passing steps, NEVER wide-stride. Row3 OPPOSITE RUN AIRBORNE STRIDE to the original reference fourth row: reverse leading arm and leg/overlap, FRONT large leading boot points BOTTOM LEFT and other leg trailing RIGHT, EAST visible nearer arm swings BACK TO LEFT and opposite far arm swings FORWARD RIGHT partly hidden, long split stride with both boots airborne. Row4 STANDING HURT RECOIL: torso recoils backward, shoulders flinch, both empty hands drawn protectively toward chest, staggered planted legs still STANDING, no crouch/squat/kneeling. Row5 STANDING DOWNWARD SWING FOLLOW-THROUGH: working empty hand finishes down-forward near waist after a tool swing, torso slightly forward, only slight knee flex, stays UPRIGHT not crouching. Every cutout preserves same original identity/proportions/style. Empty hands, no tool, weapon, armor, new props, impact effects, shadows, ground or backdrop. No words, labels, grid, borders or extra figures. True alpha transparency everywhere outside silhouettes, no opaque color, halo, gradient, glow or checkerboard.",
+          "selected": true
+        }
+      ]
+    }
+  ]
+}

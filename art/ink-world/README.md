@@ -16,3 +16,11 @@
 身份 ID、地图坐标、碰撞、动作时间和世界规则由原有协议决定。资产更换不产生角色，不让旁观操作控制 AI，也不替 AI 选择活动。人物方向与装备共用确认的动作时序，西向镜像东向，持物连接点随真实姿势变化。
 
 运行 `node scripts/build-pixel-world.mjs` 可重建资产清单；只更新手绘采样时也可执行各 `applyInk*` 模块。`tests/ink-art.test.js` 与 `deploy/check-pixel-assets.mjs` 检查透明性、边界、来源、实际引用覆盖及协议兼容。风格、留白、动作和持物效果另行在浏览器实景验收，不能由这些程序检查替代。
+
+## v0.23 动作补帧
+
+`motion-wanderer_1.png` 至 `motion-wanderer_8.png` 是引用各自原角色、通过内置 `image_gen` 编辑生成的透明动作副图，均为 1024×1536、三列五行。列为南、北、东（西向沿用镜像）；行依次为两侧过步、反侧腾空奔跑、站姿受击、站立下挥收势。原始生成文件保留像素与 alpha，完整提示词、引用及修正历史在 `motion-prompts-*.json` 和 `motion-spacing-prompt-5.txt`。
+
+`measure-motion.py` 只读 PNG 并生成 `motion-geometry.json`：同一身份所有补帧使用同一尺度，脚底、手、胸、头锚点分别测量。人工手点校准绑定源图 SHA，换图后必须重新审看。执行 `python art/ink-world/measure-motion.py --diagnostics artifacts/v023-motion-measurements.json` 可复现。极少轮廓交界像素的采样收紧在测量报告中明确记录，不改变源文件。
+
+实际播放使用四个不同的步行/奔跑关键姿势配合连续重心变化，属于手绘逐帧与姿态变换组合，不宣称完整骨骼或高帧数手绘动画。人物受击不再借用蹲地采集图；挥斧/镐不再每轮跪下。只预取当前可见身份的副图，保持按场景加载。

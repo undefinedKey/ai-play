@@ -193,7 +193,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_south_1": {
       "frame": {
@@ -208,7 +208,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "walk_south_2": {
       "frame": {
@@ -223,7 +223,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_south_3": {
       "frame": {
@@ -238,7 +238,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "walk_north_0": {
       "frame": {
@@ -253,7 +253,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_north_1": {
       "frame": {
@@ -268,7 +268,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "walk_north_2": {
       "frame": {
@@ -283,7 +283,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_north_3": {
       "frame": {
@@ -298,7 +298,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "walk_east_0": {
       "frame": {
@@ -313,7 +313,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_east_1": {
       "frame": {
@@ -328,7 +328,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "walk_east_2": {
       "frame": {
@@ -343,7 +343,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 170
     },
     "walk_east_3": {
       "frame": {
@@ -358,7 +358,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 150
+      "duration": 90
     },
     "run_south_0": {
       "frame": {
@@ -373,7 +373,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_south_1": {
       "frame": {
@@ -388,7 +388,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "run_south_2": {
       "frame": {
@@ -403,7 +403,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_south_3": {
       "frame": {
@@ -418,7 +418,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "run_north_0": {
       "frame": {
@@ -433,7 +433,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_north_1": {
       "frame": {
@@ -448,7 +448,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "run_north_2": {
       "frame": {
@@ -463,7 +463,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_north_3": {
       "frame": {
@@ -478,7 +478,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "run_east_0": {
       "frame": {
@@ -493,7 +493,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_east_1": {
       "frame": {
@@ -508,7 +508,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "run_east_2": {
       "frame": {
@@ -523,7 +523,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 155
     },
     "run_east_3": {
       "frame": {
@@ -538,7 +538,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 105
+      "duration": 65
     },
     "attack_south_0": {
       "frame": {
@@ -553,7 +553,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 180
+      "duration": 210
     },
     "attack_south_1": {
       "frame": {
@@ -568,7 +568,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 100
+      "duration": 120
     },
     "attack_south_2": {
       "frame": {
@@ -583,7 +583,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 140
+      "duration": 100
     },
     "attack_south_3": {
       "frame": {
@@ -598,7 +598,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 240
+      "duration": 250
     },
     "attack_north_0": {
       "frame": {
@@ -613,7 +613,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 180
+      "duration": 210
     },
     "attack_north_1": {
       "frame": {
@@ -628,7 +628,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 100
+      "duration": 120
     },
     "attack_north_2": {
       "frame": {
@@ -643,7 +643,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 140
+      "duration": 100
     },
     "attack_north_3": {
       "frame": {
@@ -658,7 +658,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 240
+      "duration": 250
     },
     "attack_east_0": {
       "frame": {
@@ -673,7 +673,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 180
+      "duration": 210
     },
     "attack_east_1": {
       "frame": {
@@ -688,7 +688,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 100
+      "duration": 120
     },
     "attack_east_2": {
       "frame": {
@@ -703,7 +703,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 140
+      "duration": 100
     },
     "attack_east_3": {
       "frame": {
@@ -718,7 +718,7 @@
       },
       "image": "/pixel-world/ink_forest_slime.png",
       "native_scale": 0.1967213,
-      "duration": 240
+      "duration": 250
     },
     "hurt_south_0": {
       "frame": {

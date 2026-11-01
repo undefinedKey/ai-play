@@ -193,22 +193,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_south_1": {
       "frame": {
-        "x": 143,
-        "y": 5,
-        "w": 126,
-        "h": 187
+        "x": 118,
+        "y": 19,
+        "w": 191,
+        "h": 282
       },
       "anchor": {
-        "x": 62.5,
-        "y": 183
+        "x": 109,
+        "y": 279
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "walk_south_2": {
       "frame": {
@@ -223,22 +223,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_south_3": {
       "frame": {
-        "x": 143,
-        "y": 5,
-        "w": 126,
-        "h": 187
+        "x": 118,
+        "y": 315,
+        "w": 195,
+        "h": 280
       },
       "anchor": {
-        "x": 62.5,
-        "y": 183
+        "x": 89,
+        "y": 277
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "walk_north_0": {
       "frame": {
@@ -253,22 +253,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_north_1": {
       "frame": {
-        "x": 454,
-        "y": 7,
-        "w": 111,
-        "h": 185
+        "x": 431,
+        "y": 15,
+        "w": 169,
+        "h": 285
       },
       "anchor": {
-        "x": 55,
-        "y": 181
+        "x": 68,
+        "y": 282
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "walk_north_2": {
       "frame": {
@@ -283,22 +283,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_north_3": {
       "frame": {
-        "x": 454,
-        "y": 7,
-        "w": 111,
-        "h": 185
+        "x": 429,
+        "y": 314,
+        "w": 173,
+        "h": 281
       },
       "anchor": {
-        "x": 55,
-        "y": 181
+        "x": 92,
+        "y": 278
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "walk_east_0": {
       "frame": {
@@ -313,22 +313,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_east_1": {
       "frame": {
-        "x": 759,
-        "y": 4,
-        "w": 122,
-        "h": 189
+        "x": 726,
+        "y": 13,
+        "w": 194,
+        "h": 286
       },
       "anchor": {
-        "x": 52.5,
-        "y": 185
+        "x": 74.5,
+        "y": 283
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "walk_east_2": {
       "frame": {
@@ -343,22 +343,22 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 170
     },
     "walk_east_3": {
       "frame": {
-        "x": 759,
-        "y": 4,
-        "w": 122,
-        "h": 189
+        "x": 744,
+        "y": 316,
+        "w": 182,
+        "h": 278
       },
       "anchor": {
-        "x": 52.5,
-        "y": 185
+        "x": 110,
+        "y": 275
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 130
     },
     "run_south_0": {
       "frame": {
@@ -373,52 +373,52 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 105
+      "duration": 135
     },
     "run_south_1": {
       "frame": {
-        "x": 136,
-        "y": 196,
-        "w": 128,
-        "h": 189
+        "x": 118,
+        "y": 19,
+        "w": 191,
+        "h": 282
       },
       "anchor": {
-        "x": 61,
-        "y": 185
+        "x": 109,
+        "y": 279
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "run_south_2": {
       "frame": {
-        "x": 129,
-        "y": 580,
-        "w": 156,
-        "h": 185
+        "x": 79,
+        "y": 608,
+        "w": 248,
+        "h": 279
       },
       "anchor": {
-        "x": 72,
-        "y": 181
+        "x": 123,
+        "y": 278
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 135
     },
     "run_south_3": {
       "frame": {
-        "x": 138,
-        "y": 387,
-        "w": 125,
-        "h": 191
+        "x": 118,
+        "y": 315,
+        "w": 195,
+        "h": 280
       },
       "anchor": {
-        "x": 57,
-        "y": 187
+        "x": 89,
+        "y": 277
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "run_north_0": {
       "frame": {
@@ -433,52 +433,52 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 105
+      "duration": 135
     },
     "run_north_1": {
       "frame": {
-        "x": 459,
-        "y": 197,
-        "w": 111,
-        "h": 188
+        "x": 431,
+        "y": 15,
+        "w": 169,
+        "h": 285
       },
       "anchor": {
-        "x": 54.5,
-        "y": 184
+        "x": 68,
+        "y": 282
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "run_north_2": {
       "frame": {
-        "x": 436,
-        "y": 582,
-        "w": 147,
-        "h": 184
+        "x": 410,
+        "y": 609,
+        "w": 232,
+        "h": 269
       },
       "anchor": {
-        "x": 74,
-        "y": 180
+        "x": 122.67,
+        "y": 266
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 135
     },
     "run_north_3": {
       "frame": {
-        "x": 449,
-        "y": 389,
-        "w": 120,
-        "h": 188
+        "x": 429,
+        "y": 314,
+        "w": 173,
+        "h": 281
       },
       "anchor": {
-        "x": 58,
-        "y": 184
+        "x": 92,
+        "y": 278
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "run_east_0": {
       "frame": {
@@ -493,52 +493,52 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 105
+      "duration": 135
     },
     "run_east_1": {
       "frame": {
-        "x": 764,
-        "y": 195,
-        "w": 120,
-        "h": 190
+        "x": 726,
+        "y": 13,
+        "w": 194,
+        "h": 286
       },
       "anchor": {
-        "x": 60,
-        "y": 186
+        "x": 74.5,
+        "y": 283
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "run_east_2": {
       "frame": {
-        "x": 721,
-        "y": 576,
-        "w": 186,
-        "h": 194
+        "x": 695,
+        "y": 610,
+        "w": 268,
+        "h": 270
       },
       "anchor": {
-        "x": 91,
-        "y": 190
+        "x": 107,
+        "y": 269
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 135
     },
     "run_east_3": {
       "frame": {
-        "x": 769,
-        "y": 386,
-        "w": 125,
-        "h": 191
+        "x": 744,
+        "y": 316,
+        "w": 182,
+        "h": 278
       },
       "anchor": {
-        "x": 59.5,
-        "y": 187
+        "x": 110,
+        "y": 275
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 105
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 85
     },
     "attack_south_0": {
       "frame": {
@@ -587,17 +587,17 @@
     },
     "attack_south_3": {
       "frame": {
-        "x": 143,
-        "y": 5,
-        "w": 126,
-        "h": 187
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 62.5,
-        "y": 183
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 240
     },
     "attack_north_0": {
@@ -647,17 +647,17 @@
     },
     "attack_north_3": {
       "frame": {
-        "x": 454,
-        "y": 7,
-        "w": 111,
-        "h": 185
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 55,
-        "y": 181
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 240
     },
     "attack_east_0": {
@@ -707,47 +707,47 @@
     },
     "attack_east_3": {
       "frame": {
-        "x": 759,
-        "y": 4,
-        "w": 122,
-        "h": 189
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 52.5,
-        "y": 185
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 240
     },
     "hurt_south_0": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 98,
+        "y": 887,
+        "w": 202,
+        "h": 306
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 132,
+        "y": 303
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_south_1": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 98,
+        "y": 887,
+        "w": 202,
+        "h": 306
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 132,
+        "y": 303
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_south_2": {
@@ -782,32 +782,32 @@
     },
     "hurt_north_0": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 426,
+        "y": 892,
+        "w": 182,
+        "h": 298
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 99.5,
+        "y": 295
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_north_1": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 426,
+        "y": 892,
+        "w": 182,
+        "h": 298
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 99.5,
+        "y": 295
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_north_2": {
@@ -842,32 +842,32 @@
     },
     "hurt_east_0": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 729,
+        "y": 881,
+        "w": 196,
+        "h": 309
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 127.5,
+        "y": 306
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_east_1": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 729,
+        "y": 881,
+        "w": 196,
+        "h": 309
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 127.5,
+        "y": 306
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 100
     },
     "hurt_east_2": {
@@ -913,7 +913,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "till_south_1": {
       "frame": {
@@ -928,37 +928,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "till_south_2": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "till_south_3": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "till_north_0": {
       "frame": {
@@ -973,7 +973,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "till_north_1": {
       "frame": {
@@ -988,37 +988,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "till_north_2": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "till_north_3": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "till_east_0": {
       "frame": {
@@ -1033,7 +1033,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "till_east_1": {
       "frame": {
@@ -1048,37 +1048,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "till_east_2": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "till_east_3": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "plant_south_0": {
       "frame": {
@@ -1817,14 +1817,14 @@
     },
     "repair_south_1": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 126,
+        "y": 966,
+        "w": 169,
+        "h": 191
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 68,
+        "y": 187
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -1832,32 +1832,32 @@
     },
     "repair_south_2": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "repair_south_3": {
       "frame": {
-        "x": 143,
-        "y": 5,
-        "w": 126,
-        "h": 187
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 62.5,
-        "y": 183
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "repair_north_0": {
@@ -1877,14 +1877,14 @@
     },
     "repair_north_1": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 434,
+        "y": 966,
+        "w": 165,
+        "h": 192
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 69.5,
+        "y": 188
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -1892,32 +1892,32 @@
     },
     "repair_north_2": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "repair_north_3": {
       "frame": {
-        "x": 454,
-        "y": 7,
-        "w": 111,
-        "h": 185
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 55,
-        "y": 181
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "repair_east_0": {
@@ -1937,14 +1937,14 @@
     },
     "repair_east_1": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 742,
+        "y": 966,
+        "w": 193,
+        "h": 192
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 66.5,
+        "y": 188
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -1952,32 +1952,32 @@
     },
     "repair_east_2": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "repair_east_3": {
       "frame": {
-        "x": 759,
-        "y": 4,
-        "w": 122,
-        "h": 189
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 52.5,
-        "y": 185
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_south_0": {
@@ -1997,14 +1997,14 @@
     },
     "upgrade_south_1": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 126,
+        "y": 966,
+        "w": 169,
+        "h": 191
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 68,
+        "y": 187
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -2012,32 +2012,32 @@
     },
     "upgrade_south_2": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_south_3": {
       "frame": {
-        "x": 143,
-        "y": 5,
-        "w": 126,
-        "h": 187
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 62.5,
-        "y": 183
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_north_0": {
@@ -2057,14 +2057,14 @@
     },
     "upgrade_north_1": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 434,
+        "y": 966,
+        "w": 165,
+        "h": 192
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 69.5,
+        "y": 188
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -2072,32 +2072,32 @@
     },
     "upgrade_north_2": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_north_3": {
       "frame": {
-        "x": 454,
-        "y": 7,
-        "w": 111,
-        "h": 185
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 55,
-        "y": 181
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_east_0": {
@@ -2117,14 +2117,14 @@
     },
     "upgrade_east_1": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 742,
+        "y": 966,
+        "w": 193,
+        "h": 192
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 66.5,
+        "y": 188
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
@@ -2132,32 +2132,32 @@
     },
     "upgrade_east_2": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "upgrade_east_3": {
       "frame": {
-        "x": 759,
-        "y": 4,
-        "w": 122,
-        "h": 189
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 52.5,
-        "y": 185
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
       "duration": 150
     },
     "gather_south_0": {
@@ -2173,7 +2173,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "gather_south_1": {
       "frame": {
@@ -2188,37 +2188,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "gather_south_2": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "gather_south_3": {
       "frame": {
-        "x": 135,
-        "y": 1169,
-        "w": 139,
-        "h": 170
+        "x": 124,
+        "y": 1204,
+        "w": 193,
+        "h": 311
       },
       "anchor": {
-        "x": 59,
-        "y": 166
+        "x": 71.5,
+        "y": 308
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "gather_north_0": {
       "frame": {
@@ -2233,7 +2233,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "gather_north_1": {
       "frame": {
@@ -2248,37 +2248,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "gather_north_2": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "gather_north_3": {
       "frame": {
-        "x": 455,
-        "y": 1185,
-        "w": 130,
-        "h": 148
+        "x": 424,
+        "y": 1202,
+        "w": 177,
+        "h": 313
       },
       "anchor": {
-        "x": 53.5,
-        "y": 144
+        "x": 100.5,
+        "y": 310
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "gather_east_0": {
       "frame": {
@@ -2293,7 +2293,7 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 420
     },
     "gather_east_1": {
       "frame": {
@@ -2308,37 +2308,37 @@
       },
       "image": "/pixel-world/ink_wanderer_2.png",
       "native_scale": 0.284153,
-      "duration": 150
+      "duration": 160
     },
     "gather_east_2": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 260
     },
     "gather_east_3": {
       "frame": {
-        "x": 756,
-        "y": 1174,
-        "w": 161,
-        "h": 164
+        "x": 741,
+        "y": 1202,
+        "w": 196,
+        "h": 317
       },
       "anchor": {
-        "x": 58,
-        "y": 160
+        "x": 71.5,
+        "y": 314
       },
-      "image": "/pixel-world/ink_wanderer_2.png",
-      "native_scale": 0.284153,
-      "duration": 150
+      "image": "/pixel-world/ink_motion_wanderer_2.png",
+      "native_scale": 0.1870504,
+      "duration": 160
     },
     "cook_south_0": {
       "frame": {

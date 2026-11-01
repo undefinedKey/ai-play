@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {createApp} from '../../server/index.js';
+import {stableTextureSampler} from '../../src/texture-sampling.js';
 let app,server,base,clock,clients;
 test.beforeEach(async()=>{app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});clock=Date.now();app.world.now=()=>clock;app.world.actionIntervalMs=0;clients=[];({server,url:base}=await app.start(0));});
 test.afterEach(async()=>{for(const client of clients)await client.close();await app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
@@ -20,6 +21,33 @@ async function actor(request,name='真实画布旅人'){
 async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveCount(1);await assertCanvasResolution(page);}
 async function pixels(page,rect=[0,0,1536,1024]){return page.getByTestId('phaser-canvas').evaluate((canvas,[x,y,w,h])=>{const resolution=Number(canvas.dataset.renderResolution);x*=resolution;y*=resolution;w*=resolution;h*=resolution;const target=document.createElement('canvas');target.width=canvas.width;target.height=canvas.height;const ctx=target.getContext('2d');ctx.drawImage(canvas,0,0);const data=ctx.getImageData(x,y,w,h).data;let hash=2166136261,opaque=0;for(let i=0;i<data.length;i++){hash=Math.imul(hash^data[i],16777619);if(i%4===3&&data[i])opaque++;}return{hash:hash>>>0,opaque};},rect);}
 async function capture(page,name){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await ready(page);const map=await page.getByTestId('world-camera').boundingBox();expect(map.width/map.height).toBeCloseTo(1.5,2);expect(map.y).toBeLessThan(width===390?300:270);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/phaser-v018-${name}-${width}x${height}.png`});await page.getByTestId('phaser-canvas').screenshot({path:`artifacts/phaser-v018-${name}-${width}x${height}-canvas.png`});}}
+
+test('WebGL多纹理采样容忍插值误差，旋转三角形内部不出现透明洞',async({page})=>{
+ const results=await page.evaluate(additions=>additions.map(({count,header})=>{
+  const canvas=document.createElement('canvas');canvas.width=count*32;canvas.height=96;
+  const gl=canvas.getContext('webgl',{preserveDrawingBuffer:true});if(!gl)throw new Error('WebGL regression requires a real WebGL context');
+  const compile=(type,source)=>{const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(shader));return shader;};
+  const program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,'attribute vec2 point; attribute float textureIndex; varying highp float outTexDatum; void main(){gl_Position=vec4(point,0.0,1.0);outTexDatum=textureIndex;}'));
+  gl.attachShader(program,compile(gl.FRAGMENT_SHADER,`precision highp float;\n#define TEXTURE_COUNT ${count}\nvarying highp float outTexDatum;\n${header}\nvoid main(){gl_FragColor=getTexture(vec2(0.5));}`));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));gl.useProgram(program);
+  const colors=Array.from({length:count},(_,i)=>[30+i*23,210-i*19,60+i*13,255]);
+  for(let i=0;i<count;i++){gl.activeTexture(gl.TEXTURE0+i);gl.bindTexture(gl.TEXTURE_2D,gl.createTexture());gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(colors[i]));}
+  gl.uniform1iv(gl.getUniformLocation(program,'uMainSampler[0]'),Int32Array.from({length:count},(_,i)=>i));
+  const data=[];
+  // The same integer is supplied at every vertex in production. Explicit tiny
+  // positive/negative errors reproduce drivers' varying interpolation drift.
+  for(let row=0;row<3;row++)for(let i=0;i<count;i++)for(const corner of [[-1,-1],[-1,1],[1,1],[-1,-1],[1,1],[1,-1]]){
+   const a=.17+row*.11,x=corner[0]*11,y=corner[1]*11;
+   data.push(((i*32+16+x*Math.cos(a)-y*Math.sin(a))/canvas.width)*2-1,((row*32+16+x*Math.sin(a)+y*Math.cos(a))/96)*2-1,i+(row-1)*.00001);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);
+  for(const[name,size,offset]of[['point',2,0],['textureIndex',1,8]]){const location=gl.getAttribLocation(program,name);if(location>=0){gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,12,offset);}}
+  gl.viewport(0,0,canvas.width,canvas.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,data.length/3);
+  const pixels=new Uint8Array(canvas.width*canvas.height*4);gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let mismatches=0;
+  for(let row=0;row<3;row++)for(let i=0;i<count;i++)for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){const offset=((row*32+16+dy)*canvas.width+i*32+16+dx)*4;for(let c=0;c<4;c++)if(pixels[offset+c]!==colors[i][c]){mismatches++;break;}}
+  const error=gl.getError();gl.getExtension('WEBGL_lose_context')?.loseContext();return{count,mismatches,error};
+ }),[1,4,8].map(count=>({count,header:stableTextureSampler(count).additions.fragmentHeader})));
+ expect(results).toEqual([1,4,8].map(count=>({count,mismatches:0,error:0})));
+});
 
 test('Phaser真实画布绘制地面物件人物装备，真实移动改变像素，切换销毁且不操作AI',async({page,request})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));

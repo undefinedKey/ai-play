@@ -2,6 +2,11 @@ const occurredAt = value => typeof value === 'number' ? value : Date.parse(value
 const recent = (at, now, duration = 1600) => Number.isFinite(at) && now >= at && now - at < duration;
 const cooperationCook = (event, agentId) => event.type === 'cooperation_completed' && event.payload?.template_id === 'camp_meal' && event.payload.status === 'completed' && event.payload.members?.some(member => member.agent_id === agentId && member.role_id === 'cook');
 
+export function gatheringWorkingAt(job,now){
+  const start=job?.work_started_at??job?.started_at;
+  return !!job&&(job.phase==null||job.phase==='working')&&Number.isFinite(start)&&Number.isFinite(job.ends_at)&&now>=start&&now<job.ends_at;
+}
+
 /** Select only poses supported by an observed position, action receipt or public state. */
 export function characterAction(agent, events, now, moving = false) {
   if (agent.status !== 'active') return 'idle';
@@ -28,13 +33,13 @@ export function characterAction(agent, events, now, moving = false) {
     if (event.type === 'adventure_combat'&&!Number.isFinite(agent.position_at)) return event.payload.attacker === 'monster' ? 'hurt' : 'attack';
     if (event.type === 'life_consumed') return 'eat';
     if (event.type === 'life_crafted' && ['turnip_soup','wheat_bread','roasted_berry','trail_ration','moon_stew'].includes(event.payload.item_id)) return 'cook';
-    if (event.type === 'life_gather_started' && agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.ends_at > now) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
+    if (event.type === 'life_gather_started' && gatheringWorkingAt(agent.life?.gathering,now)) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
     if (['agent_moved','moved','move'].includes(event.type)&&!Number.isFinite(agent.position_at)) return 'walk';
     const action = { life_tilled: 'till', life_planted: 'plant', life_watered: 'water', life_harvested: 'harvest', life_crafted: 'craft', life_tool_repaired: 'repair', life_tool_upgraded: 'upgrade' }[event.type];
     if (action) return action;
   }
   if (moving&&!Number.isFinite(agent.position_at)) return 'walk';
-  if (agent.life?.gathering?.phase!=='approaching' && agent.life?.gathering?.started_at <= now && agent.life.gathering.ends_at > now) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
+  if (gatheringWorkingAt(agent.life?.gathering,now)) return agent.life?.gathering?.intent==='plant'?'plant':'gather';
   const exertion = agent.fatigue?.recent_exertion;
   if (exertion && recent(exertion.last_at, now, 900) && (Number.isFinite(agent.position_at)?['till','plant','water','harvest','craft','repair','upgrade']:['move','attack','till','plant','water','harvest','craft','repair','upgrade']).includes(exertion.last_kind)) return exertion.last_kind === 'move' ? 'walk' : exertion.last_kind;
   if ((agent.adventure?.plan?.intent === 'rest' && agent.position?.x === 11 && agent.position?.y === 8) || agent.activity?.activity_id === 'relax') return 'rest';
@@ -80,6 +85,12 @@ export function movementFacing(previous, current) {
   return Math.abs(dx) > Math.abs(dy) ? dx < 0 ? 'west' : 'east' : dy < 0 ? 'north' : 'south';
 }
 
+export function actorFacing(actor,action,now,fallback='south'){
+  if(action==='attack'&&['prepare','recovery'].includes(actionPhase(actor.action,now)))return actor.action.facing||actor.facing||fallback;
+  if(actor.movement?.version===2&&actor.movement.scene_id===actor.scene_id)return sampleMotion(actor,now).facing;
+  return actor.facing||fallback;
+}
+
 export function animationFrame(definition, action, elapsed, animated = true, facing = 'south') {
   if (!definition?.animations) return null;
   const direction = facing === 'west' ? 'east' : facing;
@@ -95,14 +106,19 @@ import {sampleMotion,actionPhase} from '../shared/motion.js';
 
 // The renderer does not invent a hit at impact_at. Until the actual outcome is
 // available it holds the ready pose; only a confirmed hit gets the strike pose.
-export function actionPose(actor,action,now){
+export function actionPose(actor,action,now,events=[]){
   if(action==='attack'&&actor.action){
     const a=actor.action;
-    if(!a.outcome)return {frame:now<a.started_at+(a.impact_at-a.started_at)*.45?0:1,elapsed:Math.max(0,now-a.started_at)};
+    if(!a.outcome||now<(a.resolved_at??a.impact_at))return {frame:now<a.started_at+(a.impact_at-a.started_at)*.45?0:1,elapsed:Math.max(0,now-a.started_at)};
     return {frame:a.outcome==='hit'&&now<(a.resolved_at??a.impact_at)+Math.min(160,(a.ends_at-a.impact_at)*.45)?2:3,elapsed:Math.max(0,now-a.started_at)};
   }
   if(action==='hurt'&&actor.hurt)return {elapsed:Math.max(0,now-actor.hurt.started_at)};
   if(['walk','run'].includes(action)&&actor.movement?.version===2)return {elapsed:Math.max(0,now-actor.movement.started_at)};
+  const job=actor.life?.gathering;
+  if((action==='gather'||action==='plant'&&job?.intent==='plant')&&gatheringWorkingAt(job,now))return {elapsed:Math.max(0,now-(job.work_started_at??job.started_at))};
+  const type={till:'life_tilled',plant:'life_planted',water:'life_watered',harvest:'life_harvested',craft:'life_crafted',repair:'life_tool_repaired',upgrade:'life_tool_upgraded',cook:'life_crafted',eat:'life_consumed'}[action];
+  const receipt=[...events].reverse().find(event=>action==='cook'&&cooperationCook(event,actor.agent_id)||event.payload?.agent_id===actor.agent_id&&event.type===type);
+  if(receipt)return {elapsed:Math.max(0,now-occurredAt(receipt.occurred_at))};
   return {};
 }
 

@@ -1,0 +1,30 @@
+{
+  "version": "0.23.0",
+  "mode": "built-in image_gen",
+  "transparent_background": true,
+  "dimensions": {
+    "width": 1024,
+    "height": 1536
+  },
+  "output": "motion-wanderer_4.png",
+  "calls": [
+    {
+      "prompt": "Use case: identity-preserve. EDIT the supplied original wanderer_4 LILAC sheet to create a NEW supplementary animation sheet of the SAME character. Retain exact jagged pointed dark violet bob hair with tall angular tips, solemn large eyes, narrow triangular face, dusty lavender-violet buttoned jacket with asymmetric hem, charcoal fitted trousers and worn black boots. Preserve original large head / lanky tiny body proportions, rough uneven dark ink contour, scratchy hatch marks and muted wilderness palette. No redesign. New transparent portrait1024x1536 sheet, exactly3 columns ×5 rows =15 full-body cutouts with broad transparent gutters, each approximately240px tall inside its341x307cell. Columns: SOUTH front, NORTH true back/no face, EAST right-facing profile. Row1 compact WALK PASSING LEFT: one straight support leg vertically beneath hip, other knee bends close beside it. FRONT row1 planted boot picture RIGHT and knee up picture LEFT; BACK row1 planted boot picture LEFT and knee up picture RIGHT. EAST row1 support leg vertical, free knee slightly forward with boot beneath hips. Row2 compact WALK PASSING RIGHT, clearly opposite to row1: FRONT planted boot picture LEFT and knee up picture RIGHT; BACK planted boot picture RIGHT and knee up picture LEFT. EAST row2 nearer leg bends BACK with free boot under seat, farther support leg straight vertically down. Keep feet close beneath hips, NOT long contact strides. Row3 opposite AIRBORNE RUN STRIDE to reference original fourth row: FRONT large leading boot stretches toward bottom LEFT, opposite trailing leg RIGHT, reverse arms; EAST visible nearer arm trails BACK LEFT while far arm swings forward right partly behind torso, long split stride with both boots airborne, inverse leading limbs to old reference run. Row4 STANDING HURT RECOIL: torso clearly leans backward, shoulders flinch, both empty hands guard chest, pained face, staggered braced feet, remains upright standing, never crouch/kneel. Row5 STANDING DOWNWARD SWING FOLLOW-THROUGH: empty working hand down-forward near waist after tool chop, torso slightly forward, knees only slightly flexed, both feet grounded, no crouch/kneel. Preserve identity and outfit in every cutout; all hands EMPTY, no tools, weapons, armor, props, new accessories, particles. Full hair/boots/arms inside own cells. No text, labels, borders, grid, ground, shadows, backdrop, opaque panels, halos or glow. Genuine alpha everywhere outside silhouettes. This is15 sprites, not a scene.",
+      "references": [
+        "wanderer_4.png"
+      ],
+      "source": "exec-64a46670-1e49-4113-9df4-d5990f6e2e6c.png",
+      "selected": false,
+      "note": "Front and side passing distinct; north passing repeated support and side run remained near original."
+    },
+    {
+      "prompt": "Use case: precise-object-edit / identity-preserve. Correct ONLY the middle sprite of ROW TWO and the EAST sprite of ROW THREE in this fifteen-pose LILAC supplementary animation sheet. Preserve the other13 cutouts, exact identity, jagged purple hair, lavender coat, original ink/hatching style, transparent background, 3columns5rows,1024x1536. The NORTH back-view sprite at ROW TWO currently repeats row1 leg support; swap it: the boot on PICTURE LEFT must now be the straight planted support foot beneath hips, while the knee on PICTURE RIGHT is raised with boot off ground. Row1 NORTH has opposite support; row2 must visibly reverse it. Keep back view without any face, arms counter-swing. The EAST right-facing sprite at ROW THREE needs the opposite arm/leg running phase from current: visible nearer arm trails BACK toward the LEFT, fist distinctly left of hip; far arm swings forward RIGHT partially occluded behind torso; near leg reaches forward right, far leg stretches back left. Still long airborne stride, both boots above ground. Do not repeat the visible right-front raised fist. No other edits: preserve full hats/hair/boots inside cells and wide transparent gutters. No props, tools, weapons, labels, grid, background, floor, shadow or effects. Keep all fifteen bodies fully separated.",
+      "references": [
+        "exec-64a46670-1e49-4113-9df4-d5990f6e2e6c.png"
+      ],
+      "source": "exec-d38776ae-f47d-4f93-ac96-cf38d7757ad6.png",
+      "selected": true
+    }
+  ],
+  "inspection": "Jagged violet bob, narrow face, lavender jacket and dark trousers retained. North passing now changes support; side run has arm overlap change; upright hurt and standing downward follow-through remain. Source PNG copied unchanged."
+}

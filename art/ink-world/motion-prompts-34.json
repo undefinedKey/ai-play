@@ -1,0 +1,12 @@
+{
+  "mode": "built-in image_gen",
+  "calls": [
+    {
+      "id": "wanderer_3",
+      "prompt": "EDIT REFERENCE TARGET: the supplied existing TIDE character sprite sheet. Preserve the exact same identity, tousled navy hair with whale-fin tuft, pale collar, muted teal tunic, charcoal trousers, worn brown boots, face and head/body proportions, scratchy ink-cutout wilderness style. Produce a NEW SUPPLEMENTAL ANIMATION SHEET, true transparent background, 1024x1536 portrait, exactly THREE columns and FIVE rows = FIFTEEN fully separate whole-body character cutouts. Columns LEFT south/front, MIDDLE north/BACK with no face, RIGHT east/right-facing profile. Rows: (1) walking passing pose: left foot bearing weight vertically under hip, right knee flexed lifting past support leg; arms counter-swing; (2) opposite walking passing pose: right foot weight bearing, left knee flexed lifting past it, swapped arms; (3) RUNNING opposite airborne stride to reference running row: swap front/back legs and arms, energetic forward lean and bent trailing knee, both boots clear of ground; (4) TRUE HURT RECOIL standing with chest arched backward, shoulders reacting, hands guarding torso, knees braced, pained face, NOT crouching/kneeling/sitting; (5) standing tool-swing FOLLOW-THROUGH, both empty hands low and forward after a downward chop, torso tilts forward slightly, knees flexed, feet planted, NOT a squat/kneel/crouch. No actual tools/weapons, no effect streaks. Each full body approximately240pixels tall with clean fully transparent gutters, no limb crosses its cell, do not resize different rows inconsistently. Preserve exact clothing details and recognizable face across all directions. No text, labels, grid, floor, shadows, background paper or opaque panels. These are actual additional poses for the SAME existing character, not a redesign.",
+      "reference": "art/ink-world/wanderer_3.png",
+      "source": "C:/Users/ProgWeb/.codex/generated_images/01a18b9e-5a11-77b2-8311-36e8c71b0379/exec-36cd1e36-ce6f-491a-a2b8-9445c959dc7b.png",
+      "output": "art/ink-world/motion-wanderer_3.png"
+    }
+  ]
+}

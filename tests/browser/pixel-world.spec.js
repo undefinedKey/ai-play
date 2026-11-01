@@ -87,10 +87,16 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
   await a.act('farm',{intent:'plant',plot_id:'plot_1',crop_id:'turnip'});
   await expect(sprite).toHaveAttribute('data-action','plant');
   await expect(page.getByTestId('farm-plot_1').locator('.pixel-crop').first()).toHaveAttribute('data-pixel-action','seeded');
+  // One-shot work follows the real receipt timestamp. Keep this short phase
+  // observable without letting several request/asset waits consume it, and
+  // give watering its own authoritative time rather than reusing till/plant.
+  await page.clock.install({time:new Date(clock-1000)});await page.clock.pauseAt(new Date(clock));tick(1000);
   await a.act('farm',{intent:'water',plot_id:'plot_1'});
+  await new Promise(resolve=>setTimeout(resolve,230));await page.clock.runFor(16);
   await expect(sprite).toHaveAttribute('data-action','water');
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
   const firstFrame=await sprite.locator('.pixel-sprite').first().evaluate(element=>getComputedStyle(element).backgroundPosition);
+  await page.clock.runFor(200);
   await expect.poll(()=>sprite.locator('.pixel-sprite').first().evaluate(element=>getComputedStyle(element).backgroundPosition),{timeout:1500,intervals:[50]}).not.toBe(firstFrame);
   await page.emulateMedia({reducedMotion:'reduce'});
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
@@ -99,6 +105,7 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
   await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+  await page.clock.resume();
   await a.act('inventory',{intent:'craft',item_id:'wooden_sword'});
   await a.act('inventory',{intent:'equip',item_id:'wooden_sword'});
   tick();
@@ -136,19 +143,26 @@ test('真实移动与种田回执驱动动画，装备叠层与低体力效率�
 
 test('怪物真实攻击显示受伤，原 AI 应战后才播放攻击动画',async({page,request})=>{
   const api=await owner(request),a=await actor(api,'像素战斗旅人');
+  // An already-entered adventurer at a known walkable point beside the boar
+  // isolates automatic aggro. Random exploration need not pass a monster.
+  const raw=application.world.agent(a.agent.agent_id);raw.scene_id='adventure';raw.position={x:5,y:12};raw.position_at=clock;raw.adventure.in_field=true;application.world.commit();
   await page.goto(base+'/watch?view=adventure');
+  await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');
+  await page.clock.install({time:new Date(clock-1000)});await page.clock.pauseAt(new Date(clock));
   const sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
-  await a.act('adventure_plan',{intent:'explore',zone_id:'forest'});
+  expect(raw.action).toBe(null);
   let combat;
-  for(let i=0;i<65&&!combat;i++){
-    tick(1001);await a.observe();
+  const currentHurt=()=>combat&&raw.hurt&&clock>=raw.hurt.started_at&&clock<raw.hurt.ends_at;
+  for(let i=0;i<120&&!currentHurt();i++){
+    tick(100);await a.observe();
     combat=[...application.world.state.events].reverse().find(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.attacker==='monster');
   }
-  expect(combat).toBeTruthy();
+  expect(combat).toBeTruthy();expect(currentHurt()).toBeTruthy();
+  await new Promise(resolve=>setTimeout(resolve,230));await page.clock.runFor(16);
   await expect(sprite).toHaveAttribute('data-action','hurt');
   await expect(page.getByTestId(`monster-${combat.payload.monster_id}`).locator('.pixel-sprite')).toHaveAttribute('data-pixel-action','attack');
   await a.act('adventure_plan',{intent:'hunt',monster_id:combat.payload.monster_id});
-  let attack;const raw=application.world.agent(a.agent.agent_id);
+  let attack;
   const currentAttack=()=>attack&&raw.action?.phase==='prepare'&&clock<raw.action.impact_at&&(!raw.hurt||clock>=raw.hurt.ends_at);
   // An old combat receipt is not the current action. Small authoritative steps
   // stop on a real unhurt preparation phase instead of skipping it by 1001ms.
@@ -157,8 +171,10 @@ test('怪物真实攻击显示受伤，原 AI 应战后才播放攻击动画',as
     attack=[...application.world.state.events].reverse().find(event=>event.type==='adventure_combat'&&event.payload.agent_id===a.agent.agent_id&&event.payload.attacker==='agent');
   }
   expect(attack).toBeTruthy();expect(currentAttack()).toBeTruthy();
+  await new Promise(resolve=>setTimeout(resolve,230));await page.clock.runFor(16);
   await expect(sprite).toHaveAttribute('data-action','attack');
   await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');
+  await page.clock.resume();
 });
 
 test('连续三个真实攻击周期中，准备、实际命中受击和恢复均由服务端阶段驱动画布',async({page,request})=>{
@@ -171,9 +187,10 @@ test('连续三个真实攻击周期中，准备、实际命中受击和恢复�
   const monster=page.getByTestId('monster-forest_boar').locator('.pixel-sprite');
   const seen=new Set();
   async function until(predicate){
-    // Advance presentation before publishing the next sample. Doing this after
-    // observe extrapolates 100ms beyond a held phase with only 60ms remaining.
-    for(let i=0;i<900&&!predicate();i++){await page.clock.runFor(100);tick(100);await a.observe();}
+    // Accelerate only the authoritative simulation while searching for the
+    // next real phase. Fast-forwarding the browser through an entire journey
+    // also expires its network heartbeat despite a healthy real connection.
+    for(let i=0;i<900&&!predicate();i++){tick(100);await a.observe();}
     expect(predicate()).toBe(true);
     // Let the real 200ms transport deliver this held authoritative phase; then
     // draw one presentation frame without inventing another simulation step.
