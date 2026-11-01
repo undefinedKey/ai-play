@@ -144,6 +144,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.21.0') >= 0 && ['scripts/survival-context.mjs', 'references/survival.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '更新包缺少生存与火光协议，未执行升级');
   }
+  if (compareVersions(version, '0.23.1') >= 0 && !paths.has('scripts/action-json.mjs')) {
+    fail('UPDATE_TREE', '更新包缺少共享动作 JSON 解析模块，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

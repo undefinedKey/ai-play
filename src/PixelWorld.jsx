@@ -13,7 +13,7 @@ import {sampleGait,animationDuration,gatheringFrameTime,actorAnimationAction,act
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.23.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.23.1').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {

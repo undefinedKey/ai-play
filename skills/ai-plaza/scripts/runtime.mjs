@@ -8,6 +8,7 @@ import { COOPERATION_GUIDANCE, supportsCooperation, validCooperation, cooperatio
 import { MODEL_REQUEST_MS, DECISION_WATCHDOG_MS, remainingSeconds } from './timing.mjs';
 import { RESOURCE_GUIDANCE, supportsResources } from './resources-context.mjs';
 import { SURVIVAL_GUIDANCE, supportsSurvival, validSurvival } from './survival-context.mjs';
+import { parseActionJson } from './action-json.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
@@ -41,9 +42,8 @@ export function decodeToolResult(result) {
 }
 
 export function parseModelAction(content) {
-  const text = String(content || '').replace(/^\s*```(?:json)?\s*/, '').replace(/\s*```\s*$/, '');
   let action;
-  try { action = JSON.parse(text); } catch { throw new RunnerError('INVALID_MODEL_OUTPUT', '模型未返回有效的动作 JSON'); }
+  try { action = parseActionJson(content); } catch { throw new RunnerError('INVALID_MODEL_OUTPUT', '模型未返回有效的动作 JSON'); }
   if (!action || !ACTIONS.has(action.type) || !action.payload || typeof action.payload !== 'object' || Array.isArray(action.payload)) {
     throw new RunnerError('INVALID_MODEL_OUTPUT', '模型动作必须包含已知 type 与对象 payload');
   }

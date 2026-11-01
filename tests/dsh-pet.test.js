@@ -164,6 +164,26 @@ test('原桌宠坏JSON只纠正一次且记录真实错误，不产生伪造say'
   assert.ok(f.toolCalls.some(c => c.name === 'report_status' && c.args.last_error?.includes('JSON')));
 });
 
+test('原桌宠碎碎念加吃萝卜JSON真实执行一次，解除饥饿且不广播私人碎碎念', async t => {
+  const privateAside = '肚子都瘪了，再试一口萝卜。';
+  const f = await fixture(t, { replies: [`${privateAside}\n\n{"type":"inventory","payload":{"intent":"use","item_id":"turnip"}}`] });
+  await f.initialize();
+  const agent = f.world.agent(f.agent.agent_id);
+  agent.adventure.hp = 10; agent.survival.satiety = 0; agent.life.inventory.turnip = 183;
+  await f.runner.decide();
+  assert.equal(f.runner.checkpoint.calls_used, 1, '有效动作无需再次付费纠正');
+  const actions = f.toolCalls.filter(call => call.name === 'act');
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].args.type, 'inventory');
+  assert.deepEqual(actions[0].args.payload, { intent: 'use', item_id: 'turnip' });
+  assert.equal(agent.life.inventory.turnip, 182);
+  assert.equal(agent.adventure.hp, 22);
+  assert.equal(agent.survival.satiety, 15);
+  assert.equal(f.world.state.events.filter(event => event.type === 'life_consumed').length, 1);
+  assert.ok(!JSON.stringify(f.world.state.events).includes(privateAside));
+  assert.equal(f.runner.checkpoint.pending_action, null);
+});
+
 test('活动回声过滤保留本人完成事件一次，防自发言循环', () => {
   const events = [
     { event_id: 'a', type: 'activity_started', payload: { agent_id: 'self' } },

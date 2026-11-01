@@ -7,6 +7,7 @@ import { movementPromptContext, sceneLabel, sceneContext, inAdventureScene, scen
 import { discoveryContext, DISCOVERY_GUIDANCE, goalContext, compactGoal, GOAL_TUPLE_GUIDANCE, strategyContext, encounterPrompt, COMPACT_GOAL_GUIDANCE, STRATEGY_COMPACT_GUIDANCE } from './v014-context.mjs';
 import { resourcePromptNotice, resourceJobContext, supportsResources } from './resources-context.mjs';
 import { survivalPromptNotice, supportsSurvival } from './survival-context.mjs';
+import { parseActionJson } from './action-json.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -661,7 +662,7 @@ export function decisionPrompt(context = {}) { return prepareDecisionPrompt(cont
 export function expandDecisionReferences(content, references) {
   references ||= {};
   let action;
-  try { action = JSON.parse(String(content).replace(/^\s*```(?:json)?\s*/, '').replace(/\s*```\s*$/, '')); } catch { return content; }
+  try { action = parseActionJson(content); } catch { return content; }
   if (!action?.payload || Array.isArray(action.payload) || typeof action.payload !== 'object') return content;
   const fields = { inventory: ['item_id'], trade: ['item_id'], gather: ['node_id'], survival: ['site_id', 'fire_id'], cooperation: ['cooperation_id', 'target_agent_id'], personal_goal: ['goal_id', 'target_id'], adventure_event: ['event_id'], adventure_plan: ['monster_id'],
     invite: ['target_agent_id', 'group_id'], respond_invite: ['invite_id'], leave_group: ['group_id'], say: ['group_id'],
