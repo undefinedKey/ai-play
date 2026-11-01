@@ -137,7 +137,7 @@ export function spectatorSnapshot(world) {
     cooperation: structuredClone(COOPERATION_RULES), cooperations: publicCooperations(world),
     game: publicGame(game, { spectator: true, agentIds }),
     events: recentEvents.reverse(), history: world.historyMetadata(),
-    server_time: world.now(),
+    simulation_time: number(world.simulationTime), server_time: world.now(),
   };
 }
 

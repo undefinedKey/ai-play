@@ -37,21 +37,31 @@ test('v0.17 real HTTP/MCP: viewers do not move residents; portal journeys isolat
     for (const key of ['run', 'goal', 'scene_migration', 'scene_stale_actions', 'next_action_id']) assert.equal(visible[key], undefined);
   }
   assert.equal((await a.act('adventure_plan', { intent: 'explore', zone_id: 'forest' })).status, 'applied');
-  let late, crossed = false, walked = 0;
+  const journeyStarted = now, walkingSpeed = 2;
+  let late, crossed = false, distanceWalked = 0;
   for (let i = 0; i < 25; i++) {
-    const old = structuredClone(a.raw.position), oldScene = a.raw.scene_id;
+    const old = structuredClone(a.raw.position), oldScene = a.raw.scene_id, previousTime = now;
     if (oldScene === 'plaza') late = { ...a.session, action_id: (await a.observe()).next_action_id, type: 'move', payload: { x: 23, y: 8 } };
     await tick();
     assert.ok(isWalkable(a.raw.scene_id, a.raw.position));
+    const traveledTo = a.raw.scene_id === oldScene ? a.raw.position : app.world.state.events.findLast(e => e.type === 'scene_changed').payload.from_position;
+    const stepDistance = Math.abs(old.x - traveledTo.x) + Math.abs(old.y - traveledTo.y);
+    // The authoritative walk is continuous at two tiles/second, rather than
+    // restricted to one tile per test tick. Account for the final approach
+    // to the portal too, without counting the destination-scene spawn jump.
+    assert.ok(stepDistance <= walkingSpeed * (now - previousTime) / 1000 + 1e-8, 'travel respects physical walking speed');
+    assert.equal(traveledTo.y, 8, 'the entire approach stays on the walkable entrance corridor');
+    assert.ok(traveledTo.x >= old.x && traveledTo.x <= 22, 'the approach moves toward the entrance without passing it');
+    distanceWalked += stepDistance;
     if (a.raw.scene_id !== oldScene) {
       assert.equal(oldScene, 'plaza'); assert.deepEqual(app.world.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, { x: 22, y: 8 });
       assert.equal(a.raw.scene_id, 'adventure'); assert.deepEqual(a.raw.position, { x: 11, y: 8 });
       crossed = true; break;
     }
-    assert.ok(Math.abs(old.x - a.raw.position.x) + Math.abs(old.y - a.raw.position.y) <= 1);
-    walked++;
   }
-  assert.ok(crossed && walked >= 11 && late, 'entrance is reached by real steps');
+  assert.ok(crossed && late, 'entrance is reached by real steps');
+  assert.equal(distanceWalked, 11, 'the full distance to the entrance is walked');
+  assert.ok(now - journeyStarted >= distanceWalked / walkingSpeed * 1000, 'crossing cannot occur before physically reaching the entrance');
   assert.equal((await a.call('act', late)).error.code, 'STALE_ACTION');
   assert.equal(a.raw.scene_id, 'adventure');
   assert.deepEqual(a.raw.position, b.raw.position, 'same local coordinates can exist in different scenes');

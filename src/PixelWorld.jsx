@@ -9,11 +9,12 @@ import {terrainDrawing} from './wilderness-art.js';
 import {RESOURCE_NODES} from '../shared/resources-layout.js';
 import {spriteAttachment,spriteGeometry,spriteNativeScale} from './render-packet.js';
 import {sampleGait,animationDuration,gatheringFrameTime,actorAnimationAction,actorVisualPose,settlePose,STILL_POSE} from './actor-motion.js';
+import {samplePresentationClock} from './presentation-clock.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.23.1').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.23.2').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -49,14 +50,16 @@ const noSubscribe = () => () => {};
 
 // Action phases must advance between server ticks as well as atlas frames.
 // Only map units subscribe: the rest of the app keeps its one-second clock.
-export function usePixelNow(serverNow, enabled) {
+export function usePixelNow(serverNow, enabled, actor) {
   // A corrected snapshot can legitimately repeat an earlier timestamp. Reusing
   // a process-wide timestamp cache adds the old elapsed time a second time and
   // can skip a short real hurt/attack phase after a clock correction.
-  const anchor=useRef({serverNow,localNow:Date.now()});
+  const anchor=useRef({serverNow,localNow:Date.now()}),presentation=useRef(null);
   if(anchor.current.serverNow!==serverNow)anchor.current={serverNow,localNow:Date.now()};
   const clock = useSyncExternalStore(enabled ? subscribeFrames : noSubscribe, () => enabled ? frameClock : 0, () => 0);
-  return clock > 0 ? serverNow + Math.max(0, clock - anchor.current.localNow) : serverNow;
+  if(clock<=0){presentation.current=null;return serverNow;}
+  presentation.current=samplePresentationClock(presentation.current,{serverTime:serverNow,receivedAt:anchor.current.localNow,localTime:clock,actor});
+  return presentation.current.time;
 }
 
 // One pose sample is shared by body, clothes and held tools. Neither the local
@@ -72,7 +75,8 @@ export function useActorMotion(actor,action,now,{enabled=false,facing='south',de
   }
   const job=actor.life?.gathering;
   if((action==='gather'||action==='plant'&&job?.intent==='plant')&&Number.isFinite(timeline.elapsed))timeline.elapsed=gatheringFrameTime(actor,timeline.elapsed,definition,animationAction,facing);
-  const target=actorVisualPose(actor,action,now,{facing,gaitPhase:phase,enabled:playing});
+  const frame=Number.isInteger(timeline.frame)?actionFrame(definition,animationAction,facing,timeline.frame):animationFrame(definition,animationAction,timeline.elapsed??0,playing,facing);
+  const target=actorVisualPose(actor,action,now,{facing,gaitPhase:phase,enabled:playing,definition,frame});
   if(!playing){transition.current=null;return {...timeline,pose:STILL_POSE};}
   const settled=settlePose(transition.current,action,target,now);transition.current=settled.state;
   return {...timeline,pose:settled.pose};
@@ -97,7 +101,7 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const assets = usePixelManifest();
   const path=agent.movement?.scene_id===agent.scene_id?agent.movement.path:null;
   const active = live && agent.status === 'active' && !portrait;
-  const actionNow = usePixelNow(now, active);
+  const actionNow = usePixelNow(now, active, agent);
   const sceneEvents=events.filter(event=>(event.payload?.scene_id??event.scene_id)===agent.scene_id || (agent.scene_id==='plaza'&&event.type==='cooperation_completed'&&event.payload?.template_id==='camp_meal'));
   const walking=path?.length>1&&actionNow>=agent.movement.started_at&&actionNow<agent.movement.started_at+agent.movement.duration_ms;
   const action = !portrait ? characterAction(agent, sceneEvents, actionNow, walking) : 'idle';
@@ -153,7 +157,7 @@ export function SceneProps({sceneId,map}){
 }
 
 export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){
-  const clock=usePixelNow(now,live&&agent.status==='active');
+  const clock=usePixelNow(now,live&&agent.status==='active',agent);
   const position=confirmedPosition(agent,clock,live&&!reducedMotion());
   const name=publicName(agent,agents);
   const crowded=agents.filter(a=>a.scene_id===agent.scene_id&&['active','paused'].includes(a.status)&&a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1;

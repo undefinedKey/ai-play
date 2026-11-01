@@ -1,5 +1,6 @@
 import {sampleMotion, MOTION_RULES} from '../shared/motion.js';
 import {gatheringWorkingAt} from './pixel-state.js';
+import {registerLocomotionPose} from './locomotion-registration.js';
 
 export const STILL_POSE = Object.freeze({x:0,y:0,rotation:0,scaleX:1,scaleY:1});
 const clamp = (n, lo=0, hi=1) => Math.max(lo,Math.min(hi,Number.isFinite(n)?n:lo));
@@ -68,7 +69,7 @@ export function gatheringFrameTime(actor,workElapsed,definition,animationAction,
 
 /** Local displacement is measured in world pixels around the measured source
  * foot. It is deliberately small: no new movement, impact or work result. */
-export function actorVisualPose(actor,action,now,{facing='south',gaitPhase=0,enabled=true}={}){
+export function actorVisualPose(actor,action,now,{facing='south',gaitPhase=0,enabled=true,definition,frame}={}){
   if(!enabled||!['active','alive'].includes(actor?.status))return STILL_POSE;
   const dx=facing==='east'?1:facing==='west'?-1:0,dy=facing==='south'?1:facing==='north'?-1:0;
   const monster=actor.monster_id,slime=monster==='forest_slime',heavy=monster==='ruins_guardian';
@@ -77,7 +78,8 @@ export function actorVisualPose(actor,action,now,{facing='south',gaitPhase=0,ena
     const wave=Math.sin(gaitPhase*Math.PI*2),lift=Math.sin(gaitPhase*Math.PI*2)**2,run=action==='run';
     const amplitude=heavy?.45:slime?(run?2.4:1.8):(run?1.4:.65);
     const lean=dx*(run?.035:.012),roll=wave*(heavy?.012:slime?.012:run?.022:.012);
-    return {x:0,y:-lift*amplitude,rotation:lean+roll,scaleX:slime?1+.035*(1-lift):1,scaleY:slime?1-.035*(1-lift):1};
+    const pose={x:0,y:-lift*amplitude,rotation:lean+roll,scaleX:slime?1+.035*(1-lift):1,scaleY:slime?1-.035*(1-lift):1};
+    return registerLocomotionPose(pose,definition,frame,action,facing);
   }
   if(action==='attack'&&actor.action){
     const a=actor.action;if(now<a.started_at||now>=a.ends_at||a.outcome==='cancelled')return STILL_POSE;

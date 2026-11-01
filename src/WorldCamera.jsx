@@ -11,7 +11,7 @@ const campView=()=>cameraView({x:11.5/WORLD_MAP.width,y:8.5/WORLD_MAP.height},2)
 export default function WorldCamera({children,speech,status}){
   const camera=useContext(CameraContext),frame=useRef(null),pointers=useRef(new Map()),gesture=useRef(null),suppressClick=useRef(false);
   const[scale,setScale]=useState(1),[view,setView]=useState(campView),[fullscreen,setFullscreen]=useState(false),[notice,setNotice]=useState('');
-  const now=usePixelNow(camera?.now||0,!!camera?.live&&camera?.agent?.status==='active');
+  const now=usePixelNow(camera?.now||0,!!camera?.live&&camera?.agent?.status==='active',camera?.agent);
   const point=camera?.agent?confirmedPosition(camera.agent,now,!!camera.live):camera?.point;
   const map=camera?.map||WORLD_MAP;
   const rendered=point?cameraView({x:(point.x+.5)/map.width,y:(point.y+.5)/map.height},view.zoom):view;

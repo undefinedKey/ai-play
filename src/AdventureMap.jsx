@@ -37,7 +37,7 @@ function MonsterUnit({ monster, agents, events, now, map, live }) {
     if(old&&next&&(old.x!==next.x||old.y!==next.y))setMovement({at:Date.now(),facing:movementFacing(old,next)});
     previous.current=next;
   },[monster.position?.x,monster.position?.y]);
-  const actionNow=usePixelNow(now,live&&monster.status==='alive');
+  const actionNow=usePixelNow(now,live&&monster.status==='alive',monster);
   const action=monsterAction(monster,events,actionNow,Date.now()-movement.at<900);
   const position=confirmedPosition(monster,actionNow,live&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const facing=actorFacing(monster,action,actionNow,movement.facing);

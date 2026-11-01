@@ -67,7 +67,7 @@ const publicActivity = activity => activity ? {
 
 export class World extends EventEmitter {
   constructor({ dbPath = ':memory:', now = Date.now, actionIntervalMs = 2000 } = {}) {
-    super(); this.now = now; this.actionIntervalMs = actionIntervalMs;
+    super(); this.now = now; this.actionIntervalMs = actionIntervalMs; this.simulationTime = now();
     if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new DatabaseSync(dbPath);
     this.db.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS world_state (id INTEGER PRIMARY KEY CHECK (id=1), payload TEXT NOT NULL)');
@@ -282,7 +282,7 @@ export class World extends EventEmitter {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
       cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(), resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
-      events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), server_time: this.now() });
+      events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), simulation_time: this.simulationTime, server_time: this.now() });
   }
   ownerSnapshot() {
     const snap = this.publicSnapshot();
@@ -293,7 +293,7 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.23.1-survival', recommended_skill_version: '0.23.1', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.23.2-survival', recommended_skill_version: '0.23.2', max_capabilities: 16, personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
@@ -707,6 +707,7 @@ export class World extends EventEmitter {
   }
   tick() {
     let changed = false; const now = this.now();
+    this.simulationTime = now;
     let motionChanged = false;
     if (now >= this.historyMaintenanceAt) { changed = pruneHistory(this) || changed; this.historyMaintenanceAt = now + 60000; }
     const fatigueRecovery = captureFatigueRecovery(this);

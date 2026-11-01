@@ -79,7 +79,10 @@ test('v019画布按权威攻击阶段选帧，未结算不假命中，受击与�
  await page.getByTestId(`adventure-agent-${a.agent.agent_id}`).click();await page.getByRole('button',{name:'关注角色',exact:true}).click();
  await page.clock.install({time:new Date(clock-1000)});await page.clock.pauseAt(new Date(clock));
  const sprite=page.getByTestId(`adventure-agent-${a.agent.agent_id}`).locator('.pixel-character');
- const publish=async action=>{raw.action=action;app.world.commit();await page.clock.runFor(34);};
+ // This isolated renderer fixture disables world.tick and manually settles
+ // confirmed actions. Its public simulation timestamp must advance with that
+ // settlement, just as the real engine does; send time alone is not simulation.
+ const publish=async action=>{raw.action=action;app.world.simulationTime=clock;app.world.commit();await page.clock.runFor(34);};
  const attack={action_id:'visual-timeline',type:'attack',scene_id:'adventure',target_id:'forest_slime',target_kind:'monster',facing:'north',started_at:clock-80,impact_at:clock+400,ends_at:clock+1200,phase:'prepare',outcome:null,damage:0,resolved_at:null};
  await publish(attack);await expect(sprite).toHaveAttribute('data-action','attack');await expect(sprite).toHaveAttribute('data-facing','north');await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-pose-frame','0');
  await page.clock.runFor(220);await expect(sprite.locator('.pixel-sprite').first()).toHaveAttribute('data-pose-frame','1');

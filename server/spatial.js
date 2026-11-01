@@ -104,14 +104,19 @@ export function advanceMovement(a, now, { until = now, maxDistance = Infinity, o
   if (next >= total-1e-8 || now >= until && until < now || next < desired) stopMovement(a,now);
   return next !== previous;
 }
-export function publicPath(sceneId, path) {
-  if (!Array.isArray(path) || path.length < 1 || path.length > 6 || !path.every(p => isWalkable(sceneId, p)) ||
+function publicRoute(sceneId, path, maxPoints) {
+  if (!Array.isArray(path) || path.length < 1 || path.length > maxPoints || !path.every(p => isWalkable(sceneId, p)) ||
     path.some((p, i) => i > 0 && (!(p.x===path[i-1].x || p.y===path[i-1].y) || metric(p,path[i-1]) > 1 || !metric(p,path[i-1])))) return null;
   return path.map(({ x, y }) => ({ x, y }));
 }
+export function publicPath(sceneId, path) { return publicRoute(sceneId, path, 6); }
 export function publicMovement(a) {
   const m = a.movement;
-  if (!m || m.version !== 2 || typeof m.movement_id!=='string' || m.movement_id.length>100 || m.scene_id !== a.scene_id || !publicPath(m.scene_id, m.path) || !Number.isSafeInteger(m.started_at) || m.started_at < 0 || !Number.isSafeInteger(m.duration_ms) || m.duration_ms < 1 || m.duration_ms > 10000 || !MOVEMENT_RULES.modes[m.mode] || m.speed!==MOVEMENT_RULES.modes[m.mode].speed || m.ends_at!==m.started_at+m.duration_ms) return null;
+  // A finite trip may span the map; the old short action-hint limit dropped
+  // its entire timeline and made an actually running actor slide in idle pose.
+  // Bound routes by map size (plus fractional start/end), validate every edge,
+  // and derive duration from the real route and permitted speed instead.
+  if (!m || m.version !== 2 || typeof m.movement_id!=='string' || m.movement_id.length>100 || m.scene_id !== a.scene_id || !publicRoute(m.scene_id, m.path, WORLD_MAP.width*WORLD_MAP.height+2) || !Number.isSafeInteger(m.started_at) || m.started_at < 0 || !Number.isSafeInteger(m.duration_ms) || m.duration_ms < 1 || !MOVEMENT_RULES.modes[m.mode] || m.speed!==MOVEMENT_RULES.modes[m.mode].speed || m.duration_ms!==Math.ceil(pathLength(m.path)/m.speed*1000) || !Number.isSafeInteger(m.ends_at) || m.ends_at!==m.started_at+m.duration_ms) return null;
   return { version:2, movement_id:m.movement_id, scene_id:m.scene_id, path:m.path.map(({x,y})=>({x,y})), started_at:m.started_at, ends_at:m.ends_at, duration_ms:m.duration_ms, mode:m.mode, speed:m.speed };
 }
 export function publicAction(a) {

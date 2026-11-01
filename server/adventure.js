@@ -145,10 +145,14 @@ export function startAdventure(world, a, payload, fail) {
   return { adventure: publicFighter(a) };
 }
 function moveToward(a, target, world) {
-  if (a.movement) return true;
+  // Keep the real route to this already authorized destination. Publishing a
+  // fresh one-tile trip each tick made observers stop at every waypoint before
+  // the next snapshot. A moving hunt target still replans from the settled
+  // position; no guessed target, route extension, speed or goal is introduced.
+  if (a.movement && distance(a.movement.path.at(-1), target)<1e-8) return true;
   const path = findPath(a.scene_id || 'adventure', a.position, target);
   if (!path || path.length < 2) return false;
-  if (world) { recordMovement(a, path.slice(0, 2), world.now(),a.adventure?.plan?.mode); }
+  if (world) { recordMovement(a, path, world.now(),a.adventure?.plan?.mode); }
   else a.position = path[1];
   return true;
 }
