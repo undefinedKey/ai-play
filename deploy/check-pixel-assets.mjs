@@ -4,6 +4,7 @@ import {resolve,dirname,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {SCENES,WORLD_MAP,isWalkable} from '../shared/world-layout.js';
+import {PAPER_DOLL_PARTS} from '../src/paper-doll-rig.js';
 
 // Check shipped originals and Vite's copy without an image authoring runtime.
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -90,6 +91,14 @@ for(const directory of ['public','dist']){
     point(entry.anchor||entry.frame.anchor,entry.frame,`${image}:${name}.anchor`);
   }
   const body=manifest.characters.wanderer_1;
+  const rig=manifest.paper_dolls?.feiyu_v1;
+  assert.equal(rig?.enabled,true,`${directory}: Feiyu prototype absent`);
+  assert.deepEqual(rig.eligible_agent_ids,['agent_8afc5902-688e-42b6-953c-0544d0be6bd5']);
+  for(const direction of directions){
+    const parts=rig.directions?.[direction]?.parts;
+    assert.deepEqual(Object.keys(parts||{}).sort(),[...PAPER_DOLL_PARTS].sort(),`${directory}: incomplete ${direction} skeleton`);
+    for(const part of Object.values(parts))assert.ok(Number.isFinite(part.rest_rotation),`${directory}: missing measured source axis`);
+  }
   assert.equal(Object.keys(manifest.characters).length,8);
   for(let i=1;i<=8;i++)assert.ok(manifest.characters[`wanderer_${i}`],`persisted wanderer_${i}`);
   for(const[group,ids]of Object.entries({equipment:['wooden_sword','iron_sword','wooden_shield','iron_armor','hunter_bow','heavy_hammer','heavy_armor'],accessories:['leaf','scarf','ribbon','star']}))for(const id of ids)assert.ok(manifest[group]?.[id],`${group}.${id}`);

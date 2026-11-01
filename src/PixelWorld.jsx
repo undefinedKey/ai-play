@@ -10,11 +10,13 @@ import {RESOURCE_NODES} from '../shared/resources-layout.js';
 import {spriteAttachment,spriteGeometry,spriteNativeScale} from './render-packet.js';
 import {sampleGait,animationDuration,gatheringFrameTime,actorAnimationAction,actorVisualPose,settlePose,STILL_POSE} from './actor-motion.js';
 import {samplePresentationClock} from './presentation-clock.js';
+import {PaperDollCharacter,usePaperDollReady} from './PaperDollCharacter.jsx';
+import {selectPaperDoll} from './paper-doll-render.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.23.2').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.24.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -68,6 +70,7 @@ export function useActorMotion(actor,action,now,{enabled=false,facing='south',de
   const gait=useRef(null),transition=useRef(null);
   const playing=enabled&&!document.hidden&&!reducedMotion();
   const timeline=actionPose(actor,action,now,events);
+  const actionElapsed=timeline.elapsed;
   let phase=0;
   if(playing&&['walk','run'].includes(action)){
     const sampled=sampleGait(actor,now,gait.current);gait.current=sampled.state;phase=sampled.phase;
@@ -77,24 +80,24 @@ export function useActorMotion(actor,action,now,{enabled=false,facing='south',de
   if((action==='gather'||action==='plant'&&job?.intent==='plant')&&Number.isFinite(timeline.elapsed))timeline.elapsed=gatheringFrameTime(actor,timeline.elapsed,definition,animationAction,facing);
   const frame=Number.isInteger(timeline.frame)?actionFrame(definition,animationAction,facing,timeline.frame):animationFrame(definition,animationAction,timeline.elapsed??0,playing,facing);
   const target=actorVisualPose(actor,action,now,{facing,gaitPhase:phase,enabled:playing,definition,frame});
-  if(!playing){transition.current=null;return {...timeline,pose:STILL_POSE};}
+  if(!playing){transition.current=null;return {...timeline,actionElapsed,gaitPhase:0,playing:false,pose:STILL_POSE};}
   const settled=settlePose(transition.current,action,target,now);transition.current=settled.state;
-  return {...timeline,pose:settled.pose};
+  return {...timeline,actionElapsed,gaitPhase:phase,playing:true,pose:settled.pose};
 }
 
-export function PixelSprite({ definition, action = 'idle', animationAction=action, animate = false, facing = 'south', startedAt, sampledElapsed, poseFrame, visualPose, className = '', itemId, toolLevel, attachTo }) {
+export function PixelSprite({ definition, action = 'idle', animationAction=action, animate = false, facing = 'south', startedAt, sampledElapsed, poseFrame, visualPose, className = '', itemId, toolLevel, attachTo,sourceFrame,layer:explicitLayer,rigPart,attachmentSlot,textureDependency,sourceRotation }) {
   const clock = useSyncExternalStore(animate ? subscribeFrames : noSubscribe, () => animate ? frameClock : 0, () => 0);
   const started = useRef(Date.now());
   const prior = useRef(action);
   if (prior.current !== action) { prior.current = action; started.current = Date.now(); }
   const selectFrame=source=>Number.isInteger(poseFrame)?actionFrame(source,animationAction,facing,poseFrame):animationFrame(source, animationAction, sampledElapsed??Math.max(0, clock - (startedAt ?? started.current)), sampledElapsed!==undefined?!reducedMotion():animate && clock > 0, facing);
-  const frame=selectFrame(definition),attachment=attachTo&&definition?.render_style==='ink'?spriteAttachment(attachTo.definition,selectFrame(attachTo.definition),definition.attachment_slot||attachTo.slot,facing):null;
-  const layer=className.includes('pixel-tool')?(facing==='north'?-.03:.04):className.includes('pixel-weapon')?(facing==='north'?-.02:.03):className.includes('pixel-armor')?.01:className.includes('pixel-accessory')?.02:0;
+  const frame=sourceFrame||selectFrame(definition),attachment=attachTo&&definition?.render_style==='ink'?spriteAttachment(attachTo.definition,selectFrame(attachTo.definition),definition.attachment_slot||attachTo.slot,facing):textureDependency||Number.isFinite(sourceRotation)?{image:textureDependency,rotation:sourceRotation||0}:null;
+  const layer=Number.isFinite(explicitLayer)?explicitLayer:className.includes('pixel-tool')?(facing==='north'?-.03:.04):className.includes('pixel-weapon')?(facing==='north'?-.02:.03):className.includes('pixel-armor')?.01:className.includes('pixel-accessory')?.02:0;
   const worldGeometry=useRenderSprite(definition,frame,{facing,action,layer,attachment,pose:visualPose});
   if (!definition || !frame) return <span className={`pixel-sprite pixel-placeholder ${className}`} aria-hidden="true" data-asset-missing="true"/>;
   const unit=spriteNativeScale(definition,frame),ink=definition.render_style==='ink'||definition.native_scale;
-  const logical=definition.logical_anchor,anchored=!!logical||!!worldGeometry&&['pixel-landmark','pixel-discovery'].includes(className),geometry=worldGeometry||(attachment||logical||visualPose?spriteGeometry(definition,frame,logical?[logical.x,logical.y]:[24,43],facing,attachment,visualPose):null);
-  return <span aria-hidden="true" className={`pixel-sprite ${ink?'ink-sprite':''} ${className}`} data-art-style={ink?'ink':'pixel'} data-pixel-action={action} data-animation-action={animationAction} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} style={{ position:anchored?'absolute':undefined,left:anchored?0:undefined,top:anchored?0:undefined,'--frame-w': `${frame.w*unit}px`, '--frame-h': `${frame.h*unit}px`, backgroundImage: `url("${frame.image||definition.image}")`, backgroundSize: `calc(${(frame.sheet_width||definition.sheet_width)*unit}px * var(--pixel-scale, 1)) calc(${(frame.sheet_height||definition.sheet_height)*unit}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x*unit}px * var(--pixel-scale, 1)) calc(${-frame.y*unit}px * var(--pixel-scale, 1))`,translate:geometry?`calc(${geometry.offset.x}px * var(--pixel-scale,1)) calc(${geometry.offset.y}px * var(--pixel-scale,1))`:undefined,transformOrigin:geometry?`calc(${geometry.domAnchor[0]*unit}px * var(--pixel-scale,1)) calc(${geometry.domAnchor[1]*unit}px * var(--pixel-scale,1))`:undefined,transform:geometry?.matrix?`matrix(${geometry.matrix.join(',')},0,0)`:`scaleX(${facing==='west'?-1:1})` }}/>
+  const logical=definition.logical_anchor,anchored=!!logical||!!rigPart||!!attachmentSlot||!!worldGeometry&&['pixel-landmark','pixel-discovery'].includes(className),geometry=worldGeometry||(attachment||logical||visualPose?spriteGeometry(definition,frame,logical?[logical.x,logical.y]:[24,43],facing,attachment,visualPose):null);
+  return <span aria-hidden="true" className={`pixel-sprite ${ink?'ink-sprite':''} ${className}`} data-art-style={ink?'ink':'pixel'} data-pixel-action={action} data-animation-action={animationAction} data-facing={facing} data-pose-frame={Number.isInteger(poseFrame)?poseFrame:undefined} data-playing={animate && clock > 0 ? 'true' : 'false'} data-item={itemId} data-tool-level={toolLevel} data-rig-part={rigPart} data-source-rotation={rigPart?sourceRotation:undefined} data-attachment-slot={attachmentSlot} data-rig-x={rigPart||attachmentSlot?visualPose?.x:undefined} data-rig-y={rigPart||attachmentSlot?visualPose?.y:undefined} data-rig-rotation={rigPart||attachmentSlot?visualPose?.rotation:undefined} style={{ zIndex:Number.isFinite(explicitLayer)?Math.round(explicitLayer*10000):undefined,position:anchored?'absolute':undefined,left:anchored?0:undefined,top:anchored?0:undefined,'--frame-w': `${frame.w*unit}px`, '--frame-h': `${frame.h*unit}px`, backgroundImage: `url("${frame.image||definition.image}")`, backgroundSize: `calc(${(frame.sheet_width||definition.sheet_width)*unit}px * var(--pixel-scale, 1)) calc(${(frame.sheet_height||definition.sheet_height)*unit}px * var(--pixel-scale, 1))`, backgroundPosition: `calc(${-frame.x*unit}px * var(--pixel-scale, 1)) calc(${-frame.y*unit}px * var(--pixel-scale, 1))`,translate:geometry?`calc(${geometry.offset.x}px * var(--pixel-scale,1)) calc(${geometry.offset.y}px * var(--pixel-scale,1))`:undefined,transformOrigin:geometry?`calc(${geometry.domAnchor[0]*unit}px * var(--pixel-scale,1)) calc(${geometry.domAnchor[1]*unit}px * var(--pixel-scale,1))`:undefined,transform:geometry?.matrix?`matrix(${geometry.matrix.join(',')},0,0)`:`scaleX(${facing==='west'?-1:1})` }}/>
 }
 
 export function CharacterSprite({ agent, events = [], now = Date.now(), live = false, className = '', portrait = false }) {
@@ -105,9 +108,10 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const sceneEvents=events.filter(event=>(event.payload?.scene_id??event.scene_id)===agent.scene_id || (agent.scene_id==='plaza'&&event.type==='cooperation_completed'&&event.payload?.template_id==='camp_meal'));
   const walking=path?.length>1&&actionNow>=agent.movement.started_at&&actionNow<agent.movement.started_at+agent.movement.duration_ms;
   const action = !portrait ? characterAction(agent, sceneEvents, actionNow, walking) : 'idle';
-  const facing=actorFacing(agent,action,actionNow,path?.length>1?movementFacing(path.at(-2),path.at(-1)):'south');
+  const facing=portrait?'south':actorFacing(agent,action,actionNow,path?.length>1?movementFacing(path.at(-2),path.at(-1)):'south');
   const id = agent.appearance?.sprite_id;
   const sprite = assets?.characters?.[id];
+  const selectedRig=selectPaperDoll(assets,agent),rigReady=usePaperDollReady(selectedRig);
   const animationAction=actorAnimationAction(agent,action);
   const timeline=useActorMotion(agent,action,actionNow,{enabled:active,facing,definition:sprite,events:sceneEvents,animationAction});
   const key = characterActionKey(agent, sceneEvents, action);
@@ -119,11 +123,13 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const tool = ['hoe','watering_can','axe','pickaxe'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
   const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
-  return <span className={`pixel-character ${className}`} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
+  return <span className={`pixel-character ${className}`} data-render-rig={rigReady?selectedRig.id:undefined} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
+    {rigReady?<PaperDollCharacter selection={selectedRig} agent={agent} assets={assets} action={action} now={actionNow} facing={facing} timeline={timeline} tool={tool} toolLevel={toolLevel} handsBusy={handsBusy} portrait={portrait} Sprite={PixelSprite}/>:<>
     <PixelSprite definition={sprite} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active && action !== 'idle'}/>
     {agent.appearance?.accessory_id && <PixelSprite className="pixel-layer pixel-accessory" attachTo={{definition:sprite,slot:'head'}} itemId={agent.appearance.accessory_id} definition={assets?.accessories?.[agent.appearance.accessory_id]} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active && action !== 'idle'}/>}
     {['armor', 'weapon'].map(slot => equipment[slot] && !(slot === 'weapon' && handsBusy) && <PixelSprite key={slot} className={`pixel-layer pixel-${slot}`} attachTo={{definition:sprite,slot:slot==='armor'?'chest':'hand'}} itemId={equipment[slot]} definition={assets?.equipment?.[equipment[slot]]} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active && action !== 'idle'}/>)}
     {tool && <PixelSprite className="pixel-layer pixel-tool" attachTo={{definition:sprite,slot:'hand'}} itemId={tool} toolLevel={toolLevel} definition={assets?.tools?.[`${tool}_${toolLevel}`]} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active}/>}
+    </>}
   </span>;
 }
 

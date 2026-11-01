@@ -381,6 +381,9 @@
 @media(max-width:600px){.survival-status{font-size:12px;gap:6px;padding:10px}.survival-status>div{width:100%}.survival-status progress{margin-left:auto}.fire-inspector details{font-size:12px}}
 
 .world-actor > .pixel-character,.world-actor > .pixel-character *{pointer-events:none}
+/* The canvas lives behind the DOM. Keep the prototype's selection mark thin
+   and unfilled so it cannot cover the animated shins and shoes. */
+.pixel-map .world-actor.selected>.pixel-character[data-render-rig]:after{left:50%;right:auto;bottom:calc(3px * var(--world-scale,1));width:calc(22px * var(--world-scale,1));height:calc(4px * var(--world-scale,1));transform:translateX(-50%);border:calc(.5px * var(--world-scale,1)) solid #ffe5a1;border-top-color:transparent;border-radius:50%;background:transparent;box-shadow:none}
 
 .world-camera .pixel-map .world-actor,.world-camera.focused .pixel-map .world-actor{width:min(calc(40px / var(--camera-zoom,1)),calc(48px * var(--world-scale,1)))}
 

@@ -1,0 +1,146 @@
+{
+  "frames": {
+    "head": {
+      "frame": {
+        "x": 19,
+        "y": 26,
+        "w": 467,
+        "h": 443,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 229,
+        "y": 419
+      }
+    },
+    "torso": {
+      "frame": {
+        "x": 545,
+        "y": 125,
+        "w": 280,
+        "h": 335,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 141,
+        "y": 273
+      }
+    },
+    "hip": {
+      "frame": {
+        "x": 956,
+        "y": 236,
+        "w": 250,
+        "h": 198,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 126,
+        "y": 108
+      }
+    },
+    "upper_arm": {
+      "frame": {
+        "x": 169,
+        "y": 529,
+        "w": 124,
+        "h": 283,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 80,
+        "y": 32
+      },
+      "distal": {
+        "x": 61,
+        "y": 264
+      }
+    },
+    "forearm": {
+      "frame": {
+        "x": 573,
+        "y": 553,
+        "w": 116,
+        "h": 255,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 56,
+        "y": 22
+      },
+      "distal": {
+        "x": 54,
+        "y": 236
+      }
+    },
+    "hand": {
+      "frame": {
+        "x": 972,
+        "y": 604,
+        "w": 124,
+        "h": 195,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 62,
+        "y": 14
+      }
+    },
+    "thigh": {
+      "frame": {
+        "x": 156,
+        "y": 879,
+        "w": 158,
+        "h": 312,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 79,
+        "y": 19
+      },
+      "distal": {
+        "x": 76,
+        "y": 295
+      }
+    },
+    "shin": {
+      "frame": {
+        "x": 566,
+        "y": 879,
+        "w": 121,
+        "h": 312,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 61,
+        "y": 17
+      },
+      "distal": {
+        "x": 61,
+        "y": 294
+      }
+    },
+    "foot": {
+      "frame": {
+        "x": 955,
+        "y": 949,
+        "w": 159,
+        "h": 248,
+        "duration": 1000
+      },
+      "anchor": {
+        "x": 82,
+        "y": 124
+      }
+    }
+  },
+  "meta": {
+    "image": "ink_feiyu_parts_south.png",
+    "size": {
+      "w": 1254,
+      "h": 1254
+    },
+    "source": "original-imagegen-transparent-parts",
+    "render_style": "ink"
+  }
+}

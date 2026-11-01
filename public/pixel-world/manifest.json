@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "0.23.2",
+  "release": "0.24.0",
   "tool": {
     "name": "Pixelbolt",
     "version": "0.10.0",
@@ -144753,5 +144753,1359 @@
       }
     }
   },
-  "render_style": "ink"
+  "render_style": "ink",
+  "paper_dolls": {
+    "feiyu_v1": {
+      "enabled": true,
+      "eligible_agent_ids": [
+        "agent_8afc5902-688e-42b6-953c-0544d0be6bd5"
+      ],
+      "dimensions": {
+        "hipHeight": 21.8,
+        "hipWidth": 3.2,
+        "shoulderWidth": 5.3,
+        "torso": 12,
+        "head": 20,
+        "upperArm": 7,
+        "forearm": 6,
+        "hand": 3,
+        "thigh": 10,
+        "shin": 10,
+        "sole": 3
+      },
+      "attachment_offsets": {
+        "head": {
+          "x": 0,
+          "y": -15
+        },
+        "chest": {
+          "x": 0,
+          "y": -6.6
+        },
+        "hand": {
+          "x": 0,
+          "y": 1.4
+        }
+      },
+      "directions": {
+        "east": {
+          "parts": {
+            "head": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 455,
+              "height": 502,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 226,
+                "y": 430
+              },
+              "native_scale": 0.046511627906976744,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 54,
+                      "y": 25,
+                      "w": 455,
+                      "h": 502,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "torso": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 264,
+              "height": 352,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 134,
+                "y": 277
+              },
+              "native_scale": 0.04838709677419355,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 563,
+                      "y": 183,
+                      "w": 264,
+                      "h": 352,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hip": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 238,
+              "height": 189,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 123,
+                "y": 92
+              },
+              "native_scale": 0.04201680672268908,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 929,
+                      "y": 308,
+                      "w": 238,
+                      "h": 189,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 143,
+              "height": 273,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 77,
+                "y": 28
+              },
+              "native_scale": 0.030400034941447995,
+              "rest_rotation": 0.04778967216477031,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 162,
+                      "y": 588,
+                      "w": 143,
+                      "h": 273,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 143,
+              "height": 273,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 77,
+                "y": 28
+              },
+              "native_scale": 0.030400034941447995,
+              "rest_rotation": 0.04778967216477031,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 162,
+                      "y": 588,
+                      "w": 143,
+                      "h": 273,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 116,
+              "height": 248,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 35,
+                "y": 29
+              },
+              "native_scale": 0.0291933648427041,
+              "rest_rotation": 0.12194099802886278,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 586,
+                      "y": 612,
+                      "w": 116,
+                      "h": 248,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 116,
+              "height": 248,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 35,
+                "y": 29
+              },
+              "native_scale": 0.0291933648427041,
+              "rest_rotation": 0.12194099802886278,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 586,
+                      "y": 612,
+                      "w": 116,
+                      "h": 248,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 109,
+              "height": 171,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 52,
+                "y": 16
+              },
+              "native_scale": 0.020134228187919462,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 989,
+                      "y": 670,
+                      "w": 109,
+                      "h": 171,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 109,
+              "height": 171,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 52,
+                "y": 16
+              },
+              "native_scale": 0.020134228187919462,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 989,
+                      "y": 670,
+                      "w": 109,
+                      "h": 171,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 138,
+              "height": 294,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 25,
+                "y": 43
+              },
+              "native_scale": 0.04559607525875531,
+              "rest_rotation": 0.17414393703941786,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 173,
+                      "y": 902,
+                      "w": 138,
+                      "h": 294,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 138,
+              "height": 294,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 25,
+                "y": 43
+              },
+              "native_scale": 0.04559607525875531,
+              "rest_rotation": 0.17414393703941786,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 173,
+                      "y": 902,
+                      "w": 138,
+                      "h": 294,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 100,
+              "height": 257,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 50,
+                "y": 19
+              },
+              "native_scale": 0.045033624524443004,
+              "rest_rotation": 0.022518715392743062,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 591,
+                      "y": 932,
+                      "w": 100,
+                      "h": 257,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 100,
+              "height": 257,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 50,
+                "y": 19
+              },
+              "native_scale": 0.045033624524443004,
+              "rest_rotation": 0.022518715392743062,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 591,
+                      "y": 932,
+                      "w": 100,
+                      "h": 257,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_l": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 223,
+              "height": 180,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 59,
+                "y": 90
+              },
+              "native_scale": 0.03333333333333333,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 948,
+                      "y": 1002,
+                      "w": 223,
+                      "h": 180,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_r": {
+              "image": "/pixel-world/ink_feiyu_parts_east.png",
+              "width": 223,
+              "height": 180,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 59,
+                "y": 90
+              },
+              "native_scale": 0.03333333333333333,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 948,
+                      "y": 1002,
+                      "w": 223,
+                      "h": 180,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "south": {
+          "parts": {
+            "head": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 467,
+              "height": 443,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 229,
+                "y": 419
+              },
+              "native_scale": 0.0477326968973747,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 19,
+                      "y": 26,
+                      "w": 467,
+                      "h": 443,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "torso": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 280,
+              "height": 335,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 141,
+                "y": 273
+              },
+              "native_scale": 0.046511627906976744,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 545,
+                      "y": 125,
+                      "w": 280,
+                      "h": 335,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hip": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 250,
+              "height": 198,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 126,
+                "y": 108
+              },
+              "native_scale": 0.04,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 956,
+                      "y": 236,
+                      "w": 250,
+                      "h": 198,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 124,
+              "height": 283,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 80,
+                "y": 32
+              },
+              "native_scale": 0.030071736077167906,
+              "rest_rotation": -0.0817141904026273,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 169,
+                      "y": 529,
+                      "w": 124,
+                      "h": 283,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 124,
+              "height": 283,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 80,
+                "y": 32
+              },
+              "native_scale": 0.030071736077167906,
+              "rest_rotation": -0.0817141904026273,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 169,
+                      "y": 529,
+                      "w": 124,
+                      "h": 283,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 116,
+              "height": 255,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 56,
+                "y": 22
+              },
+              "native_scale": 0.028036158810959867,
+              "rest_rotation": -0.0093455223074899,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 573,
+                      "y": 553,
+                      "w": 116,
+                      "h": 255,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 116,
+              "height": 255,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 56,
+                "y": 22
+              },
+              "native_scale": 0.028036158810959867,
+              "rest_rotation": -0.0093455223074899,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 573,
+                      "y": 553,
+                      "w": 116,
+                      "h": 255,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 124,
+              "height": 195,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 62,
+                "y": 14
+              },
+              "native_scale": 0.016666666666666666,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 972,
+                      "y": 604,
+                      "w": 124,
+                      "h": 195,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 124,
+              "height": 195,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 62,
+                "y": 14
+              },
+              "native_scale": 0.016666666666666666,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 972,
+                      "y": 604,
+                      "w": 124,
+                      "h": 195,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 158,
+              "height": 312,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 79,
+                "y": 19
+              },
+              "native_scale": 0.03622974389529111,
+              "rest_rotation": -0.01086913717727018,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 156,
+                      "y": 879,
+                      "w": 158,
+                      "h": 312,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 158,
+              "height": 312,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 79,
+                "y": 19
+              },
+              "native_scale": 0.03622974389529111,
+              "rest_rotation": -0.01086913717727018,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 156,
+                      "y": 879,
+                      "w": 158,
+                      "h": 312,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 121,
+              "height": 312,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 61,
+                "y": 17
+              },
+              "native_scale": 0.036101083032490974,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 566,
+                      "y": 879,
+                      "w": 121,
+                      "h": 312,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 121,
+              "height": 312,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 61,
+                "y": 17
+              },
+              "native_scale": 0.036101083032490974,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 566,
+                      "y": 879,
+                      "w": 121,
+                      "h": 312,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_l": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 159,
+              "height": 248,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 82,
+                "y": 124
+              },
+              "native_scale": 0.024193548387096774,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 955,
+                      "y": 949,
+                      "w": 159,
+                      "h": 248,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_r": {
+              "image": "/pixel-world/ink_feiyu_parts_south.png",
+              "width": 159,
+              "height": 248,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 82,
+                "y": 124
+              },
+              "native_scale": 0.024193548387096774,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 955,
+                      "y": 949,
+                      "w": 159,
+                      "h": 248,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "north": {
+          "parts": {
+            "head": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 438,
+              "height": 463,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 210,
+                "y": 420
+              },
+              "native_scale": 0.047619047619047616,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 40,
+                      "y": 19,
+                      "w": 438,
+                      "h": 463,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "torso": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 301,
+              "height": 344,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 150,
+                "y": 276
+              },
+              "native_scale": 0.046153846153846156,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 534,
+                      "y": 147,
+                      "w": 301,
+                      "h": 344,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hip": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 229,
+              "height": 197,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 113,
+                "y": 104
+              },
+              "native_scale": 0.043668122270742356,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 957,
+                      "y": 279,
+                      "w": 229,
+                      "h": 197,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 153,
+              "height": 297,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 106,
+                "y": 31
+              },
+              "native_scale": 0.02885451222909745,
+              "rest_rotation": -0.19497034229263135,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 154,
+                      "y": 554,
+                      "w": 153,
+                      "h": 297,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "upper_arm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 153,
+              "height": 297,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 106,
+                "y": 31
+              },
+              "native_scale": 0.02885451222909745,
+              "rest_rotation": -0.19497034229263135,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 154,
+                      "y": 554,
+                      "w": 153,
+                      "h": 297,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 115,
+              "height": 249,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 51,
+                "y": 26
+              },
+              "native_scale": 0.029369099844643594,
+              "rest_rotation": 0.05386939998043551,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 610,
+                      "y": 594,
+                      "w": 115,
+                      "h": 249,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "forearm_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 115,
+              "height": 249,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 51,
+                "y": 26
+              },
+              "native_scale": 0.029369099844643594,
+              "rest_rotation": 0.05386939998043551,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 610,
+                      "y": 594,
+                      "w": 115,
+                      "h": 249,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 105,
+              "height": 157,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 50,
+                "y": 23
+              },
+              "native_scale": 0.022556390977443608,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 997,
+                      "y": 650,
+                      "w": 105,
+                      "h": 157,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "hand_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 105,
+              "height": 157,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 50,
+                "y": 23
+              },
+              "native_scale": 0.022556390977443608,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 997,
+                      "y": 650,
+                      "w": 105,
+                      "h": 157,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 143,
+              "height": 321,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 75,
+                "y": 46
+              },
+              "native_scale": 0.038458978407649336,
+              "rest_rotation": -0.011537949517459409,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 169,
+                      "y": 892,
+                      "w": 143,
+                      "h": 321,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "thigh_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 143,
+              "height": 321,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 75,
+                "y": 46
+              },
+              "native_scale": 0.038458978407649336,
+              "rest_rotation": -0.011537949517459409,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 169,
+                      "y": 892,
+                      "w": 143,
+                      "h": 321,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 106,
+              "height": 264,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 54,
+                "y": 17
+              },
+              "native_scale": 0.043289637662011125,
+              "rest_rotation": 0.004328977287059503,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 608,
+                      "y": 928,
+                      "w": 106,
+                      "h": 264,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "shin_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 106,
+              "height": 264,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 54,
+                "y": 17
+              },
+              "native_scale": 0.043289637662011125,
+              "rest_rotation": 0.004328977287059503,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 608,
+                      "y": 928,
+                      "w": 106,
+                      "h": 264,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_l": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 155,
+              "height": 240,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 79,
+                "y": 120
+              },
+              "native_scale": 0.025,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 978,
+                      "y": 975,
+                      "w": 155,
+                      "h": 240,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            },
+            "foot_r": {
+              "image": "/pixel-world/ink_feiyu_parts_north.png",
+              "width": 155,
+              "height": 240,
+              "sheet_width": 1254,
+              "sheet_height": 1254,
+              "render_style": "ink",
+              "anchor_mode": "source",
+              "anchor": {
+                "x": 79,
+                "y": 120
+              },
+              "native_scale": 0.025,
+              "rest_rotation": 0,
+              "animations": {
+                "idle": {
+                  "loop": false,
+                  "frames": [
+                    {
+                      "x": 978,
+                      "y": 975,
+                      "w": 155,
+                      "h": 240,
+                      "duration": 1000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

@@ -3,6 +3,7 @@ import {resolve} from 'node:path';
 import {applyInkFarmEffects} from './farm-effects.mjs';
 import {applyInkInventory} from './inventory.mjs';
 import {applyInkActors} from './actors.mjs';
+import {applyFeiyuPaperDoll} from './paper-doll.mjs';
 
 // Original imagegen sheets are copied byte-for-byte. Only measured rectangular
 // source frames and their actual contact points are described here.
@@ -66,9 +67,10 @@ export function applyInkWorldAssets(manifest,root){
   Object.assign(manifest.landmarks,{wood:environment.branches,ore:environment.stones,kitchen:buildings.kitchen,supply:buildings.supply});
   const ground={image:'/pixel-world/ink_ground.png',width:1536,height:1024,render_style:'ink',terrain_overlay:true};
   publish(resolve(directory,'ink_ground.atlas.json'),JSON.stringify({frames:{world:{frame:{x:0,y:0,w:1536,h:1024},anchor:{x:0,y:0}}},meta:{image:'ink_ground.png',size:{w:1536,h:1024},source:'original-imagegen-walkable-ground',render_style:'ink'}},null,2)+'\n');
-  Object.assign(manifest,{release:'0.23.2',render_style:'ink',map:{width:48,height:32},scene:{...ground},scenes:{plaza:{...ground},adventure:{...ground}}});
+  Object.assign(manifest,{release:'0.24.0',render_style:'ink',map:{width:48,height:32},scene:{...ground},scenes:{plaza:{...ground},adventure:{...ground}}});
   applyInkFarmEffects(manifest,root);
   applyInkActors(manifest,root);
   applyInkInventory(manifest,root);
+  applyFeiyuPaperDoll(manifest,root);
   return manifest;
 }
