@@ -1,4 +1,4 @@
-import { homeLightUntil, cancelHomeTravel, detachHomes } from './homes.js';
+import { homeLightUntil, cancelHomeTravel, cancelHomeUse, detachHomes } from './homes.js';
 import { randomUUID } from 'node:crypto';
 import { SURVIVAL_RULES, siteDefinition, fireDefinition, fireFuel, publicFire, publicSurvival, publicSurvivor, initializeSurvivor, survivalLight, survivalPhaseAt, survivalRound } from './survival-state.js';
 import { adjustInventory, cancelGather } from './life.js';
@@ -169,7 +169,7 @@ function environmentHit(world, a, kind, damage) {
   a.adventure.hp = Math.max(0, a.adventure.hp - damage);
   a.hurt = { action_id: `environment_${randomUUID()}`, started_at: world.now(), ends_at: world.now() + 360, damage };
   cancelGather(world, a, 'hurt'); cancelSurvivalTravel(world, a, 'hurt');
-  cancelHomeTravel(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
+  cancelHomeTravel(world, a, 'hurt'); cancelHomeUse(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
   stopAdventure(world, a, 'needs_decision', '环境风险中断了当前计划，请自主选择应对方式');
   stopMovement(a, world.now()); world.finishActivity(a, { cancelled: true, interrupted: true });
   announce(world, a, 'survival_damage', { kind, damage, hp: a.adventure.hp }, `${a.name}受到${kind === 'darkness' ? '黑暗' : '饥饿'}影响，损失${damage}点生命`);

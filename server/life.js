@@ -85,6 +85,15 @@ const starter = { turnip_seed: 3, wheat_seed: 3, wood: 3 };
 const plain = value => value && typeof value === 'object' && !Array.isArray(value);
 const validQuantity = value => Number.isSafeInteger(value) && value >= 0;
 const count = (a, item) => validQuantity(a.life?.inventory?.[item]) ? a.life.inventory[item] : 0;
+/** Shared validation for immediate inventory meals and explicitly chosen furniture meals. */
+export function foodUseAvailable(a, itemId, fail) {
+  const item = byId.get(itemId);
+  if (item?.kind !== 'food') fail('INVALID_ACTION', '只有食物可以使用');
+  if (!count(a, item.id)) fail('INSUFFICIENT_ITEMS', '仓库中没有这份食物');
+  if (!a.adventure || !Number.isFinite(a.adventure.hp) || !Number.isFinite(a.adventure.max_hp)) fail('INVALID_ACTION', '角色生命状态不可用');
+  if (!(item.heal > 0 && a.adventure.hp < a.adventure.max_hp || item.energy_restore > 0 && a.fatigue.energy < 100 || foodWouldRestoreSatiety(a, item))) fail(item.energy_restore ? 'FULL_ENERGY' : 'FULL_HEALTH', '这份食物能恢复的生命、体力和饱食状态均已满，未消耗食物');
+  return item;
+}
 const time = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 const emptyPlot = plot_id => ({ plot_id, tilled: false, tilled_at: null, crop_id: null, planted_at: null, watered_at: null, ready_at: null, ready_notified: false });
 const ready = (plot, now) => plot.crop_id !== null && Number.isSafeInteger(plot.ready_at) && plot.ready_at <= now;
@@ -269,10 +278,7 @@ export function performLife(world, a, type, payload, fail) {
       a.life.equipment[item.slot] = item.id;
       announce(world, a, 'life_equipped', `${a.name}装备了${item.name}`, { item_id: item.id, slot: item.slot });
     } else {
-      if (item.kind !== 'food') fail('INVALID_ACTION', '只有食物可以使用');
-      if (!count(a, item.id)) fail('INSUFFICIENT_ITEMS', '仓库中没有这份食物');
-      if (!a.adventure || !Number.isFinite(a.adventure.hp) || !Number.isFinite(a.adventure.max_hp)) fail('INVALID_ACTION', '角色生命状态不可用');
-      if (!(item.heal > 0 && a.adventure.hp < a.adventure.max_hp || item.energy_restore > 0 && a.fatigue.energy < 100 || foodWouldRestoreSatiety(a, item))) fail(item.energy_restore ? 'FULL_ENERGY' : 'FULL_HEALTH', '这份食物能恢复的生命、体力和饱食状态均已满，未消耗食物');
+      foodUseAvailable(a, item.id, fail);
       adjustInventory(a, { [item.id]: -1 }, fail);
       applyFoodSatiety(a, item.satiety_restore, world.now());
       a.adventure.hp = Math.min(a.adventure.max_hp, a.adventure.hp + (item.heal || 0));

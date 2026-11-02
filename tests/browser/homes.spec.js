@@ -109,3 +109,95 @@ test('v025 disconnected interior freezes confirmed position and keeps real furni
   await expect(page.getByTestId('home-view')).toContainText('仅显示最近确认的布置和位置');
   await page.getByTestId('home-view').screenshot({ path: 'artifacts/v025-home-disconnected.png' });
 });
+
+async function enableHomeRig(page, id) {
+  const manifest = await (await fetch(f.base + '/pixel-world/manifest.json')).json();
+  manifest.paper_dolls.feiyu_v1.eligible_agent_ids = [id];
+  await page.route('**/pixel-world/manifest.json*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) }));
+}
+
+test('v026 an original AI walks to furniture before sitting, eating, reading and resting; spectators only inspect', async ({ page }) => {
+  test.setTimeout(120000);
+  const p = await f.actor('自在生活的旅人', { starterItems: { turnip: 3 } }), home = await house(p, '有风也有灯的小屋', true);
+  const own = () => f.app.world.state.homes[home];
+  for (const [kind, x, y] of [['bed', 7, 5], ['bookshelf', 5, 0]]) {
+    await p.act('home', { intent: 'craft', kind });
+    const item = (await p.observe()).homes.own_home.storage.find(i => i.kind === kind);
+    await p.act('home', { intent: 'place', instance_id: item.instance_id, x, y });
+  }
+  await enableHomeRig(page, p.id);
+  const errors = [], writes = []; page.on('pageerror', e => errors.push(e.message));
+  page.on('request', req => { if (req.url().startsWith(f.base) && !['GET', 'HEAD'].includes(req.method())) writes.push(req.url()); });
+  await page.goto(`${f.base}/watch?view=home&home=${home}`);
+  const actor = page.getByTestId(`home-actor-${p.id}`), character = actor.locator('.pixel-character');
+  await expect(character).toHaveAttribute('data-render-rig', 'feiyu_v1');
+  const identity = p.raw.appearance.sprite_id;
+  for (const [kind, furnitureKind] of [['sit', 'chair'], ['eat', 'table'], ['read', 'bookshelf'], ['rest', 'bed']]) {
+    const item = own().furniture.find(item => item.kind === furnitureKind);
+    if (kind === 'eat') { p.raw.survival.satiety = 60; p.raw.adventure.hp = Math.max(1, p.raw.adventure.max_hp - 15); f.app.world.commit(); }
+    const food = p.raw.life.inventory.turnip;
+    await p.act('home', { intent: 'use', instance_id: item.instance_id, activity: kind, ...(kind === 'eat' ? { item_id: 'turnip' } : {}) });
+    if (p.raw.home_presence.activity.phase === 'approaching') {
+      await expect(actor).toHaveAttribute('data-home-phase', 'approaching');
+      await expect(page.getByTestId('home-current-activity')).toContainText('抵达后才开始');
+      await expect(actor.locator('[data-home-prop]')).toHaveCount(0);
+      expect(p.raw.life.inventory.turnip).toBe(food);
+    }
+    await f.until(() => p.raw.home_presence?.activity?.phase === 'using');
+    await f.advance(800);
+    await expect(actor).toHaveAttribute('data-home-phase', 'using');
+    await expect(character).toHaveAttribute('data-action', kind);
+    await expect(character).toHaveAttribute('data-sprite-id', identity);
+    await expect(character).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(character).toHaveCSS('overflow', 'visible');
+    const position = { ...p.raw.home_presence.position };
+    await expect(actor).toHaveAttribute('data-foot-x', String(position.x));
+    await expect(actor).toHaveAttribute('data-foot-y', String(position.y));
+    if (kind === 'sit' || kind === 'rest') {
+      const visualAnchor = await character.evaluate(node => getComputedStyle(node).translate);
+      expect(visualAnchor).not.toBe('none');
+      await expect(page.locator('.home-actor-label')).toHaveCSS('translate', visualAnchor);
+    }
+    if (kind === 'eat') { expect(p.raw.life.inventory.turnip).toBe(food - 1); await expect(actor.locator('[data-home-prop="bowl"]')).toBeVisible(); }
+    if (kind === 'read') {
+      await expect(actor.locator('[data-home-prop="book"]')).toBeAttached();
+      await page.getByTestId('home-reading').locator('summary').click();
+      const reading = (await p.observe()).self.home_presence.activity.reading;
+      await expect(page.getByTestId('home-reading')).toContainText(reading.text);
+      await expect(page.getByTestId('home-reading')).toContainText(reading.source);
+    }
+    await page.getByRole('button', { name: `查看家具：${{ chair: '木椅', table: '木桌', bookshelf: '书架', bed: '木床' }[furnitureKind]}`, exact: true }).click();
+    await expect(page.getByTestId('home-furniture-detail')).toContainText('正在使用');
+    for (const [width, height] of [[1440, 1000], [390, 844]]) {
+      await page.setViewportSize({ width, height }); await accessible(page);
+      await page.getByTestId('home-view').screenshot({ path: `artifacts/v026-home-${kind}-${width}.png` });
+    }
+    await p.act('home', { intent: 'cancel' });
+    await expect(actor).not.toHaveAttribute('data-home-phase', 'using');
+    expect(p.raw.home_presence.position).toEqual(position);
+  }
+  expect(errors).toEqual([]); expect(writes).toEqual([]);
+  await expect(page.locator('body')).not.toContainText(p.goal);
+  await expect(page.locator('.resident-list')).toHaveCount(0);
+});
+
+test('v026 use pose and real furnishings remain static in disconnected and reduced motion views', async ({ page }) => {
+  const p = await f.actor('安静阅读的旅人'), home = await house(p, '书页停下的家', true);
+  const chair = f.app.world.state.homes[home].furniture.find(item => item.kind === 'chair');
+  await p.act('home', { intent: 'use', instance_id: chair.instance_id, activity: 'read' });
+  await f.until(() => p.raw.home_presence?.activity?.phase === 'using'); await f.advance(800);
+  await enableHomeRig(page, p.id);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${f.base}/watch?view=home&home=${home}`);
+  const actor = page.getByTestId(`home-actor-${p.id}`), rig = actor.locator('.paper-doll-rig');
+  await expect(rig).toHaveAttribute('data-action', 'read'); await expect(rig).toHaveAttribute('data-playing', 'false');
+  const pose = () => rig.locator('[data-rig-part]').evaluateAll(nodes => nodes.map(node => [node.dataset.rigPart, node.style.transform, node.style.translate]));
+  const reduced = await pose(); await page.clock.install(); await page.clock.fastForward(3000); expect(await pose()).toEqual(reduced);
+  await page.route('**/api/public/events*', route => route.abort('connectionfailed'));
+  await page.emulateMedia({ reducedMotion: 'no-preference' }); await page.reload();
+  await expect(page.locator('.spectator-stale')).toBeVisible(); await expect(rig).toHaveAttribute('data-playing', 'false');
+  const frozen = await pose(), x = await actor.getAttribute('data-foot-x');
+  await page.clock.fastForward(5000); expect(await pose()).toEqual(frozen); await expect(actor).toHaveAttribute('data-foot-x', x);
+  await expect(page.getByTestId('home-current-activity')).toContainText('最近记录');
+  await page.getByTestId('home-view').screenshot({ path: 'artifacts/v026-home-reading-disconnected.png' });
+});

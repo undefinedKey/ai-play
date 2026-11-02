@@ -17,6 +17,9 @@ assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.home_rules.version, 1);
+assert.equal(world.home_rules.use_version, 1);
+assert.equal(health.capabilities.furniture_use, true);
+for (const kind of ['chair', 'table', 'bed', 'bookshelf']) assert.ok(world.home_rules.furniture_catalog[kind].activities.length > 0);
 assert.deepEqual(world.home_rules.map, { width: 10, height: 8 });
 assert.deepEqual(world.home_rules.door, { x: 5, y: 7 });
 assert.ok(Array.isArray(world.homes));
@@ -26,6 +29,16 @@ for (const home of world.homes) {
   assert.equal(home.storage, undefined); assert.equal(home.invitations, undefined);
 }
 assert.equal(world.home_invitations, undefined);
+for (const actor of world.agents) {
+  const use = actor.home_presence?.activity;
+  if (!use) continue;
+  const home = world.homes.find(h => h.home_id === actor.home_presence.home_id);
+  assert.ok(home?.furniture.some(f => f.instance_id === use.instance_id));
+  assert.ok(['sit', 'eat', 'read', 'rest'].includes(use.kind));
+  assert.ok(['approaching', 'using'].includes(use.phase));
+  assert.equal(use.movement_id, undefined); assert.equal(use.hp_at_start, undefined);
+  if (use.phase === 'using') assert.ok(Number.isFinite(use.ends_at) && use.ends_at <= use.expires_at);
+}
 assert.ok(!world.events.some(e => ['home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)));
 for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision','phaser_renderer','scene_subscriptions']) assert.equal(health.capabilities[capability], true, capability);
 for(const scene of ['plaza','adventure']) {

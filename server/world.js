@@ -25,7 +25,7 @@ import { PERSONAL_GOAL_RULES, initializePersonalGoal, publicPersonalGoal, review
 import { COOPERATION_RULES, initializeCooperations, publicCooperations, cooperationObservation, reviewCooperations, endCooperations, tickCooperations, performCooperation } from './cooperation.js';
 import { publicEvent } from './spectator.js';
 import { initializeHistory, recordHistoryEvent, pruneHistory, historyPage, historyMetadata } from './history.js';
-import { HOME_RULES, initializeHomes, publicHomes, publicHomePresence, publicHomeTravel, homesObservation, performHome, detachHomes, tickHomes } from './homes.js';
+import { HOME_RULES, initializeHomes, publicHomes, publicHomePresence, publicHomeTravel, homesObservation, performHome, detachHomes, tickHomes, tickHomeUses, cancelHomeUse } from './homes.js';
 
 export class WorldError extends Error {
   constructor(code, message, details = {}) { super(message); this.code = code; this.details = details; }
@@ -300,7 +300,7 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.25.0-homes', recommended_skill_version: '0.25.0', max_capabilities: 16, homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.26.0-home-life', recommended_skill_version: '0.26.0', max_capabilities: 16, homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
@@ -475,6 +475,7 @@ export class World extends EventEmitter {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
     if ((a.home_presence || a.home_travel) && !['home', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('HOME_BUSY', '你在小屋或家园行程中；先用 home leave/cancel 离开或结束行程再进行室外活动；可处理已有合作条款和退还本人托管');
     if (a.home_presence && type === 'say' && p.channel !== 'nearby') fail('HOME_CHANNEL_REQUIRED', '屋内仅可向同屋附近角色说话');
+    if (a.home_presence?.activity && type === 'inventory' && p.intent === 'use') cancelHomeUse(this, a, 'meal_changed');
     if (type === 'home' && ['leave', 'cancel'].includes(p.intent)) return performHome(this, a, p, fail);
     if (encounterPending(a, this.now()) && !['say', 'wait', 'adventure_event', 'personal_goal'].includes(type) &&
       !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && ['torch', 'cancel'].includes(p.intent)) && !(type === 'adventure_plan' && ['stop', 'retreat'].includes(p.intent)) &&
@@ -718,6 +719,18 @@ export class World extends EventEmitter {
     if (g.status === 'active') { if (g.participants.length < 2) this.finishGame('剩余参与者不足 2 人'); else if (wasCurrent) this.nextTurn(nextId); }
   }
   tick() {
+    // Split a delayed simulation at the finite action's physical arrival and
+    // completion. A meal at arrival must precede later hunger; resting never
+    // earns its higher rate before arrival or after the chosen period ends.
+    const requestedNow = this.now(), originalNow = this.now;
+    for (let count = 0; count < 64; count++) {
+      const transitions = Object.values(this.state.agents).map(a => a.home_presence?.activity?.phase === 'approaching'
+        ? a.home_presence.movement?.ends_at : a.home_presence?.activity?.ends_at)
+        .filter(at => Number.isFinite(at) && at > this.simulationTime && at < requestedNow);
+      if (!transitions.length) break;
+      this.now = () => Math.min(...transitions);
+      try { this.tick(); } finally { this.now = originalNow; }
+    }
     let changed = false; const now = this.now();
     this.simulationTime = now;
     let motionChanged = false;
@@ -786,6 +799,7 @@ export class World extends EventEmitter {
     if (this.state.events[0]?.occurred_at < cutoff) { this.state.events = this.state.events.filter(e => e.occurred_at >= cutoff); changed = true; }
     for (const collection of [this.state.receipts, this.state.controlReceipts]) for (const [key, receipt] of Object.entries(collection)) if (receipt.at < cutoff) { delete collection[key]; changed = true; }
     const survivalStep = tickSurvival(this, survivalFrame);
+    changed = tickHomeUses(this, survivalFrame) || changed;
     const adventureStep = tickAdventure(this, survivalFrame);
     const fatigueStep = tickFatigue(this, fatigueRecovery, survivalFrame);
     const dayStep = tickDayCycle(this);

@@ -1,4 +1,4 @@
-import { homeLightUntil } from './homes.js';
+import { homeLightUntil, HOME_RULES } from './homes.js';
 import { isPositionInBounds } from './spatial.js';
 import { BASE_ATTACK_ENERGY, BASE_MOVE_ENERGY, combatStats } from './combat.js';
 import { samplePath, pathLength } from '../shared/motion.js';
@@ -78,6 +78,11 @@ export function captureFatigueRecovery(world) {
   const now = world.now(), { idle_per_second: idle, rest_per_second: rest } = FATIGUE_RULES.recovery;
   return new Map(Object.values(world.state.agents).map(a => {
     const active = world.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
+    if (active && a.home_presence?.activity?.phase === 'using') {
+      const job = a.home_presence.activity;
+      return [a.agent_id, { rate: HOME_RULES.use.recovery_per_second[job.kind] ?? idle,
+        until: Math.min(now, job.ends_at, job.expires_at, homeLightUntil(world, a)), after: idle }];
+    }
     if((a.home_presence?.movement || a.movement)?.version===2) {
       const m=a.home_presence?.movement || a.movement,previous=m.settled_distance||0;
       const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);

@@ -9,7 +9,7 @@ import { MODEL_REQUEST_MS, DECISION_WATCHDOG_MS, remainingSeconds } from './timi
 import { RESOURCE_GUIDANCE, supportsResources } from './resources-context.mjs';
 import { SURVIVAL_GUIDANCE, supportsSurvival, validSurvival } from './survival-context.mjs';
 import { parseActionJson } from './action-json.mjs';
-import { supportsHomes, validHome, HOMES_GUIDANCE, homeEventRelevant } from './homes-context.mjs';
+import { supportsHomes, supportsHomeUse, validHome, HOMES_GUIDANCE, homeEventRelevant } from './homes-context.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
@@ -161,7 +161,7 @@ export function enqueueEvents(checkpoint, events, selfId, groupMembers = []) {
     queue.push(event);
   }
   while (queue.length > 100) {
-    const ordinary = queue.findIndex(e => !/control|pause|recall|turn|game|adventure_finished|adventure_defeated|adventure_danger|adventure_aggro|exploration_|personal_goal_review|personal_goal_ended|cooperation_|home_invitation|home_entered|home_left|home_travel_cancelled|life_ready|life_gather_finished|life_gather_cancelled|fatigue_|survival_warning|survival_arrived|survival_travel_cancelled|survival_rescued/.test(e.type));
+    const ordinary = queue.findIndex(e => !/control|pause|recall|turn|game|adventure_finished|adventure_defeated|adventure_danger|adventure_aggro|exploration_|personal_goal_review|personal_goal_ended|cooperation_|home_invitation|home_entered|home_left|home_travel_cancelled|home_use_|life_ready|life_gather_finished|life_gather_cancelled|fatigue_|survival_warning|survival_arrived|survival_travel_cancelled|survival_rescued/.test(e.type));
     queue.splice(ordinary >= 0 ? ordinary : 0, 1);
     dropped++;
   }
@@ -582,6 +582,8 @@ export class PlazaRunner extends EventEmitter {
     if (travel) return timestamp(travel.expires_at) <= serverNow || elapsed >= 30000;
     const homeTravel = this.observation?.self?.home_travel;
     if (homeTravel) return timestamp(homeTravel.expires_at) <= serverNow || elapsed >= 30000;
+    const homeUse = this.observation?.self?.home_presence?.activity;
+    if (homeUse) return timestamp(homeUse.ends_at ?? homeUse.expires_at) <= serverNow || elapsed >= 30000;
     if (this.observation?.self?.home_presence?.movement) return elapsed >= 30000;
     const plan = this.observation?.self?.adventure?.plan;
     // The server executes a finite intention; never invoke the model for every
@@ -627,7 +629,7 @@ export class PlazaRunner extends EventEmitter {
         const danger = this.checkpoint.queue.findIndex(event => /^(adventure_danger|adventure_defeated|fatigue_exhausted|survival_warning|survival_rescued)$/.test(event.type));
         const aggro = this.checkpoint.queue.findIndex(event => event.type === 'adventure_aggro');
         const message = this.checkpoint.queue.findIndex(event => /message|chat|story_submitted/.test(event.type || '') && typeof event.payload?.text === 'string');
-        const notice = this.checkpoint.queue.findIndex(event => /^(fatigue_tired|game_turn|cooperation_invitation|cooperation_review|cooperation_ended|cooperation_completed|cooperation_progress|cooperation_response|home_invitation|home_invitation_response|home_invitation_expired|home_entered|home_left|home_travel_cancelled|home_movement_finished)$/.test(event.type));
+        const notice = this.checkpoint.queue.findIndex(event => /^(fatigue_tired|game_turn|cooperation_invitation|cooperation_review|cooperation_ended|cooperation_completed|cooperation_progress|cooperation_response|home_invitation|home_invitation_response|home_invitation_expired|home_entered|home_left|home_travel_cancelled|home_movement_finished|home_use_started|home_use_finished|home_use_cancelled)$/.test(event.type));
         const cooperation = this.checkpoint.queue.findIndex(event => /^(cooperation_invitation|cooperation_review|cooperation_ended|cooperation_completed)$/.test(event.type));
         const urgent = danger >= 0 ? danger : aggro >= 0 ? aggro : cooperation;
         const deliverMessage = message >= 0 && (urgent < 0 || (this.checkpoint.priority_batches || 0) >= 2);
@@ -676,6 +678,8 @@ export class PlazaRunner extends EventEmitter {
           if (this.authorityGeneration !== generation || this.checkpoint.run_id !== runId || this.checkpoint.session_epoch !== epoch) return;
           if (action.type !== 'wait' && Array.isArray(this.rules?.allowed_actions) && !this.rules.allowed_actions.includes(action.type)) throw new RunnerError('INVALID_MODEL_OUTPUT', '动作不在当前服务器规则中');
           if (action.type === 'survival' && !supportsSurvival(observation, this.rules)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供生存协议');
+          if (action.type === 'home' && (!supportsHomes(this.rules) ||
+            (action.payload.intent === 'use' || action.payload.intent === 'craft' && ['bed', 'bookshelf'].includes(action.payload.kind)) && !supportsHomeUse(this.rules))) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供此家园能力');
           if (action.type === 'gather' && action.payload.intent === 'plant' && !(this.rules?.resources?.version === 2 && observation.resources?.version === 2 && this.rules.resources.trees?.planting)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供种树协议');
           this.checkpoint.consecutive_errors = 0;
           this.checkpoint.model_retry_at = 0;
@@ -849,6 +853,7 @@ export class PlazaRunner extends EventEmitter {
       const repeated = previous?.code === result.error?.code && previous.type === action.type && previous.game_type === gameType;
       this.checkpoint.last_action_feedback = { type: action.type, status: 'rejected', ...(gameType ? { game_type: gameType } : {}), code: result.error?.code || 'ACTION_REJECTED',
         ...(adjusted ? { requested: adjusted.requested, applied: adjusted.applied } : {}),
+        ...(action.type === 'home' ? { requested: Object.fromEntries(['intent', 'instance_id', 'activity', 'x', 'y', 'rotation', 'item_id'].filter(key => action.payload?.[key] !== undefined).map(key => [key, action.payload[key]])) } : {}),
         message: typeof result.error?.message === 'string' ? result.error.message.slice(0, 150) : undefined,
         retry_at: this.now() + Math.max(0, Number(result.error?.retry_after_ms) || 0), repeat_count: repeated ? Math.min(3, previous.repeat_count + 1) : 1 };
     } else if (result.status === 'applied') {
@@ -1040,6 +1045,7 @@ export class PlazaRunner extends EventEmitter {
   waitingReason() {
     if (this.observation?.cooperation_invitations?.length || this.observation?.cooperation?.status === 'needs_review' || this.observation?.self?.adventure?.encounter?.status === 'pending' || this.observation?.self?.personal_goal?.status === 'needs_review') return 'waiting_event';
     if (this.observation?.self?.adventure?.plan || this.observation?.self?.life?.gathering || this.observation?.self?.home_travel || this.observation?.self?.home_presence?.movement) return 'plan_running';
+    if (this.observation?.self?.home_presence?.activity) return 'activity_running';
     if (this.observation?.self?.activity) return 'activity_running';
     return this.checkpoint?.queue?.length ? 'waiting_event' : 'idle';
   }

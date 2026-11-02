@@ -2,9 +2,51 @@ import { sampleMotion } from '../shared/motion.js';
 
 export const HOME_MAP = Object.freeze({ width: 10, height: 8 });
 export const HOME_DOOR = Object.freeze({ x: 5, y: 7 });
-export const furnitureNames = { chair: '木椅', table: '木桌', rug: '编织地毯', display_shelf: '纪念品展架' };
+export const furnitureNames = { chair: '木椅', table: '木桌', rug: '编织地毯', display_shelf: '纪念品展架', bed: '木床', bookshelf: '书架' };
+export const homeActivityNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息' };
+export const furnitureUses = { chair: ['sit', 'read', 'rest'], table: ['eat', 'read'], bed: ['rest'], bookshelf: ['read'], rug: [], display_shelf: [] };
 export const souvenirNames = { wood: '木材', ore: '矿石', pine_cone: '松果' };
-const dimensions = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1] };
+const dimensions = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1], bed: [2, 2], bookshelf: [2, 1] };
+
+// Public activity is a bounded execution receipt, never a locally inferred
+// intention. Finishing the progress bar cannot finish/restart the server job.
+export function homeActivity(agent, now) {
+  const activity = agent?.home_presence?.activity;
+  if (!activity || !Object.hasOwn(homeActivityNames, activity.kind) || !['approaching', 'using'].includes(activity.phase)) return null;
+  const start = activity.started_at, end = activity.ends_at;
+  const duration = Number.isFinite(start) && Number.isFinite(end) && end > start ? end - start : null;
+  const progress = activity.phase === 'using' && duration ? Math.max(0, Math.min(1, (now - start) / duration)) : 0;
+  return { ...activity, progress, label: activity.phase === 'approaching' ? `走过去${homeActivityNames[activity.kind]}` : homeActivityNames[activity.kind],
+    remaining: activity.phase === 'using' && Number.isFinite(end) ? Math.max(0, Math.ceil((end - now) / 1000)) : null };
+}
+
+export function homeFurnitureOccupant(agents, instanceId, homeId) {
+  return homeActors(agents, homeId).find(agent => agent.home_presence.activity?.instance_id === instanceId) || null;
+}
+
+// A visual transition from the legal adjacent standing point onto the drawn
+// seat. Room-art coordinates never alter the server path or data-foot point.
+export function homeSeatAnchor(agent, furniture) {
+  const p = agent?.position, use = agent?.home_presence?.activity;
+  if (!['chair', 'bed'].includes(furniture?.kind) || use?.phase !== 'using' || use.instance_id !== furniture.instance_id || !p || ![p.x, p.y, furniture.x, furniture.y].every(Number.isFinite) || !['sit', 'read', 'rest'].includes(use.kind) || furniture.kind === 'bed' && use.kind !== 'rest') return null;
+  const [width, height] = furnitureSize(furniture);
+  const distance = Math.max(furniture.x - p.x, 0, p.x - furniture.x - width + 1) + Math.max(furniture.y - p.y, 0, p.y - furniture.y - height + 1);
+  if (distance > 1.001 || distance < .999) return null;
+  const seat = furniture.kind === 'bed'
+    ? { x: 70 + furniture.x * 50 + width * 50 * .62, y: 135 + furniture.y * 42 - 20 + (height * 42 + 20) * .56 }
+    : { x: 70 + (furniture.x + .5) * 50, y: 135 + furniture.y * 42 - 20 + 62 * 74 / 110 };
+  const foot = { x: 70 + (p.x + .5) * 50, y: 135 + (p.y + .7) * 42 };
+  return { x: seat.x - foot.x, y: seat.y - foot.y, kind: furniture.kind, facing: furniture.kind === 'bed' ? 'east' : ({ 0: 'south', 90: 'west', 180: 'north', 270: 'east' })[furniture.rotation || 0] };
+}
+
+export function homeUsePresentationStyle(agent, furniture, now, enabled, hipHeight = 21.8) {
+  const anchor = homeSeatAnchor(agent, furniture), activity = agent?.home_presence?.activity;
+  if (!anchor) return undefined;
+  const elapsed = Math.max(0, Math.min(now, activity.ends_at ?? now) - activity.started_at);
+  const t = enabled && agent.status === 'active' ? Math.max(0, Math.min(1, elapsed / 650)) : 1;
+  const progress = t * t * (3 - 2 * t), height = anchor.kind === 'bed' ? 12 : hipHeight - 7;
+  return { translate: `calc(${anchor.x} * 100cqw / 640 * ${progress}) calc((${anchor.y} * 100cqw / 640 + ${height}px * var(--pixel-scale)) * ${progress})` };
+}
 
 export function selectedHome(homes = [], agents = [], selected, requested) {
   if (requested) return homes.find(home => home.home_id === requested) || null;

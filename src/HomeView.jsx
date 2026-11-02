@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, BookOpen, Home, Lamp, MessageCircle, X } from 'lucide-react';
-import { CharacterSprite, usePixelNow } from './PixelWorld.jsx';
+import { ArrowUpRight, BookOpen, Home, Lamp, MessageCircle, Armchair, Utensils, Moon, X } from 'lucide-react';
+import { usePixelNow, usePixelManifest } from './PixelWorld.jsx';
+import { HomeCharacter } from './HomeCharacter.jsx';
+import { selectPaperDoll } from './paper-doll-render.js';
 import { SpeechBubbles } from './SpeechOverlay.jsx';
 import { publicName, recordTime } from './observer-state.js';
 import { CottageArt, FurnitureArt, RoomArt, SouvenirArt } from './home-art.jsx';
-import { furnitureNames, furnitureSize, homeActorProxy, homeActors, homePoint, homePosition, souvenirNames } from './home-state.js';
+import { furnitureNames, furnitureSize, furnitureUses, homeActivity, homeActivityNames, homeFurnitureOccupant, homeActorProxy, homeActors, homePoint, homePosition, homeUsePresentationStyle, souvenirNames } from './home-state.js';
 import './homes.css';
 import { projectMapPoint } from './map-projection.js';
 
@@ -17,53 +19,95 @@ export function HomeEntrance({ world, map, onClick }) {
   </button>;
 }
 
-function HomeActor({ agent, world, selected, onSelect, now, live }) {
+function HomeActor({ agent, home, world, selected, onSelect, now, live }) {
   const proxy = homeActorProxy(agent);
+  const assets = usePixelManifest(), rig = selectPaperDoll(assets, agent)?.rig;
   const clock = usePixelNow(now, live && agent.status === 'active', proxy);
   const position = homePosition(agent, clock, live && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (!position) return null;
   const name = publicName(agent, world.agents);
-  return <button className={`home-actor ${selected === agent.agent_id ? 'selected' : ''}`} style={{ ...homePoint(position), zIndex: 30 + position.y * 10 }}
+  const activity = homeActivity(agent, clock), furniture = home.furniture.find(item => item.instance_id === activity?.instance_id);
+  const using = activity?.phase === 'using', enabled = live && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const presentationStyle = rig ? homeUsePresentationStyle(proxy, furniture, clock, enabled, rig.dimensions?.hipHeight) : undefined;
+  const depth = using && furniture?.kind === 'bed' ? Math.max(30 + position.y * 10, 21 + (furniture.y + furnitureSize(furniture)[1]) * 10) : 30 + position.y * 10;
+  return <><button className={`home-actor ${selected === agent.agent_id ? 'selected' : ''} ${using ? 'using-furniture' : ''}`} style={{ ...homePoint(position), zIndex: depth }}
     data-testid={`home-actor-${agent.agent_id}`} data-home-id={agent.home_presence.home_id} data-speech-agent={agent.agent_id}
-    data-foot-x={position.x} data-foot-y={position.y} aria-label={`查看${name}的公开档案`} onClick={() => onSelect(agent.agent_id)}>
-    <CharacterSprite agent={proxy} now={now} live={live}/><span>{name}</span>
-  </button>;
+    data-foot-x={position.x} data-foot-y={position.y} data-home-phase={activity?.phase} data-home-activity={activity?.kind} aria-label={`查看${name}的公开档案${activity ? `，${activity.label}` : ''}`} onClick={() => onSelect(agent.agent_id)}>
+    <HomeCharacter agent={proxy} activity={activity} furniture={furniture} now={clock} live={live} presentationStyle={presentationStyle}/>
+  </button><div className={`home-actor-label ${selected === agent.agent_id ? 'selected' : ''}`} style={{ ...homePoint(position), ...presentationStyle }} aria-hidden="true"><span className="home-actor-name">{name}</span>{activity && <span className="home-activity-badge">{activity.phase === 'approaching' ? '走向家具' : homeActivityNames[activity.kind]}</span>}</div></>;
 }
 
-function PlacedFurniture({ item, display, rules, active, onDisplay }) {
+function PlacedFurniture({ item, display, rules, active, onDisplay, onFurniture, occupant }) {
   const [width, height] = furnitureSize(item, rules);
   const style = { left: `${(70 + item.x * 50) / 640 * 100}%`, top: `${(135 + item.y * 42 - 20) / 540 * 100}%`,
     width: `${width * 50 / 640 * 100}%`, height: `${(height * 42 + 20) / 540 * 100}%`, zIndex: item.kind === 'rug' ? 1 : 20 + (item.y + height) * 10 };
   const art = <FurnitureArt kind={item.kind} vertical={[90, 270].includes(item.rotation)} item={display?.item_id}/>;
+  const state = occupant?.home_presence.activity?.phase;
   return display ? <button className={`home-furniture home-exhibit ${active ? 'selected' : ''}`} style={style} data-testid={`home-furniture-${item.instance_id}`} data-furniture-kind={item.kind}
     aria-label={`查看纪念品：${display.title || souvenirNames[display.item_id] || '陈列物'}`} aria-expanded={active} aria-controls="home-display-detail" onClick={() => onDisplay(display.display_id)}>{art}<span className="home-exhibit-mark"><BookOpen size={11}/></span></button>
-    : <div className="home-furniture" style={style} data-testid={`home-furniture-${item.instance_id}`} data-furniture-kind={item.kind} role="img" aria-label={furnitureNames[item.kind] || '家具'}>{art}</div>;
+    : <button className={`home-furniture home-furniture-inspect ${active ? 'selected' : ''} ${state ? 'occupied' : ''}`} style={style} data-testid={`home-furniture-${item.instance_id}`} data-furniture-kind={item.kind} data-use-phase={state}
+      aria-label={`查看家具：${furnitureNames[item.kind] || '家具'}`} aria-expanded={active} aria-controls="home-furniture-detail" onClick={() => onFurniture(item.instance_id)}>{art}
+      {state && <span className="home-furniture-use-dot" aria-hidden="true"/>}</button>;
+}
+
+const activityIcons = { sit: Armchair, eat: Utensils, read: BookOpen, rest: Moon };
+
+function HomeActivityPanel({ agent, home, world, now, live }) {
+  const activity = homeActivity(agent, now);
+  if (!activity) return null;
+  const furniture = home.furniture.find(item => item.instance_id === activity.instance_id), Icon = activityIcons[activity.kind];
+  const reading = activity.phase === 'using' ? activity.reading : null;
+  return <section className="home-now" aria-label="小屋里正在发生" data-testid="home-current-activity" data-phase={activity.phase}>
+    <div className="home-now-title"><Icon size={17}/><div><span>{publicName(agent, world.agents)}</span><strong>{activity.phase === 'approaching' ? `走向${furnitureNames[furniture?.kind] || '家具'}` : `${homeActivityNames[activity.kind]} · ${furnitureNames[furniture?.kind] || '家具旁'}`}</strong></div><small>{!live ? '最近记录' : activity.phase === 'approaching' ? '正在走过去' : activity.remaining === 0 ? '等待确认结束' : `${activity.remaining ?? '—'} 秒`}</small></div>
+    {activity.phase === 'using' && <progress max="1" value={activity.progress} aria-label="家具使用进度"/>}
+    <p>{activity.phase === 'approaching' ? '沿屋内通路走到家具旁，抵达后才开始。' : activity.kind === 'eat' ? '这次进餐使用它自己的食物。' : activity.kind === 'rest' ? '歇一会儿，再由它自己决定接下来做什么。' : activity.kind === 'read' ? '翻开一篇小故事，安静读一会儿。' : '在自己的步调里坐一会儿。'}</p>
+    {reading && <details className="home-reading" data-testid="home-reading"><summary><BookOpen size={14}/>{reading.title || '正在阅读'}</summary><p>{reading.text}</p><small>{reading.source || '广场原创'}</small></details>}
+  </section>;
+}
+
+function FurnitureDetail({ item, rules, occupant, agents, onClose }) {
+  if (!item) return null;
+  const definition = rules?.furniture_catalog?.[item.kind], size = furnitureSize(item, rules), uses = rules?.use_version === 1 ? definition?.activities || furnitureUses[item.kind] || [] : [];
+  const cost = Object.entries(definition?.cost || {}).map(([id, count]) => `${({ wood: '木材', grass: '干草', ore: '矿石' })[id] || id} × ${count}`).join(' · ');
+  return <section id="home-furniture-detail" data-testid="home-furniture-detail" className="home-furniture-detail" aria-label="家具公开信息">
+    <button className="home-detail-close" aria-label="收起家具信息" onClick={onClose}><X size={16}/></button>
+    <div className="home-furniture-preview"><FurnitureArt kind={item.kind} vertical={[90, 270].includes(item.rotation)}/></div>
+    <div><h3>{furnitureNames[item.kind] || '家具'}</h3><p>{uses.length ? uses.map(kind => homeActivityNames[kind]).join(' · ') : item.kind === 'display_shelf' ? '收藏真正拥有的物品，写下自己的题注。' : '由屋主选择的室内布置。'}</p><small>占地 {size[0]} × {size[1]} · {occupant ? `${publicName(occupant, agents)}${occupant.home_presence.activity.phase === 'approaching' ? '正在走来' : '正在使用'}` : '此刻空闲'}</small>{cost && <small>制作材料：{cost}</small>}<span className="home-detail-note">仅查看 · 是否使用由 AI 自己决定</span></div>
+  </section>;
 }
 
 export default function HomeView({ world, home, requestedHome, selected, onSelect, onHome, now, live, grid }) {
   const [displayId, setDisplayId] = useState(null);
-  useEffect(() => setDisplayId(null), [home?.home_id]);
+  const [furnitureId, setFurnitureId] = useState(null);
+  useEffect(() => { setDisplayId(null); setFurnitureId(null); }, [home?.home_id]);
   const homes = world.homes || [], rules = world.home_rules || world.rules?.homes;
   const present = homeActors(world.agents, home?.home_id);
   const owner = world.agents.find(agent => agent.agent_id === home?.owner_agent_id);
   const focused = world.agents.find(agent => agent.agent_id === selected);
   const display = home?.displays?.find(item => item.display_id === displayId);
+  const furniture = home?.furniture?.find(item => item.instance_id === furnitureId);
+  const activeActor = present.find(agent => agent.agent_id === selected && homeActivity(agent, now)) || present.find(agent => homeActivity(agent, now));
   const homeEvents = (world.events || []).filter(event => event.payload?.home_id === home?.home_id);
-  const setDisplay = id => setDisplayId(previous => previous === id ? null : id);
+  const setDisplay = id => { setFurnitureId(null); setDisplayId(previous => previous === id ? null : id); };
+  const setFurniture = id => { setDisplayId(null); setFurnitureId(previous => previous === id ? null : id); };
+  const dayPhase = world.day_cycle?.phase || 'day';
   return <section className="home-view" data-testid="home-view" aria-labelledby="home-view-title">
     <header className="home-heading"><div><span className="home-eyebrow">A LITTLE PLACE OF THEIR OWN</span><h2 id="home-view-title"><Home size={19}/>{home?.name || '我的小家'}</h2><p>{home ? `${owner ? publicName(owner, world.agents) : '原屋主'}的小屋 · ${!live ? '最近记录 · ' : ''}${present.length} 位在屋内` : '留一盏灯，收藏自己的故事。'}</p></div><span className="home-readonly"><Lamp size={14}/>安静旁观</span></header>
     {home ? <><div className="home-interior-layout"><div className="home-interior-canvas">
-      <div className="home-room" data-testid="home-room" data-home-id={home.home_id} aria-label={`${home.name}室内，10乘8格，门口通往广场`}>
-        <RoomArt grid={grid}/>
-        {(home.furniture || []).map(item => <PlacedFurniture key={item.instance_id} item={item} rules={rules} display={home.displays?.find(value => value.instance_id === item.instance_id)} active={display?.instance_id === item.instance_id} onDisplay={setDisplay}/>)}
-        {present.map(agent => <HomeActor key={agent.agent_id} agent={agent} world={world} selected={selected} onSelect={onSelect} now={now} live={live}/>)}
+      <div className={`home-room home-phase-${dayPhase} ${!live ? 'home-disconnected' : ''}`} data-testid="home-room" data-home-id={home.home_id} aria-label={`${home.name}室内，10乘8格，门口通往广场`}>
+        <RoomArt grid={grid} phase={dayPhase}/>
+        <span className="home-room-atmosphere" aria-hidden="true"/>
+        {(home.furniture || []).map(item => <PlacedFurniture key={item.instance_id} item={item} rules={rules} display={home.displays?.find(value => value.instance_id === item.instance_id)} active={display?.instance_id === item.instance_id || furnitureId === item.instance_id} onDisplay={setDisplay} onFurniture={setFurniture} occupant={homeFurnitureOccupant(world.agents, item.instance_id, home.home_id)}/>)}
+        {present.map(agent => <HomeActor key={agent.agent_id} agent={agent} home={home} world={world} selected={selected} onSelect={onSelect} now={now} live={live}/>)}
         {!home.furniture?.length && <div className="home-room-empty" data-testid="home-room-empty"><strong>还没开始布置</strong><span>一间空屋，等它慢慢变成家。</span></div>}
         <span className="home-door-caption">门口 · 广场</span>
         <SpeechBubbles events={homeEvents} agents={present} selected={selected} now={now} live={live} sceneId="plaza"/>
       </div>
       <div className="home-room-note" role="status"><span>{!live ? '连接中断 · 仅显示最近确认的布置和位置。' : present.length ? '只显示实际在这间小屋内的屋主和访客。' : '此刻屋内无人，家具与故事都还在。'}</span><span>{home.furniture?.length || 0} 件家具 · {home.displays?.length || 0} 件纪念品</span></div>
+      <FurnitureDetail item={furniture} rules={rules} occupant={furniture && homeFurnitureOccupant(world.agents, furniture.instance_id, home.home_id)} agents={world.agents} onClose={() => setFurnitureId(null)}/>
       </div>
       <div className="home-life-panels">
+        <HomeActivityPanel agent={activeActor} home={home} world={world} now={now} live={live}/>
         <section className="home-display-panel" aria-labelledby="home-displays-title"><h3 id="home-displays-title"><BookOpen size={16}/> 留下来的小事 <span>{home.displays?.length || 0}</span></h3>
           {home.displays?.length ? <div className="home-display-buttons">{home.displays.map(item => <button key={item.display_id} className={item.display_id === displayId ? 'selected' : ''} onClick={() => setDisplay(item.display_id)} aria-expanded={item.display_id === displayId} aria-controls="home-display-detail"><SouvenirArt item={item.item_id}/><span><strong>{item.title || souvenirNames[item.item_id] || '陈列物'}</strong><small>{souvenirNames[item.item_id] || '纪念品'} · 阅读题注</small></span><ArrowUpRight size={14}/></button>)}</div> : <p className="home-quiet-copy">展架还没有收藏。AI 可以把真正拥有的物品留在这里，写下它自己的题注。</p>}
           {display && <article className="home-display-detail" id="home-display-detail" data-testid="home-display-detail" aria-label="纪念品题注"><button className="home-detail-close" aria-label="收起纪念品题注" onClick={() => setDisplayId(null)}><X size={16}/></button><SouvenirArt item={display.item_id}/><div><h4>{display.title || souvenirNames[display.item_id] || '陈列物'}</h4><p>{display.text || '屋主没有为这件纪念品写下题注。'}</p><small>陈列于 {recordTime(display.placed_at, now)}</small></div></article>}

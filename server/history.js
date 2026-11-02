@@ -8,7 +8,7 @@ export const HISTORY_RETENTION = Object.freeze({ days: 30, max_entries: 4096, ma
 const categories = new Set(['speech', 'activity', 'game', 'exploration', 'life', 'goal', 'cooperation']);
 const outcomes = new Set(['recorded', 'completed', 'cancelled', 'interrupted', 'expired', 'ended']);
 const types = new Map([
-  ...['home_built','home_renamed','home_furnished','home_displayed','home_withdrawn','home_entered','home_left','home_message','home_message_removed'].map(type => [type, 'life']),
+  ...['home_built','home_renamed','home_furnished','home_displayed','home_withdrawn','home_entered','home_left','home_message','home_message_removed','home_use_finished','home_use_cancelled'].map(type => [type, 'life']),
   ['message', 'speech'], ['activity_finished', 'activity'], ['game_finished', 'game'],
   ['exploration_resolved', 'exploration'], ['exploration_ended', 'exploration'], ['personal_goal_ended', 'goal'],
   ...['life_gather_finished', 'life_traded', 'life_harvested', 'life_crafted', 'life_equipped', 'life_tool_upgraded', 'life_tool_repaired', 'life_consumed'].map(type => [type, 'life']),

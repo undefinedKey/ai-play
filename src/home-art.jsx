@@ -24,12 +24,14 @@ export function CottageArt({ small = false }) {
   </svg>;
 }
 
-export function RoomArt({ grid = false }) {
+export function RoomArt({ grid = false, phase = 'day' }) {
+  const night = phase === 'night', twilight = phase === 'dusk' || phase === 'dawn';
   return <svg className="home-room-art" viewBox="0 0 640 540" aria-hidden="true">
     <defs>
-      <pattern id="home-planks" x="70" y="135" width="100" height="42" patternUnits="userSpaceOnUse"><rect width="100" height="42" fill="#c49a68"/><path d="M0 0h100M0 1v40M48 8l39-1M8 29l31 1M67 34l21-1" fill="none" stroke="#805d3e" strokeWidth="1.2" opacity=".6"/><path d="M3 3h94" stroke="#e3bd83" opacity=".7"/></pattern>
+      <pattern id="home-planks" x="70" y="135" width="100" height="84" patternUnits="userSpaceOnUse"><rect width="100" height="84" fill="#bd9568"/><path d="M0 0h100M0 42h100M0 1v40M50 43v40M48 8l39-1M8 29l31 1M67 34l21-1M9 51l20 1M65 64l25-2M16 77l28 1" fill="none" stroke="#896541" strokeWidth="1.1" opacity=".55"/><path d="M3 3h94M3 45h94" stroke="#e3bd83" opacity=".5"/><path d="m4 8 1 1m89 26 1 1m-39 17 1 1m-10 23 1 1" stroke="#73553b" opacity=".6"/></pattern>
       <linearGradient id="home-wall" x2="0" y2="1"><stop stopColor="#b3986a"/><stop offset="1" stopColor="#dbc394"/></linearGradient>
       <radialGradient id="home-lamplight"><stop stopColor="#ffe5a3" stopOpacity=".32"/><stop offset="1" stopColor="#ffe5a3" stopOpacity="0"/></radialGradient>
+      <linearGradient id="home-windowlight" x2=".65" y2="1"><stop stopColor={night ? '#7d93a3' : '#fff2ba'} stopOpacity={night ? '.1' : '.22'}/><stop offset="1" stopColor="#ffe5a3" stopOpacity="0"/></linearGradient>
     </defs>
     <rect width="640" height="540" fill="#e2d9ba"/>
     <path d="M34 502q274-32 570-8" stroke="#b4b38e" strokeWidth="35" opacity=".35"/>
@@ -39,12 +41,15 @@ export function RoomArt({ grid = false }) {
     <path d="M70 137 49 117v359l21-5M570 135l20-18v358l-20-4" fill="#92704d" stroke="#4e4033" strokeWidth="4"/>
     <path d="M58 50h523v12H58Z" fill="#69513b" stroke="#4e4033" strokeWidth="3"/>
     <path d="M73 123h494v13H73Z" fill="#805e40"/>
+    <path d="M76 65h489M82 70v50m478-50v50" stroke="#efe0b2" opacity=".22" fill="none"/>
     <path d="m118 68 73-1-1 48-73 1Z" fill="#6c8178" stroke="#5b4935" strokeWidth="5"/>
-    <path d="M123 72h61v38h-61Z" fill="#c8d5bc"/><path d="m126 103 22-23 13 18 20-11v23h-55Z" fill="#7f997e"/><path d="M154 70v43M120 91h68" stroke="#6f5338" strokeWidth="4"/>
+    <path d="M123 72h61v38h-61Z" fill={night ? '#3d5362' : twilight ? '#d7b496' : '#cad6bd'}/><path d="m126 103 22-23 13 18 20-11v23h-55Z" fill={night ? '#3e5c55' : '#7f997e'}/>{night && <path d="M176 76a8 8 0 0 1-8 12 8 8 0 1 0 8-12" fill="#e6d9ab"/>}<path d="M154 70v43M120 91h68" stroke="#6f5338" strokeWidth="4"/>
     <path d="M112 64h85l-5 18-12-10-6 5-17-6-17 7-15-6-11 12Z" fill="#ae6c4b" stroke="#634637" strokeWidth="2"/>
     <path d="M116 117h78" stroke="#644c35" strokeWidth="6"/>
     <path d="M452 69h31v40h-31Z" fill="#e9c26d" stroke="#554431" strokeWidth="3"/><path d="m447 69 20-14 21 14Zm5 40h31l-5 8h-21Z" fill="#6c5940" stroke="#554431" strokeWidth="2"/>
     <ellipse cx="467" cy="140" rx="125" ry="112" fill="url(#home-lamplight)"/>
+    <path d="m119 136 69 0 96 195-133 0Z" fill="url(#home-windowlight)"/>
+    <path d="M78 143v317M562 143v317" stroke="#594734" strokeWidth="6" opacity=".15"/>
     <path d="M66 471h254m50 0h205" stroke="#614b35" strokeWidth="13"/>
     <path d="M320 466h50v16h-50Z" fill="#dabc89" stroke="#614b35" strokeWidth="3"/><path d="M315 485h60l10 15h-80Z" fill="#c4b494" stroke="#88775c" strokeWidth="2"/>
     <path d="m82 150 8 2m432 301 13 2m-412-16 22-2m194-264 8 1" stroke="#654d32" opacity=".5" fill="none"/>
@@ -59,6 +64,8 @@ export function FurnitureArt({ kind, vertical = false, item }) {
       {kind === 'table' && <><ellipse cx="70" cy="99" rx="63" ry="8" fill="#4d3522" stroke="none" opacity=".2"/><path d="M22 52 17 96h12l8-42m66-3 9 45h11l-5-44" fill="#86613d"/><path d={vertical ? 'M43 13 99 15l20 64-97 1Z' : 'M14 35 123 30l12 34-130 5Z'} fill="#ca9d5d"/><path d={vertical ? 'm70 16 1 61m-20-49 44 1m-49 20 55 1' : 'm18 43 104-5M14 57l114-5M47 38l-2 22m45-24 2 22'} strokeWidth="1.6" opacity=".65"/></>}
       {kind === 'rug' && <><path d="m9 10 120-3 6 91-126 5Z" fill="#8c5e42" strokeWidth="2"/><path d="m18 20 101-2 7 70-107 5Z" fill="#c4a86b" strokeWidth="1.5"/><path d="m70 26 39 29-36 30-38-29Z" fill="#697b64" strokeWidth="1.5"/><path d="m70 41 17 15-15 14-18-14Z" fill="#dabd82" strokeWidth="1.5"/><path d="M4 16h9M3 28h9M3 42h9M3 55h9M3 69h9M4 83h9M5 95h9m115-79h9m-8 13h9m-8 13h9m-7 13h8m-8 14h8m-8 14h8m-8 12h8" stroke="#81603e" strokeWidth="2"/></>}
       {kind === 'display_shelf' && <><ellipse cx="70" cy="100" rx="63" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M12 13h116v86H12Z" fill="#85613e"/><path d="M20 21h100v58H20Z" fill="#584537"/><path d="M7 13h126v11H7Zm3 67h121v12H10Z" fill="#c19a62"/><path d="M32 92v11m76-11v11" strokeWidth="6"/><path d="m25 86 89-1" strokeWidth="1" opacity=".55"/>{item && <g transform="translate(42 30) scale(.5)"><SouvenirShape item={item}/></g>}</>}
+      {kind === 'bed' && <><ellipse cx="70" cy="101" rx="60" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M17 23V9h106v89H17Z" fill="#8d6849"/><path d="M22 14h96v24H22Z" fill="#ba9360"/><path d="M22 36h96v50H22Z" fill="#dfd1ab"/><path d="M29 29q14-5 32 0v19H29Zm47 0q13-4 32 0v19H76Z" fill="#f3e8c6"/><path d="M22 51q43 6 96-2v39H22Z" fill="#76867b"/><path d="M25 59q45 7 90 1M26 66q43 7 89 1" fill="none" stroke="#c3c6a5" strokeWidth="2"/><path d="M14 86h112v12H14Zm6 12v10m100-10v10" fill="#bb925d"/><path d="M23 20h94" strokeWidth="1.5" opacity=".6"/></>}
+      {kind === 'bookshelf' && <><ellipse cx="70" cy="101" rx="62" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M13 9h114v89H13Z" fill="#8b6543"/><path d="M21 20h98v66H21Z" fill="#584638"/><path d="M25 25h13v25H25Z" fill="#9d694e"/><path d="m40 21 12 1-1 28-12-1Z" fill="#889177"/><path d="M56 26h11v24H56Z" fill="#c7aa72"/><path d="m83 23 11-3 10 28-12 3Z" fill="#aa7e56"/><path d="M72 22h9v28h-9Z" fill="#6c8580"/><path d="M28 60h13v26H28Z" fill="#b4a575"/><path d="M46 64h10v22H46Z" fill="#8e6a57"/><path d="m64 58 13-1 4 28-13 1Z" fill="#7c8e78"/><path d="M86 61h23v25H86Z" fill="#c5a879"/><path d="M8 9h125v11H8Zm7 42h110v10H15Zm-5 44h120v11H10Z" fill="#c09a65"/><path d="M27 31h8m10-3h5m12 6h4m29 35h10" strokeWidth="1.2" stroke="#e3cea2"/></>}
     </g>
   </svg>;
 }
