@@ -39,7 +39,7 @@ const node = (f, id) => f.world.state.resources.nodes[id];
 
 test('v021 forest sites and grass are bounded, reachable, unique, and keep all three original tree locations', t => {
   const f = fixture(t), trees = RESOURCE_NODES.filter(n => n.kind === 'tree');
-  assert.equal(RESOURCE_NODES.length, 31); assert.equal(trees.length, 23);
+  assert.equal(RESOURCE_NODES.length, 32); assert.equal(trees.length, 23);
   assert.equal(trees.filter(n => n.initial_stage === 'empty').length, 2);
   assert.equal(RESOURCE_NODES.filter(n => n.kind === 'grass').length, 2);
   assert.equal(new Set(RESOURCE_NODES.map(n => n.id)).size, RESOURCE_NODES.length);

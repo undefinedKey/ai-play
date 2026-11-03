@@ -5,11 +5,12 @@ const resourceKinds={tree:'pine',ore_vein:'ore',berry_bush:'berries',herb:'herb'
 export function resourceArtwork(assets,node){
   if(!assets)return null;
   let cache=resources.get(assets);if(!cache){cache=new Map();resources.set(assets,cache);}
-  const stage=node.kind==='tree'?treePresentation(node):null,key=`${node.kind}:${stage?.stage||''}`;
+  const fallenFruit=node.id==='camp_fallen_berries';
+  const stage=node.kind==='tree'?treePresentation(node):null,key=`${node.kind}:${stage?.stage||''}:${fallenFruit?'fallen':''}`;
   if(cache.has(key))return cache.get(key);
-  const item={branches:'item_wood',stones:'item_ore',grass:'item_grass'}[node.kind];
+  const item=fallenFruit?'item_berry':{branches:'item_wood',stones:'item_ore',grass:'item_grass'}[node.kind];
   const stageArt=stage&&assets.wilderness?.[`tree_${stage.stage}`];
-  const groundArt=item&&assets.wilderness?.[node.kind];
+  const groundArt=!fallenFruit&&item&&assets.wilderness?.[node.kind];
   const base=groundArt||(item?assets.items?.[item]:stageArt||assets.wilderness?.[stage?.art||resourceKinds[node.kind]]);
   const factor=groundArt?1:item?(node.kind==='grass'?1.25:1.1):stageArt?1:stage?.scale||1;
   const result=base?{...base,native_scale:(base.native_scale||1)*factor}:null;

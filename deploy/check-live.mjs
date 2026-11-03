@@ -97,6 +97,16 @@ for (const node of world.resources.nodes) {
 }
 assert.equal(world.life.market.stock_policy, 'per_agent_window');
 assert.ok(world.life.market.items.some(i => i.buy_price > 0) && world.life.market.items.some(i => i.sell_price > 0));
+for (const [id, price] of [['wheat_bread', 12], ['turnip', 5]]) {
+  assert.equal(world.life.market.items.find(item => item.item_id === id)?.buy_price, price);
+}
+const fallenFruit = world.resources.nodes.find(node => node.id === 'camp_fallen_berries');
+assert.ok(fallenFruit);
+assert.equal(fallenFruit.scene_id, 'plaza');
+assert.deepEqual(fallenFruit.interaction_position, { x: 10, y: 9 });
+assert.equal(fallenFruit.energy_cost, 0); assert.equal(fallenFruit.tool_id, null);
+assert.equal(fallenFruit.duration_seconds, 6); assert.equal(fallenFruit.max_stock, 1);
+assert.equal(fallenFruit.regrow_seconds, 120); assert.equal(fallenFruit.yield_count, 1);
 assert.equal(world.fatigue.max_energy, 100);
 assert.deepEqual(world.adventure.map, { width: world.room.width, height: world.room.height });
 assert.equal(world.adventure.zones.length, 5);
@@ -135,6 +145,13 @@ for (const agent of world.agents) {
   assert.equal(agent.life.inventory, undefined);
   assert.equal(agent.life.ledger, undefined);
   assert.equal(agent.life.market, undefined);
+  if (agent.action_status !== null) {
+    const receipt = agent.action_status;
+    assert.ok(receipt && ['applied', 'rejected'].includes(receipt.status));
+    assert.ok(Number.isSafeInteger(receipt.at) && receipt.at >= 0 && receipt.at <= world.server_time);
+    assert.ok(Object.keys(receipt).every(key => ['type', 'status', 'at', 'error_code'].includes(key)));
+    assert.equal(receipt.message, undefined); assert.equal(receipt.payload, undefined);
+  }
   for (const id of ['wood', 'ore']) assert.ok(Number.isSafeInteger(agent.life.gather_ready_at[id]));
   if (agent.life.gathering) {
     const job = agent.life.gathering, node = world.resources.nodes.find(n => n.id === job.node_id);

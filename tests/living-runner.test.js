@@ -101,7 +101,7 @@ test('资源、料理、价格与私人额度进入营地短提示，旧服务�
   assert.match(prompt, /camp_branches|camp_stones|orchard_berries/); assert.match(prompt, /库存/); assert.equal(data.supply.gather, undefined, '新服务提供共享节点，不复述旧个人采集目录');
   assert.ok(data.supply.cook.some(row => row[0] === 'wheat_bread' && row[3] === 24));
   assert.ok(data.supply.cook.every(row => row[4] === 2));
-  assert.ok(data.supply.prices.some(row => row[0] === 'turnip' && row[1] === null && row[2] === 2));
+  assert.ok(data.supply.prices.some(row => row[0] === 'turnip' && row[1] === 5 && row[2] === 2));
   assert.deepEqual(data.supply.quota.slice(0, 2), [20, 30]); assert.equal(data.supply.max_quantity, 10);
   const old = structuredClone(f.runner.rules); delete old.life.gathering; delete old.life.market; old.life.recipes = old.life.recipes.filter(recipe => recipe.kind !== 'cooking');
   old.allowed_actions = old.allowed_actions.filter(type => !['gather', 'trade'].includes(type)); f.runner.rules = old;

@@ -5,10 +5,11 @@ export const MARKET_RULES = {
   place: { id: 'supply', scene_id: 'plaza', name: '营地补给柜', x: 12, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
   max_quantity: 10, window_seconds: 300, buy_limit: 20, sell_limit: 30, stock_policy: 'per_agent_window',
   items: [
+    { item_id: 'wheat_bread', buy_price: 12, sell_price: null },
     { item_id: 'fish_bait', buy_price: 2, sell_price: null }, { item_id: 'pond_fish', buy_price: null, sell_price: 3 }, { item_id: 'silver_fish', buy_price: null, sell_price: 5 },
     { item_id: 'wood', buy_price: 4, sell_price: 1 }, { item_id: 'ore', buy_price: 6, sell_price: 2 },
     { item_id: 'turnip_seed', buy_price: 1, sell_price: null }, { item_id: 'wheat_seed', buy_price: 2, sell_price: null },
-    { item_id: 'turnip', buy_price: null, sell_price: 2 }, { item_id: 'wheat', buy_price: null, sell_price: 3 },
+    { item_id: 'turnip', buy_price: 5, sell_price: 2 }, { item_id: 'wheat', buy_price: null, sell_price: 3 },
   ],
 };
 const quantity = value => Number.isSafeInteger(value) && value >= 0;

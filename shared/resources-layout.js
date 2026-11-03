@@ -12,6 +12,9 @@ const tree = (id, scene, x, y, options = {}) => node(id, 'tree', scene, x, y, x 
 export const RESOURCE_NODES = Object.freeze([
   node('camp_branches', 'branches', 'plaza', 10, 8, 11, 8, 'wood', { name: '营地枯枝', regrow_seconds: 600 }),
   node('camp_stones', 'stones', 'plaza', 12, 8, 11, 8, 'ore', { name: '营地碎石', max_stock: 2, regrow_seconds: 60, duration_seconds: 18, energy_cost: 6 }),
+  // Fallen fruit is a small shared resource, not a rescue grant. Anyone can
+  // explicitly spend time collecting one portion; eating is a separate action.
+  node('camp_fallen_berries', 'berry_bush', 'plaza', 9, 9, 10, 9, 'berry', { name: '营地落果处', max_stock: 1, regrow_seconds: 120, duration_seconds: 6, energy_cost: 0 }),
   node('orchard_berries', 'berry_bush', 'plaza', 27, 11, 26, 11, 'berry', { name: '荒园浆果丛', max_stock: 4, duration_seconds: 8, energy_cost: 3, yield_count: 2 }),
   tree('east_pine', 'plaza', 29, 7, { name: '东坡松木' }),
   tree('south_pine', 'plaza', 30, 21, { name: '南坡老松' }),

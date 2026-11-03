@@ -41,7 +41,7 @@ const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
 
 test('v020 shared authored nodes are reachable and public data excludes private reservations', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p);
-  assert.equal(RESOURCE_NODES.length, 31);
+  assert.equal(RESOURCE_NODES.length, 32);
   for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, { x: 11, y: 8 }, def.interaction_position), def.id); }
   assert.equal(a.life.tools.hoe.durability, 20); assert.equal(a.life.tools.axe.owned, false); assert.equal(a.life.tools.axe.durability, 0);
   gather(f, p, 'camp_branches');

@@ -144,7 +144,7 @@ test('非法交易、缺币缺物、数值溢出和上限失败完全回滚，�
   const f = fixture(t), p = f.make();
   for (const [payload, code] of [
     [{ intent: 'buy', item_id: 'wood', quantity: 1 }, 'INSUFFICIENT_GOLD'], [{ intent: 'sell', item_id: 'ore', quantity: 1 }, 'INSUFFICIENT_ITEMS'],
-    [{ intent: 'buy', item_id: 'turnip', quantity: 1 }, 'TRADE_UNAVAILABLE'], [{ intent: 'sell', item_id: 'turnip_seed', quantity: 1 }, 'TRADE_UNAVAILABLE'],
+    [{ intent: 'buy', item_id: 'wheat', quantity: 1 }, 'TRADE_UNAVAILABLE'], [{ intent: 'sell', item_id: 'turnip_seed', quantity: 1 }, 'TRADE_UNAVAILABLE'],
     ...[0, -1, 11, 1.5, '1', Number.MAX_SAFE_INTEGER].map(quantity => [{ intent: 'sell', item_id: 'wood', quantity }, 'INVALID_ACTION']),
     [{ intent: 'sell', item_id: 'wood', quantity: 1, gold: 999 }, 'INVALID_ACTION'],
     [{ intent: 'sell', item_id: 'wood', quantity: 1, owner_id: 'other' }, 'INVALID_ACTION'],

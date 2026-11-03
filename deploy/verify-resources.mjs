@@ -7,6 +7,12 @@ import { RESOURCE_NODES } from '../shared/resources-layout.js';
 
 const time = n => Number.isSafeInteger(n) && n >= 0;
 const LEGACY_IDS = ['camp_branches', 'camp_stones', 'orchard_berries', 'east_pine', 'south_pine', 'wild_pine', 'ridge_ore', 'deep_berries', 'moon_herb'];
+// v0.28's exact authored v2 catalogue. v0.29 adds only camp_fallen_berries;
+// a missing older node must never be mistaken for a newly introduced resource.
+const PRE_V029_V2_IDS = [...LEGACY_IDS, 'meadow_grass', 'wild_grass',
+  'village_tree_0', 'village_tree_1', 'village_tree_3', 'village_tree_6', 'village_tree_8', 'village_tree_9', 'village_tree_11', 'village_tree_2',
+  'forest_tree_0', 'forest_tree_1', 'forest_tree_3', 'forest_tree_4', 'forest_tree_9', 'forest_tree_10', 'forest_tree_13', 'forest_tree_16', 'forest_tree_18', 'forest_tree_24',
+  'planting_plaza', 'planting_adventure'];
 const catalogue = version => version === 1 ? RESOURCE_NODES.filter(n => LEGACY_IDS.includes(n.id)).map(n => n.id === 'camp_branches' ? { ...n, regrow_seconds: 45 } : n) : RESOURCE_NODES;
 // This verifier deliberately does not call ecology initialization/settlement.
 // These approved release-contract durations are independent of server code.
@@ -56,7 +62,11 @@ export function verifyResources(old, current) {
   if (previous) assert.ok(state.last_at >= previous.last_at, 'resource clock cannot rewind');
   const definitions = catalogue(state.version);
   assert.deepEqual(Object.keys(state.nodes).sort(), definitions.map(n => n.id).sort());
-  if (previous) assert.deepEqual(Object.keys(previous.nodes).sort(), catalogue(previous.version).map(n => n.id).sort(), 'all old node identities must be known and retained');
+  if (previous) {
+    const beforeV029 = previous.version === 2 && !Object.hasOwn(previous.nodes, 'camp_fallen_berries');
+    const expectedIds = beforeV029 ? PRE_V029_V2_IDS : catalogue(previous.version).map(n => n.id);
+    assert.deepEqual(Object.keys(previous.nodes).sort(), [...expectedIds].sort(), 'all old node identities must be known and retained');
+  }
   let initializedAt = null;
   if (state.version === 2 && previous?.version !== 2) {
     // An untouched newly authored mature tree supplies the common initialization

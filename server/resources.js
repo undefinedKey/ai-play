@@ -8,7 +8,7 @@ export const TREE_RULES = Object.freeze({ stages: ['empty', 'sapling', 'young', 
   description: '成熟树每次只砍一段，stock是剩余段数，最后一段另得1松果并成为树桩；树桩60秒变空地，野生林地空300秒自然萌芽，人工空地须本人种植。树苗180秒→幼树420秒→成熟；幼树不可砍。种树须明确选择空地，到达工作4秒，完成扣1松果；不自动种下一棵。离线生长不自动给材料。',
 });
 export const RESOURCE_RULES = Object.freeze({ version: 2, max_job_seconds: 120, reservation_policy: 'one_worker_per_node', stock_policy: 'global_shared', nodes: RESOURCE_NODES, trees: TREE_RULES,
-  description: '同场景具体节点共享有限库存，一次只预约一处，真实走到后工作；树木按生命周期生长，草丛/矿石等按时间补充。砍伐用斧头、采矿用镐，开工耗工具1耐久和体力；取消不退已花成本。完成后不自动续采、换树或种植。' });
+  description: '同场景具体节点共享有限库存，一次只预约一处，真实走到后工作；树木按生命周期生长，草丛/矿石等按时间补充。砍伐用斧头、采矿用镐，开工耗工具1耐久和体力。营地落果处不需工具、开工0体力、白昼6秒，夜间仍按时间倍率；一次拾得1浆果，库存全世界共享且每120秒补1。所有采集只将物品存入本人仓库，进食须单独选择；取消不退已花成本。完成后不自动续采、换树或种植。' });
 const validTime = n => Number.isSafeInteger(n) && n >= 0;
 const validId = s => typeof s === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(s);
 export const resourceDefinition = id => RESOURCE_NODES.find(n => n.id === id) || null;
