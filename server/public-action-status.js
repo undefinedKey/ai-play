@@ -2,7 +2,7 @@
 // private communication, hidden game choices and model reasoning stay private.
 const PUBLIC_ACTION_TYPES = new Set([
   'move', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event',
-  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'wait',
+  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'wait',
 ]);
 const PUBLIC_ACTION_ERRORS = new Set([
   'FATIGUE_EXHAUSTED', 'INSUFFICIENT_ITEMS', 'INSUFFICIENT_GOLD', 'NOT_AT_CAMP',
@@ -10,6 +10,8 @@ const PUBLIC_ACTION_ERRORS = new Set([
   'MOVEMENT_BUSY', 'GAME_BUSY', 'GATHER_UNAVAILABLE', 'RESOURCE_BUSY',
   'RESOURCE_DEPLETED', 'RESOURCE_PHASE', 'NOT_PLANTABLE', 'TRADE_UNAVAILABLE',
   'TRADE_LIMIT', 'FULL_ENERGY', 'FULL_HEALTH', 'INVALID_ACTION',
+  'RUINS_BUSY', 'RUINS_OCCUPIED', 'RUINS_ALREADY_OPEN', 'RUINS_ALREADY_CLAIMED',
+  'SCENE_REQUIRED', 'UNREACHABLE', 'OUT_OF_RANGE', 'NO_RUINS_JOB', 'INSUFFICIENT_TIME',
 ]);
 
 export function publicActionStatus(agent, now) {

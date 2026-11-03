@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { WORLD_MAP, SCENE_IDS, SCENES, sceneDefinition, isWalkable as gridWalkable } from '../shared/world-layout.js';
 import { MOTION_RULES, metric, pathLength, samplePath, facingBetween } from '../shared/motion.js';
+import { ruinsCellAllowed } from '../shared/ruins-layout.js';
 export { WORLD_MAP, SCENE_IDS, SCENES, sceneDefinition };
 export const MOVEMENT_RULES = { version: 2, modes: { walk: { speed: MOTION_RULES.walk_speed, energy_multiplier: 1 }, run: { speed: MOTION_RULES.run_speed, energy_multiplier: 2 } }, max_step: 3, simulation_ms: 100 };
 export const MAX_MOVE = 3;
@@ -14,6 +15,17 @@ export function isWalkable(sceneId, p) {
   if (Number.isInteger(p.x)) return gridWalkable(sceneId, { x:p.x,y:Math.floor(p.y) }) && gridWalkable(sceneId, { x:p.x,y:Math.ceil(p.y) });
   if (Number.isInteger(p.y)) return gridWalkable(sceneId, { x:Math.floor(p.x),y:p.y }) && gridWalkable(sceneId, { x:Math.ceil(p.x),y:p.y });
   return false;
+}
+function physicalCells(p) {
+  if (!isPositionInBounds(p)) return [];
+  if (Number.isInteger(p.x) && Number.isInteger(p.y)) return [p];
+  if (Number.isInteger(p.x)) return [{ x:p.x, y:Math.floor(p.y) }, { x:p.x, y:Math.ceil(p.y) }];
+  if (Number.isInteger(p.y)) return [{ x:Math.floor(p.x), y:p.y }, { x:Math.ceil(p.x), y:p.y }];
+  return [];
+}
+export function isWorldWalkable(world, sceneId, position) {
+  if (!isWalkable(sceneId, position)) return false;
+  return sceneId !== 'ruins' || physicalCells(position).every(cell => ruinsCellAllowed(world?.state?.ruins, cell));
 }
 export function boundedPosition(p) {
   const coordinate = (value, size) => Math.max(0, Math.min(size - 1, Number.isFinite(value) ? Math.floor(value) : Math.floor(size / 2)));
@@ -49,6 +61,14 @@ export function findPath(sceneId, start, target, { maxSteps = WORLD_MAP.width * 
   }
   return null;
 }
+/** Authoritative pathfinding combines authored walls and current mechanism
+ * state. Check both cells under a fractional position before findPath's short
+ * segment shortcut, so an AI cannot approach or cross a closed gate midway. */
+export function findWorldPath(world, sceneId, start, target, { allowed = () => true, ...options } = {}) {
+  const permitted = position => isWorldWalkable(world, sceneId, position) && physicalCells(position).every(allowed);
+  if (!permitted(start) || !permitted(target)) return null;
+  return findPath(sceneId, start, target, { ...options, allowed: permitted });
+}
 export function nearestWalkable(sceneId, position) {
   const p = boundedPosition(position), candidates = [];
   for (let y = 0; y < WORLD_MAP.height; y++) for (let x = 0; x < WORLD_MAP.width; x++) if (isWalkable(sceneId, { x, y })) candidates.push({ x, y });
@@ -58,12 +78,12 @@ export function stepToward(position, target, maxStep = 1, sceneId = 'adventure',
   const path = findPath(sceneId, position, target, { allowed });
   return path ? path[Math.min(path.length - 1, Math.max(0, Math.floor(maxStep)))] : { ...position };
 }
-export function movementOptions(position, sceneId = 'plaza') {
+export function movementOptions(position, sceneId = 'plaza', world) {
   const candidates = [], seen = new Set([key(position)]);
   const origin = {x:Math.round(position.x),y:Math.round(position.y)};
   for (const length of [1, MAX_MOVE]) for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
     const p = { x: origin.x + dx*length, y: origin.y + dy*length };
-    const path = findPath(sceneId, position, p, { maxSteps: MAX_MOVE });
+    const path = findWorldPath(world, sceneId, position, p, { maxSteps: MAX_MOVE });
     if (!seen.has(key(p)) && path) { candidates.push({ ...p, path }); seen.add(key(p)); }
   }
   return { ...MOVEMENT_RULES, scene_id: sceneId, map: { ...WORLD_MAP }, max_step: MAX_MOVE, candidates };
@@ -104,19 +124,19 @@ export function advanceMovement(a, now, { until = now, maxDistance = Infinity, o
   if (next >= total-1e-8 || now >= until && until < now || next < desired) stopMovement(a,now);
   return next !== previous;
 }
-function publicRoute(sceneId, path, maxPoints) {
-  if (!Array.isArray(path) || path.length < 1 || path.length > maxPoints || !path.every(p => isWalkable(sceneId, p)) ||
+function publicRoute(sceneId, path, maxPoints, world) {
+  if (!Array.isArray(path) || path.length < 1 || path.length > maxPoints || !path.every(p => isWalkable(sceneId, p) && (!world || isWorldWalkable(world, sceneId, p))) ||
     path.some((p, i) => i > 0 && (!(p.x===path[i-1].x || p.y===path[i-1].y) || metric(p,path[i-1]) > 1 || !metric(p,path[i-1])))) return null;
   return path.map(({ x, y }) => ({ x, y }));
 }
-export function publicPath(sceneId, path) { return publicRoute(sceneId, path, 6); }
-export function publicMovement(a) {
+export function publicPath(sceneId, path, world) { return publicRoute(sceneId, path, 6, world); }
+export function publicMovement(a, world) {
   const m = a.movement;
   // A finite trip may span the map; the old short action-hint limit dropped
   // its entire timeline and made an actually running actor slide in idle pose.
   // Bound routes by map size (plus fractional start/end), validate every edge,
   // and derive duration from the real route and permitted speed instead.
-  if (!m || m.version !== 2 || typeof m.movement_id!=='string' || m.movement_id.length>100 || m.scene_id !== a.scene_id || !publicRoute(m.scene_id, m.path, WORLD_MAP.width*WORLD_MAP.height+2) || !Number.isSafeInteger(m.started_at) || m.started_at < 0 || !Number.isSafeInteger(m.duration_ms) || m.duration_ms < 1 || !MOVEMENT_RULES.modes[m.mode] || m.speed!==MOVEMENT_RULES.modes[m.mode].speed || m.duration_ms!==Math.ceil(pathLength(m.path)/m.speed*1000) || !Number.isSafeInteger(m.ends_at) || m.ends_at!==m.started_at+m.duration_ms) return null;
+  if (!m || m.version !== 2 || typeof m.movement_id!=='string' || m.movement_id.length>100 || m.scene_id !== a.scene_id || !publicRoute(m.scene_id, m.path, WORLD_MAP.width*WORLD_MAP.height+2, world) || !Number.isSafeInteger(m.started_at) || m.started_at < 0 || !Number.isSafeInteger(m.duration_ms) || m.duration_ms < 1 || !MOVEMENT_RULES.modes[m.mode] || m.speed!==MOVEMENT_RULES.modes[m.mode].speed || m.duration_ms!==Math.ceil(pathLength(m.path)/m.speed*1000) || !Number.isSafeInteger(m.ends_at) || m.ends_at!==m.started_at+m.duration_ms) return null;
   return { version:2, movement_id:m.movement_id, scene_id:m.scene_id, path:m.path.map(({x,y})=>({x,y})), started_at:m.started_at, ends_at:m.ends_at, duration_ms:m.duration_ms, mode:m.mode, speed:m.speed };
 }
 export function publicAction(a) {

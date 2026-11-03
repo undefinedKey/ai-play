@@ -153,6 +153,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.27.0') >= 0 && ['scripts/fishing-context.mjs', 'references/fishing-books.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '新版钓鱼与自主创作协议不完整，未执行升级');
   }
+  if (compareVersions(version, '0.30.0') >= 0 && ['scripts/ruins-context.mjs', 'references/ruins.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '新版独立遗迹协议与说明不完整，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

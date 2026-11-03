@@ -15,6 +15,7 @@ const adminEnv = read('deploy/admin.env.example');
 const caddy = read('deploy/Caddyfile.example');
 const checks = [];
 function check(name, test) { assert.ok(test, name); checks.push({ name, status: 'pass' }); }
+for (const path of ['shared/maps/ruins.json', 'shared/ruins-layout.js', 'server/ruins.js', 'src/Ruins.jsx', 'src/ruins-state.js', 'docs/V030-RUINS-CONTRACT.md', 'skills/ai-plaza/scripts/ruins-context.mjs', 'skills/ai-plaza/references/ruins.md', 'tests/v030-ruins.test.js', 'tests/v030-ruins-spatial.test.js']) check(`ruins artifact exists: ${path}`, existsSync(resolve(root, path)));
 check('systemd uses a dedicated unprivileged user', /^User=ai-plaza$/m.test(service) && /^Group=ai-plaza$/m.test(service));
 check('single production process uses the dedicated Node runtime', /^ExecStart=\/opt\/ai-plaza-node\/bin\/node \/opt\/ai-plaza\/server\/index.js --production$/m.test(service));
 check('code is read-only and state directory is persistent', /^ProtectSystem=strict$/m.test(service) && /^ReadWritePaths=\/var\/lib\/ai-plaza$/m.test(service));

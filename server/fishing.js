@@ -1,7 +1,7 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { FISHING_SPOTS } from '../shared/fishing-layout.js';
 import { adjustInventory, campAvailable, LIFE_RULES } from './life.js';
-import { findPath, recordMovement, stopMovement } from './spatial.js';
+import { findWorldPath, recordMovement, stopMovement } from './spatial.js';
 import { spendEnergy, FATIGUE_RULES } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
 
@@ -33,7 +33,7 @@ function available(world, a, spot, mode, fail) {
   if (Object.values(world.state.agents).some(b => b.agent_id !== a.agent_id && (b.fishing?.spot_id === spot.id || b.scene_id === spot.scene_id && !b.home_presence && b.status === 'active' && distance(b.position, spot.interaction_position) < .1))) fail('FISHING_OCCUPIED', '岸位已有角色，请选另一个钓点或稍后再来');
   supplies(a, fail);
   if (mode === 'run' && a.fatigue.energy <= 0) fail('FATIGUE_EXHAUSTED', '体力不足以奔跑');
-  const path = findPath(a.scene_id, a.position, spot.interaction_position);
+  const path = findWorldPath(world, a.scene_id, a.position, spot.interaction_position);
   if (!path) fail('UNREACHABLE', '这个岸位暂不可达');
   return path;
 }

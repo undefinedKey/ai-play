@@ -38,7 +38,7 @@ function FishingReelVisual({ agent, spot, world, map, now, live }) {
 
 export function FishingLayer({ world, sceneId, map, now, live }) {
   const selection = useContext(ResourceSelection), spots = (world.fishing?.spots || []).filter(spot => spot.scene_id === sceneId);
-  return <div className={`fishing-layer ${!live ? 'fishing-disconnected' : ''}`} aria-label="池边钓点">{spots.map(spot => {
+  return <div className={`fishing-layer ${!live ? 'fishing-disconnected' : ''}`} role="group" aria-label="池边钓点">{spots.map(spot => {
     const agents = (world.agents || []).filter(agent => agent.fishing?.spot_id === spot.id && fishingState(agent, now));
     const reels = (world.agents || []).filter(agent => fishingReel(agent, spot, world.events || [], now));
     return <React.Fragment key={spot.id}><button className={`fishing-spot ${selection.selected === `fish:${spot.id}` ? 'selected' : ''}`} data-testid={`fishing-spot-${spot.id}`} style={{ ...projectMapPoint(spot.interaction_position, map), zIndex: 900 }} aria-label={`查看钓点：${spot.name}，只读`} aria-pressed={selection.selected === `fish:${spot.id}`} onClick={() => selection.select(`fish:${spot.id}`)}>

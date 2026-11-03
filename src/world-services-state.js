@@ -2,9 +2,10 @@ import { presenceState } from './observer-state.js';
 import { homeActivity, homeActivityNames, homeLocation } from './home-state.js';
 import { fishingState } from './fishing-view-state.js';
 import { encounterState } from './journey-state.js';
+import { ruinsExecution } from './ruins-state.js';
 
-const actionNames = Object.freeze({ move: '移动', wait: '等待', gather: '采集', trade: '交易', farm: '农作', inventory: '物品操作', home: '小屋操作', fish: '垂钓', survival: '生存操作', adventure_plan: '冒险计划', adventure_event: '探索选择', start_activity: '开始活动', finish_activity: '结束活动' });
-const errorNames = Object.freeze({ FATIGUE_EXHAUSTED: '体力不足', INSUFFICIENT_ITEMS: '物品不足', INSUFFICIENT_GOLD: '金币不足', NOT_AT_CAMP: '不在服务范围内', ACTIVITY_BUSY: '活动进行中', GATHER_BUSY: '采集进行中', FISHING_BUSY: '垂钓进行中', HOME_BUSY: '小屋行动进行中', HOME_USE_BUSY: '家具使用进行中', MOVEMENT_BUSY: '移动进行中', GAME_BUSY: '游戏进行中', GATHER_UNAVAILABLE: '资源当前不可用', RESOURCE_BUSY: '资源已被预约', RESOURCE_DEPLETED: '资源未成熟或已耗尽', RESOURCE_PHASE: '不在可采时段', NOT_PLANTABLE: '当前地块不可种植', TRADE_UNAVAILABLE: '物品当前不可交易', TRADE_LIMIT: '达到交易限额', FULL_ENERGY: '体力已满', FULL_HEALTH: '生命已满', INVALID_ACTION: '请求不符合动作规则' });
+const actionNames = Object.freeze({ move: '移动', wait: '等待', gather: '采集', trade: '交易', farm: '农作', inventory: '物品操作', home: '小屋操作', fish: '垂钓', survival: '生存操作', ruins: '遗迹操作', adventure_plan: '冒险计划', adventure_event: '探索选择', start_activity: '开始活动', finish_activity: '结束活动' });
+const errorNames = Object.freeze({ FATIGUE_EXHAUSTED: '体力不足', INSUFFICIENT_ITEMS: '物品不足', INSUFFICIENT_GOLD: '金币不足', NOT_AT_CAMP: '不在服务范围内', ACTIVITY_BUSY: '活动进行中', GATHER_BUSY: '采集进行中', FISHING_BUSY: '垂钓进行中', HOME_BUSY: '小屋行动进行中', HOME_USE_BUSY: '家具使用进行中', MOVEMENT_BUSY: '移动进行中', GAME_BUSY: '游戏进行中', GATHER_UNAVAILABLE: '资源当前不可用', RESOURCE_BUSY: '资源已被预约', RESOURCE_DEPLETED: '资源未成熟或已耗尽', RESOURCE_PHASE: '不在可采时段', NOT_PLANTABLE: '当前地块不可种植', TRADE_UNAVAILABLE: '物品当前不可交易', TRADE_LIMIT: '达到交易限额', FULL_ENERGY: '体力已满', FULL_HEALTH: '生命已满', INVALID_ACTION: '请求不符合动作规则', RUINS_BUSY: '遗迹行动进行中', RUINS_OCCUPIED: '已有角色正在修桥', RUINS_ALREADY_OPEN: '通路已经打开', RUINS_ALREADY_CLAIMED: '实物已经被取走', SCENE_REQUIRED: '不在所需场景', UNREACHABLE: '道路尚未接通', OUT_OF_RANGE: '尚未到达交互位置', NO_RUINS_JOB: '没有进行中的遗迹行动', INSUFFICIENT_TIME: '剩余活动时间不足' });
 const remaining = (end, now) => Number.isFinite(end) ? Math.max(0, Math.ceil((end - now) / 1000)) : null;
 const timed = (label, end, now) => remaining(end, now) === 0 ? `${label} · 计时结束，等待服务器确认` : `${label}${remaining(end, now) === null ? '' : ` · ${remaining(end, now)} 秒`}`;
 const result = (kind, text) => ({ kind, text });
@@ -22,6 +23,8 @@ export function observerExecution(world, agent, now) {
     return result('idle', '暂无执行中的行动');
   }
   if (agent.home_travel) return result('home_travel', timed(homeLocation(agent, world.homes), agent.home_travel.expires_at, now));
+  const ruins = ruinsExecution(world, agent, now);
+  if (ruins) return ruins;
   const fishing = fishingState(agent, now);
   if (fishing) return result('fish', fishing.working ? timed('正在垂钓', fishing.ends_at, now) : '正在前往垂钓位置');
   const gather = agent.life?.gathering;

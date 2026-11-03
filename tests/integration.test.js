@@ -143,21 +143,51 @@ test('HTTP: explicit foreign controller is rejected instead of falling back to d
   assert.equal((await own.call('get_control_state')).run, null);
 });
 
-test('HTTP: 20 simultaneous spectator streams receive a confirmed world change', async t => {
+// A transport chunk may end anywhere in a UTF-8 character or SSE frame, and
+// one chunk may also contain several frames. Keep the remainder between reads.
+async function* eventFrames(reader) {
+  const decoder = new TextDecoder(); let buffered = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) throw new Error('Spectator stream ended before the expected snapshot');
+    buffered += decoder.decode(value, { stream: true });
+    for (let separator; (separator = /\r?\n\r?\n/.exec(buffered));) {
+      const frame = buffered.slice(0, separator.index); buffered = buffered.slice(separator.index + separator[0].length);
+      const lines = frame.split(/\r?\n/), event = lines.find(line => line.startsWith('event:'))?.slice(6).trim();
+      const data = lines.filter(line => line.startsWith('data:')).map(line => line.slice(5).replace(/^ /, '')).join('\n');
+      if (event) yield { event, data };
+    }
+  }
+}
+async function snapshotMatching(frames, matches = () => true) {
+  while (true) {
+    const { value: frame } = await frames.next();
+    if (frame.event !== 'snapshot') continue;
+    const snapshot = JSON.parse(frame.data);
+    if (matches(snapshot)) return snapshot;
+  }
+}
+
+test('HTTP: 20 simultaneous spectator streams receive a confirmed world change', { timeout: 10000 }, async t => {
   const f = await fixture(t);
   const abort = new AbortController();
   t.after(() => abort.abort());
   const viewers = await Promise.all(Array.from({ length: 20 }, async () => {
     const response = await fetch(`${f.url}/api/events`, { headers: { cookie: f.cookie }, signal: abort.signal });
     assert.equal(response.status, 200);
-    const reader = response.body.getReader();
-    assert.match(new TextDecoder().decode((await reader.read()).value), /event: snapshot/);
-    return reader;
+    const frames = eventFrames(response.body.getReader());
+    const snapshot = await snapshotMatching(frames);
+    assert.ok(Array.isArray(snapshot.agents));
+    return frames;
   }));
   const started = Date.now();
-  await f.api('/api/agents', { name: '广播测试', bio: '', avatar: '🌳', color: '#567658' });
-  const messages = await Promise.all(viewers.map(async r => new TextDecoder().decode((await r.read()).value)));
-  assert.ok(messages.every(message => message.includes('广播测试')));
-  assert.ok(Date.now() - started < 1000);
-  abort.abort();
+  const deadline = setTimeout(() => abort.abort(), 1000);
+  try {
+    const created = await f.api('/api/agents', { name: '广播测试', bio: '', avatar: '🌳', color: '#567658' });
+    assert.equal(created.status, 201);
+    const matches = snapshot => snapshot.agents.some(agent => agent.agent_id === created.body.agent.agent_id && agent.name === '广播测试');
+    const snapshots = await Promise.all(viewers.map(frames => snapshotMatching(frames, matches)));
+    assert.equal(snapshots.length, 20); assert.ok(snapshots.every(matches));
+    assert.ok(Date.now() - started < 1000);
+  } finally { clearTimeout(deadline); abort.abort(); }
 });

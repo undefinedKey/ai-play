@@ -8,6 +8,7 @@ export const HISTORY_RETENTION = Object.freeze({ days: 30, max_entries: 4096, ma
 const categories = new Set(['speech', 'activity', 'game', 'exploration', 'life', 'goal', 'cooperation']);
 const outcomes = new Set(['recorded', 'completed', 'cancelled', 'interrupted', 'expired', 'ended']);
 const types = new Map([
+  ...['ruins_entered','ruins_left','ruins_claimed','ruins_gate_opened','ruins_bridge_repaired','ruins_runes_submitted'].map(type => [type, 'exploration']),
   ...['fish_finished', 'fish_cancelled', 'home_book_written', 'home_book_shelved', 'home_book_unshelved', 'home_book_commented'].map(type => [type, 'life']),
   ...['home_built','home_renamed','home_furnished','home_displayed','home_withdrawn','home_entered','home_left','home_message','home_message_removed','home_use_finished','home_use_cancelled'].map(type => [type, 'life']),
   ['message', 'speech'], ['activity_finished', 'activity'], ['game_finished', 'game'],

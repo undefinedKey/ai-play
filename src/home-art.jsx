@@ -60,6 +60,9 @@ export function FurnitureArt({ kind, rotation=0, layer='base', item }) {
 
 // Existing inventory symbols remain keyed to the real displayed item.
 function SouvenirShape({ item }) {
+  if(item==='ruins_leaf_medallion')return <g stroke="#4d5c3e" strokeWidth="3"><circle cx="55" cy="49" r="36" fill="#bca367"/><path d="M33 69C22 37 50 23 79 27 77 59 59 77 33 69Z" fill="#92a274"/><path d="m34 69 34-32m-21 19 15 1m-18 3-1-16" fill="none"/></g>;
+  if(item==='ruins_stone_bird')return <g stroke="#535644" strokeWidth="3"><ellipse cx="55" cy="82" rx="35" ry="7" fill="#c2b58c"/><path d="m18 66 22-30 21 10 18-28 15 8-12 16 12 8-26 4-16 27Z" fill="#a5a48a"/><path d="m42 45 17 12-21 9m18 13 4 5m9-18 5 18" fill="none"/><circle cx="82" cy="27" r="2.5" fill="#333c30"/></g>;
+  if(item==='ruins_star_lens')return <g strokeWidth="4"><circle cx="55" cy="46" r="32" fill="#819d98" stroke="#b09a5e"/><circle cx="55" cy="46" r="26" fill="none" stroke="#4b625b"/><path d="m37 50 22-23m-12 36 24-27" stroke="#d4e0ce" fill="none"/><path d="m40 77-9 13h49L69 77" stroke="#5b6049" fill="#b3a87e"/></g>;
   if(item==='pine_cone')return <g stroke="#624630" strokeWidth="2"><path d="M54 5q-31 14-32 58 18 31 39 22 31-16 29-39Q79 17 54 5Z" fill="#a57b48"/><path d="m40 23 15 14 15-13M29 43l24 12 28-13M26 62l24 12 36-13M40 82l14-11" fill="none"/></g>;
   if(item==='ore')return <g stroke="#4e554f" strokeWidth="2.5"><path d="m15 68 10-35 30-25 32 13 14 51-39 17Z" fill="#9bada4"/><path d="m25 33 38 13 24-25M63 46l-1 43M15 68l48-22" fill="none"/><path d="m50 14 5 17-14 7" stroke="#d3dcc8" fill="none"/></g>;
   return <g stroke="#62472e" strokeWidth="3"><path d="m19 42 58-27 22 44-61 29Z" fill="#a77b47"/><ellipse cx="29" cy="64" rx="20" ry="27" transform="rotate(-22 29 64)" fill="#d2ad70"/><ellipse cx="29" cy="64" rx="10" ry="16" transform="rotate(-22 29 64)" fill="none" strokeWidth="1.5"/><path d="m49 44 37-17m-31 33 35-16" strokeWidth="1.5"/></g>;

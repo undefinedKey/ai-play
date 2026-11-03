@@ -1,0 +1,2023 @@
+{
+  "type": "map",
+  "version": "1.10",
+  "tiledversion": "1.12.2",
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "infinite": false,
+  "width": 48,
+  "height": 32,
+  "tilewidth": 32,
+  "tileheight": 32,
+  "nextlayerid": 3,
+  "nextobjectid": 102,
+  "properties": [
+    {
+      "name": "scene_id",
+      "type": "string",
+      "value": "ruins"
+    },
+    {
+      "name": "scene_name",
+      "type": "string",
+      "value": "林间遗迹"
+    },
+    {
+      "name": "destination_scene",
+      "type": "string",
+      "value": "adventure"
+    }
+  ],
+  "layers": [
+    {
+      "id": 1,
+      "name": "Ground",
+      "type": "imagelayer",
+      "visible": true,
+      "opacity": 1,
+      "x": 0,
+      "y": 0,
+      "image": "../../public/pixel-world/ground_ink.png",
+      "imagewidth": 1536,
+      "imageheight": 1024,
+      "locked": true
+    },
+    {
+      "id": 2,
+      "name": "World props and footprints",
+      "type": "objectgroup",
+      "visible": true,
+      "opacity": 1,
+      "draworder": "topdown",
+      "x": 0,
+      "y": 0,
+      "objects": [
+        {
+          "id": 1,
+          "name": "outer_0_0",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -16,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "outer_0_3",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 80,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "outer_0_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 176,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "name": "outer_0_9",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 272,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "outer_0_12",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 368,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "outer_0_15",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 464,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "name": "outer_0_18",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 560,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "outer_0_21",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 656,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "name": "outer_0_24",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 752,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "name": "outer_0_27",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 848,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "outer_0_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 944,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "name": "outer_0_33",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "name": "outer_0_36",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1136,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "name": "outer_0_39",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1232,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "name": "outer_0_42",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1328,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "name": "outer_0_45",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1424,
+          "y": 24,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "name": "outer_31_0",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -16,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "name": "outer_31_3",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 80,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "name": "outer_31_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 176,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "name": "outer_31_9",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 272,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "name": "outer_31_12",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 368,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "name": "outer_31_15",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 464,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 23,
+          "name": "outer_31_18",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 560,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 24,
+          "name": "outer_31_21",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 656,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 25,
+          "name": "outer_31_24",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 752,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 26,
+          "name": "outer_31_27",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 848,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 27,
+          "name": "outer_31_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 944,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 28,
+          "name": "outer_31_33",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 29,
+          "name": "outer_31_36",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1136,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 30,
+          "name": "outer_31_39",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1232,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 31,
+          "name": "outer_31_42",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1328,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 32,
+          "name": "outer_31_45",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1424,
+          "y": 1016,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[-1,0],[0,0],[1,0]]"
+            }
+          ]
+        },
+        {
+          "id": 33,
+          "name": "wall_0_2",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 34,
+          "name": "wall_0_4",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 152,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "name": "wall_0_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 36,
+          "name": "wall_0_8",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 37,
+          "name": "wall_0_10",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 344,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 38,
+          "name": "wall_0_12",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 408,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 39,
+          "name": "wall_0_14",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 472,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 40,
+          "name": "wall_0_16",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 536,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 41,
+          "name": "wall_0_18",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 600,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "name": "wall_0_20",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 664,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 43,
+          "name": "wall_0_22",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 728,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 44,
+          "name": "wall_0_24",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 792,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "name": "wall_0_26",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 856,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 46,
+          "name": "wall_0_28",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 920,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 47,
+          "name": "wall_0_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": -48,
+          "y": 984,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 48,
+          "name": "wall_47_2",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 49,
+          "name": "wall_47_4",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 152,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 50,
+          "name": "wall_47_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 51,
+          "name": "wall_47_8",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 52,
+          "name": "wall_47_10",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 344,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 53,
+          "name": "wall_47_12",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 408,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 54,
+          "name": "wall_47_14",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 472,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 55,
+          "name": "wall_47_16",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 536,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 56,
+          "name": "wall_47_18",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 600,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 57,
+          "name": "wall_47_20",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 664,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 58,
+          "name": "wall_47_22",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 728,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 59,
+          "name": "wall_47_24",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 792,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 60,
+          "name": "wall_47_26",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 856,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 61,
+          "name": "wall_47_28",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 920,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 62,
+          "name": "wall_47_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1456,
+          "y": 984,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 63,
+          "name": "wall_17_2",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 64,
+          "name": "wall_17_4",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 152,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 65,
+          "name": "wall_17_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 66,
+          "name": "wall_17_8",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 67,
+          "name": "wall_17_11",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 376,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 68,
+          "name": "wall_17_13",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 440,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 69,
+          "name": "wall_17_15",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 504,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 70,
+          "name": "wall_17_17",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 568,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 71,
+          "name": "wall_17_19",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 632,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 72,
+          "name": "wall_17_21",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 696,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 73,
+          "name": "wall_17_23",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 760,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 74,
+          "name": "wall_17_26",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 856,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 75,
+          "name": "wall_17_28",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 920,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 76,
+          "name": "wall_17_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 496,
+          "y": 984,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 77,
+          "name": "wall_34_2",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 88,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 78,
+          "name": "wall_34_4",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 152,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 79,
+          "name": "wall_34_6",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 80,
+          "name": "wall_34_8",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 280,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 81,
+          "name": "wall_34_10",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 344,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 82,
+          "name": "wall_34_12",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 408,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 83,
+          "name": "wall_34_14",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 472,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 84,
+          "name": "wall_34_15",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 504,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 85,
+          "name": "wall_34_18",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 600,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 86,
+          "name": "wall_34_20",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 664,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 87,
+          "name": "wall_34_22",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 728,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 88,
+          "name": "wall_34_24",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 792,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 89,
+          "name": "wall_34_26",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 856,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 90,
+          "name": "wall_34_28",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 920,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 91,
+          "name": "wall_34_30",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 1040,
+          "y": 984,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,-1],[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 92,
+          "name": "fixture_key_cache",
+          "type": "dead_tree",
+          "rotation": 0,
+          "visible": true,
+          "gid": 3,
+          "x": 208,
+          "y": 248,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 93,
+          "name": "fixture_dial_west",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 912,
+          "y": 408,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 94,
+          "name": "fixture_dial_middle",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 912,
+          "y": 536,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 95,
+          "name": "fixture_dial_east",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 912,
+          "y": 664,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 96,
+          "name": "fixture_rune_console",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 976,
+          "y": 536,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 97,
+          "name": "fixture_mural",
+          "type": "ruin_wall",
+          "rotation": 0,
+          "visible": true,
+          "gid": 1,
+          "x": 720,
+          "y": 216,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 98,
+          "name": "fixture_relic_leaf",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 1200,
+          "y": 344,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 99,
+          "name": "fixture_relic_bird",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 1264,
+          "y": 536,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 100,
+          "name": "fixture_relic_lens",
+          "type": "ruin_column",
+          "rotation": 0,
+          "visible": true,
+          "gid": 2,
+          "x": 1200,
+          "y": 760,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[[0,0]]"
+            }
+          ]
+        },
+        {
+          "id": 101,
+          "name": "portal",
+          "type": "portal_adventure",
+          "rotation": 0,
+          "visible": true,
+          "gid": 4,
+          "x": 144,
+          "y": 824,
+          "width": 128,
+          "height": 128,
+          "properties": [
+            {
+              "name": "footprint",
+              "type": "string",
+              "value": "[]"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "name": "world-props",
+      "columns": 0,
+      "tilewidth": 128,
+      "tileheight": 128,
+      "tilecount": 4,
+      "objectalignment": "bottomleft",
+      "grid": {
+        "orientation": "orthogonal",
+        "width": 1,
+        "height": 1
+      },
+      "tiles": [
+        {
+          "id": 0,
+          "type": "ruin_wall",
+          "image": "../../public/pixel-world/ruin_wall.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 1,
+          "type": "ruin_column",
+          "image": "../../public/pixel-world/ruin_column.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 2,
+          "type": "dead_tree",
+          "image": "../../public/pixel-world/dead_tree.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        },
+        {
+          "id": 3,
+          "type": "portal_adventure",
+          "image": "../../public/pixel-world/portal_adventure.png",
+          "imagewidth": 128,
+          "imageheight": 128
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { RUINS_RULES } from '../shared/ruins-layout.js';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import {resolve,dirname,extname} from 'node:path';
@@ -142,7 +143,7 @@ for(const directory of ['public','dist']){
     assert.equal(manifest.scenes[scene.id].height,WORLD_MAP.height*32);
     assert.ok(isWalkable(scene.id,scene.portal.position));
     const other=SCENES.find(s=>s.id===scene.portal.to_scene_id);
-    assert.deepEqual(scene.portal.to_position,other.portal.position);
+    assert.deepEqual(scene.portal.to_position,scene.id === 'ruins' ? RUINS_RULES.entrance.position : other.portal.position);
     for(const prop of scene.props){
       if(prop.kind!=='pond'){
         const sprite=manifest.props[prop.kind];assert.ok(sprite,prop.kind);

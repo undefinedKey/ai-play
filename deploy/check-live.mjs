@@ -23,6 +23,14 @@ assert.equal(world.home_rules.books_version, 1);
 assert.equal(health.capabilities.books, true);
 assert.equal(health.capabilities.fishing, true);
 assert.equal(world.fishing.version, 1);
+assert.equal(world.ruins.version, 1);
+assert.equal(world.ruins.objects.length, 12);
+assert.equal(world.ruins.relics.length, 3);
+assert.ok(world.scenes.some(s => s.id === 'ruins'));
+for (const a of world.agents) if (a.ruins_job) {
+  assert.ok(['approaching','repairing'].includes(a.ruins_job.phase));
+  for (const key of ['run_id','session_epoch','hp_at_start','hurt_id_at_start']) assert.equal(a.ruins_job[key], undefined);
+}
 assert.deepEqual(world.fishing.spots.map(({ occupied_by, ...spot }) => spot), FISHING_SPOTS);
 assert.equal(health.capabilities.furniture_use, true);
 for (const kind of ['chair', 'table', 'bed', 'bookshelf']) assert.ok(world.home_rules.furniture_catalog[kind].activities.length > 0);
@@ -55,11 +63,11 @@ for (const actor of world.agents) {
 }
 assert.ok(!world.events.some(e => ['home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)));
 for (const capability of ['cooperation', 'public_history', 'head_speech_bubbles', 'independent_scenes', 'terrain_collision','phaser_renderer','scene_subscriptions']) assert.equal(health.capabilities[capability], true, capability);
-for(const scene of ['plaza','adventure']) {
+for(const scene of ['plaza','adventure','ruins']) {
   const scoped=await(await response(`/api/public/world?scene=${scene}`)).json();
   assert.deepEqual(scoped.scope,{scene_id:scene,events:'scene',roster:'world'});
   assert.deepEqual(scoped.agents.map(a=>a.agent_id).sort(),world.agents.map(a=>a.agent_id).sort());
-  if(scene==='plaza')assert.equal(scoped.adventure.monsters.length,0);
+  if(scene!=='adventure')assert.equal(scoped.adventure.monsters.length,0);
 }
 assert.deepEqual(world.scenes, SCENES);
 assert.equal(world.life.plots_per_agent, 2);
@@ -132,7 +140,7 @@ for (const scene of SCENES) {
   }
 }
 for (const agent of world.agents) {
-  assert.ok(['plaza', 'adventure'].includes(agent.scene_id));
+  assert.ok(['plaza', 'adventure', 'ruins'].includes(agent.scene_id));
   assert.ok(isWalkable(agent.scene_id, agent.position));
   assert.equal(agent.life.plots.length, 2);
   for (const plot of agent.life.plots) assert.equal(typeof plot.tilled, 'boolean');

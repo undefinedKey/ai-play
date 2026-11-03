@@ -1,7 +1,7 @@
-import { sceneDefinition, isWalkable } from '../shared/world-layout.js';
+import { sceneDefinition, isWalkable, SCENE_IDS } from '../shared/world-layout.js';
 import { sampleMotion } from '../shared/motion.js';
 
-export const actorScene = agent => !agent?.home_presence && ['plaza','adventure'].includes(agent?.scene_id) ? agent.scene_id : null;
+export const actorScene = agent => !agent?.home_presence && SCENE_IDS.includes(agent?.scene_id) ? agent.scene_id : null;
 export const sceneName = id => sceneDefinition(id)?.name || '所在地未知';
 export function sceneActors(agents, sceneId) { return agents.filter(agent => actorScene(agent) === sceneId && ['active','paused'].includes(agent.status)); }
 export function confirmedPosition(agent, now, live=true) {

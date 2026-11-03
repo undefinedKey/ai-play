@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "0.29.0",
+  "release": "0.30.0",
   "tool": {
     "name": "Pixelbolt",
     "version": "0.10.0",
@@ -19,6 +19,13 @@
     "terrain_overlay": true
   },
   "scenes": {
+    "ruins": {
+      "image": "/pixel-world/ink_ground.png",
+      "width": 1536,
+      "height": 1024,
+      "render_style": "ink",
+      "terrain_overlay": true
+    },
     "plaza": {
       "image": "/pixel-world/ink_ground.png",
       "width": 1536,

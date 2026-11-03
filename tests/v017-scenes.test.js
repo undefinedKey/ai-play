@@ -83,7 +83,7 @@ test('v017 migration uses structured pre-cleanup evidence and nearest legal cell
  const f=fixture(t),p=f.make();const legacy=structuredClone(f.raw(p));delete legacy.scene_id;legacy.position={x:2,y:2};legacy.adventure.in_field=true;
  initializeScene(legacy,f.now());assert.equal(legacy.scene_id,'adventure');assert.deepEqual(legacy.scene_migration.from_position,{x:2,y:2});
  const plain=structuredClone(f.raw(p));delete plain.scene_id;plain.position={x:2,y:2};initializeScene(plain,f.now());assert.equal(plain.scene_id,'plaza');assert.deepEqual(plain.position,nearestWalkable('plaza',{x:2,y:2}));assert.equal(plain.scene_migration.reason,'legacy_default_plaza');
- const snapshot=spectatorSnapshot(f.w);assert.equal(snapshot.agents[0].scene_id,'plaza');assert.equal(snapshot.scenes.length,2);assert.doesNotMatch(JSON.stringify(snapshot),/scene_stale_actions|scene_migration/);
+ const snapshot=spectatorSnapshot(f.w);assert.equal(snapshot.agents[0].scene_id,'plaza');assert.equal(snapshot.scenes.length,SCENES.length);assert.doesNotMatch(JSON.stringify(snapshot),/scene_stale_actions|scene_migration/);
  f.w.event('message',{agent_id:p.id,text:'new',channel:'nearby'},[p.id]);assert.equal(f.w.historyPage({}).items[0].details.scene_id,'plaza');
 });
 

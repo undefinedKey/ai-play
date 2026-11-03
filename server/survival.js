@@ -1,10 +1,11 @@
+import { cancelRuins } from './ruins.js';
 import { cancelFishing } from './fishing.js';
 import { homeLightUntil, cancelHomeTravel, cancelHomeUse, detachHomes } from './homes.js';
 import { randomUUID } from 'node:crypto';
 import { SURVIVAL_RULES, siteDefinition, fireDefinition, fireFuel, publicFire, publicSurvival, publicSurvivor, initializeSurvivor, survivalLight, survivalPhaseAt, survivalRound } from './survival-state.js';
 import { adjustInventory, cancelGather } from './life.js';
 import { spendEnergy } from './fatigue.js';
-import { findPath, recordMovement, stopMovement } from './spatial.js';
+import { findWorldPath, recordMovement, stopMovement } from './spatial.js';
 import { stopAdventure, leaveAdventureField, changeScene } from './adventure.js';
 import { samplePath, pathLength } from '../shared/motion.js';
 import { combatStats } from './combat.js';
@@ -59,7 +60,7 @@ export function performSurvival(world, a, p, fail, actionId) {
     if (p.mode !== undefined && !['walk', 'run'].includes(p.mode)) fail('INVALID_ACTION', '移动模式只支持walk或run');
     const site = siteDefinition(p.site_id); if (!site) fail('INVALID_ACTION', '未知宿营地');
     if (site.scene_id !== a.scene_id) fail('SCENE_REQUIRED', '先通过入口进入对应场景');
-    const path = findPath(a.scene_id, a.position, site.interaction_position);
+    const path = findWorldPath(world, a.scene_id, a.position, site.interaction_position);
     if (!path) fail('NO_PATH', '无法从当前位置到达宿营地');
     if (distance(a.position, site.interaction_position) < 1e-8) return { arrived: true, site_id: site.id };
     recordMovement(a, path, now, p.mode || 'walk');
@@ -170,7 +171,7 @@ function environmentHit(world, a, kind, damage) {
   a.adventure.hp = Math.max(0, a.adventure.hp - damage);
   a.hurt = { action_id: `environment_${randomUUID()}`, started_at: world.now(), ends_at: world.now() + 360, damage };
   cancelGather(world, a, 'hurt'); cancelSurvivalTravel(world, a, 'hurt');
-  cancelFishing(world, a, 'hurt'); cancelHomeTravel(world, a, 'hurt'); cancelHomeUse(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
+  cancelRuins(world, a, 'hurt'); cancelFishing(world, a, 'hurt'); cancelHomeTravel(world, a, 'hurt'); cancelHomeUse(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
   stopAdventure(world, a, 'needs_decision', '环境风险中断了当前计划，请自主选择应对方式');
   stopMovement(a, world.now()); world.finishActivity(a, { cancelled: true, interrupted: true });
   announce(world, a, 'survival_damage', { kind, damage, hp: a.adventure.hp }, `${a.name}受到${kind === 'darkness' ? '黑暗' : '饥饿'}影响，损失${damage}点生命`);

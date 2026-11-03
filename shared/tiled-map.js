@@ -1,6 +1,7 @@
 // Pure data compiler shared by Node, the browser and map validation tooling.
 // Tiled tile objects use bottom-left alignment; sprite feet are at (64,120).
-const ids = ['plaza', 'adventure'];
+import { RUINS_RULES } from './ruins-layout.js';
+const ids = ['plaza', 'adventure', 'ruins'];
 const fail = message => { throw new Error(`Invalid Tiled world map: ${message}`); };
 function need(value, message) { if (!value) fail(message); }
 function properties(items = []) {
@@ -59,7 +60,8 @@ export function compileTiledScene(source) {
       const p = { x: position.x + offset[0], y: position.y + offset[1] }, key = `${p.x},${p.y}`;
       need(inBounds(p) && !seen.has(key), 'duplicate or out-of-bounds footprint'); seen.add(key); return p;
     });
-    need(object.name === 'portal' ? kind === `portal_${meta.scene_id}` && footprint.length === 0 : footprint.length > 0, 'only the portal may have an empty footprint');
+    const portalKind = meta.scene_id === 'ruins' ? 'portal_adventure' : `portal_${meta.scene_id}`;
+    need(object.name === 'portal' ? kind === portalKind && footprint.length === 0 : footprint.length > 0, 'only the portal may have an empty footprint');
     return { id: object.name, kind, position, footprint };
   });
   const portal = props.find(p => p.id === 'portal'); need(portal, 'missing portal');
@@ -77,11 +79,20 @@ export function compileTiledScene(source) {
   return { id: meta.scene_id, name: meta.scene_name, map: {width:source.width,height:source.height}, portal: {position:portal.position,to_scene_id:meta.destination_scene}, blocked, props };
 }
 export function compileWorldMaps(sources) {
-  need(Array.isArray(sources) && sources.length === 2, 'two scenes required');
+  need(Array.isArray(sources) && sources.length === ids.length, 'three scenes required');
   const scenes = sources.map(compileTiledScene);
   need(ids.every(id => scenes.filter(s => s.id === id).length === 1), 'scene IDs must be unique');
   for (const scene of scenes) {
     const target = scenes.find(s => s.id === scene.portal.to_scene_id);
+    // Ruins has an explicit one-way exit to a separate forest entrance. Keep
+    // the original plaza/forest primary portal pair reciprocal and unchanged.
+    if (scene.id === 'ruins') {
+      need(target?.id === RUINS_RULES.entrance.scene_id && scene.portal.position.x === RUINS_RULES.exit.position.x && scene.portal.position.y === RUINS_RULES.exit.position.y, 'invalid ruins exit');
+      const arrival = RUINS_RULES.entrance.position;
+      need(!target.blocked.some(p => p.x === arrival.x && p.y === arrival.y), 'blocked ruins return entrance');
+      scene.portal.to_position = {...arrival};
+      continue;
+    }
     need(target?.portal.to_scene_id === scene.id, 'portals must be reciprocal');
     scene.portal.to_position = {...target.portal.position};
   }

@@ -1,4 +1,4 @@
-import { isPositionInBounds, findPath, recordMovement, stopMovement } from './spatial.js';
+import { isPositionInBounds, findWorldPath, recordMovement, stopMovement } from './spatial.js';
 import { FATIGUE_RULES, spendEnergy, attackMultiplier } from './fatigue.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_RULES, economyBalance, recordEconomyDelta, marketWindow, publicMarket, publicLedger } from './economy.js';
@@ -6,9 +6,11 @@ import { EQUIPMENT, STRATEGY_EQUIPMENT_RULES, combatStats } from './combat.js';
 import { RESOURCE_RULES, TREE_RULES, resourceDefinition, reserveResource, resourceWorkAvailable, resourceHarvestItems, releaseResource, consumeResource, plantResource } from './resources.js';
 import { DAY_RULES, publicDayCycle } from './day-cycle.js';
 import { foodWouldRestoreSatiety, applyFoodSatiety, litCampfireNear } from './survival-state.js';
+import { RUINS_ITEMS } from '../shared/ruins-layout.js';
 export { combatStats } from './combat.js';
 
 const ITEMS = [
+  ...RUINS_ITEMS,
   { id: 'fishing_rod', name: '木制鱼竿', kind: 'tool' },
   { id: 'fish_bait', name: '草编鱼饵', kind: 'material' },
   { id: 'pond_fish', name: '池塘鱼', kind: 'food', heal: 4, satiety_restore: 15 },
@@ -368,7 +370,7 @@ function advanceGatherApproach(world, a, job) {
     return { changed: true, durable: true };
   }
   if (job.mode === 'run' && a.fatigue.energy <= 0) { cancelGather(world, a, 'exhausted'); return { changed: true, durable: true }; }
-  const path = findPath(a.scene_id, a.position, def.interaction_position);
+  const path = findWorldPath(world, a.scene_id, a.position, def.interaction_position);
   if (!path || path.length < 2) { cancelGather(world, a, 'unreachable'); return { changed: true, durable: true }; }
   recordMovement(a, path.slice(0, 2), world.now(), job.mode); job.movement_id = a.movement.movement_id;
   return { changed: true, durable: false };
@@ -399,7 +401,7 @@ function performGather(world, a, payload, fail) {
   if (!planting && resource.tool_id && !gatherTool(a, resource)) fail('TOOL_REQUIRED', '请先制作并维护对应工具');
   if (!planting && Object.entries(resourceHarvestItems(world.state, resource.id) || { [resource.item_id]: resource.yield_count }).some(([id, quantity]) => count(a, id) > Number.MAX_SAFE_INTEGER - quantity)) fail('INVENTORY_FULL', '本次采集或砍倒树的产物将超出仓库上限');
   if (payload.mode === 'run' && a.fatigue.energy <= 0) fail('FATIGUE_EXHAUSTED', '体力不足以奔跑，可自行选择步行');
-  if (!findPath(a.scene_id, a.position, resource.interaction_position)) fail('UNREACHABLE', '资源交互位置暂不可达');
+  if (!findWorldPath(world, a.scene_id, a.position, resource.interaction_position)) fail('UNREACHABLE', '资源交互位置暂不可达');
   const job = { job_id: `gather_${randomUUID()}`, node_id: resource.id, intent: planting ? 'plant' : 'harvest', resource_id: planting ? 'pine_cone' : legacy ? payload.resource_id : resource.item_id, legacy,
     scene_id: a.scene_id, phase: 'approaching', mode: payload.mode || 'walk', started_at: world.now(), work_started_at: null, ends_at: null,
     expires_at: Math.min(a.run.expires_at, world.now() + RESOURCE_RULES.max_job_seconds * 1000), run_id: a.run.run_id, session_epoch: a.session_epoch,

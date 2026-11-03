@@ -18,6 +18,10 @@ export function characterAction(agent, events, now, moving = false) {
     if(motion.moving)return motion.mode==='run'?'run':'walk';
   }
   if (fishingState(agent, now)?.working) return 'fish';
+  const repair = agent.ruins_job;
+  if (agent.scene_id === 'ruins' && repair?.scene_id === 'ruins' && repair.phase === 'repairing'
+    && Number.isFinite(repair.started_at) && Number.isFinite(repair.ends_at)
+    && now >= repair.started_at && now < Math.min(repair.ends_at, repair.expires_at)) return 'repair';
   const own = (events || []).filter(event => event.payload?.agent_id === agent.agent_id && recent(occurredAt(event.occurred_at), now));
   const last = own.at(-1);
   // The server can resolve an attack and retaliation in the same tick. Give
@@ -51,6 +55,7 @@ export function characterAction(agent, events, now, moving = false) {
 
 /** A repeated receipt restarts its one-shot pose, even if the action is unchanged. */
 export function characterActionKey(agent, events, action) {
+  if(action==='repair'&&agent.ruins_job?.phase==='repairing')return `repair:${agent.ruins_job.job_id}`;
   if(action==='fish')return `fish:${agent.fishing?.job_id||''}`;
   if(action==='attack'&&agent.action)return `${action}:${agent.action.action_id}`;
   if(action==='hurt'&&agent.hurt)return `${action}:${agent.hurt.action_id}`;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { cancelRuins } from './ruins.js';
 // The original AI chooses a finite plan; this module only executes public game rules.
-import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward, findPath, isWalkable, sceneDefinition, recordMovement, advanceMovement, stopMovement, publicMovement, publicAction, publicHurt } from './spatial.js';
+import { WORLD_MAP, isPositionInBounds, boundedPosition, stepToward, findPath, findWorldPath, isWalkable, sceneDefinition, recordMovement, advanceMovement, stopMovement, publicMovement, publicAction, publicHurt } from './spatial.js';
 import { facingBetween } from '../shared/motion.js';
 import { equipmentStats, grantMonsterLoot } from './life.js';
 import { combatStats } from './combat.js';
@@ -101,6 +102,7 @@ export function leaveAdventureField(world, a) {
   }
 }
 export function startAdventure(world, a, payload, fail) {
+  if (a.scene_id === 'ruins' && payload.intent !== 'stop') fail('SCENE_REQUIRED', '须自主选择ruins leave走出遗迹，之后才能使用冒险地图计划');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消采集或等待完成');
   if (Object.keys(payload).some(k => !['intent', 'zone_id', 'monster_id','mode'].includes(k)) || !['explore', 'hunt', 'rest', 'retreat', 'stop'].includes(payload.intent) || payload.mode !== undefined && !['walk','run'].includes(payload.mode)) fail('INVALID_ACTION', '冒险计划只接受 intent、zone_id、monster_id 和可选 mode:walk|run');
   const { intent, zone_id, monster_id } = payload;
@@ -150,7 +152,7 @@ function moveToward(a, target, world) {
   // the next snapshot. A moving hunt target still replans from the settled
   // position; no guessed target, route extension, speed or goal is introduced.
   if (a.movement && distance(a.movement.path.at(-1), target)<1e-8) return true;
-  const path = findPath(a.scene_id || 'adventure', a.position, target);
+  const path = findWorldPath(world, a.scene_id || 'adventure', a.position, target);
   if (!path || path.length < 2) return false;
   if (world) { recordMovement(a, path, world.now(),a.adventure?.plan?.mode); }
   else a.position = path[1];
@@ -238,6 +240,7 @@ function monsterAttack(world, m, a, action) {
   const f = a.adventure, before = f.hp;
   const damage = Math.max(1, m.attack - equipmentStats(a).defense);
   f.hp = Math.max(0, f.hp - damage);
+  cancelRuins(world, a, 'hurt');
   if(action) { action.outcome='hit'; action.damage=damage; a.hurt={action_id:action.action_id,started_at:world.now(),ends_at:world.now()+360,damage}; }
   announce(world, 'adventure_combat', a, `${m.name}攻击${a.name}，造成 ${damage} 点伤害`, { monster_id: m.monster_id, attacker: 'monster', damage, hp: f.hp,action_id:action?.action_id });
   if (f.hp === 0) {

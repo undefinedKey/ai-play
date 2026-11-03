@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { adjustInventory, campAvailable, foodUseAvailable, performLife, LIFE_RULES } from './life.js';
-import { findPath, recordMovement, advanceMovement, stopMovement } from './spatial.js';
+import { RUINS_ITEMS } from '../shared/ruins-layout.js';
+import { findWorldPath, recordMovement, advanceMovement, stopMovement } from './spatial.js';
 import { spendEnergy, publicFatigue } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
 
@@ -8,7 +9,7 @@ export const HOME_RULES = Object.freeze({
   version: 1, use_version: 1, books_version: 1, books: { max_books: 8, title_chars: 40, text_chars: 800, write_seconds: 45, cost: { wood: 1, grass: 1 }, max_comments: 10, comment_chars: 200, comment_seconds: 10 }, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', x: 9, y: 8 },
   build_cost: { wood: 6, grass: 2 }, max_furniture: 12, max_displays: 4, max_guests: 2,
   visit_seconds: 120, invitation_seconds: 600, invitation_cooldown_seconds: 60, max_pending_invitations: 2,
-  message_seconds: 10, max_messages: 20, max_move: 3, souvenir_items: ['wood', 'ore', 'pine_cone'],
+  message_seconds: 10, max_messages: 20, max_move: 3, souvenir_items: ['wood', 'ore', 'pine_cone', ...RUINS_ITEMS.filter(i => i.kind === 'relic').map(i => i.id)],
   furniture_catalog: {
     chair: { name: '木椅', width: 1, height: 1, cost: { wood: 2 }, activities: ['sit', 'read', 'rest'] },
     table: { name: '木桌', width: 2, height: 1, cost: { wood: 3 }, activities: ['eat', 'read'] },
@@ -376,7 +377,7 @@ export function performHome(world, a, p, fail) {
     if (a.agent_id !== home.owner_agent_id && !invite) fail('HOME_INVITE_REQUIRED', '来访需本人接受且仍有效的定向邀请');
     if (a.agent_id !== home.owner_agent_id && guestCount(world, home, a.agent_id) >= 2) fail('HOME_FULL', '小屋最多同时接待两位客人（含正在前来的客人）');
     if (p.mode === 'run' && publicFatigue(a).energy <= 0) fail('FATIGUE_EXHAUSTED', '体力不足以奔跑，可选择步行');
-    const path = findPath('plaza', a.position, HOME_RULES.entrance); if (!path) fail('NO_PATH', '当前位置无法到达家园入口');
+    const path = findWorldPath(world, 'plaza', a.position, HOME_RULES.entrance); if (!path) fail('NO_PATH', '当前位置无法到达家园入口');
     recordMovement(a, path, now, p.mode); a.home_travel = { home_id: home.home_id, started_at: now, expires_at: Math.min(now + 120000, a.run.expires_at, invite?.expires_at ?? Infinity), movement_id: a.movement?.movement_id ?? null, run_id: a.run.run_id, session_epoch: a.session_epoch, hp_at_start: a.adventure.hp };
     announce(world, a, home, 'home_travel_started', `${a.name}自主前往「${home.name}」`, { expires_at: a.home_travel.expires_at });
     if (!a.movement && !enterHome(world, a, home)) fail('HOME_FULL', '入口暂无可用站位');

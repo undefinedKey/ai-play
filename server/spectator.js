@@ -1,3 +1,4 @@
+import { publicRuins, publicRuinsJob } from './ruins.js';
 import { publicFishing, publicFishingWorld } from './fishing.js';
 import { publicActionStatus } from './public-action-status.js';
 import { HOME_RULES, publicHomes, publicHomePresence, publicHomeTravel } from './homes.js';
@@ -28,6 +29,7 @@ const task = value => value ? { kind: string(value.kind), prompt: string(value.p
 const activity = value => value ? { activity_id: string(value.activity_id), name: string(value.name), place_id: string(value.place_id), started_at: number(value.started_at), ends_at: number(value.ends_at), ...(value.task ? { task: task(value.task) } : {}), ...(value.target ? { target: position(value.target) } : {}), ...(value.progress ? { progress: { collected: number(value.progress.collected), total: number(value.progress.total) } } : {}) } : null;
 const activityResult = value => value ? { summary: string(value.summary), ...(number(value.score) !== undefined ? { score: number(value.score) } : {}), ...(number(value.max_score) !== undefined ? { max_score: number(value.max_score) } : {}) } : undefined;
 const publicEventFields = {
+  ...Object.fromEntries(['ruins_approaching','ruins_arrived','ruins_entered','ruins_left','ruins_cancelled','ruins_claimed','ruins_gate_opened','ruins_repair_started','ruins_bridge_repaired','ruins_dial_turned','ruins_runes_submitted'].map(type => [type, ['agent_id','name','job_id','object_id','intent','phase','started_at','ends_at','expires_at','item_id','quantity','reason','text','from_scene_id','position','orientation']])),
   ...Object.fromEntries(['fish_approaching','fish_started','fish_finished','fish_cancelled'].map(type => [type, ['agent_id','name','spot_id','job_id','phase','started_at','ends_at','expires_at','item_id','quantity','reason','text']])),
   ...Object.fromEntries(['home_book_written','home_book_shelved','home_book_unshelved','home_book_commented'].map(type => [type, ['agent_id','name','home_id','book_id','title','instance_id','comment_id','comment_text','text']])),
   ...Object.fromEntries(['home_built','home_renamed','home_crafted','home_furnished','home_displayed','home_withdrawn','home_travel_started','home_travel_cancelled','home_entered','home_left','home_moved','home_movement_finished','home_message','home_message_removed','home_use_approaching','home_use_started','home_use_finished','home_use_cancelled'].map(type => [type, ['agent_id','name','home_id','text','kind','instance_id','item_id','message_id','activity_id','started_at','ends_at','expires_at','reason']])),
@@ -118,6 +120,10 @@ export function publicEvent(event, agentIds) {
     if (GAME_END_REASONS.has(raw.reason)) payload.reason = raw.reason;
     payload.text = payload.reason ? `${gameName(raw.game_type)}结束：${payload.reason}` : `${gameName(raw.game_type)}已结束`;
   }
+  if (event.type === 'ruins_runes_submitted') {
+    if (typeof raw.success === 'boolean') payload.success = raw.success;
+    if (Array.isArray(raw.orientations) && raw.orientations.length === 3 && raw.orientations.every(x => ['leaf','sun','moon'].includes(x))) payload.orientations = [...raw.orientations];
+  }
   return { event_id: string(event.event_id), type: event.type, occurred_at: number(event.occurred_at), cursor: string(event.cursor), world_revision: number(event.world_revision), payload };
 }
 
@@ -133,9 +139,9 @@ export function spectatorSnapshot(world) {
   }
   return {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
-    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent), action:publicAction(agent), action_status:publicActionStatus(agent, world.now()), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), survival: publicSurvivor(world, agent), presence: publicPresence(agent), home_presence: publicHomePresence(agent), home_travel: publicHomeTravel(agent), fishing: publicFishing(agent) })),
+    agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent, world), action:publicAction(agent), action_status:publicActionStatus(agent, world.now()), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), survival: publicSurvivor(world, agent), presence: publicPresence(agent), home_presence: publicHomePresence(agent), home_travel: publicHomeTravel(agent), fishing: publicFishing(agent), ruins_job: publicRuinsJob(agent) })),
     scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
-    fishing: publicFishingWorld(world), homes: publicHomes(world), home_rules: structuredClone(HOME_RULES), resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
+    ruins: publicRuins(world), fishing: publicFishingWorld(world), homes: publicHomes(world), home_rules: structuredClone(HOME_RULES), resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
     places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),
@@ -152,9 +158,9 @@ export function spectatorSnapshot(world) {
 export function scopeSpectatorSnapshot(snapshot, scene = null) {
   return { ...snapshot, scope: { scene_id: scene, events: scene ? 'scene' : 'world', roster: 'world' },
     ...(scene ? { fishing: { ...snapshot.fishing, spots: (snapshot.fishing?.spots || []).filter(s => s.scene_id === scene) }, survival: { ...snapshot.survival, sites: (snapshot.survival?.sites || []).filter(s => s.scene_id === scene), fires: (snapshot.survival?.fires || []).filter(f => f.scene_id === scene) }, resources: { ...snapshot.resources, nodes: (snapshot.resources?.nodes || []).filter(node => node.scene_id === scene) }, events: snapshot.events.filter(event => (event.payload.scene_id === scene && !event.payload.home_id) || event.type === 'day_phase_changed'
-      || (event.type === 'scene_changed' && event.payload.from_scene_id === scene)
+      || (['scene_changed','ruins_entered','ruins_left'].includes(event.type) && event.payload.from_scene_id === scene)
       || (scene === 'plaza' && cooperationEvents.has(event.type) && event.payload.template_id === 'camp_meal')),
-      ...(scene === 'plaza' ? { adventure: { ...snapshot.adventure, monsters: [] } } : {}) } : {}) };
+      ...(scene !== 'adventure' ? { adventure: { ...snapshot.adventure, monsters: [] } } : {}) } : {}) };
 }
 
 export function attachSpectator(app, world, { maxStreams = 150, maxPerIp = 30, heartbeatMs = 15000,

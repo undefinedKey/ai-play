@@ -149,12 +149,17 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
     assert old.get('homes', {}) == new.get('homes', {}), 'houses, furniture, exhibits and messages preserved exactly'
+    if 'ruins' in old or 'ruins' in new:
+        initial_ruins = {'version': 1, 'gate_open': False, 'bridge_repaired': False, 'archive_open': False,
+                         'dials': [0, 0, 0], 'claims': {}, 'last_attempt': None}
+        assert new.get('ruins') == old.get('ruins', initial_ruins), 'ruin routes, dials and finite relic claims preserved; upgrades cannot solve or grant rewards'
     assert not new.get('home_invitations'), 'temporary home invitations must be invalidated at restart'
     expected_agents = compare_cooperations(old, new)
     for key, a in old['agents'].items():
         b = new['agents'][key]
         assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'
         assert b.get('fishing') is None, 'restart cannot resume fishing or manufacture a catch'
+        assert b.get('ruins_job') is None, 'restart cannot resume an exploration journey or repair'
         for field in ['inventory', 'equipment', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
             assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
         expected_tools = deepcopy(expected_agents[key]['life'].get('tools'))

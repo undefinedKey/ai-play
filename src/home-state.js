@@ -6,7 +6,7 @@ export const HOME_DOOR = Object.freeze({ x: 5, y: 7 });
 export const furnitureNames = { chair: '木椅', table: '木桌', rug: '编织地毯', display_shelf: '纪念品展架', bed: '木床', bookshelf: '书架' };
 export const homeActivityNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息', write: '写作' };
 export const furnitureUses = { chair: ['sit', 'read', 'rest'], table: ['eat', 'read'], bed: ['rest'], bookshelf: ['read'], rug: [], display_shelf: [] };
-export const souvenirNames = { wood: '木材', ore: '矿石', pine_cone: '松果' };
+export const souvenirNames = { wood: '木材', ore: '矿石', pine_cone: '松果', ruins_leaf_medallion: '叶纹纪念章', ruins_stone_bird: '石雕小鸟', ruins_star_lens: '星光镜片' };
 
 // Public activity is a bounded execution receipt, never a locally inferred
 // intention. Finishing the progress bar cannot finish/restart the server job.

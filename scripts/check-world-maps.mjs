@@ -3,6 +3,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { SCENES,WORLD_MAP,isWalkable } from '../shared/world-layout.js';
 import {RESOURCE_NODES} from '../shared/resources-layout.js';
+import {RUINS_RULES, RUINS_OBJECTS} from '../shared/ruins-layout.js';
+import {findWorldPath} from '../server/spatial.js';
 const root = resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(readFileSync(resolve(root,'public/pixel-world/manifest.json')));
 for (const scene of SCENES) {
@@ -23,4 +25,15 @@ for(const old of JSON.parse(readFileSync(resolve(root,'art/wilderness/v019-map-b
   for(let y=0;y<old.height;y++)for(let x=0;x<old.width;x++)if(!blocked.has(`${x},${y}`))assert.ok(isWalkable(old.scene_id,{x,y}),`old legal position blocked: ${old.scene_id} ${x},${y}`);
 }
 for(const node of RESOURCE_NODES)assert.ok(isWalkable(node.scene_id,node.interaction_position),`blocked resource interaction: ${node.id}`);
-console.log(JSON.stringify({tiled_scenes:SCENES.length,map:WORLD_MAP,shared_geometry:true,assets_exist:true,portals_reciprocal:true,all_walkable_cells_reachable:true,old_legal_cells_preserved:true,resource_interactions_walkable:true}));
+assert.ok(isWalkable(RUINS_RULES.entrance.scene_id,RUINS_RULES.entrance.position),'forest ruin entrance stays legal');
+for(const object of RUINS_OBJECTS)assert.ok(isWalkable('ruins',object.interaction_position),`blocked ruins interaction: ${object.id}`);
+const path=(state,target)=>findWorldPath({state:{ruins:state}},'ruins',RUINS_RULES.exit.position,target);
+assert.equal(path({},RUINS_RULES.runes.interaction_position),null,'closed gate and bridge must seal the court');
+for(const open of ['gate_open','bridge_repaired']){
+  assert.ok(path({[open]:true},RUINS_RULES.runes.interaction_position),`${open} must independently open a real route`);
+  for(const relic of RUINS_RULES.relics){
+    assert.equal(path({[open]:true},relic.interaction_position),null,'closed archive must seal all relics');
+    assert.ok(path({[open]:true,archive_open:true},relic.interaction_position),`${open} plus archive must reach ${relic.id}`);
+  }
+}
+console.log(JSON.stringify({tiled_scenes:SCENES.length,map:WORLD_MAP,shared_geometry:true,assets_exist:true,primary_portals_reciprocal:true,all_static_walkable_cells_reachable:true,old_legal_cells_preserved:true,resource_interactions_walkable:true,ruins_routes_physically_gated:true}));

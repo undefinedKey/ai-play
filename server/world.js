@@ -1,3 +1,4 @@
+import { RUINS_RULES, initializeRuins, publicRuins, ruinsObservation, performRuins, tickRuins, cancelRuins, publicRuinsJob } from './ruins.js';
 import { EventEmitter } from 'node:events';
 import { randomUUID, randomBytes, randomInt, createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
@@ -7,7 +8,7 @@ import { WORDS, WORD_VERSION } from './words.js';
 import { GAMES, GAME_TIMING, GAME_END_REASONS, gameName, publicGame, RIDDLES } from './games.js';
 import { LEISURE_POLICY, publicLeisure, recordExperience, gameAvailability } from './leisure.js';
 import { ADVENTURE_RULES, initializeAdventure, initializeFighter, publicAdventure, publicFighter, startAdventure, stopAdventure, leaveAdventureField, tickAdventure } from './adventure.js';
-import { WORLD_MAP, MAX_MOVE, MOVEMENT_RULES, movementOptions, SCENES, sameScene, initializeScene, findPath, recordMovement, publicMovement, publicAction, publicHurt, advanceMovement, stopMovement } from './spatial.js';
+import { WORLD_MAP, MAX_MOVE, MOVEMENT_RULES, movementOptions, SCENES, sameScene, initializeScene, findWorldPath, recordMovement, publicMovement, publicAction, publicHurt, advanceMovement, stopMovement } from './spatial.js';
 import { LIFE_RULES, initializeLife, publicLife, performLife, tickLife, cancelGather } from './life.js';
 import { RESOURCE_RULES, initializeResources, publicResources, tickResources } from './resources.js';
 import { DAY_RULES, initializeDayCycle, publicDayCycle, tickDayCycle } from './day-cycle.js';
@@ -43,7 +44,7 @@ const textField = (v, max, name, fallback = '') => {
   if (typeof v !== 'string' || [...v].length > max) fail('INVALID_ACTION', `${name}最多 ${max} 个字符`);
   return v.trim();
 };
-const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'wait'];
+const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'wait'];
 const PLACES = [
   { id: 'pond', scene_id: 'plaza', name: '薄荷小池', x: 4, y: 4, radius: 3 },
   { id: 'garden', scene_id: 'plaza', name: '中央花园', x: 11, y: 8, radius: 3 },
@@ -84,6 +85,7 @@ export class World extends EventEmitter {
     initializeResources(this.state, this.now(), { restore: !!saved });
     initializeSurvivalWorld(this.state, this.now());
     for (const a of Object.values(this.state.agents)) initializeSurvivor(a, this.now(), { restore: !!saved });
+    initializeRuins(this, { restore: !!saved });
     for (const a of Object.values(this.state.agents)) initializeScene(a, this.now());
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
@@ -265,7 +267,7 @@ export class World extends EventEmitter {
     this.event('agent_left', { agent_id: a.agent_id, text: `${a.name}离开了广场`, reason }, this.activeIds());
   }
   detach(a, { leaveField = true } = {}) {
-    detachHomes(this, a); cancelFishing(this, a);
+    detachHomes(this, a); cancelFishing(this, a); cancelRuins(this, a, 'interrupted');
     if (leaveField) reviewCooperations(this, a);
     endEncounter(this, a);
     if (leaveField) reviewPersonalGoal(this, a);
@@ -285,12 +287,12 @@ export class World extends EventEmitter {
   }
   activeIds() { return Object.values(this.state.agents).filter(a => a.status === 'active').map(a => a.agent_id); }
   controlState(a) { return clone({ agent_id: a.agent_id, controller_id: a.run?.controller_id || null, session_epoch: a.session_epoch, status: a.status, run: a.run, reason: a.pause_reason, diagnostics: a.diagnostics }); }
-  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, position_at:a.position_at, facing:a.facing, movement: publicMovement(a), action:publicAction(a), hurt:publicHurt(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), survival: publicSurvivor(this, a), appearance: publicAppearance(a), presence: publicPresence(a), home_presence: publicHomePresence(a), home_travel: publicHomeTravel(a), fishing: publicFishing(a), session_epoch: a.session_epoch }); }
+  publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, position_at:a.position_at, facing:a.facing, movement: publicMovement(a, this), action:publicAction(a), hurt:publicHurt(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), survival: publicSurvivor(this, a), appearance: publicAppearance(a), presence: publicPresence(a), home_presence: publicHomePresence(a), home_travel: publicHomeTravel(a), fishing: publicFishing(a), ruins_job: publicRuinsJob(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
       cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(), resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
-      fishing: publicFishingWorld(this), homes: publicHomes(this), home_rules: clone(HOME_RULES),
+      ruins: publicRuins(this), fishing: publicFishingWorld(this), homes: publicHomes(this), home_rules: clone(HOME_RULES),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response', 'home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), simulation_time: this.simulationTime, server_time: this.now() });
   }
   ownerSnapshot() {
@@ -302,7 +304,7 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.29.0-home-life', recommended_skill_version: '0.29.0', max_capabilities: 16, fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.30.0-ruins', recommended_skill_version: '0.30.0', max_capabilities: 16, ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
@@ -320,13 +322,14 @@ export class World extends EventEmitter {
   }
   observation(a) {
     const group = a.group_id ? this.state.groups[a.group_id] : null;
+    const ruins = ruinsObservation(this, a);
     return clone({ world_api_version: '0.2', run_id: a.run.run_id, session_epoch: a.session_epoch, expires_at: a.run.expires_at,
       self: { ...this.publicAgent(a), life: publicLife(a, this.now(), { privateInventory: true }) }, nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && sameScene(a, b) && distance(a.home_presence?.position || a.position, b.home_presence?.position || b.position) <= 6).map(b => this.publicAgent(b)),
       group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
-      ...cooperationObservation(this, a), fishing: fishingObservation(this, a), homes: homesObservation(this, a),
+      ...cooperationObservation(this, a), ruins, fishing: fishingObservation(this, a), homes: homesObservation(this, a),
       resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
-      scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: a.home_presence || a.home_travel ? [] : [...survivalOpportunities(this, a), ...opportunitiesFor(this, a)].filter(o => !a.fishing || o.action?.type === 'inventory' && o.action.payload.intent === 'use' || o.action?.type === 'survival' && o.action.payload.intent === 'torch' || o.action?.type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(o.action.payload.intent)), movement: a.home_presence ? { ...HOME_RULES.map, candidates: [], scene_id: 'home', max_step: 3 } : movementOptions(a.position, a.scene_id), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
+      scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: a.home_presence || a.home_travel ? [] : [...survivalOpportunities(this, a), ...opportunitiesFor(this, a), ...ruins.opportunities.map(action => ({id: `ruins_${action.payload.intent}_${action.payload.object_id || ''}_${action.payload.direction || ''}`, label: '遗迹互动', reason: '按遗迹规则执行本人选择的一次行动，不自动执行下一步', action}))].filter(o => a.scene_id !== 'ruins' || o.action?.type !== 'adventure_plan' || o.action.payload.intent === 'stop').filter(o => !(a.fishing || a.ruins_job) || o.action?.type === 'ruins' && o.action.payload.intent === 'cancel' || o.action?.type === 'inventory' && o.action.payload.intent === 'use' || o.action?.type === 'survival' && o.action.payload.intent === 'torch' || o.action?.type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(o.action.payload.intent)), movement: a.home_presence ? { ...HOME_RULES.map, candidates: [], scene_id: 'home', max_step: 3 } : movementOptions(a.position, a.scene_id, this), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
   }
   join(a, c, args) {
     if (this.state.room.status !== 'active') fail('ROOM_PAUSED', '房间暂停中');
@@ -467,7 +470,7 @@ export class World extends EventEmitter {
   nextTreasure(a) {
     const targets = [];
     for (let y=0;y<WORLD_MAP.height;y++) for (let x=0;x<WORLD_MAP.width;x++) {
-      const path = findPath(a.scene_id, a.position, { x, y }, { maxSteps: 6 });
+      const path = findWorldPath(this, a.scene_id, a.position, { x, y }, { maxSteps: 6 });
       if (path && path.length > 1) targets.push({ x, y });
     }
     if (!targets.length) fail('NO_PATH', '当前位置没有可达藏宝点，请重新观察');
@@ -475,6 +478,7 @@ export class World extends EventEmitter {
   }
   perform(a, type, p, actionId) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
+    if (a.ruins_job && !['ruins', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('RUINS_BUSY', '正在执行本人选择的遗迹行动，可等待或用ruins cancel结束；下一步由本人决定');
     if (a.fishing && !['fish', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('FISHING_BUSY', '正在执行本人选择的垂钓，可等待或fish cancel；下一步由本人决定');
     if ((a.home_presence || a.home_travel) && !['home', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('HOME_BUSY', '你在小屋或家园行程中；先用 home leave/cancel 离开或结束行程再进行室外活动；可处理已有合作条款和退还本人托管');
     if (a.home_presence && type === 'say' && p.channel !== 'nearby') fail('HOME_CHANNEL_REQUIRED', '屋内仅可向同屋附近角色说话');
@@ -488,6 +492,7 @@ export class World extends EventEmitter {
     if (type === 'wait') return {};
     if (type === 'home') return performHome(this, a, p, fail);
     if (type === 'fish') return performFishing(this, a, p, fail);
+    if (type === 'ruins') return performRuins(this, a, p, fail);
     if (a.survival?.travel && !['survival', 'say', 'inventory'].includes(type)) cancelSurvivalTravel(this, a, 'replaced');
     if (type === 'survival') return performSurvival(this, a, p, fail, actionId);
     if (type === 'adventure_event') return performAdventureEvent(this, a, p, fail);
@@ -547,16 +552,16 @@ export class World extends EventEmitter {
     if (type === 'move') {
       // Older bridges submit a whole candidate including its path. Treat that
       // path as an ignored hint and calculate the authoritative route ourselves.
-      if (Object.keys(p).some(key=>!['x','y','mode','path'].includes(key)) || !Number.isInteger(p.x) || !Number.isInteger(p.y) || p.mode !== undefined && !['walk','run'].includes(p.mode)) fail('INVALID_ACTION','move 接受整数 x、y 和可选 mode:walk|run',{movement:movementOptions(a.position,a.scene_id)});
+      if (Object.keys(p).some(key=>!['x','y','mode','path'].includes(key)) || !Number.isInteger(p.x) || !Number.isInteger(p.y) || p.mode !== undefined && !['walk','run'].includes(p.mode)) fail('INVALID_ACTION','move 接受整数 x、y 和可选 mode:walk|run',{movement:movementOptions(a.position,a.scene_id,this)});
       if (p.mode === 'run' && publicFatigue(a).energy <= 0) fail('FATIGUE_EXHAUSTED','体力不足以奔跑，仍可自行选择步行');
-      const path = findPath(a.scene_id, a.position, {x:p.x,y:p.y}, { maxSteps: MAX_MOVE });
-      if (!path) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 步，须有不穿地形的合法路径`, { movement: movementOptions(a.position, a.scene_id) });
+      const path = findWorldPath(this, a.scene_id, a.position, {x:p.x,y:p.y}, { maxSteps: MAX_MOVE });
+      if (!path) fail('INVALID_ACTION', `目标须在 ${WORLD_MAP.width}×${WORLD_MAP.height} 地图内，每次最多移动 ${MAX_MOVE} 步，须有不穿地形的合法路径`, { movement: movementOptions(a.position, a.scene_id, this) });
       cancelGather(this, a, 'moved');
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
       recordMovement(a, path, this.now(), p.mode);
       if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
-      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}开始${p.mode === 'run' ? '跑' : '走'}向 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, target:{x:p.x,y:p.y}, path, movement:publicMovement(a) };
+      this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}开始${p.mode === 'run' ? '跑' : '走'}向 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, target:{x:p.x,y:p.y}, path, movement:publicMovement(a, this) };
     }
     if (type === 'say') {
       const text = textField(p.text, 200, '发言'); if (!text) fail('INVALID_ACTION', '发言不能为空');
@@ -737,7 +742,7 @@ export class World extends EventEmitter {
     const requestedNow = this.now(), originalNow = this.now;
     for (let count = 0; count < 64; count++) {
       const transitions = Object.values(this.state.agents).flatMap(a => [a.home_presence?.activity?.phase === 'approaching'
-        ? a.home_presence.movement?.ends_at : a.home_presence?.activity?.ends_at, a.fishing?.phase === 'approaching' ? a.movement?.ends_at : a.fishing?.ends_at])
+        ? a.home_presence.movement?.ends_at : a.home_presence?.activity?.ends_at, a.fishing?.phase === 'approaching' ? a.movement?.ends_at : a.fishing?.ends_at, a.ruins_job?.phase === 'approaching' ? a.movement?.ends_at : a.ruins_job?.ends_at])
         .filter(at => Number.isFinite(at) && at > this.simulationTime && at < requestedNow);
       if (!transitions.length) break;
       this.now = () => Math.min(...transitions);
@@ -756,12 +761,12 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) {
       if (a.movement) {
         const permitted = this.state.room.status === 'active' && a.status === 'active' && a.run?.status === 'active';
-        const until = permitted ? Math.min(now,a.run.expires_at,(a.last_contact_at ?? -45000)+45000,a.adventure?.plan?.expires_at ?? Infinity,a.life?.gathering?.expires_at ?? Infinity,a.survival?.travel?.expires_at ?? Infinity,a.home_travel?.expires_at ?? Infinity,a.fishing?.expires_at ?? Infinity,survivalFrame.get(a.agent_id)?.stop_at ?? Infinity) : a.position_at;
+        const until = permitted ? Math.min(now,a.run.expires_at,(a.last_contact_at ?? -45000)+45000,a.adventure?.plan?.expires_at ?? Infinity,a.life?.gathering?.expires_at ?? Infinity,a.survival?.travel?.expires_at ?? Infinity,a.home_travel?.expires_at ?? Infinity,a.fishing?.expires_at ?? Infinity,a.ruins_job?.expires_at ?? Infinity,survivalFrame.get(a.agent_id)?.stop_at ?? Infinity) : a.position_at;
         const running = a.movement.mode === 'run';
         const cost = combatStats(a).move_energy_per_tile * (running ? 2 : 1);
         const maxDistance = running ? publicFatigue(a).energy / cost : Infinity;
         const wasMoving = a.movement;
-        const manual = !a.adventure?.plan && !a.life?.gathering && !a.survival?.travel && !a.home_travel && !a.fishing;
+        const manual = !a.adventure?.plan && !a.life?.gathering && !a.survival?.travel && !a.home_travel && !a.fishing && !a.ruins_job;
         motionChanged = advanceMovement(a,now,{until,maxDistance,onDistance:(steps,_mode,settledAt)=>spendEnergy(this,a,'move',steps*(running?2:1),settledAt)}) || motionChanged;
         if(manual && !a.movement && permitted && now<=until) {
           const arrived=distance(a.position,wasMoving.path.at(-1))<1e-8;
@@ -771,7 +776,7 @@ export class World extends EventEmitter {
           // End the chosen resource job at the physical exhaustion boundary.
           // A later camp-recovery interval must not restart its run implicitly.
           if (a.life?.gathering) cancelGather(this, a, 'exhausted');
-          cancelSurvivalTravel(this, a, 'exhausted'); cancelFishing(this, a, 'exhausted');
+          cancelSurvivalTravel(this, a, 'exhausted'); cancelFishing(this, a, 'exhausted'); cancelRuins(this, a, 'exhausted');
           stopAdventure(this,a,'exhausted','奔跑体力已耗尽，已停下；可自行选择步行、撤退或休息');
           this.event('fatigue_exhausted',{agent_id:a.agent_id,name:a.name,text:`${a.name}体力不足以继续奔跑，已停下；步行仍可用`,energy:0,fatigue:100},[a.agent_id]); changed=true;
         }
@@ -813,6 +818,7 @@ export class World extends EventEmitter {
     const survivalStep = tickSurvival(this, survivalFrame);
     changed = tickHomeUses(this, survivalFrame) || changed;
     changed = tickFishing(this, survivalFrame) || changed;
+    changed = tickRuins(this, survivalFrame) || changed;
     const adventureStep = tickAdventure(this, survivalFrame);
     const fatigueStep = tickFatigue(this, fatigueRecovery, survivalFrame);
     const dayStep = tickDayCycle(this);

@@ -7,6 +7,7 @@ export function terrainPalette(ink,sceneId){
 
 // The same ground geometry is consumed by Phaser and the fallback SVG.
 export function wildernessGround(sceneId){
+ if(sceneId==='ruins')return {trails:[],pond:[],camp:{x:208,y:816}};
  const trails=sceneId==='plaza'?[
   [[4,5],[8,7],[11,8],[22,8],[27,10],[35,6]],
   [[11,8],[13,14],[19,23],[30,21],[34,25]],
@@ -60,8 +61,33 @@ export function trailGeometry(path,seed=0){
 
 // Small shared paint primitives keep the two renderers visually identical.
 const drawingCache=new Map();
+function ruinsDrawing(){
+ const rectangle=(x,y,w,h,color,alpha=1)=>fill([{x:x*32,y:y*32},{x:(x+w)*32,y:y*32},{x:(x+w)*32,y:(y+h)*32},{x:x*32,y:(y+h)*32}],color,alpha);
+ const fills=[rectangle(0,0,48,32,'#777e67',.88),rectangle(1,1,16,30,'#aba58a',.86),rectangle(18,1,16,30,'#b3ad90',.88),rectangle(35,1,12,30,'#aaa78f',.88)],strokes=[];
+ // Broad worn routes and quiet stone joints leave room for physical objects.
+ for(const [x,y,w,h] of [[5,22,12,4],[6,6,5,17],[10,8,9,3],[18,8,10,3],[18,22,11,4],[26,10,3,14],[28,15,8,3],[36,8,8,18]])fills.push(rectangle(x,y,w,h,'#cbc1a1',.23));
+ for(let y=3;y<30;y+=3)for(let x=3+(y%2);x<46;x+=4){
+  if([16,17,18,33,34,35].includes(x))continue;
+  const px=x*32,py=y*32,seed=(x*13+y*7)%17;
+  strokes.push(stroke([{x:px-18,y:py+seed},{x:px+21,y:py+seed-2},{x:px+29,y:py+seed+4}],'#645f4b',.9,.19));
+ }
+ // Fissure sits on the same blocked bridge cell; the repaired sprite supplies
+ // the only visible deck. Surrounding wall footprints stay authoritative.
+ fills.push(fill([{x:538,y:268},{x:555,y:275},{x:565,y:268},{x:571,y:311},{x:556,y:323},{x:541,y:315}],'#424c41',.85));
+ const blocked=sceneDefinition('ruins')?.blocked||[],keys=new Set(blocked.map(cell=>`${cell.x},${cell.y}`));
+ for(const cell of blocked){
+  fills.push(rectangle(cell.x,cell.y,1,1,'#8f8b72',.97));
+  const x=cell.x*32,y=cell.y*32;
+  for(const [dx,dy,edge] of [[-1,0,[[x,y],[x,y+32]]],[1,0,[[x+32,y],[x+32,y+32]]],[0,-1,[[x,y],[x+32,y]]],[0,1,[[x,y+32],[x+32,y+32]]]]){
+   if(!keys.has(`${cell.x+dx},${cell.y+dy}`))strokes.push(stroke(edge.map(([x,y])=>({x,y})),'#414b3c',2,.8));
+  }
+  if(cell.y%2===0)strokes.push(stroke([{x:x+3,y:y+2},{x:x+28,y:y+1}],'#565a46',1,.5));
+ }
+ return {wash:['#b5ad91',.24],fills,strokes};
+}
 export function terrainDrawing(sceneId,ink=true){
  const key=`${sceneId}:${ink}`;if(drawingCache.has(key))return drawingCache.get(key);
+ if(sceneId==='ruins'){const drawing=ruinsDrawing();drawingCache.set(key,drawing);return drawing;}
  const data=wildernessGround(sceneId),palette=terrainPalette(ink,sceneId),fills=[],strokes=[];
  for(const[pathIndex,path]of data.trails.entries()){
   const trail=trailGeometry(path,pathIndex+1);fills.push(fill(trail.surface,ink?'#b29b70':'#c7b38e',ink ? .18 : .4));

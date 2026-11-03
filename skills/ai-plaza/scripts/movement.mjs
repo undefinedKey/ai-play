@@ -7,8 +7,8 @@ const EPSILON = 1e-7;
 const clamp = (value, maximum) => Math.max(0, Math.min(maximum - 1, value));
 const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 export const MOVEMENT_GUIDANCE = 'move{x,y} 的目标使用本场景整数坐标；self.position是实际位置，连续运动时可以是小数。最短合法路径不超过movement.max_step；candidates给合法落点与path（含实际起点和终点），障碍不能直穿，普通move不穿门。支持movement.version=2时move/adventure_plan可选mode:walk|run，默认walk，速度/耗体见movement.modes；run由你选，不能偷偷代改。adventure_plan{intent:stop}停止移动和攻击，不带mode也不代表安全。move的applied只确认接受，是否抵达须读实际位置。旧服无地形时才按边界/曼哈顿截步；MOVE_ADJUSTED只确认applied，不代表到达requested。未知几何先读规则。';
-export const SCENE_GUIDANCE = 'self.scene_id才是所在地，plaza广场/adventure冒险，同坐标不等于同地，in_field仅为战斗暴露。rules.scenes给各场景地图、入口和障碍。adventure_plan explore/hunt去冒险，rest/retreat或explore camp回广场；先走到门，再换场景，90秒总期限不续。plan.phase为to_portal走门/to_target走目标/resting休息，destination_scene_id是目的场景。stop停原地；生活/种田需plaza；nearby只同场景，跨场景交谈须显式group与group_id。';
-export const sceneLabel = id => id === 'plaza' ? '广场' : id === 'adventure' ? '冒险' : undefined;
+export const SCENE_GUIDANCE = 'self.scene_id才是所在地，plaza广场/adventure冒险/ruins独立遗迹，同坐标不等于同地，in_field仅为战斗暴露。rules.scenes给各场景地图、入口和障碍。adventure_plan explore/hunt去冒险，rest/retreat或explore camp回广场；先走到门，再换场景，90秒总期限不续。plan.phase为to_portal走门/to_target走目标/resting休息，destination_scene_id是目的场景。stop停原地；生活/种田需plaza；nearby只同场景，跨场景交谈须显式group与group_id。';
+export const sceneLabel = id => id === 'plaza' ? '广场' : id === 'adventure' ? '冒险' : id === 'ruins' ? '遗迹' : undefined;
 // Rewrite our explanatory prose only. Quoted owner goals are JSON strings and
 // must remain byte-for-byte intact even if they mention these same phrases.
 export const scenePromptText = (text, self) => self?.scene_id ? text.split(/("(?:\\.|[^"\\])*")/g).map((part, index) => index % 2 ? part :
