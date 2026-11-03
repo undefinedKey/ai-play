@@ -65,6 +65,9 @@ export function findPath(sceneId, start, target, { maxSteps = WORLD_MAP.width * 
  * state. Check both cells under a fractional position before findPath's short
  * segment shortcut, so an AI cannot approach or cross a closed gate midway. */
 export function findWorldPath(world, sceneId, start, target, { allowed = () => true, ...options } = {}) {
+  // Existing scenes have no dynamic blockers. Preserve their original search
+  // and avoid checking gate state for every ordinary world-path candidate.
+  if (sceneId !== 'ruins') return findPath(sceneId, start, target, { ...options, allowed });
   const permitted = position => isWorldWalkable(world, sceneId, position) && physicalCells(position).every(allowed);
   if (!permitted(start) || !permitted(target)) return null;
   return findPath(sceneId, start, target, { ...options, allowed: permitted });
