@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
@@ -74,7 +75,7 @@ test('v021 real HTTP/MCP survival day: axe, felling, planting, shared fire, cook
   const f = await fixture(t), p = await f.actor('自主生存旅人', 'v021_survivor'), dark = await f.actor('暗处风险对照', 'v021_dark');
   const initial = await p.observe(), epoch = f.app.world.state.day_cycle.epoch_at, grants = actorsGrants();
   function actorsGrants() { return [p, dark].map(a => structuredClone(a.raw.run)); }
-  assert.equal((await f.api('/api/health')).body.version, '0.27.0');
+  assert.equal((await f.api('/api/health')).body.version, JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
   assert.deepEqual(initial.self.position, { x: 9, y: 7 }); assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 });
   assert.ok((await p.client.listTools()).tools.find(x => x.name === 'act').inputSchema.properties.type.enum.includes('survival'));
   await gather(f, p, 'camp_stones'); assert.equal(held(p, 'ore'), 1);

@@ -24,13 +24,14 @@ function limb(root, target, a, b, bend) {
 export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enabled = true, furnitureKind, rig = {} } = {}) {
   const sample = samplePaperDollPose(actor, 'idle', now, { enabled: false, facing, rig });
   if (!activity || activity.phase !== 'using' || !['sit', 'eat', 'read', 'rest', 'write'].includes(activity.kind)) return sample;
-  const d = sample.dimensions, mirror = facing === 'west', vertical = ['north', 'south'].includes(facing);
+  const reclining = furnitureKind === 'bed' && activity.kind === 'rest';
+  const d = sample.dimensions, mirror = facing === 'west', vertical = !reclining && ['north', 'south'].includes(facing);
   const time = Math.max(0, Math.min(now, activity.ends_at ?? now) - activity.started_at);
   const playing = enabled && actor.status === 'active' && now < activity.ends_at;
   const entrance = enabled && actor.status === 'active' ? smooth(time / 650) : 1;
   const phase = playing ? time / 1000 : 0;
   const seated = furnitureKind === 'chair' || activity.kind === 'sit';
-  const resting = activity.kind === 'rest', reading = activity.kind === 'read', eating = activity.kind === 'eat', writing = activity.kind === 'write', reclining = furnitureKind === 'bed' && resting;
+  const resting = activity.kind === 'rest', reading = activity.kind === 'read', eating = activity.kind === 'eat', writing = activity.kind === 'write';
   const breath = playing ? Math.sin(phase * Math.PI * .65) * .22 : 0;
   const hip = point(0, -d.hipHeight + (reclining ? d.hipHeight - 12 : seated ? 7 : resting ? 3 : 0) * entrance + breath);
   const lean = reclining ? -1.1 * entrance : entrance * (resting ? .10 : writing ? .12 : reading ? .055 : .025) * (vertical ? .25 : 1);
@@ -70,6 +71,18 @@ export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enab
     Object.assign(sample.slots[name], add(parent, rotate(offset, parent.rotation)), { rotation: parent.rotation });
   }
   sample.homeProp = reading ? { kind: 'book', x: vertical ? 0 : 7, y: hip.y - 5, tilt: turn * .08 } : eating ? { kind: 'bowl', x: vertical ? 0 : 5, y: hip.y - 2, tilt: 0 } : writing ? { kind: 'writing', x: vertical ? 0 : 7, y: hip.y - 3, tilt: 0, stroke } : null;
+  if (reclining && ['north', 'south'].includes(facing)) {
+    // A directional bed changes the articulated body's axis about its hip.
+    // Limbs retain their lengths and IK bend; never rotate the DOM character,
+    // move the authoritative foot or reuse a standing sprite as a lying one.
+    const yaw = (facing === 'south' ? 1 : -1) * Math.PI / 2 * entrance;
+    const pivot = { ...hip };
+    for (const value of new Set([...Object.values(parts), ...Object.values(sample.slots), ...Object.values(sample.joints)])) {
+      const p = rotate(point(value.x - pivot.x, value.y - pivot.y), yaw);
+      value.x = p.x + pivot.x; value.y = p.y + pivot.y;
+      if (Number.isFinite(value.rotation)) value.rotation += yaw;
+    }
+  }
   if (mirror) {
     for (const value of [...Object.values(parts), ...Object.values(sample.slots), ...Object.values(sample.joints)]) { value.x = -value.x; if (Number.isFinite(value.rotation)) value.rotation = -value.rotation; }
     if (sample.homeProp) sample.homeProp.x = -sample.homeProp.x;

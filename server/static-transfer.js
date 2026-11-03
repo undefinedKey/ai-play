@@ -41,7 +41,7 @@ export function staticTransfer(directory){
     let path;
     try{path=decodeURIComponent(raw);}catch{return next();}
     if(/^\/(?:api|mcp|events)(?:\/|$)/i.test(path))return next();
-    const image=/^\/pixel-world\/[a-z0-9_-]+\.png$/i.test(path);
+    const image=/^(?:\/pixel-world\/[a-z0-9_-]+|\/pixel-home\/v028\/[a-z0-9_]+)\.png$/i.test(path);
     const extension=extname(path).toLowerCase();
     const text=['.js','.css','.json'].includes(extension);
     if(!image&&!text)return next();

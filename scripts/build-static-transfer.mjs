@@ -51,7 +51,7 @@ export async function buildStaticTransfer({root=process.cwd(),dist=resolve(root,
   const paths=await filesBelow(dist),images=[],gzip=[];
   for(const path of paths){
     const name=portable(relative(dist,path));
-    if(!/^pixel-world\/ink_[a-z0-9_]+\.png$/.test(name))continue;
+    if(!/^(?:pixel-world\/ink_[a-z0-9_]+|pixel-home\/v028\/[a-z0-9_]+)\.png$/.test(name))continue;
     const source=await readFile(path),sourceHash=hash(source),reference=await readFile(resolve(publicDirectory,name));
     check(sourceHash===hash(reference),`${name}: dist PNG differs from original public PNG`);
     const encoded=await sharp(source).webp(WEBP_OPTIONS).toBuffer(),pixels=await verifyWebpPixels(source,encoded);
@@ -61,7 +61,7 @@ export async function buildStaticTransfer({root=process.cwd(),dist=resolve(root,
     images.push({source:name,sidecar:`${name}.webp`,source_sha256:sourceHash,source_public_identical:true,source_bytes:source.length,encoded_sha256:hash(encoded),encoded_bytes:encoded.length,...pixels});
     log(`${name}: ${source.length} → ${encoded.length} bytes; alpha exact; visible RGB MAE ${pixels.visible_rgb_mean_error}`);
   }
-  check(images.length>0,'No ink PNGs found in dist/pixel-world');
+  check(images.length>0,'No supported deployment PNGs found in dist/pixel-world or dist/pixel-home/v028');
   for(const path of paths){
     const name=portable(relative(dist,path));
     if(!/\.(?:js|css|json)$/.test(name)||name==='static-transfer-manifest.json')continue;

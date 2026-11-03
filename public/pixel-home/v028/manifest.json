@@ -1,0 +1,72 @@
+{
+  "release": "0.28.0",
+  "style": "C-clear-pixel",
+  "generator": "builtin image_gen",
+  "source_pixels": "unaltered PNG originals; render-time atlas selection only",
+  "assets": [
+    {
+      "file": "bed.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "7de1dec9bb186fa99c78d5b1c5e605dbf3790065d7fb8e2221c76c66b5b77a69",
+      "bytes": 711595,
+      "transparent": true
+    },
+    {
+      "file": "bookshelf.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "5115656374c224b7c968ee2bd582e46bb0c4bfbd24f40ce31e353b6f038b477c",
+      "bytes": 657510,
+      "transparent": true
+    },
+    {
+      "file": "chair.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "7c3bfcbbf1522e79a8b107b4516644df838bacc1396dee93f111b8d2e50cb99d",
+      "bytes": 477774,
+      "transparent": true
+    },
+    {
+      "file": "cottage.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "8bd0a173c35c28879f96c07908b5f1ea84e19bdc80c2099059b435f5b69ad6c4",
+      "bytes": 1479543,
+      "transparent": true
+    },
+    {
+      "file": "display_shelf.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "db5a6f507bd7524b3001a62a2698e244b466f835591a6b2839886f69bd982d4d",
+      "bytes": 641911,
+      "transparent": true
+    },
+    {
+      "file": "room.png",
+      "width": 1366,
+      "height": 1152,
+      "sha256": "a4a07067231fe200afd0e081f1ce4e0f5330be96b4f9fcbafa8494c88ab6bea9",
+      "bytes": 1417111,
+      "transparent": false
+    },
+    {
+      "file": "rug.png",
+      "width": 1586,
+      "height": 992,
+      "sha256": "0699b1e09bd88ad5521c169a2d2bc873ed8d57b2c118cb35a9836d27f7ab4793",
+      "bytes": 881432,
+      "transparent": true
+    },
+    {
+      "file": "table.png",
+      "width": 1254,
+      "height": 1254,
+      "sha256": "ce8c2f4cfe5177c9dea0f59097a39f1dee2327ae4247bba55fdef118502a245e",
+      "bytes": 588074,
+      "transparent": true
+    }
+  ]
+}

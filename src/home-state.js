@@ -1,4 +1,5 @@
 import { sampleMotion } from '../shared/motion.js';
+import { homeFurnitureFootprint, homeFurnitureLayout, homeRoomFoot } from './home-pixel-layout.js';
 
 export const HOME_MAP = Object.freeze({ width: 10, height: 8 });
 export const HOME_DOOR = Object.freeze({ x: 5, y: 7 });
@@ -6,7 +7,6 @@ export const furnitureNames = { chair: '木椅', table: '木桌', rug: '编织�
 export const homeActivityNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息', write: '写作' };
 export const furnitureUses = { chair: ['sit', 'read', 'rest'], table: ['eat', 'read'], bed: ['rest'], bookshelf: ['read'], rug: [], display_shelf: [] };
 export const souvenirNames = { wood: '木材', ore: '矿石', pine_cone: '松果' };
-const dimensions = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1], bed: [2, 2], bookshelf: [2, 1] };
 
 // Public activity is a bounded execution receipt, never a locally inferred
 // intention. Finishing the progress bar cannot finish/restart the server job.
@@ -26,21 +26,27 @@ export function homeFurnitureOccupant(agents, instanceId, homeId) {
 
 // A visual transition from the legal adjacent standing point onto the drawn
 // seat. Room-art coordinates never alter the server path or data-foot point.
-export function homeSeatAnchor(agent, furniture) {
+export function homeConfirmedFurnitureUse(agent, furniture) {
   const p = agent?.position, use = agent?.home_presence?.activity;
-  if (!['chair', 'bed'].includes(furniture?.kind) || use?.phase !== 'using' || use.instance_id !== furniture.instance_id || !p || ![p.x, p.y, furniture.x, furniture.y].every(Number.isFinite) || !['sit', 'read', 'rest'].includes(use.kind) || furniture.kind === 'bed' && use.kind !== 'rest') return null;
+  if (!furniture || use?.phase !== 'using' || use.instance_id !== furniture.instance_id || !p || ![p.x, p.y, furniture.x, furniture.y].every(Number.isFinite)) return null;
+  const activities = furniture.kind === 'table' ? ['eat', 'read', 'write'] : furnitureUses[furniture.kind] || [];
+  if (!activities.includes(use.kind)) return null;
   const [width, height] = furnitureSize(furniture);
   const distance = Math.max(furniture.x - p.x, 0, p.x - furniture.x - width + 1) + Math.max(furniture.y - p.y, 0, p.y - furniture.y - height + 1);
   if (distance > 1.001 || distance < .999) return null;
-  const seat = furniture.kind === 'bed'
-    ? { x: 70 + furniture.x * 50 + width * 50 * .62, y: 135 + furniture.y * 42 - 20 + (height * 42 + 20) * .56 }
-    : { x: 70 + (furniture.x + .5) * 50, y: 135 + furniture.y * 42 - 20 + 62 * 74 / 110 };
-  const foot = { x: 70 + (p.x + .5) * 50, y: 135 + (p.y + .7) * 42 };
-  return { x: seat.x - foot.x, y: seat.y - foot.y, kind: furniture.kind, facing: furniture.kind === 'bed' ? 'east' : ({ 0: 'south', 90: 'west', 180: 'north', 270: 'east' })[furniture.rotation || 0] };
+  return use;
 }
 
-export function homeUsePresentationStyle(agent, furniture, now, enabled, hipHeight = 21.8) {
-  const anchor = homeSeatAnchor(agent, furniture), activity = agent?.home_presence?.activity;
+export function homeSeatAnchor(agent, furniture, artSpec) {
+  if (!['chair', 'bed'].includes(furniture?.kind) || !homeConfirmedFurnitureUse(agent, furniture)) return null;
+  const layout = homeFurnitureLayout(furniture, undefined, artSpec), seat = layout.seat;
+  if (!seat) return null;
+  const foot = homeRoomFoot(agent.position);
+  return { x: seat.x - foot.x, y: seat.y - foot.y, kind: furniture.kind, facing: layout.facing };
+}
+
+export function homeUsePresentationStyle(agent, furniture, now, enabled, hipHeight = 21.8, artSpec) {
+  const anchor = homeSeatAnchor(agent, furniture, artSpec), activity = agent?.home_presence?.activity;
   if (!anchor) return undefined;
   const elapsed = Math.max(0, Math.min(now, activity.ends_at ?? now) - activity.started_at);
   const t = enabled && agent.status === 'active' ? Math.max(0, Math.min(1, elapsed / 650)) : 1;
@@ -58,10 +64,7 @@ export function homeActors(agents = [], homeId) {
   return homeId ? agents.filter(agent => agent.home_presence?.home_id === homeId && ['active', 'paused'].includes(agent.status)) : [];
 }
 export function furnitureSize(item, rules) {
-  const definition = rules?.furniture_catalog?.[item.kind];
-  const fallback = dimensions[item.kind] || [1, 1];
-  const size = [definition?.width || fallback[0], definition?.height || fallback[1]];
-  return [90, 270].includes(item.rotation) ? size.reverse() : size;
+  return homeFurnitureFootprint(item, rules);
 }
 // Use only the interior stream. Outdoor action/motion receipts never animate a
 // house occupant and the same identity/appearance/equipment remains intact.
@@ -82,7 +85,8 @@ export function homePosition(agent, now, live) {
   return actor && live && agent.status === 'active' ? sampleMotion(actor, now).position : actor?.position;
 }
 export function homePoint(position) {
-  return { left: `${(70 + (position.x + .5) * 50) / 640 * 100}%`, top: `${(135 + (position.y + .7) * 42) / 540 * 100}%` };
+  const foot = homeRoomFoot(position);
+  return { left: `${foot.x / 640 * 100}%`, top: `${foot.y / 540 * 100}%` };
 }
 export function homeLocation(agent, homes = []) {
   const home = homes.find(item => item.home_id === (agent?.home_presence?.home_id || agent?.home_travel?.home_id));

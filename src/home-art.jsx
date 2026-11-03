@@ -1,78 +1,67 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { HOME_PIXEL_ART, HOME_ROOM_ART, HOME_COTTAGE_ART } from './home-pixel-manifest.js';
 
-// Original ink-and-timber artwork. These fixed architectural details are not
-// furniture inventory, resource nodes, or pretend player-created objects.
-export function CottageArt({ small = false }) {
-  return <svg viewBox="0 0 240 170" aria-hidden="true" className={small ? 'cottage-art small' : 'cottage-art'}>
-    <ellipse cx="120" cy="152" rx="96" ry="13" fill="#5e5639" opacity=".16"/>
-    <g stroke="#493b32" strokeWidth="3" strokeLinejoin="round">
-      <path d="M55 71 122 30 186 71 181 145 58 145Z" fill="#b18a59"/>
-      <path d="M181 76 211 87 207 139 181 145Z" fill="#927044"/>
-      <path d="M38 77 119 16 196 71 181 81 121 39 53 88Z" fill="#5a6659"/>
-      <path d="m119 16 35 7 68 58-26-10Z" fill="#46544b"/>
-      <path d="M160 32V9h17v36" fill="#9e785a"/>
-      <path d="M153 12h29V4h-29Z" fill="#ba9970"/>
-      <path d="m66 92 31-4 1 31-31 1Z" fill="#f4ce78"/>
-      <path d="M81 90v29M66 104h32" fill="none"/>
-      <path d="M122 144v-42q12-18 29-3v45" fill="#655344"/>
-      <path d="m114 145 45-1 6 9h-57Z" fill="#d3b488"/>
-      <circle cx="143" cy="122" r="2" fill="#e6c574" stroke="none"/>
-      <path d="m62 129 48-1m48-9 20-1M62 138h47m49-7h20M64 80l39-3m53 11 22 4" strokeWidth="1.5" opacity=".55"/>
-      <path d="m50 143-15-9m14 8-1-21m140 25 16-16m-13 15 1-23" stroke="#66764c"/>
-    </g>
-    <path d="m54 69 68-44 62 43m-53-28 9-10m0 17 10-9m0 17 10-8M74 62l-5-7m23-6-5-7" stroke="#c1c3a0" opacity=".35" fill="none"/>
+export const furnitureArtSpec = kind => HOME_PIXEL_ART[kind];
+
+// Select atlas regions at render time; keep source PNGs and sprite aspect.
+function SourceRegion({ src, sheet, rect, x=0, y=0, width, height, preserve='xMidYMid meet' }) {
+  return <svg x={x} y={y} width={width} height={height} viewBox={`${rect.x} ${rect.y} ${rect.w} ${rect.h}`} preserveAspectRatio={preserve} overflow="hidden" data-source-rect={`${rect.x},${rect.y},${rect.w},${rect.h}`}>
+    <image href={src} width={sheet.width} height={sheet.height}/>
   </svg>;
 }
 
-export function RoomArt({ grid = false, phase = 'day' }) {
-  const night = phase === 'night', twilight = phase === 'dusk' || phase === 'dawn';
-  return <svg className="home-room-art" viewBox="0 0 640 540" aria-hidden="true">
-    <defs>
-      <pattern id="home-planks" x="70" y="135" width="100" height="84" patternUnits="userSpaceOnUse"><rect width="100" height="84" fill="#bd9568"/><path d="M0 0h100M0 42h100M0 1v40M50 43v40M48 8l39-1M8 29l31 1M67 34l21-1M9 51l20 1M65 64l25-2M16 77l28 1" fill="none" stroke="#896541" strokeWidth="1.1" opacity=".55"/><path d="M3 3h94M3 45h94" stroke="#e3bd83" opacity=".5"/><path d="m4 8 1 1m89 26 1 1m-39 17 1 1m-10 23 1 1" stroke="#73553b" opacity=".6"/></pattern>
-      <linearGradient id="home-wall" x2="0" y2="1"><stop stopColor="#b3986a"/><stop offset="1" stopColor="#dbc394"/></linearGradient>
-      <radialGradient id="home-lamplight"><stop stopColor="#ffe5a3" stopOpacity=".32"/><stop offset="1" stopColor="#ffe5a3" stopOpacity="0"/></radialGradient>
-      <linearGradient id="home-windowlight" x2=".65" y2="1"><stop stopColor={night ? '#7d93a3' : '#fff2ba'} stopOpacity={night ? '.1' : '.22'}/><stop offset="1" stopColor="#ffe5a3" stopOpacity="0"/></linearGradient>
-    </defs>
-    <rect width="640" height="540" fill="#e2d9ba"/>
-    <path d="M34 502q274-32 570-8" stroke="#b4b38e" strokeWidth="35" opacity=".35"/>
-    <path d="m53 67 533-4 12 430-536 10Z" fill="#4e4238" opacity=".16"/>
-    <path d="M70 135V50h500v85" fill="url(#home-wall)" stroke="#4d4034" strokeWidth="5"/>
-    <path d="M70 135h500v336H70Z" fill="url(#home-planks)" stroke="#614d39" strokeWidth="4"/>
-    <path d="M70 137 49 117v359l21-5M570 135l20-18v358l-20-4" fill="#92704d" stroke="#4e4033" strokeWidth="4"/>
-    <path d="M58 50h523v12H58Z" fill="#69513b" stroke="#4e4033" strokeWidth="3"/>
-    <path d="M73 123h494v13H73Z" fill="#805e40"/>
-    <path d="M76 65h489M82 70v50m478-50v50" stroke="#efe0b2" opacity=".22" fill="none"/>
-    <path d="m118 68 73-1-1 48-73 1Z" fill="#6c8178" stroke="#5b4935" strokeWidth="5"/>
-    <path d="M123 72h61v38h-61Z" fill={night ? '#3d5362' : twilight ? '#d7b496' : '#cad6bd'}/><path d="m126 103 22-23 13 18 20-11v23h-55Z" fill={night ? '#3e5c55' : '#7f997e'}/>{night && <path d="M176 76a8 8 0 0 1-8 12 8 8 0 1 0 8-12" fill="#e6d9ab"/>}<path d="M154 70v43M120 91h68" stroke="#6f5338" strokeWidth="4"/>
-    <path d="M112 64h85l-5 18-12-10-6 5-17-6-17 7-15-6-11 12Z" fill="#ae6c4b" stroke="#634637" strokeWidth="2"/>
-    <path d="M116 117h78" stroke="#644c35" strokeWidth="6"/>
-    <path d="M452 69h31v40h-31Z" fill="#e9c26d" stroke="#554431" strokeWidth="3"/><path d="m447 69 20-14 21 14Zm5 40h31l-5 8h-21Z" fill="#6c5940" stroke="#554431" strokeWidth="2"/>
-    <ellipse cx="467" cy="140" rx="125" ry="112" fill="url(#home-lamplight)"/>
-    <path d="m119 136 69 0 96 195-133 0Z" fill="url(#home-windowlight)"/>
-    <path d="M78 143v317M562 143v317" stroke="#594734" strokeWidth="6" opacity=".15"/>
-    <path d="M66 471h254m50 0h205" stroke="#614b35" strokeWidth="13"/>
-    <path d="M320 466h50v16h-50Z" fill="#dabc89" stroke="#614b35" strokeWidth="3"/><path d="M315 485h60l10 15h-80Z" fill="#c4b494" stroke="#88775c" strokeWidth="2"/>
-    <path d="m82 150 8 2m432 301 13 2m-412-16 22-2m194-264 8 1" stroke="#654d32" opacity=".5" fill="none"/>
-    {grid && <g stroke="#634b34" strokeWidth=".8" opacity=".35">{Array.from({ length: 9 }, (_, i) => <path key={`v${i}`} d={`M${120 + i * 50} 135v336`}/>)}{Array.from({ length: 7 }, (_, i) => <path key={`h${i}`} d={`M70 ${177 + i * 42}h500`}/>)}</g>}
+export function CottageArt({ small=false }) {
+  const art=HOME_COTTAGE_ART;
+  return <svg viewBox="0 0 240 194" aria-hidden="true" className={small?'cottage-art small':'cottage-art'}>
+    <SourceRegion src={art.src} sheet={art} rect={art.sourceRect} width={240} height={194}/>
   </svg>;
 }
 
-export function FurnitureArt({ kind, vertical = false, item }) {
-  return <svg viewBox="0 0 140 110" className={`home-furniture-art furniture-${kind}`} preserveAspectRatio="none" aria-hidden="true">
-    <g stroke="#503d30" strokeWidth="3" strokeLinejoin="round">
-      {kind === 'chair' && <><ellipse cx="70" cy="101" rx="42" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M34 25 99 22l4 53-68 2Z" fill="#9b6d42"/><path d="m42 31 49-2 1 29-49 3Z" fill="#c29a61"/><path d="M34 71v28m67-30v30M31 66l71-4 8 19-80 5Z" fill="#b78852"/><path d="m40 73 59-3M65 31v28" strokeWidth="1.4"/></>}
-      {kind === 'table' && <><ellipse cx="70" cy="99" rx="63" ry="8" fill="#4d3522" stroke="none" opacity=".2"/><path d="M22 52 17 96h12l8-42m66-3 9 45h11l-5-44" fill="#86613d"/><path d={vertical ? 'M43 13 99 15l20 64-97 1Z' : 'M14 35 123 30l12 34-130 5Z'} fill="#ca9d5d"/><path d={vertical ? 'm70 16 1 61m-20-49 44 1m-49 20 55 1' : 'm18 43 104-5M14 57l114-5M47 38l-2 22m45-24 2 22'} strokeWidth="1.6" opacity=".65"/></>}
-      {kind === 'rug' && <><path d="m9 10 120-3 6 91-126 5Z" fill="#8c5e42" strokeWidth="2"/><path d="m18 20 101-2 7 70-107 5Z" fill="#c4a86b" strokeWidth="1.5"/><path d="m70 26 39 29-36 30-38-29Z" fill="#697b64" strokeWidth="1.5"/><path d="m70 41 17 15-15 14-18-14Z" fill="#dabd82" strokeWidth="1.5"/><path d="M4 16h9M3 28h9M3 42h9M3 55h9M3 69h9M4 83h9M5 95h9m115-79h9m-8 13h9m-8 13h9m-7 13h8m-8 14h8m-8 14h8m-8 12h8" stroke="#81603e" strokeWidth="2"/></>}
-      {kind === 'display_shelf' && <><ellipse cx="70" cy="100" rx="63" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M12 13h116v86H12Z" fill="#85613e"/><path d="M20 21h100v58H20Z" fill="#584537"/><path d="M7 13h126v11H7Zm3 67h121v12H10Z" fill="#c19a62"/><path d="M32 92v11m76-11v11" strokeWidth="6"/><path d="m25 86 89-1" strokeWidth="1" opacity=".55"/>{item && <g transform="translate(42 30) scale(.5)"><SouvenirShape item={item}/></g>}</>}
-      {kind === 'bed' && <><ellipse cx="70" cy="101" rx="60" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M17 23V9h106v89H17Z" fill="#8d6849"/><path d="M22 14h96v24H22Z" fill="#ba9360"/><path d="M22 36h96v50H22Z" fill="#dfd1ab"/><path d="M29 29q14-5 32 0v19H29Zm47 0q13-4 32 0v19H76Z" fill="#f3e8c6"/><path d="M22 51q43 6 96-2v39H22Z" fill="#76867b"/><path d="M25 59q45 7 90 1M26 66q43 7 89 1" fill="none" stroke="#c3c6a5" strokeWidth="2"/><path d="M14 86h112v12H14Zm6 12v10m100-10v10" fill="#bb925d"/><path d="M23 20h94" strokeWidth="1.5" opacity=".6"/></>}
-      {kind === 'bookshelf' && <><ellipse cx="70" cy="101" rx="62" ry="7" fill="#4d3522" stroke="none" opacity=".2"/><path d="M13 9h114v89H13Z" fill="#8b6543"/><path d="M21 20h98v66H21Z" fill="#584638"/><path d="M25 25h13v25H25Z" fill="#9d694e"/><path d="m40 21 12 1-1 28-12-1Z" fill="#889177"/><path d="M56 26h11v24H56Z" fill="#c7aa72"/><path d="m83 23 11-3 10 28-12 3Z" fill="#aa7e56"/><path d="M72 22h9v28h-9Z" fill="#6c8580"/><path d="M28 60h13v26H28Z" fill="#b4a575"/><path d="M46 64h10v22H46Z" fill="#8e6a57"/><path d="m64 58 13-1 4 28-13 1Z" fill="#7c8e78"/><path d="M86 61h23v25H86Z" fill="#c5a879"/><path d="M8 9h125v11H8Zm7 42h110v10H15Zm-5 44h120v11H10Z" fill="#c09a65"/><path d="M27 31h8m10-3h5m12 6h4m29 35h10" strokeWidth="1.2" stroke="#e3cea2"/></>}
-    </g>
+export function RoomArt({ grid=false, phase='day' }) {
+  const id=useId().replace(/:/g,''), art=HOME_ROOM_ART;
+  const region=(rect,x,y,width,height,preserve='xMidYMid meet')=><SourceRegion src={art.src} sheet={art} rect={rect} x={x} y={y} width={width} height={height} preserve={preserve}/>;
+  return <svg className="home-room-art" viewBox="0 0 640 540" aria-hidden="true" data-art-release="0.28.0">
+    <defs><pattern id={`${id}-floor`} patternUnits="userSpaceOnUse" x="70" y="135" width="500" height="200">
+      {region({x:180,y:480,w:1000,h:400},0,0,500,200)}
+    </pattern></defs>
+    <rect width="640" height="540" fill="#f4e6d2"/>
+    <rect x="57" y="18" width="526" height="477" fill="#52341f"/>
+    {/* Architectural slices fit the unchanged grid; floor planks repeat at one scale. */}
+    {region({x:140,y:167,w:1080,h:289},70,25,500,110,'none')}
+    <rect x="70" y="135" width="500" height="336" fill={`url(#${id}-floor)`}/>
+    {region({x:77,y:132,w:62,h:800},49,6,21,465,'none')}
+    {region({x:1229,y:132,w:62,h:800},570,6,21,465,'none')}
+    {region({x:98,y:112,w:1170,h:55},52,0,536,25,'none')}
+    {region({x:132,y:938,w:426,h:117},60,471,260,31,'none')}
+    {region({x:810,y:938,w:428,h:117},370,471,210,31,'none')}
+    {region({x:610,y:944,w:146,h:119},320,471,50,41)}
+    {phase==='night' && <rect x="70" y="25" width="500" height="110" fill="#1a285a" opacity=".24"/>}
+    {(phase==='dusk'||phase==='dawn') && <rect x="70" y="25" width="500" height="110" fill="#e9aa6b" opacity=".12"/>}
+    {grid && <g stroke="#4e3321" strokeWidth=".8" opacity=".4">{Array.from({length:9},(_,i)=><path key={`v${i}`} d={`M${120+i*50} 135v336`}/>)}{Array.from({length:7},(_,i)=><path key={`h${i}`} d={`M70 ${177+i*42}h500`}/>)}</g>}
   </svg>;
 }
 
+export function FurnitureArt({ kind, rotation=0, layer='base', item }) {
+  const id=useId().replace(/:/g,''), spec=HOME_PIXEL_ART[kind];
+  if (!spec) return null;
+  const normal=((Number(rotation)||0)%360+360)%360;
+  const art=spec.variants[normal] || spec.variants[0], {width:w,height:h}=art;
+  const foreground=layer==='foreground';
+  if (foreground && !art.foreground) return null;
+  const sprite=art.planeRotation
+    ? <g transform={`translate(${w} 0) rotate(90)`}><SourceRegion src={art.src} sheet={art.sheet} rect={art.sourceRect} width={h} height={w}/></g>
+    : <SourceRegion src={art.src} sheet={art.sheet} rect={art.sourceRect} width={w} height={h}/>;
+  return <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" className={`home-furniture-art furniture-${kind}`} aria-hidden="true" data-art-kind={kind} data-art-rotation={normal} data-art-layer={layer}>
+    {foreground && <defs><clipPath id={`${id}-front`}>{art.foreground.rects.map(([x,y,width,height],i)=><rect key={i} x={x} y={y} width={width} height={height}/>)}</clipPath></defs>}
+    <g clipPath={foreground?`url(#${id}-front)`:undefined}>{sprite}</g>
+    {!foreground && kind==='display_shelf' && item && normal===0 && <svg x={w*.16} y={h*.35} width={w*.27} height={h*.33} viewBox="0 0 110 100"><SouvenirShape item={item}/></svg>}
+  </svg>;
+}
+
+// Existing inventory symbols remain keyed to the real displayed item.
 function SouvenirShape({ item }) {
-  if (item === 'pine_cone') return <g stroke="#624630" strokeWidth="2"><path d="M54 5q-31 14-32 58 18 31 39 22 31-16 29-39Q79 17 54 5Z" fill="#a57b48"/><path d="m40 23 15 14 15-13M29 43l24 12 28-13M26 62l24 12 36-13M40 82l14-11" fill="none"/></g>;
-  if (item === 'ore') return <g stroke="#4e554f" strokeWidth="2.5"><path d="m15 68 10-35 30-25 32 13 14 51-39 17Z" fill="#9bada4"/><path d="m25 33 38 13 24-25M63 46l-1 43M15 68l48-22" fill="none"/><path d="m50 14 5 17-14 7" stroke="#d3dcc8" fill="none"/></g>;
+  if(item==='pine_cone')return <g stroke="#624630" strokeWidth="2"><path d="M54 5q-31 14-32 58 18 31 39 22 31-16 29-39Q79 17 54 5Z" fill="#a57b48"/><path d="m40 23 15 14 15-13M29 43l24 12 28-13M26 62l24 12 36-13M40 82l14-11" fill="none"/></g>;
+  if(item==='ore')return <g stroke="#4e554f" strokeWidth="2.5"><path d="m15 68 10-35 30-25 32 13 14 51-39 17Z" fill="#9bada4"/><path d="m25 33 38 13 24-25M63 46l-1 43M15 68l48-22" fill="none"/><path d="m50 14 5 17-14 7" stroke="#d3dcc8" fill="none"/></g>;
   return <g stroke="#62472e" strokeWidth="3"><path d="m19 42 58-27 22 44-61 29Z" fill="#a77b47"/><ellipse cx="29" cy="64" rx="20" ry="27" transform="rotate(-22 29 64)" fill="#d2ad70"/><ellipse cx="29" cy="64" rx="10" ry="16" transform="rotate(-22 29 64)" fill="none" strokeWidth="1.5"/><path d="m49 44 37-17m-31 33 35-16" strokeWidth="1.5"/></g>;
 }
-export function SouvenirArt({ item }) { return <svg className="home-souvenir-art" viewBox="0 0 110 100" aria-hidden="true"><SouvenirShape item={item}/></svg>; }
+export function SouvenirArt({ item }) {return <svg className="home-souvenir-art" viewBox="0 0 110 100" aria-hidden="true"><SouvenirShape item={item}/></svg>;}

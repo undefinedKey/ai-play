@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync,utimesSync,symlinkSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,utimesSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname,basename} from 'node:path';
 import {request} from 'node:http';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
 import express from 'express';
+import sharp from 'sharp';
 import {staticTransfer} from '../server/static-transfer.js';
+import {buildStaticTransfer,verifyWebpPixels} from '../scripts/build-static-transfer.mjs';
 
 const PNG=Buffer.from('89504e470d0a1a0a000102030405060708090a0b0c0d0e0f','hex');
 const WEBP=Buffer.from('RIFFtest-sidecar-WEBP');
@@ -19,6 +21,7 @@ async function fixture(t){
   const temporary=mkdtempSync(join(tmpdir(),'plaza-static-transfer-')),directory=join(temporary,'dist');
   const write=(name,value)=>{const file=join(directory,name);mkdirSync(resolve(file,'..'),{recursive:true});writeFileSync(file,value);return file;};
   write('pixel-world/sprite.png',PNG);write('pixel-world/sprite.png.webp',WEBP);
+  write('pixel-home/v028/chair.png',PNG);write('pixel-home/v028/chair.png.webp',WEBP);
   write('pixel-world/fallback.png',PNG);write('pixel-world/orphan.png.webp',WEBP);
   for(const[name,value]of [['assets/app.js',JS],['assets/app.css',CSS],['pixel-world/manifest.json',JSON_BYTES]]){write(name,value);write(name+'.gz',gzipSync(value));}
   write('index.html','<!doctype html><title>Original page</title>');write('index.html.gz',gzipSync('DO NOT USE HTML SIDECAR'));
@@ -62,6 +65,42 @@ test('PNG uses WebP only after explicit positive acceptance; originals keep thei
     assert.equal(result.status,200);assert.deepEqual(result.body,WEBP);assert.equal(result.headers['content-type'],'image/webp');
     assert.equal(result.headers['content-encoding'],undefined);vary(result,'Accept');assert.match(result.headers['cache-control'],/max-age=0.*must-revalidate/);
   }
+});
+
+test('versioned home sprites negotiate WebP and retain PNG fallback without widening other image paths',async t=>{
+  const {call,write}=await fixture(t),path='/pixel-home/v028/chair.png';
+  for(const accept of [undefined,'*/*','image/png','image/webp;q=0','image/webp;q=0, image/webp;q=1']){
+    const result=await call(path+'?v=0.28.0',accept?{Accept:accept}:{});
+    assert.equal(result.status,200);assert.deepEqual(result.body,PNG);assert.match(result.headers['content-type'],/^image\/png/);vary(result,'Accept');
+  }
+  const accepted=await call(path,{Accept:'image/png, image/webp;q=0.8'});
+  assert.equal(accepted.status,200);assert.deepEqual(accepted.body,WEBP);assert.equal(accepted.headers['content-type'],'image/webp');vary(accepted,'Accept');
+  const head=await call(path,{Accept:'image/webp'},'HEAD');assert.equal(head.body.length,0);assert.equal(head.headers.etag,accepted.headers.etag);
+  const unchanged=await call(path,{Accept:'image/webp','If-None-Match':accepted.headers.etag});assert.equal(unchanged.status,304);
+  const range=await call(path,{Accept:'image/webp',Range:'bytes=0-7'});assert.equal(range.status,206);assert.deepEqual(range.body,PNG.subarray(0,8));
+  write('pixel-home/v028/bed.png',PNG);
+  const missing=await call('/pixel-home/v028/bed.png',{Accept:'image/webp'});assert.deepEqual(missing.body,PNG);assert.match(missing.headers['content-type'],/^image\/png/);
+  for(const name of ['pixel-home/v029/chair.png','pixel-home/chair.png','pixel-home/v028/nested/chair.png','other/chair.png']){
+    write(name,PNG);write(name+'.webp',WEBP);
+    const result=await call('/'+name,{Accept:'image/webp'});assert.deepEqual(result.body,PNG);assert.match(result.headers['content-type'],/^image\/png/);assert.equal(result.headers.vary,undefined);
+  }
+});
+
+test('home PNG build sidecars preserve original pixels and alpha through the real HTTP negotiation',async t=>{
+  const {call,write,temporary,directory}=await fixture(t),input=Buffer.alloc(64*64*4);
+  for(let pixel=0;pixel<64*64;pixel++){const i=pixel*4;input[i]=pixel%251;input[i+1]=pixel*7%251;input[i+2]=pixel*13%251;input[i+3]=pixel%256;}
+  const png=await sharp(input,{raw:{width:64,height:64,channels:4}}).png({compressionLevel:0}).toBuffer();
+  const name='pixel-home/v028/chair.png',publicFile=join(temporary,'public',name);
+  mkdirSync(dirname(publicFile),{recursive:true});writeFileSync(publicFile,png);write(name,png);
+  writeFileSync(join(temporary,'package.json'),'{"version":"0.28.0"}');
+  for(const excluded of ['pixel-home/v029/chair.png','pixel-home/chair.png','pixel-home/v028/nested/chair.png'])write(excluded,png);
+  const manifest=await buildStaticTransfer({root:temporary,log:()=>{}});
+  assert.equal(manifest.images.length,1);assert.equal(manifest.images[0].source,name);assert.equal(manifest.images[0].alpha_differing_pixels,0);
+  assert.deepEqual(readFileSync(join(directory,name)),png);assert.deepEqual(readFileSync(publicFile),png);
+  for(const excluded of ['pixel-home/v029/chair.png','pixel-home/chair.png','pixel-home/v028/nested/chair.png'])assert.equal(existsSync(join(directory,excluded+'.webp')),false);
+  const compressed=await call('/'+name,{Accept:'image/webp'}),original=await call('/'+name,{Accept:'image/png'});
+  assert.equal(compressed.headers['content-type'],'image/webp');assert.deepEqual(original.body,png);
+  const pixels=await verifyWebpPixels(png,compressed.body);assert.equal(pixels.alpha_identical,true);assert.equal(pixels.width,64);assert.equal(pixels.height,64);
 });
 
 test('gzip sidecars retain the original text type and bytes after decompression, without wildcard opt-in',async t=>{

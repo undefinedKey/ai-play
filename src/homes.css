@@ -42,3 +42,20 @@
 .home-actor>.pixel-character,.home-actor>.home-use-fallback{left:50%;top:auto;bottom:calc(-5px * var(--pixel-scale));transform:translateX(-50%);pointer-events:none}
 .home-actor>.pixel-character *,.home-actor>.home-use-fallback *{pointer-events:none}
 @media(max-width:600px){.home-actor-label{max-width:90px;gap:1px}.home-actor-label>.home-actor-name{font-size:8px;max-width:90px;padding:1px 3px}.home-actor-label>.home-activity-badge{font-size:8px;padding:1px 3px}}
+
+/* One room-space scale keeps the same relationship between a 50px tile,
+   furniture and the original paper-doll on desktop and narrow screens. */
+.home-room .home-actor,.home-room .home-actor-label{--pixel-scale:calc(100cqw / 460px)}
+.home-furniture{line-height:0;overflow:visible;touch-action:manipulation}
+.home-furniture-art{display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;filter:none}
+.home-furniture-art image,.home-room-art image{image-rendering:pixelated}
+.home-furniture[data-render-layer="floor"]{filter:none;border-radius:0}
+.home-furniture[data-render-layer="floor"].selected{outline:2px solid #ead79b;outline-offset:0}
+.home-furniture-foreground{position:absolute;pointer-events:none;line-height:0}
+.home-furniture-foreground *{pointer-events:none}
+.home-furniture-preview{display:grid;place-items:center}
+.home-furniture-preview>.home-furniture-art{max-height:100%;object-fit:contain}
+.home-room-atmosphere{z-index:20000}
+.home-actor-label{z-index:30000}
+.home-door-caption{z-index:30000}
+.home-room>.head-speech-layer{z-index:40000}

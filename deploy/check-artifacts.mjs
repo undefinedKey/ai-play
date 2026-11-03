@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import assert from 'node:assert/strict';
 import './check-pixel-assets.mjs';
+import { checkHomeArt } from './check-home-art.mjs';
 import '../scripts/check-world-maps.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+checkHomeArt();
 const read = path => readFileSync(resolve(root, path), 'utf8');
 const service = read('deploy/ai-plaza.service');
 const serverEnv = read('deploy/server.env.example');

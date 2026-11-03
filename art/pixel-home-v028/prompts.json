@@ -1,0 +1,72 @@
+{
+  "mode": "builtin image_gen",
+  "style_reference": "User-selected C-pixel-furniture concept (2026-11-03)",
+  "sources": [
+    {
+      "name": "chair",
+      "generator_filename": "exec-a6966207-49d2-4dd9-b768-34b772c11599.png"
+    },
+    {
+      "name": "table",
+      "generator_filename": "exec-50fddf41-af01-476d-ac97-648792d812fe.png"
+    },
+    {
+      "name": "bed",
+      "generator_filename": "exec-63cf3440-d2d3-4988-b6e4-c53462568741.png"
+    },
+    {
+      "name": "bookshelf",
+      "generator_filename": "exec-d54c8a56-c06e-4c7f-8231-fbf26a2a2fe2.png"
+    },
+    {
+      "name": "display_shelf",
+      "generator_filename": "exec-3471d3fb-01e4-43a9-8983-b18bc848a1b2.png"
+    },
+    {
+      "name": "rug",
+      "generator_filename": "exec-b8af6311-0a1e-4693-96a0-77aaad5fd0c8.png"
+    },
+    {
+      "name": "room",
+      "generator_filename": "exec-c67d6e24-74dc-4aa5-a834-8782cf3de899.png"
+    },
+    {
+      "name": "cottage",
+      "generator_filename": "exec-02b9582e-2dd0-4867-8526-7ae4edf3eac8.png"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "chair",
+      "prompt": "Use case: stylized-concept. Production pixel-art sprite atlas for a cozy web game, not a concept board. Reference image only supplies the C style: honey amber timber, strong dark brown pixel outlines, slate blue textiles and restrained sage accents, crisp deliberate pixel clusters. Fixed elevated FRONT orthographic 3/4 camera looking down slightly, horizontal room rear walls, NOT diamond isometric, not 3D render. No text, labels, UI, grid, landscape, people, floor tile or ground backdrop. Genuine transparent background. Create one perfectly regular 2x2 atlas on a 1024 by 1024 transparent canvas, each cell 512 by 512, generous transparent separation. The SAME one furniture object appears once centered in each cell at the same scale: top-left front facing south, top-right LEFT side view facing west, bottom-left BACK view facing north, bottom-right RIGHT side view facing east. These are four real views of the object, do NOT rotate the image plane. Keep all feet and all object parts inside their own cell. Foot baseline around y=450 within each cell. Pixel edges, no blurry gradients, simple legible shapes for display at 50-110 pixels. Subject: one wooden dining chair, 3 vertical slats in its backrest, one slate blue upholstered seat, four short wooden legs. No armrests. Single-person narrow chair. Each sprite about 230 pixels wide by 350 pixels tall inside its cell. View from rear must show chair back hiding some of cushion. No other furniture."
+    },
+    {
+      "name": "table",
+      "prompt": "Use case: stylized-concept. Production pixel-art sprite atlas for a cozy web game, not a concept board. Reference image only supplies the C style: honey amber timber, strong dark brown pixel outlines, slate blue textiles and restrained sage accents, crisp deliberate pixel clusters. Fixed elevated FRONT orthographic 3/4 camera looking down slightly, horizontal room rear walls, NOT diamond isometric, not 3D render. No text, labels, UI, grid, landscape, people, floor tile or ground backdrop. Genuine transparent background. Create one perfectly regular 2x2 atlas on a 1024 by 1024 transparent canvas, each cell 512 by 512, generous transparent separation. The SAME one furniture object appears once centered in each cell at the same scale: top-left front facing south, top-right LEFT side view facing west, bottom-left BACK view facing north, bottom-right RIGHT side view facing east. These are four real views of the object, do NOT rotate the image plane. Keep all feet and all object parts inside their own cell. Foot baseline around y=450 within each cell. Pixel edges, no blurry gradients, simple legible shapes for display at 50-110 pixels. Subject: one small rectangular amber wood dining table, bare clean plank tabletop, 4 sturdy timber legs, no objects on top and no chairs. In front and rear views it is wider than tall, about 380 pixels wide and 230 tall. In side views tabletop is narrower/deeper but same true scale, about 260 wide and 290 tall. Tabletop MUST have substantial visible top surface for dining/reading. No dishes, no plant, no food."
+    },
+    {
+      "name": "bed",
+      "prompt": "Use case: stylized-concept. Production pixel-art sprite atlas for a cozy web game, not a concept board. Reference image only supplies the C style: honey amber timber, strong dark brown pixel outlines, slate blue textiles and restrained sage accents, crisp deliberate pixel clusters. Fixed elevated FRONT orthographic 3/4 camera looking down slightly, horizontal room rear walls, NOT diamond isometric, not 3D render. No text, labels, UI, grid, landscape, people, floor tile or ground backdrop. Genuine transparent background. Create one perfectly regular 2x2 atlas on a 1024 by 1024 transparent canvas, each cell 512 by 512, generous transparent separation. The SAME one furniture object appears once centered in each cell at the same scale: top-left front facing south, top-right LEFT side view facing west, bottom-left BACK view facing north, bottom-right RIGHT side view facing east. These are four real views of the object, do NOT rotate the image plane. Keep all feet and all object parts inside their own cell. Foot baseline around y=450 within each cell. Pixel edges, no blurry gradients, simple legible shapes for display at 50-110 pixels. Subject: one narrow SINGLE wooden bed, exactly ONE cream pillow, a slate-blue quilt with a tiny cream stitch stripe at foot, rounded timber headboard at head end and lower wooden footboard at foot end. Four short feet. No people. Front view looks down the length toward headboard, 260 wide and 380 tall; side views have headboard to one side and show long bed length horizontally, about 410 wide by 270 tall. Rear view is from behind headboard, showing that headboard and quilt farther away. It must unambiguously look like a single bed, not a book or sofa."
+    },
+    {
+      "name": "bookshelf",
+      "prompt": "Use case: stylized-concept. Production pixel-art sprite atlas for a cozy web game, not a concept board. Reference image only supplies the C style: honey amber timber, strong dark brown pixel outlines, slate blue textiles and restrained sage accents, crisp deliberate pixel clusters. Fixed elevated FRONT orthographic 3/4 camera looking down slightly, horizontal room rear walls, NOT diamond isometric, not 3D render. No text, labels, UI, grid, landscape, people, floor tile or ground backdrop. Genuine transparent background. Create one perfectly regular 2x2 atlas on a 1024 by 1024 transparent canvas, each cell 512 by 512, generous transparent separation. The SAME one furniture object appears once centered in each cell at the same scale: top-left front facing south, top-right LEFT side view facing west, bottom-left BACK view facing north, bottom-right RIGHT side view facing east. These are four real views of the object, do NOT rotate the image plane. Keep all feet and all object parts inside their own cell. Foot baseline around y=450 within each cell. Pixel edges, no blurry gradients, simple legible shapes for display at 50-110 pixels. Subject: one tall wooden bookcase, warm amber frame, three shelves of decorative muted blue/sage/rust book spines, one small bottom drawer, no plants no extra possessions. In front and back views about 300 wide and 390 tall. Side views narrow about 170 wide and 390 tall. Back view is plain plank back, side views show side panel. No readable titles."
+    },
+    {
+      "name": "display_shelf",
+      "prompt": "Use case: stylized-concept. Production pixel-art sprite atlas for a cozy web game, not a concept board. Reference image only supplies the C style: honey amber timber, strong dark brown pixel outlines, slate blue textiles and restrained sage accents, crisp deliberate pixel clusters. Fixed elevated FRONT orthographic 3/4 camera looking down slightly, horizontal room rear walls, NOT diamond isometric, not 3D render. No text, labels, UI, grid, landscape, people, floor tile or ground backdrop. Genuine transparent background. Create one perfectly regular 2x2 atlas on a 1024 by 1024 transparent canvas, each cell 512 by 512, generous transparent separation. The SAME one furniture object appears once centered in each cell at the same scale: top-left front facing south, top-right LEFT side view facing west, bottom-left BACK view facing north, bottom-right RIGHT side view facing east. These are four real views of the object, do NOT rotate the image plane. Keep all feet and all object parts inside their own cell. Foot baseline around y=450 within each cell. Pixel edges, no blurry gradients, simple legible shapes for display at 50-110 pixels. Subject: one LOW wide wooden display cabinet, amber wood frame, two clear glass doors, one horizontal shelf. Cabinet is EMPTY: no books, trophies, food, pots, boxes, figurines or souvenirs, we overlay actual player's items in game. Front/back about 380 wide by 270 tall. Side views about 190 wide by 270 tall. Glass panes are muted transparent blue barely tinted. Back view plain wood. Two tiny brass handles. No separate props."
+    },
+    {
+      "name": "rug",
+      "prompt": "Use case: stylized-concept. Production isolated game floor rug, using reference C clear pixel art style only. One single low flat cream woven rug with two narrow sage green rectangular border stripes and short fringe at left and right edges. Elevated front/top-down orthographic camera, exactly aligned rectangular top surface, no diamond isometric angle, very slight topdown foreshortening. Shape horizontally elongated about 800 pixels wide and 500 pixels high centered in 1024x1024 canvas with generous transparent margin. Genuine transparent background everywhere outside rug. No backing plate, no wood, no floor, no people, no furniture. Flat fibers and crisp pixel clusters, NO black outline cast like a wall, no extrusion, no signboard, no image labels. Warm restrained cream/sage/honey palette as reference. This is a separate reusable rug sprite, not a screenshot or sheet."
+    },
+    {
+      "name": "room",
+      "prompt": "Use case: stylized-concept. Production EMPTY room background for a 2D web game. Reference image C gives ONLY art style, palette and camera: crisp clear pixel art, honey/amber floorboards, dark chocolate timber edging, warm cream plaster, sage window curtains, restrained slate blue accents. Draw a completely EMPTY rectangular cottage room cutaway, NO furniture whatsoever, no bed, table, chairs, shelves, rug, plant, books, trophies, person, text, labels or UI. Orthographic elevated front camera with horizontal rear wall, floor rectangular not diamond isometric. Image 1280 wide by 1080 high (or equivalent proportions): use logical coordinates based on 640x540. Back wall rectangle x70 to570 y50 to135 with cream plaster and timber lower trim, a small window centered x155 y92 and wall lantern atx467 y90. Flat wood plank floor rectangle precisely x70 to570 and y135 to471; plank rows horizontal, floor does NOT taper with perspective. Thin left and right timber cutaway wall rails around x55 and x580. Front edge y471; centered door opening x320 to370 atbottomfront with stone doorstep below to y500. The other area is simple warm parchment color. No camera tilt, no lens perspective, no long diagonal beams. Full room visible with margins. Strong discrete square pixel clusters; no smooth painterly gradients. Keep floor unoccupied so a game can independently overlay interactive sprites. This is final usable empty architectural art, not a presentation board, no title."
+    },
+    {
+      "name": "cottage",
+      "prompt": "Use case: stylized-concept. One isolated small cottage exterior sprite for a cozy web game, genuine transparent background. Match reference C crisp clear pixel clusters, honey amber timber, cream plaster, dark chocolate edges, slate blue roof and muted sage window shutters. Front-facing slightly elevated orthographic view, no diamond isometric. A modest timber cottage with a peaked slate-blue shingle roof, a tiny chimney, one centered wooden front door, two small windows, a low stone step, no people or furniture or plants or surrounding lawn or scenery. All parts inside canvas with generous transparent margins. Not photorealistic, not smooth 3D, no titles/text/UI. This is architectural navigation artwork, not a new unlockable house type."
+    }
+  ]
+}
