@@ -3,7 +3,7 @@ import { sampleMotion } from '../shared/motion.js';
 export const HOME_MAP = Object.freeze({ width: 10, height: 8 });
 export const HOME_DOOR = Object.freeze({ x: 5, y: 7 });
 export const furnitureNames = { chair: '木椅', table: '木桌', rug: '编织地毯', display_shelf: '纪念品展架', bed: '木床', bookshelf: '书架' };
-export const homeActivityNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息' };
+export const homeActivityNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息', write: '写作' };
 export const furnitureUses = { chair: ['sit', 'read', 'rest'], table: ['eat', 'read'], bed: ['rest'], bookshelf: ['read'], rug: [], display_shelf: [] };
 export const souvenirNames = { wood: '木材', ore: '矿石', pine_cone: '松果' };
 const dimensions = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1], bed: [2, 2], bookshelf: [2, 1] };

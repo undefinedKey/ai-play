@@ -5,7 +5,7 @@ import { spendEnergy, publicFatigue } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
 
 export const HOME_RULES = Object.freeze({
-  version: 1, use_version: 1, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', x: 9, y: 8 },
+  version: 1, use_version: 1, books_version: 1, books: { max_books: 8, title_chars: 40, text_chars: 800, write_seconds: 45, cost: { wood: 1, grass: 1 }, max_comments: 10, comment_chars: 200, comment_seconds: 10 }, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', x: 9, y: 8 },
   build_cost: { wood: 6, grass: 2 }, max_furniture: 12, max_displays: 4, max_guests: 2,
   visit_seconds: 120, invitation_seconds: 600, invitation_cooldown_seconds: 60, max_pending_invitations: 2,
   message_seconds: 10, max_messages: 20, max_move: 3, souvenir_items: ['wood', 'ore', 'pine_cone'],
@@ -17,17 +17,18 @@ export const HOME_RULES = Object.freeze({
     bed: { name: '木床', width: 2, height: 2, cost: { wood: 5, grass: 4 }, activities: ['rest'] },
     bookshelf: { name: '书架', width: 2, height: 1, cost: { wood: 4, ore: 1 }, activities: ['read'] },
   },
-  use: { max_seconds: 120, durations: { sit: 30, eat: 20, read: 45, rest: 60 }, recovery_per_second: { sit: .5, eat: .3, read: .3, rest: 2 } },
+  use: { max_seconds: 120, durations: { sit: 30, eat: 20, read: 45, rest: 60, write: 45 }, recovery_per_second: { sit: .5, eat: .3, read: .3, rest: 2, write: .3 } },
   notice: '建造、布置、来访和使用家具均由本人选择。use先真实走到家具旁，再执行一次有限活动；吃饭须自己选食物，到达才扣1份。cancel/leave可中断，不自动续用。室内有光但饥饿仍消耗；使用中的家具和站位被预约，所有家具占格且不能堵门。',
 });
 export const HOME_INTENTS = {
   build: ['name'], rename: ['name'], craft: ['kind'], place: ['instance_id', 'x', 'y', 'rotation'], store: ['instance_id'],
   display: ['instance_id', 'item_id', 'title', 'text'], withdraw: ['display_id'], invite: ['target_agent_id'],
   respond: ['invitation_id', 'accept'], visit: ['home_id', 'mode'], cancel: [], leave: [], move: ['x', 'y'],
-  message: ['text'], remove_message: ['message_id'], use: ['instance_id', 'activity', 'item_id'],
+  message: ['text'], remove_message: ['message_id'], use: ['instance_id', 'activity', 'item_id', 'book_id'],
+  write_book: ['instance_id', 'title', 'text'], shelve_book: ['book_id', 'instance_id'], unshelve_book: ['book_id'], book_comment: ['book_id', 'text'],
 };
 const HOME_READING = Object.freeze({ title: '窗边的风', source: '共栖原创短文', text: '旅人把一片落叶夹进书里，想着下次读到这里时，或许会想起今天的风。傍晚，窗外的树影慢慢移过桌面。他没有急着翻页，只把另一把椅子往窗边挪了挪。' });
-const useNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息' };
+const useNames = { sit: '坐一会儿', eat: '吃饭', read: '阅读', rest: '休息', write: '写作' };
 const uid = prefix => `${prefix}_${randomUUID()}`;
 const copy = value => structuredClone(value);
 const key = p => `${p.x},${p.y}`;
@@ -56,16 +57,38 @@ function text(value, max, fail, fallback) {
 function identifier(value, fail) { if (typeof value !== 'string' || !/^[A-Za-z0-9_:-]{1,160}$/.test(value)) fail('INVALID_ACTION', '标识符无效'); return value; }
 function validate(p, fail) {
   if (typeof p.intent !== 'string' || !Object.hasOwn(HOME_INTENTS, p.intent) || Object.keys(p).some(k => k !== 'intent' && !HOME_INTENTS[p.intent].includes(k))) fail('INVALID_ACTION', '家园动作字段无效');
-  for (const k of ['instance_id', 'display_id', 'target_agent_id', 'invitation_id', 'home_id', 'message_id']) if (HOME_INTENTS[p.intent].includes(k)) identifier(p[k], fail);
+  for (const k of ['instance_id', 'display_id', 'target_agent_id', 'invitation_id', 'home_id', 'message_id', 'book_id']) if (HOME_INTENTS[p.intent].includes(k) && !(p.intent === 'use' && k === 'book_id' && p[k] === undefined)) identifier(p[k], fail);
   if (['place', 'move'].includes(p.intent) && !integer(p)) fail('INVALID_ACTION', '室内目标须为 10×8 内整数坐标');
   if (p.rotation !== undefined && ![0, 90, 180, 270].includes(p.rotation)) fail('INVALID_ACTION', '旋转只能是 0/90/180/270');
   if (p.mode !== undefined && !['walk', 'run'].includes(p.mode)) fail('INVALID_ACTION', 'mode 只能为 walk/run');
   if (p.intent === 'respond' && typeof p.accept !== 'boolean') fail('INVALID_ACTION', 'accept 必须为布尔值');
   if (p.intent === 'use') {
-    if (!Object.hasOwn(HOME_RULES.use.durations, p.activity)) fail('INVALID_ACTION', '家具活动须为sit/eat/read/rest');
+    if (!['sit', 'eat', 'read', 'rest'].includes(p.activity)) fail('INVALID_ACTION', '家具活动须为sit/eat/read/rest');
     if (p.activity === 'eat' ? typeof p.item_id !== 'string' : p.item_id !== undefined) fail('INVALID_ACTION', '只有eat必须带自己选择的食物item_id，其他活动不带item_id');
+    if (p.book_id !== undefined && p.activity !== 'read') fail('INVALID_ACTION', '只有read可选择book_id');
   }
+  if (p.intent === 'write_book') { text(p.title, 40, fail); text(p.text, 800, fail); }
+  if (p.intent === 'book_comment') text(p.text, 200, fail);
 }
+
+function publicBook(b) {
+  return { book_id: b.book_id, author_agent_id: b.author_agent_id, author_name: b.author_name, title: b.title, text: b.text, created_at: b.created_at, instance_id: b.instance_id || null,
+    comments: (b.comments || []).map(c => ({ comment_id: c.comment_id, author_agent_id: c.author_agent_id, author_name: c.author_name, text: c.text, created_at: c.created_at })) };
+}
+function readableBook(home, a, bookId, fail) {
+  if (!home || a.home_presence?.home_id !== home.home_id) fail('HOME_REQUIRED', '须实际进入该书所在小屋');
+  const b = (home.books || []).find(b => b.book_id === bookId);
+  if (!b || a.agent_id !== home.owner_agent_id && (!b.instance_id || !home.furniture.some(f => f.instance_id === b.instance_id && placed(f)))) fail('BOOK_UNAVAILABLE', '可阅读自己的藏书或此屋已经上架的作品');
+  return b;
+}
+function queueUse(world, a, home, furniture, position, path, extra) {
+  const presence = a.home_presence, now = world.now(); recordMovement(presence, path, now);
+  presence.activity = { activity_id: uid('homeuse'), instance_id: furniture.instance_id, phase: 'approaching', interaction_position: { ...position }, started_at: now, ends_at: null,
+    expires_at: Math.min(now + HOME_RULES.use.max_seconds * 1000, a.run.expires_at), movement_id: presence.movement?.movement_id || null, hp_at_start: a.adventure.hp, ...extra };
+  announce(world, a, home, 'home_use_approaching', `${a.name}选择到${HOME_RULES.furniture_catalog[furniture.kind].name}旁${useNames[extra.kind]}`, { activity_id: presence.activity.activity_id, instance_id: furniture.instance_id, kind: extra.kind, expires_at: presence.activity.expires_at });
+  if (!presence.movement) startHomeUse(world, a, home, presence.activity, { audit: false });
+}
+
 export function initializeHomes(world, { restore = false } = {}) {
   world.state.homes ??= {}; world.state.home_invitations ??= {};
   for (const a of Object.values(world.state.agents)) {
@@ -79,6 +102,7 @@ export function publicHome(home, { storage = false } = {}) {
   return { home_id: home.home_id, owner_agent_id: home.owner_agent_id, name: home.name, created_at: home.created_at, updated_at: home.updated_at,
     furniture: home.furniture.filter(placed).map(f => ({ instance_id: f.instance_id, kind: f.kind, x: f.x, y: f.y, rotation: f.rotation })),
     displays: home.displays.map(d => ({ display_id: d.display_id, instance_id: d.instance_id, item_id: d.item_id, title: d.title, text: d.text, placed_at: d.placed_at })),
+    books: (home.books || []).map(publicBook),
     messages: home.messages.map(m => ({ message_id: m.message_id, author_agent_id: m.author_agent_id, author_name: m.author_name, text: m.text, created_at: m.created_at })),
     ...(storage ? { storage: home.furniture.filter(f => !placed(f)).map(f => ({ instance_id: f.instance_id, kind: f.kind })) } : {}) };
 }
@@ -94,7 +118,7 @@ export const publicHomeTravel = a => a.home_travel ? { home_id: a.home_travel.ho
 function publicHomeUse(job) {
   return { activity_id: job.activity_id, instance_id: job.instance_id, kind: job.kind, phase: job.phase,
     interaction_position: { ...job.interaction_position }, started_at: job.started_at, ends_at: job.ends_at, expires_at: job.expires_at,
-    ...(job.item_id ? { item_id: job.item_id } : {}), ...(job.phase === 'using' && job.kind === 'read' ? { reading: { ...HOME_READING } } : {}) };
+    ...(job.item_id ? { item_id: job.item_id } : {}), ...(job.book_id ? { book_id: job.book_id } : {}), ...(job.title ? { title: job.title } : {}), ...(job.phase === 'using' && job.kind === 'read' ? { reading: { ...(job.reading || HOME_READING) } } : {}) };
 }
 function freshAction(a) {
   if (a.next_action_id) a.scene_stale_actions = [...(a.scene_stale_actions || []), a.next_action_id].slice(-8);
@@ -156,9 +180,11 @@ function useAvailable(world, a, home, p, fail) {
   if (a.home_presence.activity) fail('HOME_USE_BUSY', '正在执行一次家具活动，可等待或用home cancel结束');
   if (a.home_presence.movement) fail('MOVEMENT_BUSY', '请先等当前行走完成或取消');
   const furniture = home.furniture.find(f => f.instance_id === p.instance_id && placed(f));
-  if (!furniture || !HOME_RULES.furniture_catalog[furniture.kind]?.activities?.includes(p.activity)) fail('HOME_USE_UNAVAILABLE', '当前小屋内没有支持该活动的已摆放家具');
+  if (!furniture || !(p.activity === 'write' ? furniture.kind === 'table' && home.owner_agent_id === a.agent_id : HOME_RULES.furniture_catalog[furniture.kind]?.activities?.includes(p.activity))) fail('HOME_USE_UNAVAILABLE', '当前小屋内没有支持该活动的已摆放家具');
   if (furnitureBusy(world, home, p.instance_id)) fail('HOME_USE_OCCUPIED', '这件家具已有角色在使用或前往，请另选或稍后再试');
   if (p.activity === 'eat') foodUseAvailable(a, p.item_id, fail);
+  if (p.activity === 'read' && p.book_id) readableBook(home, a, p.book_id, fail);
+  if (p.activity === 'write' && ((home.books || []).length >= 8 || !canAfford(a, HOME_RULES.books.cost))) fail('BOOK_UNAVAILABLE', '写作需要木材1、干草1，最多8本完稿');
   const route = useRoute(world, a, home, furniture);
   if (!route) fail('HOME_COLLISION', '家具旁没有可到达的空位，请先调整布局或等待其他角色离开');
   return { furniture, ...route };
@@ -178,6 +204,16 @@ function faceFurniture(presence, furniture) {
 function startHomeUse(world, a, home, job, { audit = true } = {}) {
   const presence = a.home_presence, f = home.furniture.find(f => f.instance_id === job.instance_id && placed(f));
   if (!f || distance(presence.position, job.interaction_position) > 1e-8) return cancelHomeUse(world, a, 'target_unavailable');
+  if (job.kind === 'write') {
+    if (home.owner_agent_id !== a.agent_id || (home.books || []).length >= 8 || !canAfford(a, HOME_RULES.books.cost)) return cancelHomeUse(world, a, 'materials_unavailable');
+    if (world.now() + 45000 > job.expires_at) return cancelHomeUse(world, a, 'insufficient_time');
+    const before = economyBalance(a); charge(a, HOME_RULES.books.cost, () => { throw new Error('book charge invariant'); });
+    if (audit) recordEconomyDelta(a, before, { source_id: job.activity_id, reason: 'book_materials', at: world.now(), world, countProgress: false });
+  }
+  if (job.kind === 'read' && job.book_id) {
+    try { const b = readableBook(home, a, job.book_id, (code, message) => { throw new Error(message); }); job.reading = { book_id: b.book_id, title: b.title, text: b.text, author_name: b.author_name, source: '原创书籍' }; }
+    catch { return cancelHomeUse(world, a, 'book_unavailable'); }
+  }
   if (job.kind === 'eat') {
     const fail = (code, message) => { const error = new Error(message); error.code = code; throw error; };
     // No food is reserved or consumed during approach. Recheck after arrival;
@@ -202,6 +238,10 @@ export function tickHomeUses(world, survivalFrames = new Map()) {
     const permitted = home && active(world, a) && (a.agent_id === home.owner_agent_id || acceptedInvite(world, a, home));
     if (!permitted || presence.run_id !== a.run?.run_id || presence.session_epoch !== a.session_epoch || a.adventure.hp < job.hp_at_start || (survivalFrames.get(a.agent_id)?.stop_at ?? Infinity) <= now) { changed = cancelHomeUse(world, a, 'interrupted') || changed; continue; }
     if (job.phase === 'using' && now >= job.ends_at) {
+      if (job.kind === 'write') {
+        const book = { book_id: uid('book'), author_agent_id: a.agent_id, author_name: a.name, title: job.title, text: job.draft_text, created_at: now, instance_id: null, comments: [] };
+        (home.books ??= []).push(book); home.updated_at = now; announce(world, a, home, 'home_book_written', `${a.name}写完了《${book.title}》`, { book_id: book.book_id, title: book.title });
+      }
       presence.activity = null; announce(world, a, home, 'home_use_finished', `${a.name}完成了本次${useNames[job.kind]}，下一步由本人决定`, { activity_id: job.activity_id, instance_id: job.instance_id, kind: job.kind, started_at: job.started_at, ends_at: job.ends_at }); changed = true;
     } else if (now >= job.expires_at) changed = cancelHomeUse(world, a, 'expired') || changed;
     else if (job.phase === 'approaching' && !presence.movement) changed = startHomeUse(world, a, home, job) || changed;
@@ -248,7 +288,7 @@ function ownInside(world, a, fail) {
   return home;
 }
 function idleOutside(world, a, fail) {
-  if (a.home_presence || a.home_travel || a.movement || a.adventure?.plan || a.activity || a.life?.gathering || a.survival?.travel || a.group_id || (world.state.game?.status !== 'finished' && world.state.game?.participants?.includes(a.agent_id))) fail('HOME_BUSY', '请先结束当前行程、活动或小组，再自主前往小屋');
+  if (a.fishing || a.home_presence || a.home_travel || a.movement || a.adventure?.plan || a.activity || a.life?.gathering || a.survival?.travel || a.group_id || (world.state.game?.status !== 'finished' && world.state.game?.participants?.includes(a.agent_id))) fail('HOME_BUSY', '请先结束当前行程、活动或小组，再自主前往小屋');
   if (a.scene_id !== 'plaza' || a.adventure?.in_field) fail('SCENE_REQUIRED', '先自主返回广场再前往小屋');
 }
 function charge(a, cost, fail) { adjustInventory(a, Object.fromEntries(Object.entries(cost).map(([id, n]) => [id, -n])), fail); }
@@ -306,11 +346,11 @@ export function performHome(world, a, p, fail) {
     home = ownInside(world, a, fail); const f = home.furniture.find(f => f.instance_id === p.instance_id); if (!f) fail('HOME_OWNER_REQUIRED', '只能操作自己拥有的家具');
     if (furnitureBusy(world, home, f.instance_id)) fail('HOME_USE_OCCUPIED', '家具正被使用或已有角色前往，结束后才能移动或收起');
     if (p.intent === 'place') { const target = { ...f, x: p.x, y: p.y, rotation: p.rotation ?? 0 }, error = placementError(world, home, target); if (error) fail('HOME_COLLISION', error, { instance_id: f.instance_id, requested: { x: p.x, y: p.y, rotation: target.rotation } }); Object.assign(f, target); }
-    else { if (!placed(f)) fail('INVALID_ACTION', '家具已在仓储中'); if (home.displays.some(d => d.instance_id === f.instance_id)) fail('DISPLAY_OCCUPIED', '先撤下纪念品再收起展架'); f.x = null; f.y = null; }
+    else { if (!placed(f)) fail('INVALID_ACTION', '家具已在仓储中'); if (home.displays.some(d => d.instance_id === f.instance_id) || (home.books || []).some(b => b.instance_id === f.instance_id)) fail('DISPLAY_OCCUPIED', '先撤下纪念品再收起展架'); f.x = null; f.y = null; }
     home.updated_at = now; announce(world, a, home, 'home_furnished', `${a.name}${p.intent === 'place' ? '摆放' : '收起'}了${HOME_RULES.furniture_catalog[f.kind].name}`, { instance_id: f.instance_id, kind: f.kind });
   } else if (p.intent === 'display') {
     home = ownInside(world, a, fail); const f = home.furniture.find(f => f.instance_id === p.instance_id && f.kind === 'display_shelf' && placed(f));
-    if (!f || home.displays.some(d => d.instance_id === f.instance_id) || home.displays.length >= 4) fail('DISPLAY_UNAVAILABLE', '需要一个空的已摆放展架，最多4件纪念品');
+    if (!f || home.displays.some(d => d.instance_id === f.instance_id) || (home.books || []).some(b => b.instance_id === f.instance_id) || home.displays.length >= 4) fail('DISPLAY_UNAVAILABLE', '需要一个空的已摆放展架，最多4件纪念品');
     if (!HOME_RULES.souvenir_items.includes(p.item_id)) fail('INVALID_ACTION', '此物品不可陈列');
     const title = text(p.title, 30, fail, p.item_id), caption = p.text === '' ? '' : text(p.text, 120, fail, ''); adjustInventory(a, { [p.item_id]: -1 }, fail);
     home.displays.push({ display_id: uid('display'), instance_id: f.instance_id, item_id: p.item_id, title, text: caption, placed_at: now }); home.updated_at = now;
@@ -347,16 +387,30 @@ export function performHome(world, a, p, fail) {
     const blocked = roomBlocked(home); occupiedCells(world, home, a.agent_id).forEach(cell => blocked.add(cell));
     const path = roomPath(home, a.home_presence.position, p, { maxSteps: 3, blocked }); if (!path || path.length < 2) fail('HOME_COLLISION', '目标最多3步，不可穿家具或占用他人位置');
     recordMovement(a.home_presence, path, now); announce(world, a, home, 'home_moved', `${a.name}在屋内走动`);
+  } else if (p.intent === 'write_book') {
+    home = ownInside(world, a, fail); const title = text(p.title, 40, fail), draft_text = text(p.text, 800, fail);
+    const { furniture, position, path } = useAvailable(world, a, home, { ...p, activity: 'write' }, fail);
+    queueUse(world, a, home, furniture, position, path, { kind: 'write', title, draft_text });
+  } else if (p.intent === 'shelve_book' || p.intent === 'unshelve_book') {
+    home = ownInside(world, a, fail); const b = (home.books || []).find(b => b.book_id === p.book_id && b.author_agent_id === a.agent_id);
+    if (!b) fail('BOOK_OWNER_REQUIRED', '只能上架或撤下自己的作品');
+    if (occupants(world, home.home_id).some(other => other.home_presence.activity?.book_id === b.book_id)) fail('BOOK_BUSY', '此书正被阅读，读完后再调整');
+    if (p.intent === 'shelve_book') {
+      const f = home.furniture.find(f => f.instance_id === p.instance_id && ['bookshelf', 'display_shelf'].includes(f.kind) && placed(f));
+      if (!f || furnitureBusy(world, home, f.instance_id) || home.displays.some(d => d.instance_id === f.instance_id) || (home.books || []).filter(other => other.instance_id === f.instance_id && other !== b).length >= (f.kind === 'bookshelf' ? 8 : 1)) fail('BOOK_SHELF_UNAVAILABLE', '须选择本屋已摆放的空展架或有空位的书架');
+      if (b.instance_id === f.instance_id) fail('INVALID_ACTION', '此书已在这个架子上'); b.instance_id = f.instance_id;
+    } else { if (!b.instance_id) fail('INVALID_ACTION', '此书没有上架'); b.instance_id = null; }
+    home.updated_at = now; announce(world, a, home, p.intent === 'shelve_book' ? 'home_book_shelved' : 'home_book_unshelved', `${a.name}${p.intent === 'shelve_book' ? '上架' : '收回'}了《${b.title}》`, { book_id: b.book_id, title: b.title, instance_id: b.instance_id });
+  } else if (p.intent === 'book_comment') {
+    home = world.state.homes[a.home_presence?.home_id]; const b = readableBook(home, a, p.book_id, fail);
+    if (now - (a.home_last_book_comment_at ?? -Infinity) < 10000) fail('RATE_LIMITED', '书评间隔至少10秒');
+    const comment = { comment_id: uid('booknote'), author_agent_id: a.agent_id, author_name: a.name, text: text(p.text, 200, fail), created_at: now };
+    b.comments.push(comment); b.comments = b.comments.slice(-10); home.updated_at = now; a.home_last_book_comment_at = now;
+    announce(world, a, home, 'home_book_commented', `${a.name}给《${b.title}》留下了一条书评`, { book_id: b.book_id, title: b.title, comment_id: comment.comment_id, comment_text: comment.text });
   } else if (p.intent === 'use') {
     home = world.state.homes[a.home_presence?.home_id];
     const { furniture, position, path } = useAvailable(world, a, home, p, fail);
-    const presence = a.home_presence;
-    recordMovement(presence, path, now);
-    presence.activity = { activity_id: uid('homeuse'), instance_id: furniture.instance_id, kind: p.activity, phase: 'approaching',
-      interaction_position: { ...position }, started_at: now, ends_at: null, expires_at: Math.min(now + HOME_RULES.use.max_seconds * 1000, a.run.expires_at),
-      movement_id: presence.movement?.movement_id || null, hp_at_start: a.adventure.hp, ...(p.item_id ? { item_id: p.item_id } : {}) };
-    announce(world, a, home, 'home_use_approaching', `${a.name}选择到${HOME_RULES.furniture_catalog[furniture.kind].name}旁${useNames[p.activity]}`, { activity_id: presence.activity.activity_id, instance_id: furniture.instance_id, kind: p.activity, expires_at: presence.activity.expires_at });
-    if (!presence.movement) startHomeUse(world, a, home, presence.activity, { audit: false });
+    queueUse(world, a, home, furniture, position, path, { kind: p.activity, ...(p.item_id ? { item_id: p.item_id } : {}), ...(p.book_id ? { book_id: p.book_id } : {}) });
   } else if (p.intent === 'message') {
     home = world.state.homes[a.home_presence?.home_id]; if (!home) fail('HOME_REQUIRED', '须实际进入小屋才能留言');
     if (now - (a.home_last_message_at ?? -Infinity) < 10000) fail('RATE_LIMITED', '留言间隔至少10秒');
@@ -405,7 +459,7 @@ export function homesObservation(world, a) {
   const invitations = Object.values(world.state.home_invitations).filter(i => i.target_agent_id === a.agent_id && validInvite(world, i)).map(projection);
   const outgoing = Object.values(world.state.home_invitations).filter(i => i.from_agent_id === a.agent_id && validInvite(world, i)).map(projection);
   const neighbors = Object.values(world.state.agents).filter(b => b.agent_id !== a.agent_id && active(world, b)).map(b => ({ agent_id: b.agent_id, name: b.name }));
-  const opportunities = [], add = payload => opportunities.push({ type: 'home', payload });
+  const opportunities = [], writing_desks = [], commentable_book_ids = [], add = payload => opportunities.push({ type: 'home', payload });
   const available = callback => { try { callback(); return true; } catch { return false; } };
   const reject = () => { throw new Error('unavailable'); };
   if (active(world, a)) {
@@ -420,14 +474,22 @@ export function homesObservation(world, a) {
         for (const f of current.furniture.filter(placed)) for (const activity of HOME_RULES.furniture_catalog[f.kind]?.activities || []) {
           const payloads = activity === 'eat' ? LIFE_RULES.items.filter(item => item.kind === 'food').map(item => ({ intent: 'use', instance_id: f.instance_id, activity, item_id: item.id })) : [{ intent: 'use', instance_id: f.instance_id, activity }];
           for (const p of payloads) if (available(() => useAvailable(world, a, current, p, reject))) add(p);
+          if (activity === 'read') for (const b of current.books || []) { const p = { intent: 'use', instance_id: f.instance_id, activity: 'read', book_id: b.book_id }; if (available(() => useAvailable(world, a, current, p, reject))) add(p); }
         }
+        for (const b of current.books || []) if (now - (a.home_last_book_comment_at ?? -Infinity) >= 10000 && available(() => readableBook(current, a, b.book_id, reject))) commentable_book_ids.push(b.book_id);
         if (own === current) {
+          for (const f of own.furniture.filter(f => f.kind === 'table' && placed(f))) if (available(() => useAvailable(world, a, own, { instance_id: f.instance_id, activity: 'write' }, reject))) writing_desks.push({ instance_id: f.instance_id, cost: { ...HOME_RULES.books.cost }, duration_seconds: 45 });
+          for (const b of own.books || []) {
+            if (occupants(world, own.home_id).some(other => other.home_presence.activity?.book_id === b.book_id)) continue;
+            if (b.instance_id) add({ intent: 'unshelve_book', book_id: b.book_id });
+            for (const f of own.furniture.filter(f => placed(f) && ['bookshelf', 'display_shelf'].includes(f.kind))) if (b.instance_id !== f.instance_id && !furnitureBusy(world, own, f.instance_id) && !own.displays.some(d => d.instance_id === f.instance_id) && (own.books || []).filter(other => other.instance_id === f.instance_id).length < (f.kind === 'bookshelf' ? 8 : 1)) add({ intent: 'shelve_book', book_id: b.book_id, instance_id: f.instance_id });
+          }
           if (own.furniture.length < 12) for (const [kind, def] of Object.entries(HOME_RULES.furniture_catalog)) if (canAfford(a, def.cost)) add({ intent: 'craft', kind });
           for (const f of [...own.furniture].sort((a, b) => Number(placed(a)) - Number(placed(b)))) {
             if (furnitureBusy(world, own, f.instance_id)) continue;
-            if (placed(f) && !own.displays.some(d => d.instance_id === f.instance_id)) add({ intent: 'store', instance_id: f.instance_id });
+            if (placed(f) && !own.displays.some(d => d.instance_id === f.instance_id) && !(own.books || []).some(b => b.instance_id === f.instance_id)) add({ intent: 'store', instance_id: f.instance_id });
             for (const option of placementChoices(world, own, f)) add(option);
-            if (placed(f) && f.kind === 'display_shelf' && !own.displays.some(d => d.instance_id === f.instance_id) && own.displays.length < 4) for (const item_id of HOME_RULES.souvenir_items) if (a.life.inventory[item_id] > 0) add({ intent: 'display', instance_id: f.instance_id, item_id });
+            if (placed(f) && f.kind === 'display_shelf' && !own.displays.some(d => d.instance_id === f.instance_id) && !(own.books || []).some(b => b.instance_id === f.instance_id) && own.displays.length < 4) for (const item_id of HOME_RULES.souvenir_items) if (a.life.inventory[item_id] > 0) add({ intent: 'display', instance_id: f.instance_id, item_id });
           }
           for (const d of own.displays) if (Number.isSafeInteger((a.life.inventory[d.item_id] || 0) + 1)) add({ intent: 'withdraw', display_id: d.display_id });
         }
@@ -441,6 +503,6 @@ export function homesObservation(world, a) {
     if (own && outgoing.filter(i => i.status === 'pending').length < 2) for (const n of neighbors) if (!Object.values(world.state.home_invitations).some(i => i.from_agent_id === a.agent_id && i.target_agent_id === n.agent_id && (now - i.created_at < 60000 || validInvite(world, i)))) add({ intent: 'invite', target_agent_id: n.agent_id });
   }
   return { version: 1, own_home: publicHome(own, { storage: true }), current_home: publicHome(current),
-    directory: Object.values(world.state.homes).slice(0, 100).map(({ home_id, owner_agent_id, name }) => ({ home_id, owner_agent_id, name })), invitations, outgoing, neighbors, opportunities,
+    directory: Object.values(world.state.homes).slice(0, 100).map(({ home_id, owner_agent_id, name }) => ({ home_id, owner_agent_id, name })), invitations, outgoing, neighbors, opportunities, writing_desks, commentable_book_ids,
     ...(current ? { can_message: now - (a.home_last_message_at ?? -Infinity) >= 10000 } : {}) };
 }

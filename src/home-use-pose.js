@@ -23,17 +23,17 @@ function limb(root, target, a, b, bend) {
  * advance a bite, page turn or breathing cycle. No gameplay is performed here. */
 export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enabled = true, furnitureKind, rig = {} } = {}) {
   const sample = samplePaperDollPose(actor, 'idle', now, { enabled: false, facing, rig });
-  if (!activity || activity.phase !== 'using' || !['sit', 'eat', 'read', 'rest'].includes(activity.kind)) return sample;
+  if (!activity || activity.phase !== 'using' || !['sit', 'eat', 'read', 'rest', 'write'].includes(activity.kind)) return sample;
   const d = sample.dimensions, mirror = facing === 'west', vertical = ['north', 'south'].includes(facing);
   const time = Math.max(0, Math.min(now, activity.ends_at ?? now) - activity.started_at);
   const playing = enabled && actor.status === 'active' && now < activity.ends_at;
   const entrance = enabled && actor.status === 'active' ? smooth(time / 650) : 1;
   const phase = playing ? time / 1000 : 0;
   const seated = furnitureKind === 'chair' || activity.kind === 'sit';
-  const resting = activity.kind === 'rest', reading = activity.kind === 'read', eating = activity.kind === 'eat', reclining = furnitureKind === 'bed' && resting;
+  const resting = activity.kind === 'rest', reading = activity.kind === 'read', eating = activity.kind === 'eat', writing = activity.kind === 'write', reclining = furnitureKind === 'bed' && resting;
   const breath = playing ? Math.sin(phase * Math.PI * .65) * .22 : 0;
   const hip = point(0, -d.hipHeight + (reclining ? d.hipHeight - 12 : seated ? 7 : resting ? 3 : 0) * entrance + breath);
-  const lean = reclining ? -1.1 * entrance : entrance * (resting ? .10 : reading ? .055 : .025) * (vertical ? .25 : 1);
+  const lean = reclining ? -1.1 * entrance : entrance * (resting ? .10 : writing ? .12 : reading ? .055 : .025) * (vertical ? .25 : 1);
   const neck = add(hip, rotate(point(0, -d.torso), lean));
   const headRotation = reclining ? -1.2 * entrance : lean + (resting ? .13 : reading ? .065 : 0) * entrance;
   const parts = sample.parts;
@@ -42,6 +42,7 @@ export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enab
   sample.joints.hip = hip; sample.joints.neck = neck;
   const bite = eating && playing ? (1 - Math.cos(phase * Math.PI * .9)) / 2 : 0;
   const turn = reading && playing ? Math.max(0, Math.sin(phase * Math.PI / 4)) ** 8 : 0;
+  const stroke = writing && playing ? Math.sin(phase * Math.PI * 1.8) * .8 : 0;
   for (const side of ['l', 'r']) {
     const sign = side === 'l' ? -1 : 1, lateral = sign * (vertical ? d.hipWidth : 1.25);
     const foot = reclining ? point(18 * entrance, mix(-d.sole, -8, entrance)) : point(0, -d.sole), leg = limb(hip, foot, d.thigh, d.shin, 1);
@@ -56,6 +57,7 @@ export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enab
     let target = point(vertical ? sign * 4 : 5, hip.y + (seated ? 1 : 3));
     if (reading) target = point(vertical ? sign * (3.5 + (side === 'r' ? turn : 0)) : 7, hip.y - 6 - (side === 'r' ? turn : 0));
     if (eating) target = side === 'l' ? point(vertical ? -3 : 5, hip.y - 4) : point(vertical ? mix(4, 2, bite) : mix(8, 5, bite), mix(hip.y - 3, neck.y - 3, bite));
+    if (writing) target = point(vertical ? sign * 3 + (side === 'r' ? stroke : 0) : 7 + (side === 'r' ? stroke : 0), hip.y - 4 + (side === 'r' ? Math.abs(stroke) * .3 : 0));
     if (reclining) target = side === 'l' ? point(-5 * entrance, hip.y + 5) : point(0, hip.y + 2);
     const arm = limb(shoulder, target, d.upperArm, d.forearm, vertical ? sign : -1);
     set(`upper_arm_${side}`, arm.root, angle(arm.root, arm.middle)); set(`forearm_${side}`, arm.middle, angle(arm.middle, arm.end)); set(`hand_${side}`, arm.end, angle(arm.middle, arm.end));
@@ -67,7 +69,7 @@ export function sampleHomeUsePose(actor, activity, now, { facing = 'south', enab
     const offset = supplied && Number.isFinite(supplied.x) && Number.isFinite(supplied.y) ? supplied : defaults[name];
     Object.assign(sample.slots[name], add(parent, rotate(offset, parent.rotation)), { rotation: parent.rotation });
   }
-  sample.homeProp = reading ? { kind: 'book', x: vertical ? 0 : 7, y: hip.y - 5, tilt: turn * .08 } : eating ? { kind: 'bowl', x: vertical ? 0 : 5, y: hip.y - 2, tilt: 0 } : null;
+  sample.homeProp = reading ? { kind: 'book', x: vertical ? 0 : 7, y: hip.y - 5, tilt: turn * .08 } : eating ? { kind: 'bowl', x: vertical ? 0 : 5, y: hip.y - 2, tilt: 0 } : writing ? { kind: 'writing', x: vertical ? 0 : 7, y: hip.y - 3, tilt: 0, stroke } : null;
   if (mirror) {
     for (const value of [...Object.values(parts), ...Object.values(sample.slots), ...Object.values(sample.joints)]) { value.x = -value.x; if (Number.isFinite(value.rotation)) value.rotation = -value.rotation; }
     if (sample.homeProp) sample.homeProp.x = -sample.homeProp.x;

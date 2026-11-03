@@ -154,6 +154,7 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
     for key, a in old['agents'].items():
         b = new['agents'][key]
         assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'
+        assert b.get('fishing') is None, 'restart cannot resume fishing or manufacture a catch'
         for field in ['inventory', 'equipment', 'starter_granted', 'tools_granted', 'gather_ready_at', 'ledger', 'market']:
             assert expected_agents[key]['life'].get(field) == b['life'].get(field), field
         expected_tools = deepcopy(expected_agents[key]['life'].get('tools'))
@@ -162,7 +163,10 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
                 if tool_id not in expected_tools:
                     assert not a['life']['inventory'].get(tool_id, 0), 'legacy resource tool cannot be silently granted'
                     expected_tools[tool_id] = {'level': 1, 'durability': 0, 'max_durability': 12, 'owned': False}
-        assert expected_tools == b['life'].get('tools'), 'old tools preserved; only unowned resource tool defaults may be added'
+        if isinstance(expected_tools, dict) and 'fishing_rod' not in expected_tools and 'fishing_rod' in (b['life'].get('tools') or {}):
+            assert not a['life']['inventory'].get('fishing_rod', 0), 'migration cannot silently activate a fishing rod'
+            expected_tools['fishing_rod'] = {'level': 1, 'durability': 0, 'max_durability': 12, 'owned': False}
+        assert expected_tools == b['life'].get('tools'), 'old tools preserved; only unowned resource and fishing tool defaults may be added'
         assert a.get('cooperation_proposed_at') == b.get('cooperation_proposed_at'), 'proposal cooldown preserved'
         assert expected_agents[key].get('cooperation_return') == b.get('cooperation_return'), 'private pending return preserved'
         # Compare whole normalized arrays; zip alone silently accepts lost plots.

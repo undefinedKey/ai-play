@@ -1,0 +1,45 @@
+.fishing-layer{pointer-events:none;position:absolute;inset:0}
+.fishing-spot{position:absolute;pointer-events:auto;width:24px;height:30px;transform:translate(-50%,-100%);padding:0;border:0;background:transparent;color:#eee3c7;overflow:visible}
+.fishing-spot>svg{width:100%;height:100%;filter:drop-shadow(1px 2px 1px #343f382a)}
+.fishing-spot>span{position:absolute;top:31px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:9px;line-height:1.4;background:#303d33e8;border-radius:4px;padding:2px 5px;box-shadow:0 1px 3px #0003}
+.fishing-spot small{display:block;font-size:8px;color:#ded9bc}
+.fishing-spot.selected>svg,.fishing-spot:focus-visible>svg{filter:drop-shadow(0 0 3px #fff3ad)}
+.fishing-line{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:600;pointer-events:none}
+.fishing-live .fishing-float{animation:float-wait 3.8s ease-in-out infinite}
+.fishing-live .fishing-ripple{animation:ripple-wait 3.8s ease-in-out infinite}
+.fishing-receipts h4{font-size:12px;margin:12px 0 6px}.fishing-receipts ol{list-style:none;padding:0;margin:0;display:grid;gap:6px}.fishing-receipts li{display:flex;justify-content:space-between;gap:12px;font-size:12px}.fishing-receipts time{white-space:nowrap;color:#52634e}
+@keyframes float-wait{50%{translate:0 -1px}}@keyframes ripple-wait{50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){.fishing-line *{animation:none!important}}
+.fishing-disconnected .fishing-line *{animation:none!important}
+.home-books-panel{min-width:0;background:#f2ead6;border:1px solid #d0c3a2;border-radius:13px;padding:16px;color:#443f32}
+.home-books-panel h3{display:flex;align-items:center;gap:7px;font-size:14px;margin:0 0 12px}.home-books-panel h3>span{margin-left:auto;font-size:12px;color:#59654c}
+.home-book-covers{display:grid;gap:8px}.home-book-cover{display:flex;align-items:center;gap:10px;text-align:left;padding:10px;background:#e7ddc3;border:1px solid #c8bb99;border-radius:8px;color:#443f32;width:100%;min-width:0}
+.home-book-cover.selected{background:#ddd5b7;border-color:#6e7c5c}.home-book-cover>span:last-child{display:grid;gap:4px;min-width:0}.home-book-cover strong{font-size:13px;overflow-wrap:anywhere}.home-book-cover small{font-size:11px;color:#5d614a}
+.home-book-spine{display:grid;place-items:center;width:34px;height:44px;flex-shrink:0;background:#79846a;color:#f1e6c6;box-shadow:inset 4px 0 #54654e,inset -2px 0 #e6d9b5;border-radius:2px 4px 4px 2px;rotate:-3deg}
+.home-book-detail{position:relative;margin-top:14px;padding:18px 14px 14px;background:#fbf4df;border:1px solid #cdbf9c;border-radius:3px 12px 12px 3px;box-shadow:inset 4px 0 #e5d9b9;min-width:0}
+.home-book-eyebrow{font-size:10px;letter-spacing:.12em;color:#66674f}.home-book-detail h4{font-size:19px;line-height:1.5;margin:8px 22px 6px 0;overflow-wrap:anywhere}.home-book-byline{font-size:11px;color:#68614d;margin:0 0 18px}
+.home-book-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.95;font-size:13px}.home-book-comments{border-top:1px solid #d8ccad;margin-top:20px;padding-top:12px}.home-book-comments h5{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:12px}.home-book-comments h5 span{margin-left:auto}.home-book-comments ol{list-style:none;padding:0;margin:0;display:grid;gap:12px}.home-book-comments li>div{display:flex;justify-content:space-between;gap:8px;font-size:11px}.home-book-comments time{font-size:10px;white-space:nowrap}.home-book-comments p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.7;margin:6px 0;color:#554f3e}.home-book-readonly{display:block;margin-top:16px;font-size:10px;color:#68614d}.home-shelf-book{position:absolute;width:25%;height:42%;left:42%;top:24%;pointer-events:none}
+@media(max-width:500px){.home-books-panel{padding:13px}.home-book-detail{padding:15px 12px}.fishing-receipts li{flex-wrap:wrap;gap:3px}}
+
+/* Small shore signs sit beside the actor; labels expand only on inspection. */
+.fishing-spot{width:17px;height:22px;transform:translate(calc(-50% + 19px),-50%)}
+.fishing-spot>span{top:23px;display:none;pointer-events:none}
+.fishing-spot.selected>span,.fishing-spot:hover>span,.fishing-spot:focus-visible>span{display:block}
+.home-books-panel .home-book-cover small{color:#3e4736}
+.home-books-panel>.home-quiet-copy{color:#514d3e}
+.home-table-writing{position:absolute;left:38%;top:11%;width:28%;height:34%;overflow:visible;pointer-events:none}
+.writing-live .table-pen{animation:table-writing 1.6s ease-in-out infinite;transform-origin:28px 16px}
+@keyframes table-writing{50%{translate:1.3px 0;rotate:3deg}}
+@media(prefers-reduced-motion:reduce){.table-pen{animation:none!important}}
+
+.fishing-live .fishing-rod{animation-name:fishing-cast;animation-duration:650ms;animation-timing-function:ease-out;animation-fill-mode:both}
+@keyframes fishing-cast{from{rotate:18deg}to{rotate:0deg}}
+.home-reading[open]>p{max-height:220px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:5px}
+.home-book-text{max-height:400px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:6px}
+.home-book-text:focus-visible,.home-reading[open]>p:focus-visible{outline:2px solid #53694b;outline-offset:3px}
+@media(max-width:500px){.home-reading[open]>p{max-height:180px}.home-book-text{max-height:360px}}
+
+/* Match world units at every viewport, so shore signs never cover a distant doorway. */
+.fishing-spot{width:calc(24px * var(--world-scale,1));height:calc(30px * var(--world-scale,1));transform:translate(calc(-50% + 17px * var(--world-scale,1)),-50%)}
+.fishing-spot>svg{pointer-events:none;display:block}
+.fishing-spot>span{top:calc(32px * var(--world-scale,1))}

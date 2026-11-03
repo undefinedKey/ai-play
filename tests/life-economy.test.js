@@ -44,7 +44,7 @@ test('v0.13目录明确所有成本/价格；节点交互范围处于安全区�
   }
   for (const item of MARKET_RULES.items) if (item.buy_price && item.sell_price) assert.ok(item.buy_price > item.sell_price);
   assert.equal(MARKET_RULES.max_quantity, 10); assert.equal(MARKET_RULES.window_seconds, 300);
-  assert.deepEqual(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry']);
+  assert.deepEqual(LIFE_RULES.recipes.filter(recipe => recipe.kind === 'cooking').map(r => r.item_id).sort(), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry', 'grilled_fish'].sort());
 });
 
 test('真实动作开始只扣一次体力，工作期间不恢复，完成只发一次且写同job来源账本', t => {

@@ -9,6 +9,11 @@ import { foodWouldRestoreSatiety, applyFoodSatiety, litCampfireNear } from './su
 export { combatStats } from './combat.js';
 
 const ITEMS = [
+  { id: 'fishing_rod', name: '木制鱼竿', kind: 'tool' },
+  { id: 'fish_bait', name: '草编鱼饵', kind: 'material' },
+  { id: 'pond_fish', name: '池塘鱼', kind: 'food', heal: 4, satiety_restore: 15 },
+  { id: 'silver_fish', name: '银鳞鱼', kind: 'food', heal: 8, energy_restore: 8, satiety_restore: 20 },
+  { id: 'grilled_fish', name: '香烤池塘鱼', kind: 'food', heal: 16, energy_restore: 12, satiety_restore: 30 },
   { id: 'turnip_seed', name: '萝卜种子', kind: 'seed' },
   { id: 'wheat_seed', name: '小麦种子', kind: 'seed' },
   { id: 'turnip', name: '萝卜', kind: 'food', heal: 12, satiety_restore: 15 },
@@ -34,6 +39,9 @@ const CROPS = [
   { id: 'wheat', name: '小麦', seed_id: 'wheat_seed', produce_id: 'wheat', grow_seconds: 180, yield_count: 2, seed_return: 1 },
 ];
 const RECIPES = [
+  { item_id: 'fishing_rod', ingredients: { wood: 2, grass: 2, ore: 1 }, kind: 'tool' },
+  { item_id: 'fish_bait', ingredients: { grass: 1 }, kind: 'supply', energy_cost: 2, duration_seconds: 0, station_id: 'portable' },
+  { item_id: 'grilled_fish', ingredients: { pond_fish: 1 }, kind: 'cooking', energy_cost: 2, duration_seconds: 0, station_id: 'lit_campfire' },
   { item_id: 'wooden_sword', ingredients: { wood: 3 } },
   { item_id: 'iron_sword', ingredients: { wood: 2, ore: 3 } },
   { item_id: 'wooden_shield', ingredients: { wood: 3 } },
@@ -51,6 +59,11 @@ const RECIPES = [
   { item_id: 'pickaxe', ingredients: { wood: 2, ore: 2 }, kind: 'tool' },
 ];
 const TOOLS = [
+  { id: 'fishing_rod', name: '木制鱼竿', crafted: true, levels: [
+    { level: 1, max_durability: 12, energy_cost: 3, upgrade_cost: {}, repair_cost: { wood: 1, grass: 1 } },
+    { level: 2, max_durability: 24, energy_cost: 2, upgrade_cost: { wood: 3, grass: 2, ore: 2 }, repair_cost: { wood: 1, grass: 1 } },
+    { level: 3, max_durability: 36, energy_cost: 1, upgrade_cost: { wood: 5, grass: 3, ore: 4 }, repair_cost: { wood: 2, grass: 1 } },
+  ] },
   { id: 'hoe', name: '锄头', levels: [
     { level: 1, max_durability: 20, energy_cost: 3, upgrade_cost: {}, repair_cost: { wood: 1 } },
     { level: 2, max_durability: 40, energy_cost: 2, upgrade_cost: { wood: 3, ore: 2 }, repair_cost: { wood: 1, ore: 1 } },
@@ -159,6 +172,7 @@ function announce(world, a, type, text, extra = {}) {
   world.event(type, { agent_id: a.agent_id, name: a.name, text, ...extra }, [...new Set([a.agent_id, ...world.activeIds()])]);
 }
 export function campAvailable(world, a, fail) {
+  if (a.fishing) fail('FISHING_BUSY', '请先结束当前垂钓');
   if (a.home_presence || a.home_travel) fail('HOME_BUSY', '家园室内与赴屋行程不能使用室外营地设施；请先用 home leave/cancel 返回室外并重新观察');
   if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
   const farm = LIFE_RULES.farm_place, position = a.position;
@@ -169,6 +183,7 @@ export function campAvailable(world, a, fail) {
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏，再照料农田、制作或换装');
 }
 function craftAvailable(world, a, recipe, fail) {
+  if (a.fishing) fail('FISHING_BUSY', '请先结束当前垂钓');
   if (!['portable', 'lit_campfire'].includes(recipe.station_id)) return campAvailable(world, a, fail);
   if (a.adventure?.plan || a.survival?.travel || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、活动或移动再制作');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');

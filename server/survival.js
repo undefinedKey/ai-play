@@ -1,3 +1,4 @@
+import { cancelFishing } from './fishing.js';
 import { homeLightUntil, cancelHomeTravel, cancelHomeUse, detachHomes } from './homes.js';
 import { randomUUID } from 'node:crypto';
 import { SURVIVAL_RULES, siteDefinition, fireDefinition, fireFuel, publicFire, publicSurvival, publicSurvivor, initializeSurvivor, survivalLight, survivalPhaseAt, survivalRound } from './survival-state.js';
@@ -119,7 +120,7 @@ export function captureSurvival(world) {
     const until = active ? Math.min(now, a.run.expires_at, (a.last_contact_at ?? -45000) + 45000) : a.survival.last_at;
     const m = a.movement;
     const maxDistance = m ? Math.min(pathLength(m.path), (m.settled_distance || 0) + (m.mode === 'run' ? a.fatigue.energy / (combatStats(a).move_energy_per_tile * 2) : Infinity)) : 0;
-    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity, a.home_travel?.expires_at ?? Infinity) : until;
+    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity, a.home_travel?.expires_at ?? Infinity, a.fishing?.expires_at ?? Infinity) : until;
     const frame = { from: a.survival.last_at, until: Math.max(a.survival.last_at, until), scene_id: a.scene_id, position: { ...a.position }, maxDistance, moveUntil,
       satiety: a.survival.satiety, movement: a.movement ? { ...a.movement, path: a.movement.path.map(p => ({ ...p })) } : null, torch: a.survival.torch ? { ...a.survival.torch } : null,
       home_presence: a.home_presence ? { home_id: a.home_presence.home_id, entered_at: a.home_presence.entered_at } : null,
@@ -169,7 +170,7 @@ function environmentHit(world, a, kind, damage) {
   a.adventure.hp = Math.max(0, a.adventure.hp - damage);
   a.hurt = { action_id: `environment_${randomUUID()}`, started_at: world.now(), ends_at: world.now() + 360, damage };
   cancelGather(world, a, 'hurt'); cancelSurvivalTravel(world, a, 'hurt');
-  cancelHomeTravel(world, a, 'hurt'); cancelHomeUse(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
+  cancelFishing(world, a, 'hurt'); cancelHomeTravel(world, a, 'hurt'); cancelHomeUse(world, a, 'hurt'); if (a.home_presence) stopMovement(a.home_presence, world.now());
   stopAdventure(world, a, 'needs_decision', '环境风险中断了当前计划，请自主选择应对方式');
   stopMovement(a, world.now()); world.finishActivity(a, { cancelled: true, interrupted: true });
   announce(world, a, 'survival_damage', { kind, damage, hp: a.adventure.hp }, `${a.name}受到${kind === 'darkness' ? '黑暗' : '饥饿'}影响，损失${damage}点生命`);

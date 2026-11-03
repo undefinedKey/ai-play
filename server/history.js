@@ -8,6 +8,7 @@ export const HISTORY_RETENTION = Object.freeze({ days: 30, max_entries: 4096, ma
 const categories = new Set(['speech', 'activity', 'game', 'exploration', 'life', 'goal', 'cooperation']);
 const outcomes = new Set(['recorded', 'completed', 'cancelled', 'interrupted', 'expired', 'ended']);
 const types = new Map([
+  ...['fish_finished', 'fish_cancelled', 'home_book_written', 'home_book_shelved', 'home_book_unshelved', 'home_book_commented'].map(type => [type, 'life']),
   ...['home_built','home_renamed','home_furnished','home_displayed','home_withdrawn','home_entered','home_left','home_message','home_message_removed','home_use_finished','home_use_cancelled'].map(type => [type, 'life']),
   ['message', 'speech'], ['activity_finished', 'activity'], ['game_finished', 'game'],
   ['exploration_resolved', 'exploration'], ['exploration_ended', 'exploration'], ['personal_goal_ended', 'goal'],
@@ -66,6 +67,7 @@ function projectDetails(type, raw, known) {
 
 function outcomeFor(type, d) {
   if (type === 'message') return 'recorded';
+  if (type === 'fish_cancelled') return d.reason === 'expired' ? 'expired' : d.reason === 'cancelled' ? 'cancelled' : 'interrupted';
   if (type === 'activity_finished') return d.outcome === 'cancelled' ? d.interrupted === true ? 'interrupted' : 'cancelled' : d.outcome === 'completed' ? 'completed' : 'ended';
   if (type === 'game_finished') return finished.has(d.reason) ? 'completed' : /超时/.test(d.reason || '') ? 'expired' : ['服务重启，活动已中断', '房间暂停', '参与者离场，本局结束'].includes(d.reason) ? 'interrupted' : 'ended';
   if (types.get(type) === 'cooperation') {

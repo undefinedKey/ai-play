@@ -26,3 +26,9 @@ test('Linux 发布故障演练：准备期不停桥、失败恢复代码和SQLit
   const result = spawnSync('python3', ['tests/helpers/release-safety.py', '/bin/bash', 'RecoveryDrills.test_release_faults'], { encoding: 'utf8', timeout: 175000 });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
+
+test('v027 migration preserves books and comments, adds only an unowned rod, and clears temporary fishing', () => {
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const result = spawnSync(python, ['tests/helpers/release-safety.py', '/bin/bash', 'RecoveryDrills.test_fishing_defaults_and_existing_books_fail_closed'], { encoding: 'utf8', timeout: 30000 });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});

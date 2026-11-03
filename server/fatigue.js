@@ -85,7 +85,7 @@ export function captureFatigueRecovery(world) {
     }
     if((a.home_presence?.movement || a.movement)?.version===2) {
       const m=a.home_presence?.movement || a.movement,previous=m.settled_distance||0;
-      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);
+      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.fishing?.expires_at??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);
       const budget=m.mode==='run'?energy(a)/(combatStats(a).move_energy_per_tile*2):Infinity;
       const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
       const stop=samplePath(m.path,progress).position;

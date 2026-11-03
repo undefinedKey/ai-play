@@ -9,6 +9,7 @@ import { resourcePromptNotice, resourceJobContext, supportsResources } from './r
 import { survivalPromptNotice, supportsSurvival } from './survival-context.mjs';
 import { parseActionJson } from './action-json.mjs';
 import { supportsHomes, outdoorHomeOffer, homeDecisionPrompt, HOME_ID_FIELDS } from './homes-context.mjs';
+import { supportsFishing, fishingPromptNotice, FISHING_ID_FIELDS } from './fishing-context.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -642,6 +643,38 @@ export function prepareDecisionPrompt(context = {}) {
     const prepared = baseDecisionPrompt({ ...context, survivalCritical: true, budget: budget - notice.length });
     return { ...prepared, text: notice + prepared.text };
   }
+  if (!context.fishingNoticeReserved) {
+    const notice = fishingPromptNotice(context);
+    if (notice) {
+      const activeFishing = supportsFishing(context.rules) && context.observation?.self?.fishing;
+      // New entertainment is optional. First build the established menu at its
+      // normal budget, then only compact it if every existing food fact and
+      // complete daily choice survives. Reserving space before this baseline
+      // could silently remove a held food's satiety effect while leaving its
+      // consume action visible.
+      const baseline = activeFishing ? null : prepareDecisionPrompt({ ...context, budget, fishingNoticeReserved: true });
+      const append = prepared => ({ ...prepared, text: prepared.text.replace('公开数据：', notice + '公开数据：') });
+      if (baseline && baseline.text.length + notice.length <= budget) return append(baseline);
+      try {
+        const prepared = prepareDecisionPrompt({ ...context, budget: budget - notice.length, fishingNoticeReserved: true });
+        if (baseline) {
+          const data = value => JSON.parse(value.text.split('公开数据：')[1]);
+          const before = data(baseline), after = data(prepared);
+          const choices = (value, prompt) => (value.opportunities || value.options || []).map(row => row.action || row)
+            .map(action => expandDecisionReferences(JSON.stringify(action), prompt.references));
+          const unchangedFoods = (before.food || []).every(row => (after.food || []).some(other => JSON.stringify(row) === JSON.stringify(other)));
+          const offered = choices(after, prepared);
+          if (!unchangedFoods || choices(before, baseline).some(action => !offered.includes(action))) return baseline;
+        }
+        return append(prepared);
+      } catch (error) {
+        // Optional offers yield to current threats/messages. A current finite
+        // job must retain its real state and cancel action or fail before POST.
+        if (error.code !== 'PET_CONTEXT_TOO_LARGE' || activeFishing) throw error;
+        if (baseline) return baseline;
+      }
+    }
+  }
   const homeOffer = outdoorHomeOffer(context);
   if (homeOffer) {
     // Reserve a real choice before optional historical/gear exposition. Danger,
@@ -716,7 +749,7 @@ export function expandDecisionReferences(content, references) {
   try { action = parseActionJson(content); } catch { return content; }
   if (!action?.payload || Array.isArray(action.payload) || typeof action.payload !== 'object') return content;
   const fields = { inventory: ['item_id'], trade: ['item_id'], gather: ['node_id'], survival: ['site_id', 'fire_id'], cooperation: ['cooperation_id', 'target_agent_id'], personal_goal: ['goal_id', 'target_id'], adventure_event: ['event_id'], adventure_plan: ['monster_id'],
-    home: HOME_ID_FIELDS,
+    home: HOME_ID_FIELDS, fish: FISHING_ID_FIELDS,
     invite: ['target_agent_id', 'group_id'], respond_invite: ['invite_id'], leave_group: ['group_id'], say: ['group_id'],
     respond_game: ['game_id'], leave_game: ['game_id'], submit_word: ['game_id', 'turn_id'], submit_move: ['game_id', 'turn_id'], submit_story: ['game_id', 'turn_id'] }[action.type] || [];
   for (const key of fields) {

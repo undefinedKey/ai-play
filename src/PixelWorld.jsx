@@ -16,7 +16,7 @@ import {selectPaperDoll} from './paper-doll-render.js';
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.26.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.27.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -122,7 +122,7 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const requestedTool = action === 'gather'?agent.life?.gathering?.tool_id:action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
   const tool = ['hoe','watering_can','axe','pickaxe'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
-  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat'].includes(action);
+  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','fish'].includes(action);
   return <span className={`pixel-character ${className}`} data-render-rig={rigReady?selectedRig.id:undefined} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
     {rigReady?<PaperDollCharacter selection={selectedRig} agent={agent} assets={assets} action={action} now={actionNow} facing={facing} timeline={timeline} tool={tool} toolLevel={toolLevel} handsBusy={handsBusy} portrait={portrait} Sprite={PixelSprite}/>:<>
     <PixelSprite definition={sprite} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active && action !== 'idle'}/>

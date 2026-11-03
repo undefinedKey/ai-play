@@ -40,6 +40,7 @@ test('工具目录公布各级消耗；新旧角色只迁移一次，不补耐�
   assert.deepEqual(a.life.tools, {
     hoe: { level: 1, durability: 20, max_durability: 20 }, watering_can: { level: 1, durability: 20, max_durability: 20 },
     axe: { level: 1, durability: 0, max_durability: 12, owned: false }, pickaxe: { level: 1, durability: 0, max_durability: 12, owned: false },
+    fishing_rod: { level: 1, durability: 0, max_durability: 12, owned: false },
   });
   assert.deepEqual(a.life.plots[0], { plot_id: 'plot_1', tilled: true, tilled_at: 100, crop_id: 'turnip', planted_at: 100, watered_at: 200, ready_at: 120200, ready_notified: true });
   assert.equal(a.life.plots[1].tilled, false);
@@ -209,7 +210,7 @@ test('真实HTTP MCP支持开垦和升级，公开响应与动作回执均返回
   t.after(async () => { await client.close(); await app.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${c.token}` } } }));
   const call = async (name, args = {}) => { const r = await client.callTool({ name, arguments: args }); return r.structuredContent || JSON.parse(r.content[0].text); };
-  const rules = await call('get_rules'); assert.deepEqual(rules.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 'axe', 'pickaxe']);
+  const rules = await call('get_rules'); assert.deepEqual(rules.life.tools.map(tool => tool.id).sort(), ['hoe', 'watering_can', 'axe', 'pickaxe', 'fishing_rod'].sort());
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
   const tilled = applied(await call('act', { ...session, action_id: joined.next_action_id, type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } }));
   assert.equal(tilled.life.tools.hoe.durability, 19); assert.equal(tilled.life.plots[0].tilled, true);

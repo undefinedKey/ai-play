@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { SCENES, isWalkable } from '../shared/world-layout.js';
 import { RESOURCE_NODES } from '../shared/resources-layout.js';
 import { CAMP_SITES, SURVIVAL_RULES } from '../shared/survival-rules.js';
+import { FISHING_SPOTS } from '../shared/fishing-layout.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -18,6 +19,11 @@ for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement
 const world = await (await response('/api/public/world')).json();
 assert.equal(world.home_rules.version, 1);
 assert.equal(world.home_rules.use_version, 1);
+assert.equal(world.home_rules.books_version, 1);
+assert.equal(health.capabilities.books, true);
+assert.equal(health.capabilities.fishing, true);
+assert.equal(world.fishing.version, 1);
+assert.deepEqual(world.fishing.spots.map(({ occupied_by, ...spot }) => spot), FISHING_SPOTS);
 assert.equal(health.capabilities.furniture_use, true);
 for (const kind of ['chair', 'table', 'bed', 'bookshelf']) assert.ok(world.home_rules.furniture_catalog[kind].activities.length > 0);
 assert.deepEqual(world.home_rules.map, { width: 10, height: 8 });
@@ -27,6 +33,13 @@ for (const home of world.homes) {
   assert.ok(world.agents.some(a => a.agent_id === home.owner_agent_id));
   assert.ok(home.furniture.length <= 12 && home.displays.length <= 4 && home.messages.length <= 20);
   assert.equal(home.storage, undefined); assert.equal(home.invitations, undefined);
+  assert.ok(Array.isArray(home.books) && home.books.length <= world.home_rules.books.max_books);
+  for (const book of home.books) {
+    assert.equal(book.author_agent_id, home.owner_agent_id);
+    assert.ok(typeof book.title === 'string' && typeof book.text === 'string' && Number.isFinite(book.created_at));
+    assert.ok(book.comments.length <= world.home_rules.books.max_comments);
+    assert.equal(book.draft_text, undefined);
+  }
 }
 assert.equal(world.home_invitations, undefined);
 for (const actor of world.agents) {
@@ -34,9 +47,10 @@ for (const actor of world.agents) {
   if (!use) continue;
   const home = world.homes.find(h => h.home_id === actor.home_presence.home_id);
   assert.ok(home?.furniture.some(f => f.instance_id === use.instance_id));
-  assert.ok(['sit', 'eat', 'read', 'rest'].includes(use.kind));
+  assert.ok(['sit', 'eat', 'read', 'rest', 'write'].includes(use.kind));
   assert.ok(['approaching', 'using'].includes(use.phase));
   assert.equal(use.movement_id, undefined); assert.equal(use.hp_at_start, undefined);
+  assert.equal(use.draft_text, undefined);
   if (use.phase === 'using') assert.ok(Number.isFinite(use.ends_at) && use.ends_at <= use.expires_at);
 }
 assert.ok(!world.events.some(e => ['home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)));
@@ -50,11 +64,11 @@ for(const scene of ['plaza','adventure']) {
 assert.deepEqual(world.scenes, SCENES);
 assert.equal(world.life.plots_per_agent, 2);
 assert.equal(world.life.crops.length, 2);
-assert.deepEqual(world.life.tools.map(tool => tool.id), ['hoe', 'watering_can', 'axe', 'pickaxe']);
-for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), ['axe', 'pickaxe'].includes(tool.id) ? [12, 24, 36] : [20, 40, 60]);
+assert.deepEqual(world.life.tools.map(tool => tool.id).sort(), ['hoe', 'watering_can', 'axe', 'pickaxe', 'fishing_rod'].sort());
+for (const tool of world.life.tools) assert.deepEqual(tool.levels.map(level => level.max_durability), ['axe', 'pickaxe', 'fishing_rod'].includes(tool.id) ? [12, 24, 36] : [20, 40, 60]);
 assert.equal(world.life.gathering.tool_required, false);
 assert.deepEqual(world.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
-assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry']);
+assert.deepEqual(world.life.recipes.filter(r => r.kind === 'cooking').map(r => r.item_id).sort(), ['turnip_soup', 'wheat_bread', 'trail_ration', 'moon_stew', 'roasted_berry', 'grilled_fish'].sort());
 assert.equal(health.capabilities.resource_nodes, true); assert.equal(health.capabilities.day_cycle, true);
 assert.equal(health.capabilities.survival, true); assert.equal(health.capabilities.tree_ecology, true);
 assert.equal(world.resources.version, 2); assert.deepEqual(world.resources.nodes.map(n => n.id), RESOURCE_NODES.map(n => n.id));
