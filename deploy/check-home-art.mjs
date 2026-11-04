@@ -56,8 +56,8 @@ export function checkHomeArt(directories=['public','dist']) {
       const drawing=homeFurniturePixels(kind,Number(rotation));native(drawing,`${kind}/${rotation}`);
       assert.deepEqual(frame.native,{width:drawing.width,height:drawing.height});
       // New art cannot move a saved furniture footprint or contact plane.
-      const old=HOME_ARCHIVE_ART[kind].variants[rotation];
-      for(const key of ['width','height','anchor','seat','foreground'])assert.deepEqual(frame[key],old[key],`${kind}/${rotation}.${key}`);
+      const old=HOME_ARCHIVE_ART[kind]?.variants[rotation];
+      if(old)for(const key of ['width','height','anchor','seat','foreground'])assert.deepEqual(frame[key],old[key],`${kind}/${rotation}.${key}`);
       views.add(JSON.stringify(drawing));
     }
     if(kind!=='rug')assert.equal(views.size,4,`${kind}: four authored directions required`);

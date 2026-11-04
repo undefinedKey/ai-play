@@ -14,6 +14,7 @@ import { supportsRuins, ruinsDecisionPrompt, ruinsOutdoorNotice, RUINS_ID_FIELDS
 import { supportsPeerMarket, peerMarketPromptPart, PEER_MARKET_ID_FIELDS } from './peer-market-context.mjs';
 import { supportsCommunity, COMMUNITY_ID_FIELDS, COMMUNITY_NOTICE, communityFocus, communityDecisionPrompt } from './community-context.mjs';
 import { journeyFocus, journeyNotice, journeyDecisionPrompt, JOURNEY_ID_FIELDS } from './journey-context.mjs';
+import { lifestyleFocus, lifestyleNotice, lifestyleDecisionPrompt, WARDROBE_ID_FIELDS, AQUARIUM_ID_FIELDS } from './lifestyle-context.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -735,6 +736,15 @@ export function prepareDecisionPrompt(context = {}) {
   if (journeyFocus(context)) {
     return journeyDecisionPrompt(context, budget);
   }
+  if (!context.lifestyleNoticeReserved) {
+    const focus = lifestyleFocus(context);
+    if (focus) return lifestyleDecisionPrompt(context, focus, budget);
+    const notice = lifestyleNotice(context);
+    if (notice) {
+      const baseline = prepareDecisionPrompt({ ...context, budget, lifestyleNoticeReserved: true });
+      return baseline.text.length + notice.length <= budget ? { ...baseline, text: notice + baseline.text } : baseline;
+    }
+  }
   if (!context.journeyNoticeReserved) {
     const notice = journeyNotice(context);
     if (notice) {
@@ -911,7 +921,7 @@ export function expandDecisionReferences(content, references) {
   try { action = parseActionJson(content); } catch { return content; }
   if (!action?.payload || Array.isArray(action.payload) || typeof action.payload !== 'object') return content;
   const fields = { inventory: ['item_id'], trade: ['item_id'], gather: ['node_id'], survival: ['site_id', 'fire_id'], cooperation: ['cooperation_id', 'target_agent_id'], personal_goal: ['goal_id', 'target_id'], adventure_event: ['event_id'], adventure_plan: ['monster_id'],
-    home: HOME_ID_FIELDS, fish: FISHING_ID_FIELDS, ruins: RUINS_ID_FIELDS, peer_market: PEER_MARKET_ID_FIELDS, community: COMMUNITY_ID_FIELDS, journey: JOURNEY_ID_FIELDS,
+    home: HOME_ID_FIELDS, fish: FISHING_ID_FIELDS, ruins: RUINS_ID_FIELDS, peer_market: PEER_MARKET_ID_FIELDS, community: COMMUNITY_ID_FIELDS, journey: JOURNEY_ID_FIELDS, wardrobe: WARDROBE_ID_FIELDS, aquarium: AQUARIUM_ID_FIELDS,
     invite: ['target_agent_id', 'group_id'], respond_invite: ['invite_id'], leave_group: ['group_id'], say: ['group_id'],
     respond_game: ['game_id'], leave_game: ['game_id'], submit_word: ['game_id', 'turn_id'], submit_move: ['game_id', 'turn_id'], submit_story: ['game_id', 'turn_id'] }[action.type] || [];
   for (const key of fields) {

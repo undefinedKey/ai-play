@@ -3,7 +3,7 @@ import {resolve,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {buildSceneryAssets,buildSceneryContactSheet,Q_PALETTE} from '../art/q-world/scenery.mjs';
-import {buildActorAssets} from '../art/q-world/actors.mjs';
+import {buildActorAssets,buildWardrobeAssets} from '../art/q-world/actors.mjs';
 import {WORLD_MAP} from '../shared/world-layout.js';
 
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
@@ -12,7 +12,12 @@ async function publish(path,text){const temp=path+'.q-build.tmp';await writeFile
 await mkdir(outputDir,{recursive:true});
 const scenery=await buildSceneryAssets({outputDir});
 const actors=await buildActorAssets({outputDir});
-const manifest={version:1,release:'0.34.0',tool:{name:'Original Q World',version:'1.0.0',source:'art/q-world/',generator:'scripts/build-q-world.mjs',license:'project-original'},tile_size:32,map:WORLD_MAP,...scenery,...actors,placements:{campfire:{x:11,y:8}},render_style:'q-pixel',paper_dolls:{},art_direction:'docs/ART-DIRECTION.md',art_pipeline:{generator:'scripts/build-q-world.mjs',sources:['art/q-world/scenery.mjs','art/q-world/actors.mjs','src/q-actor-art.js'],authorship:'project-original',sampling:'native integer pixels; nearest-neighbor display',archived_art_reused:false},palette:Q_PALETTE};
+const wardrobe=await buildWardrobeAssets({outputDir});
+for(const entries of Object.values(wardrobe))for(const [id,definition] of Object.entries(entries)){
+  const {animations,...geometry}=definition;
+  entries[id]={...geometry,animation_template:'characters.wanderer_1'};
+}
+const manifest={version:1,release:'0.35.0',tool:{name:'Original Q World',version:'1.1.0',source:'art/q-world/',generator:'scripts/build-q-world.mjs',license:'project-original'},tile_size:32,map:WORLD_MAP,...scenery,...actors,...wardrobe,placements:{campfire:{x:11,y:8}},render_style:'q-pixel',paper_dolls:{},art_direction:'docs/ART-DIRECTION.md',art_pipeline:{generator:'scripts/build-q-world.mjs',sources:['art/q-world/scenery.mjs','art/q-world/actors.mjs','src/q-actor-art.js','src/wardrobe-pixel-art.js'],authorship:'project-original',sampling:'native integer pixels; nearest-neighbor display',archived_art_reused:false},palette:Q_PALETTE};
 // Keep historical atlas files on disk for old releases, but no active reference
 // may leak a painted/high-resolution sheet back into a native-pixel scene.
 if(JSON.stringify(manifest).includes('/pixel-world/ink_'))throw new Error('Archived ink artwork leaked into the Q manifest.');

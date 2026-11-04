@@ -8,6 +8,7 @@ import {homeLocation} from './home-state.js';
 import WorldCamera from './WorldCamera.jsx';
 import WorldServices from './WorldServices.jsx';
 import {observerExecution,observerActionResult,observerConditions} from './world-services-state.js';
+import {wardrobeDescription} from './wardrobe-state.js';
 
 export {CameraContext} from './camera-context.js';
 export function MapCamera({children,speech,status}){
@@ -23,6 +24,7 @@ export function ObserverStatus({world,agent,live,now}){
   const time=live?now:world.server_time||now;
   const execution=observerExecution(world,agent,time),receipt=observerActionResult(agent),conditions=observerConditions(world,agent);
   const goal=goalState(agent?.personal_goal,time),cooperation=cooperationSummary(world,agent?.agent_id,time);
+  const wardrobe=wardrobeDescription(agent);
   return <><section className="observer-status" data-testid="observer-status" aria-label="当前观察状态">
     {agent?<>
       <span className="observer-avatar" aria-hidden="true"><CharacterSprite agent={agent} portrait/></span>
@@ -34,6 +36,7 @@ export function ObserverStatus({world,agent,live,now}){
         {receipt&&<span className="observer-action-result" data-testid="observer-action-result" data-result={receipt.status}>最近操作 · {receipt.text} · {recordTime(receipt.at,time)}</span>}
         {cooperation&&<span className="observer-cooperation-line" data-testid="cooperation-summary">合作 · {cooperation.text}</span>}
         {goal&&<span className="observer-goal-line">公开目标 · {goal.label} · {goal.progress}/{goal.target}</span>}
+        {wardrobe.length>0&&<span className="observer-wardrobe" data-testid="observer-wardrobe">当前穿着 · {wardrobe.join(' · ')}</span>}
       </div>
       <div className="observer-vitals">{agent.adventure&&<span className="vital-health">生命 <b>{agent.adventure.hp}/{agent.adventure.max_hp}</b><i aria-hidden="true" style={{'--vital-fill':`${Math.max(0,Math.min(100,100*agent.adventure.hp/(agent.adventure.max_hp||1)))}%`}}/></span>}{agent.fatigue&&<span className="vital-energy">体力 <b>{Math.round(agent.fatigue.energy)}/{agent.fatigue.max_energy||100}</b><i aria-hidden="true" style={{'--vital-fill':`${Math.max(0,Math.min(100,100*agent.fatigue.energy/(agent.fatigue.max_energy||100)))}%`}}/></span>}</div>
     </>:<div className="observer-copy"><strong>世界概况 · {active} 位活动中{paused?`，${paused} 位暂停`:''}</strong><span>{active?'选择一位角色，查看它当前的活动。':'此刻没有 AI 活动。历史记录保留，等待原 AI 再次连接。'}</span>{latest&&<span>最近公开记录：{recordTime(latest.occurred_at,time)}</span>}</div>}

@@ -155,8 +155,8 @@ test('v025 room pause and delayed invitation expiry stop indoor movement at the 
 
 test('v025 asset and guestbook limits cannot consume materials or bypass note rate by deletion', t => {
   const f = fixture(t, 1), [p] = f.players; f.build(p); f.enter(p);
-  for (let n = 0; n < 12; n++) f.craft(p, n % 2 ? 'chair' : 'table');
-  const wood = p.a.life.inventory.wood; assert.equal(p.action({ intent: 'craft', kind: 'chair' }).error.code, 'HOME_FULL'); assert.equal(p.a.life.inventory.wood, wood); assert.equal(p.home.furniture.length, 12);
+  for (let n = 0; n < HOME_RULES.max_furniture; n++) f.craft(p, n % 2 ? 'chair' : 'table');
+  const wood = p.a.life.inventory.wood; assert.equal(p.action({ intent: 'craft', kind: 'chair' }).error.code, 'HOME_FULL'); assert.equal(p.a.life.inventory.wood, wood); assert.equal(p.home.furniture.length, HOME_RULES.max_furniture);
   p.ok({ intent: 'message', text: '第一条' }); p.ok({ intent: 'remove_message', message_id: p.home.messages[0].message_id });
   assert.equal(p.action({ intent: 'message', text: '删除后也不能刷屏' }).error.code, 'RATE_LIMITED');
   for (let n = 0; n < 21; n++) { f.tick(10000); p.ok({ intent: 'message', text: `第${n}条` }); }

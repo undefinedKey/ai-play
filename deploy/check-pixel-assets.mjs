@@ -6,6 +6,8 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {SCENES,WORLD_MAP,isWalkable} from '../shared/world-layout.js';
 import {Q_ACTOR_ACTIONS} from '../src/q-actor-art.js';
+import {hydrateWardrobeManifest} from '../src/wardrobe-state.js';
+import {WARDROBE_CATALOG,WARDROBE_DYES,WARDROBE_HAIRSTYLES} from '../skills/ai-plaza/scripts/lifestyle-contract.mjs';
 import {LIFE_RULES} from '../server/life.js';
 
 // Check shipped originals and Vite's copy without an image authoring runtime.
@@ -23,6 +25,7 @@ for(const directory of ['public','dist']){
   assert.equal(manifest.release,version,`${directory}: stale art release`);
   assert.equal(manifest.render_style,'q-pixel');
   assert.equal(digest(JSON.stringify(manifest)),digest(JSON.stringify(publicManifest)),`${directory}: manifest differs from authored output`);
+  hydrateWardrobeManifest(manifest);
   assert.equal(manifest.tile_size,32);
   assert.deepEqual(manifest.map,WORLD_MAP);
   // Keep notices for the legacy authoring pipeline and retained source assets.
@@ -102,7 +105,14 @@ for(const directory of ['public','dist']){
   for(const id of ['hoe','watering_can','axe','pickaxe','fishing_rod'])for(const level of [1,2,3]){
     assert.ok(manifest.tools[`${id}_${level}`]);assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
   }
-  for(const group of ['characters','equipment','accessories','tools'])for(const[id,sprite]of Object.entries(manifest[group]))for(const action of actions){
+  for(const item of WARDROBE_CATALOG)for(const dye of WARDROBE_DYES)assert.ok(manifest.wardrobe?.[`${item.id}_${dye.id}`],`missing garment ${item.id}/${dye.id}`);
+  for(let i=1;i<=8;i++){
+    const id=`wanderer_${i}`;assert.ok(manifest.characters_no_hair?.[id]);assert.ok(manifest.wardrobe_hands?.[id]);
+    for(const hair of WARDROBE_HAIRSTYLES.filter(row=>row.id!=='original'))assert.ok(manifest.hairstyles?.[`hair_${hair.id}_${id}`]);
+  }
+  for(const id of ['wanderer_2','wanderer_8'])assert.ok(manifest.characters_no_hat?.[id]);
+  const dressedGroups=['wardrobe','hairstyles','characters_no_hat','characters_no_hair','wardrobe_hands'];
+  for(const group of ['characters','equipment','accessories','tools',...dressedGroups])for(const[id,sprite]of Object.entries(manifest[group]))for(const action of actions){
     assert.ok(sprite.animations[action],`${group}.${id}.${action}`);
     for(const direction of directions){
       const key=`${action}_${direction}`,animation=sprite.animations[key],baseline=body.animations[key];
@@ -119,7 +129,7 @@ for(const directory of ['public','dist']){
     assert.notDeepEqual(character.animations.walk.frames,character.animations.run.frames);
     assert.notDeepEqual(character.animations.attack_north.frames,character.animations.attack_south.frames);
   }
-  for(const group of ['equipment','accessories','tools'])for(const sprite of Object.values(manifest[group])){
+  for(const group of ['equipment','accessories','tools',...dressedGroups])for(const sprite of Object.values(manifest[group])){
     assert.equal(sprite.overlay_mode,'registered-canvas',`${group}: unregistered Q layer`);
     assert.equal(sprite.native_scale,1);assert.deepEqual(sprite.anchor,{x:24,y:43});
     for(const animation of Object.values(sprite.animations))for(const frame of animation.frames){assert.equal(frame.w,48);assert.equal(frame.h,48);assert.deepEqual(frame.anchor??sprite.anchor,{x:24,y:43});}

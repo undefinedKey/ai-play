@@ -165,6 +165,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.33.0') >= 0 && ['scripts/journey-contract.mjs', 'scripts/journey-context.mjs', 'references/journey.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '新版横版旅程契约、接入模块与说明不完整，未执行升级');
   }
+  if (compareVersions(version, '0.35.0') >= 0 && ['scripts/lifestyle-contract.mjs', 'scripts/lifestyle-context.mjs', 'references/wardrobe-aquarium.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '新版自主换装与水族箱契约、上下文及说明不完整，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

@@ -313,6 +313,10 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
         normalize = lambda plots: [{k: v for k, v in p.items() if k != 'ready_notified'} for p in plots]
         assert normalize(a['life']['plots']) == normalize(b['life']['plots']), 'plots preserved'
         assert a['appearance'] == b['appearance']
+        if 'wardrobe' in a or 'wardrobe' in b:
+            empty = {'version': 1, 'hairstyle': 'original', 'items': [], 'wearing': {'outfit': None, 'head': None, 'back': None}, 'page': 0}
+            assert b.get('wardrobe') == a.get('wardrobe', empty), 'wardrobe preserved; migration cannot create, dye, wear or discard garments'
+        assert a.get('aquarium_page', 0) == b.get('aquarium_page', 0), 'private aquarium reading position preserved'
         assert a.get('run') == b.get('run'), 'grant preserved'
         assert a.get('goal') == b.get('goal'), 'private owner goal preserved'
         assert a.get('diagnostics', {}).get('calls_used', 0) == b.get('diagnostics', {}).get('calls_used', 0)
@@ -388,6 +392,7 @@ def verify(path, root=Path('/')):
         'appearance_growth_preserved': True, 'grants_and_budgets_preserved': True, 'controller_credentials_preserved': True,
         'existing_ledger_and_market_preserved': True, 'server_configuration_preserved': True,
         'homes_furniture_displays_messages_preserved': True,
+        'wardrobe_and_aquarium_contents_preserved': True,
         'exploration_goals_and_cooldowns_preserved': True,
         'cooperations_consents_escrow_returns_preserved': True,
         'peer_market_terms_escrow_returns_preserved': True,

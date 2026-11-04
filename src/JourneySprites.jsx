@@ -2,6 +2,7 @@ import React from 'react';
 import { usePixelNow } from './PixelWorld.jsx';
 import { journeyCharacterPixels, journeyIdentity, journeyMonsterPixels } from './journey-pixel-art.js';
 import { journeySpriteState } from './journey-combat-motion.js';
+import { visibleWardrobe } from './wardrobe-state.js';
 
 function Sprite({ actor, world, now, live, monster = false }) {
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -10,8 +11,10 @@ function Sprite({ actor, world, now, live, monster = false }) {
   const state = journeySpriteState(actor, clock, { live, reducedMotion: reducedMotion || !visible, events: world?.events || [], monster });
   const pixels = monster ? journeyMonsterPixels(actor, state) : journeyCharacterPixels(actor, state);
   const identity = monster ? actor.monster_id : journeyIdentity(actor).seed;
+  const wardrobe=monster?null:visibleWardrobe(actor);
   return <span className="journey-pixel-sprite pixel-character" aria-hidden="true" data-art-style="original-pixel" data-identity={identity} data-sprite-id={actor.appearance?.sprite_id || (monster ? actor.monster_id : 'unassigned')}
     data-action={state.action} data-state={state.phase} data-frame={state.frame} data-facing={state.facing}
+    data-hairstyle={wardrobe?.hairstyle} data-wardrobe-outfit={wardrobe?.wearing.outfit?.style_id} data-wardrobe-head={wardrobe?.wearing.head?.style_id} data-wardrobe-back={wardrobe?.wearing.back?.style_id}
     data-motion-x={state.x} data-motion-y={state.y} data-playing={state.playing ? 'true' : 'false'} data-action-key={state.key} data-item={state.itemId || undefined}
     style={{ display: 'block', width: 'calc(48px * var(--pixel-scale, 1))', height: 'calc(48px * var(--pixel-scale, 1))', pointerEvents: 'none' }}>
     <svg viewBox="0 0 48 48" width="100%" height="100%" shapeRendering="crispEdges" style={{ overflow: 'visible', imageRendering: 'pixelated' }}>

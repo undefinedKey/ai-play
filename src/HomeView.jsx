@@ -10,6 +10,7 @@ import { homePixelContactHeight } from './home-pixel-pose.js';
 import { furnitureNames, furnitureSize, furnitureUses, homeActivity, homeActivityNames, homeFurnitureOccupant, homeActorProxy, homeActors, homePoint, homePosition, homeSeatAnchor, homeUsePresentationStyle, souvenirNames } from './home-state.js';
 import { homeActorDepth, homeFurnitureLayout } from './home-pixel-layout.js';
 import './homes.css';
+import { AquariumDetails } from './AquariumArt.jsx';
 import './leisure.css';
 import { projectMapPoint } from './map-projection.js';
 
@@ -54,7 +55,7 @@ function PlacedFurniture({ item, display, book, rules, active, onDisplay, onBook
       data-testid={`home-furniture-${item.instance_id}`} data-furniture-kind={item.kind} data-use-phase={state} data-render-layer={item.kind === 'rug' ? 'floor' : 'furniture'}
       data-rotation={layout.rotation} data-foot-x={item.x} data-foot-y={item.y} data-render-width={layout.width} data-render-height={layout.height}
       aria-label={label} aria-expanded={active} aria-controls={`home-${kind}-detail`} onClick={click}>
-      <FurnitureArt kind={item.kind} rotation={layout.rotation} layer="base" item={display?.item_id}/>
+      <FurnitureArt kind={item.kind} rotation={layout.rotation} layer="base" item={item.kind==='aquarium'?item:display?.item_id} live={live}/>
       {(book || display) && <span className="home-exhibit-mark"><BookOpen size={12}/></span>}
       {book && <BookArt className="home-shelf-book"/>}
       {writing && <WritingArt className={`home-table-writing ${live && occupant.status === 'active' ? 'writing-live' : ''}`} data-testid="home-table-writing"/>}
@@ -86,8 +87,8 @@ function FurnitureDetail({ item, rules, occupant, agents, onClose }) {
   const cost = Object.entries(definition?.cost || {}).map(([id, count]) => `${({ wood: '木材', grass: '干草', ore: '矿石' })[id] || id} × ${count}`).join(' · ');
   return <section id="home-furniture-detail" data-testid="home-furniture-detail" className="home-furniture-detail" aria-label="家具公开信息">
     <button className="home-detail-close" aria-label="收起家具信息" onClick={onClose}><X size={16}/></button>
-    <div className="home-furniture-preview"><FurnitureArt kind={item.kind} rotation={item.rotation || 0}/></div>
-    <div><h3>{furnitureNames[item.kind] || '家具'}</h3><p>{uses.length ? uses.map(kind => homeActivityNames[kind]).join(' · ') : item.kind === 'display_shelf' ? '收藏真正拥有的物品，写下自己的题注。' : '由屋主选择的室内布置。'}</p><small>占地 {size[0]} × {size[1]} · {occupant ? `${publicName(occupant, agents)}${occupant.home_presence.activity.phase === 'approaching' ? '正在走来' : '正在使用'}` : '此刻空闲'}</small>{cost && <small>制作材料：{cost}</small>}<span className="home-detail-note">仅查看 · 是否使用由 AI 自己决定</span></div>
+    <div className="home-furniture-preview"><FurnitureArt kind={item.kind} rotation={item.rotation || 0} item={item.kind==='aquarium'?item:undefined} preview/></div>
+    <div><h3>{furnitureNames[item.kind] || '家具'}</h3><p>{uses.length ? uses.map(kind => homeActivityNames[kind]).join(' · ') : item.kind === 'display_shelf' ? '收藏真正拥有的物品，写下自己的题注。' : '由屋主选择的室内布置。'}</p><small>占地 {size[0]} × {size[1]} · {occupant ? `${publicName(occupant, agents)}${occupant.home_presence.activity.phase === 'approaching' ? '正在走来' : '正在使用'}` : '此刻空闲'}</small>{cost && <small>制作材料：{cost}</small>}{item.kind==='aquarium'&&<AquariumDetails item={item}/>}<span className="home-detail-note">仅查看 · 是否使用由 AI 自己决定</span></div>
   </section>;
 }
 

@@ -720,7 +720,9 @@ export class PlazaRunner extends EventEmitter {
           if (featureProtocol(action.type) && !featureProtocol(action.type).supports(this.rules)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供此玩法协议');
           if (action.type === 'ruins' && !supportsRuins(this.rules)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供独立遗迹协议');
           if (action.type === 'home' && (!supportsHomes(this.rules) ||
-            (action.payload.intent === 'use' || action.payload.intent === 'craft' && ['bed', 'bookshelf'].includes(action.payload.kind)) && !supportsHomeUse(this.rules) || isBookAction(action.payload) && !supportsBooks(this.rules))) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供此家园能力');
+            (action.payload.intent === 'use' || action.payload.intent === 'craft' && ['bed', 'bookshelf'].includes(action.payload.kind)) && !supportsHomeUse(this.rules) ||
+            action.payload.intent === 'craft' && action.payload.kind === 'aquarium' && !featureProtocol('aquarium').supports(this.rules) ||
+            isBookAction(action.payload) && !supportsBooks(this.rules))) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供此家园能力');
           if (action.type === 'gather' && action.payload.intent === 'plant' && !(this.rules?.resources?.version === 2 && observation.resources?.version === 2 && this.rules.resources.trees?.planting)) throw new RunnerError('INVALID_MODEL_OUTPUT', '当前服务器尚未提供种树协议');
           this.checkpoint.consecutive_errors = 0;
           this.checkpoint.model_retry_at = 0;
@@ -898,11 +900,16 @@ export class PlazaRunner extends EventEmitter {
         ...(action.type === 'peer_market' ? { requested: Object.fromEntries(['intent','offer_id','revision','page','kind','mode'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(action.type === 'community' ? { requested: Object.fromEntries(['intent','event_id','venue_id','seat_id','activity','page'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(action.type === 'journey' ? { requested: Object.fromEntries(['intent','node_id','monster_id','mode','duration_seconds','route'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
+        ...(['wardrobe','aquarium'].includes(action.type) ? { requested: Object.fromEntries(['intent','page','style_id','garment_id','color_id','slot','hairstyle','instance_id','fish_id','item_id','decoration_id'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(action.type === 'ruins' ? { requested: Object.fromEntries(['intent','object_id','direction','mode'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         message: typeof result.error?.message === 'string' ? result.error.message.slice(0, 150) : undefined,
         retry_at: this.now() + Math.max(0, Number(result.error?.retry_after_ms) || 0), repeat_count: repeated ? Math.min(3, previous.repeat_count + 1) : 1 };
     } else if (result.status === 'applied') {
-      if(FEATURE_ACTIONS.includes(action.type) && action.payload?.intent==='browse') {
+      if (['wardrobe','aquarium'].includes(action.type)) {
+        // Retain the AI's own chosen reading/editing focus for the next decision.
+        // A wait, chat or another action clears it below; this is not a task queue.
+        this.checkpoint.last_action_feedback={type:action.type,status:'applied',requested:Object.fromEntries(['intent','page','style_id','garment_id','color_id','slot','hairstyle','instance_id','fish_id','item_id','decoration_id'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]]))};
+      } else if(FEATURE_ACTIONS.includes(action.type) && action.payload?.intent==='browse') {
         this.checkpoint.last_action_feedback={type:action.type,status:'applied',requested:{intent:'browse',page:action.payload.page}};
       } else if (adjusted) {
         this.checkpoint.last_action_feedback = { type: 'move', status: 'applied', code: 'MOVE_ADJUSTED', requested: adjusted.requested, applied: adjusted.applied };

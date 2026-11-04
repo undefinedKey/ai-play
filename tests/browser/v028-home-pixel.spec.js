@@ -77,7 +77,7 @@ test('v028 pixel furniture keeps real saved positions, four headings, flat rugs 
       expect(value.width).toBeGreaterThan(0); expect(value.height).toBeGreaterThan(0);
       expect(value.width / value.height).toBeCloseTo(value.expectedWidth / value.expectedHeight, 2);
       expect(value.stretch).not.toBe('none'); expect(value.imageCount).toBe(0);
-      expect(value.rectCount).toBeGreaterThan(5); expect(value.release).toBe('0.34.0');
+      expect(value.rectCount).toBeGreaterThan(5); expect(value.release).toBe('0.35.0');
     }
     await accessible(page);
     await page.getByTestId('home-view').screenshot({ path: `artifacts/v028-pixel-room-${width}.png` });

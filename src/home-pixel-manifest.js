@@ -45,13 +45,17 @@ export const HOME_ARCHIVE_COTTAGE = { src:`${root}cottage.png`,width:1536,height
 // The current drawings are original integer-pixel geometry. Keep the measured
 // room-space contract: existing saves, seat contact and occlusion do not move.
 export const HOME_PIXEL_ART = Object.fromEntries(Object.entries(HOME_ARCHIVE_ART).map(([kind, spec]) => [kind, {
-  format: 'native-pixel', release: '0.34.0',
+  format: 'native-pixel', release: '0.35.0',
   variants: Object.fromEntries(Object.entries(spec.variants).map(([rotation, art]) => {
     const { src, sheet, sourceRect, planeRotation, ...placement } = art;
-    return [rotation, { ...placement, format: 'native-pixel', release: '0.34.0',
+    return [rotation, { ...placement, format: 'native-pixel', release: '0.35.0',
       native: { width: Math.round(art.width), height: Math.round(art.height) }, rotation: Number(rotation) }];
   })),
 }]));
-export const HOME_ROOM_ART = { format:'native-pixel',release:'0.34.0',width:640,height:540 };
-export const HOME_COTTAGE_ART = { format:'native-pixel',release:'0.34.0',width:120,height:97 };
+HOME_PIXEL_ART.aquarium = { format: 'native-pixel', release: '0.35.0', variants: Object.fromEntries([0,90,180,270].map(rotation => {
+  const side = rotation === 90 || rotation === 270, width = side ? 48 : 96, height = side ? 104 : 82;
+  return [rotation, { format: 'native-pixel', release: '0.35.0', width, height, native: { width, height }, anchor: { x: width / 2, y: height - 1 }, rotation, facing: ({ 0:'south',90:'west',180:'north',270:'east' })[rotation] }];
+})) };
+export const HOME_ROOM_ART = { format:'native-pixel',release:'0.35.0',width:640,height:540 };
+export const HOME_COTTAGE_ART = { format:'native-pixel',release:'0.35.0',width:120,height:97 };
 export const HOME_Q_HIP_HEIGHT = 7;

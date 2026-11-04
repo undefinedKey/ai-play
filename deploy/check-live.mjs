@@ -6,6 +6,7 @@ import { FISHING_SPOTS } from '../shared/fishing-layout.js';
 import { PEER_MARKET_RULES, PEER_MARKET_STATUSES } from '../shared/peer-market.js';
 import { COMMUNITY_RULES, COMMUNITY_STATUSES } from '../shared/community.js';
 import { JOURNEY_RULES, JOURNEY_NODES, JOURNEY_MONSTERS } from '../shared/journey.js';
+import { WARDROBE_RULES, AQUARIUM_RULES, AQUARIUM_INTENTS, validWardrobe, validAquarium } from '../skills/ai-plaza/scripts/lifestyle-contract.mjs';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -20,6 +21,60 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.equal(health.capabilities.wardrobe, true);
+assert.equal(health.capabilities.aquarium, true);
+assert.equal(world.home_rules.max_furniture, 16);
+assert.deepEqual(world.home_rules.furniture_catalog[AQUARIUM_RULES.furniture_kind], AQUARIUM_RULES.furniture);
+const exactKeys = (value, keys) => assert.deepEqual(Object.keys(value).sort(), [...keys].sort());
+const safeTime = value => assert.ok(Number.isSafeInteger(value) && value >= 0 && value <= world.server_time);
+const visibleGarments = new Set(), visibleFish = new Set(), visibleTanks = new Set();
+for (const actor of world.agents) {
+  const wardrobe = actor.wardrobe;
+  exactKeys(wardrobe, ['version', 'hairstyle', 'wearing']);
+  assert.equal(wardrobe.version, WARDROBE_RULES.version);
+  assert.ok(validWardrobe({ intent: 'hairstyle', style_id: wardrobe.hairstyle }));
+  exactKeys(wardrobe.wearing, WARDROBE_RULES.slots);
+  for (const slot of WARDROBE_RULES.slots) {
+    const garment = wardrobe.wearing[slot]; if (garment === null) continue;
+    exactKeys(garment, ['garment_id', 'style_id', 'color_id', 'created_at']);
+    assert.ok(validWardrobe({ intent: 'dye', garment_id: garment.garment_id, color_id: garment.color_id }));
+    assert.equal(WARDROBE_RULES.catalog.find(style => style.id === garment.style_id)?.slot, slot);
+    assert.ok(!visibleGarments.has(garment.garment_id)); visibleGarments.add(garment.garment_id); safeTime(garment.created_at);
+  }
+  for (const key of ['aquarium_page', 'available_fish', 'wardrobe_owned', 'garments']) assert.equal(actor[key], undefined);
+}
+for (const home of world.homes) for (const furniture of home.furniture) {
+  if (furniture.kind !== AQUARIUM_RULES.furniture_kind) { assert.equal(furniture.aquarium, undefined); continue; }
+  exactKeys(furniture, ['instance_id', 'kind', 'x', 'y', 'rotation', 'aquarium']);
+  assert.ok(validAquarium({ intent: 'inspect', instance_id: furniture.instance_id }));
+  assert.ok(!visibleTanks.has(furniture.instance_id)); visibleTanks.add(furniture.instance_id);
+  assert.ok([0, 90, 180, 270].includes(furniture.rotation));
+  const sideways = [90, 270].includes(furniture.rotation), def = AQUARIUM_RULES.furniture;
+  assert.ok(Number.isInteger(furniture.x) && furniture.x >= 0 && furniture.x + (sideways ? def.height : def.width) <= world.home_rules.map.width);
+  assert.ok(Number.isInteger(furniture.y) && furniture.y >= 0 && furniture.y + (sideways ? def.width : def.height) <= world.home_rules.map.height);
+  const tank = furniture.aquarium; exactKeys(tank, ['version', 'fish', 'decorations']); assert.equal(tank.version, AQUARIUM_RULES.version);
+  assert.ok(Array.isArray(tank.fish) && tank.fish.length <= AQUARIUM_RULES.max_fish);
+  for (const fish of tank.fish) {
+    exactKeys(fish, ['fish_id', 'item_id', 'name', 'added_at']);
+    assert.ok(validAquarium({ intent: 'put', instance_id: furniture.instance_id, item_id: fish.item_id, name: fish.name }));
+    assert.ok(validAquarium({ intent: 'remove', instance_id: furniture.instance_id, fish_id: fish.fish_id }));
+    assert.ok(!visibleFish.has(fish.fish_id)); visibleFish.add(fish.fish_id); safeTime(fish.added_at);
+  }
+  assert.ok(Array.isArray(tank.decorations) && tank.decorations.length <= AQUARIUM_RULES.decoration_slots.length);
+  const usedSlots = new Set();
+  for (const decoration of tank.decorations) {
+    exactKeys(decoration, ['slot', 'decoration_id']);
+    assert.ok(validAquarium({ intent: 'decorate', instance_id: furniture.instance_id, ...decoration }));
+    assert.ok(!usedSlots.has(decoration.slot)); usedSlots.add(decoration.slot);
+  }
+}
+for (const event of world.events) {
+  if (!['wardrobe_crafted', 'wardrobe_dyed', 'wardrobe_changed', 'aquarium_changed', 'aquarium_approaching'].includes(event.type)) continue;
+  const allowed = event.type.startsWith('wardrobe_') ? ['agent_id', 'name', 'text', 'scene_id', 'home_id'] : ['agent_id', 'name', 'text', 'home_id', 'scene_id', 'instance_id', 'intent', 'ends_at'];
+  assert.ok(Object.keys(event.payload).every(key => allowed.includes(key)), 'lifestyle event exposes only public presentation');
+  if (event.payload.scene_id !== undefined) assert.ok(SCENE_IDS.includes(event.payload.scene_id));
+  if (event.type === 'aquarium_changed') assert.ok(Object.hasOwn(AQUARIUM_INTENTS, event.payload.intent));
+}
 assert.equal(health.capabilities.sideview_journey, true);
 assert.equal(world.journey.version, 1);
 assert.deepEqual(world.journey.nodes, JOURNEY_NODES);
@@ -91,7 +146,7 @@ assert.deepEqual(world.home_rules.door, { x: 5, y: 7 });
 assert.ok(Array.isArray(world.homes));
 for (const home of world.homes) {
   assert.ok(world.agents.some(a => a.agent_id === home.owner_agent_id));
-  assert.ok(home.furniture.length <= 12 && home.displays.length <= 4 && home.messages.length <= 20);
+  assert.ok(home.furniture.length <= world.home_rules.max_furniture && home.displays.length <= 4 && home.messages.length <= 20);
   assert.equal(home.storage, undefined); assert.equal(home.invitations, undefined);
   assert.ok(Array.isArray(home.books) && home.books.length <= world.home_rules.books.max_books);
   for (const book of home.books) {
@@ -251,4 +306,4 @@ await response('/watch?view=adventure');
 await response('/watch?view=plaza');
 await response('/watch?view=farm');
 assert.equal((await fetch(`${base}/api/world`, { signal: AbortSignal.timeout(10000) })).status, 401);
-console.log(JSON.stringify({ version, agents: world.agents.length, active: world.agents.filter(a => a.status === 'active').length, pixel_images: paths.size, independent_scenes: true, scene_locations_valid: true, fatigue: true, appearance: true, public_privacy: true }));
+console.log(JSON.stringify({ version, agents: world.agents.length, active: world.agents.filter(a => a.status === 'active').length, pixel_images: paths.size, independent_scenes: true, scene_locations_valid: true, fatigue: true, appearance: true, wardrobe: true, aquarium: true, home_capacity: world.home_rules.max_furniture, public_privacy: true }));

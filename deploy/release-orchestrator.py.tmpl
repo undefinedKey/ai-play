@@ -47,12 +47,18 @@ if mode=="verify-switch":
     print(result.stdout,flush=True)
     sys.exit(0)
 assert mode=="release"
-assert json.loads((root/"package.json").read_text())["version"]=="0.33.0"
+previous_version=json.loads((root/"package.json").read_text())["version"]
+assert len(previous_version.split('.'))==3 and all(part.isdigit() for part in previous_version.split('.'))
 assert not command(["git","-C",str(root),"status","--porcelain"]).stdout.strip()
 assert active(),"expected original running bridge"
 command(["git","-C",str(root),"fetch",str(backup/("ai-play-"+prefix+".bundle")),"HEAD"])
 assert command(["git","-C",str(root),"rev-parse","FETCH_HEAD"]).stdout.strip()==revision
-for required in ["deploy/verify-migration.py","deploy/verify-survival.mjs","skills/ai-plaza/scripts/survival-context.mjs","skills/ai-plaza/references/survival.md","server/homes.js","skills/ai-plaza/scripts/homes-context.mjs","skills/ai-plaza/references/homes.md","server/fishing.js","shared/fishing-layout.js","skills/ai-plaza/scripts/fishing-context.mjs","skills/ai-plaza/references/fishing-books.md","server/ruins.js","shared/ruins-layout.js","shared/maps/ruins.json","skills/ai-plaza/scripts/ruins-context.mjs","skills/ai-plaza/references/ruins.md","server/peer-market.js","shared/peer-market.js","skills/ai-plaza/scripts/peer-market-context.mjs","skills/ai-plaza/references/peer-market.md","server/community.js","server/feature-modules.js","skills/ai-plaza/scripts/community-contract.mjs","skills/ai-plaza/scripts/community-context.mjs","skills/ai-plaza/scripts/feature-protocols.mjs","skills/ai-plaza/references/community.md","server/journey.js","shared/journey-layout.js","skills/ai-plaza/scripts/journey-contract.mjs","skills/ai-plaza/scripts/journey-context.mjs","skills/ai-plaza/references/journey.md","deploy/verify-journey.mjs"]:
+version=json.loads(command(["git","-C",str(root),"show",revision+":package.json"]).stdout)["version"]
+assert len(version.split('.'))==3 and all(part.isdigit() for part in version.split('.'))
+required_paths=["deploy/verify-migration.py","deploy/verify-survival.mjs","skills/ai-plaza/scripts/survival-context.mjs","skills/ai-plaza/references/survival.md","server/homes.js","skills/ai-plaza/scripts/homes-context.mjs","skills/ai-plaza/references/homes.md","server/fishing.js","shared/fishing-layout.js","skills/ai-plaza/scripts/fishing-context.mjs","skills/ai-plaza/references/fishing-books.md","server/ruins.js","shared/ruins-layout.js","shared/maps/ruins.json","skills/ai-plaza/scripts/ruins-context.mjs","skills/ai-plaza/references/ruins.md","server/peer-market.js","shared/peer-market.js","skills/ai-plaza/scripts/peer-market-context.mjs","skills/ai-plaza/references/peer-market.md","server/community.js","server/feature-modules.js","skills/ai-plaza/scripts/community-contract.mjs","skills/ai-plaza/scripts/community-context.mjs","skills/ai-plaza/scripts/feature-protocols.mjs","skills/ai-plaza/references/community.md","server/journey.js","shared/journey-layout.js","skills/ai-plaza/scripts/journey-contract.mjs","skills/ai-plaza/scripts/journey-context.mjs","skills/ai-plaza/references/journey.md","deploy/verify-journey.mjs"]
+if tuple(map(int,version.split('.'))) >= (0,35,0):
+    required_paths += ["server/lifestyle.js","server/lifestyle-state.js","skills/ai-plaza/scripts/lifestyle-contract.mjs","skills/ai-plaza/scripts/lifestyle-context.mjs","skills/ai-plaza/references/wardrobe-aquarium.md","docs/V035-WARDROBE-AQUARIUM-CONTRACT.md"]
+for required in required_paths:
     command(["git","-C",str(root),"cat-file","-e",revision+":"+required])
 release=backup/("release-"+prefix+".sh")
 release.write_text(command(["git","-C",str(root),"show",revision+":deploy/release.sh"]).stdout);release.chmod(0o700)
@@ -69,7 +75,7 @@ skill_safe=True
 try:
     # Do not hard-kill the shell: its EXIT/TERM handlers own code/data rollback.
     with (backup/("release-"+prefix+".log")).open("w") as log:
-        result=subprocess.run(["bash",str(release),revision,"0.34.0"],stdout=log,stderr=subprocess.STDOUT,env=env)
+        result=subprocess.run(["bash",str(release),revision,version],stdout=log,stderr=subprocess.STDOUT,env=env)
     phase=json.loads(status.read_text())["phase"] if status.exists() else None
     assert result.returncode==0 and phase=="committed","release failed; inspect private status/log"
     old_skill=tree_hashes(Path("/home/dsh/.agents/skills/ai-plaza"))
@@ -82,7 +88,7 @@ try:
         raise RuntimeError("Skill upgrade failed; old package verified" if skill_safe else "Skill rollback requires operator recovery")
     skill_safe=True
     assert active()
-    print(json.dumps({"stage":"release_and_skill_complete","commit":revision,"version":"0.34.0"}),flush=True)
+    print(json.dumps({"stage":"release_and_skill_complete","commit":revision,"version":version}),flush=True)
 finally:
     state=json.loads(marker.read_text()) if marker.exists() else {}
     phase=json.loads(status.read_text()).get("phase") if status.exists() else None

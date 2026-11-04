@@ -1,4 +1,5 @@
 import { HOME_PIXEL_ART } from './home-pixel-manifest.js';
+import { aquariumGeometry } from './aquarium-art.js';
 
 export const HOME_PALETTE = Object.freeze({
   ink:'#634632', wood:'#b97742', woodLight:'#e5a85b', woodTop:'#ffcd7a', woodShade:'#915731',
@@ -25,7 +26,24 @@ export function homeFurniturePixels(kind, rotation=0, layer='base') {
   const side=normal===90||normal===270, west=normal===90, back=normal===180;
   const box=(x,y,bw,bh,fill,edge=p.ink)=>{r(x,y,bw,bh,edge);r(x+2,y+2,bw-4,bh-4,fill);};
   const leg=(x,y,bh)=>{r(x,y,5,bh,p.ink);r(x+1,y,3,bh-2,p.wood);};
-  if(kind==='chair'){
+  if(kind==='aquarium'){
+    const {water} = aquariumGeometry(normal), bottom=water.y+water.height;
+    // Real glass tank and cabinet. Fish/decorations occupy this clear window;
+    // the room never invents them as part of the furniture texture.
+    box(2,8,w-4,bottom-5,p.blueLight);r(water.x,water.y,water.width,water.height,p.blue);
+    r(water.x,water.y,water.width,4,p.blueLight);r(water.x,bottom-4,water.width,4,'#d9cc94');
+    box(1,4,w-2,7,p.woodLight);r(4,5,w-8,2,p.woodTop);
+    box(1,bottom+1,w-2,h-bottom-7,p.woodLight);r(4,bottom+3,w-8,3,p.woodTop);
+    leg(5,h-9,8);leg(w-10,h-9,8);
+    if(side){
+      const pipe=west?w-7:4;r(pipe,10,3,bottom-6,p.greenDark);r(pipe-2,11,7,3,p.stoneLight);
+      r(west?8:w-12,bottom+10,4,h-bottom-24,p.woodShade);r(west?12:w-16,bottom+10,2,h-bottom-24,p.woodTop);
+    }else if(back){
+      r(6,bottom+8,w-12,3,p.woodShade);r(6,bottom+15,w-12,2,p.woodShade);r(w-12,9,4,bottom-7,p.greenDark);r(w-16,10,8,3,p.stoneLight);
+    }else{
+      const middle=Math.floor(w/2);r(middle,bottom+8,2,h-bottom-19,p.woodShade);r(middle-8,bottom+12,4,3,p.gold);r(middle+6,bottom+12,4,3,p.gold);
+    }
+  }else if(kind==='chair'){
     const sy=Math.round(h*.57), seatLeft=side?3:2, seatW=w-5;
     leg(4,sy+9,h-sy-10);leg(w-9,sy+9,h-sy-10);
     // Back posts and slats rotate with the saved heading, not the entire actor.

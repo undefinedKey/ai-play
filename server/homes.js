@@ -4,10 +4,12 @@ import { RUINS_ITEMS } from '../shared/ruins-layout.js';
 import { findWorldPath, recordMovement, advanceMovement, stopMovement } from './spatial.js';
 import { spendEnergy, publicFatigue } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
+import { AQUARIUM_RULES } from '../skills/ai-plaza/scripts/lifestyle-contract.mjs';
+import { emptyAquarium, publicAquarium } from './lifestyle-state.js';
 
 export const HOME_RULES = Object.freeze({
   version: 1, use_version: 1, books_version: 1, books: { max_books: 8, title_chars: 40, text_chars: 800, write_seconds: 45, cost: { wood: 1, grass: 1 }, max_comments: 10, comment_chars: 200, comment_seconds: 10 }, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', x: 9, y: 8 },
-  build_cost: { wood: 6, grass: 2 }, max_furniture: 12, max_displays: 4, max_guests: 2,
+  build_cost: { wood: 6, grass: 2 }, max_furniture: 16, max_displays: 4, max_guests: 2,
   visit_seconds: 120, invitation_seconds: 600, invitation_cooldown_seconds: 60, max_pending_invitations: 2,
   message_seconds: 10, max_messages: 20, max_move: 3, souvenir_items: ['wood', 'ore', 'pine_cone', ...RUINS_ITEMS.filter(i => i.kind === 'relic').map(i => i.id)],
   furniture_catalog: {
@@ -17,6 +19,7 @@ export const HOME_RULES = Object.freeze({
     display_shelf: { name: '纪念品展架', width: 2, height: 1, cost: { wood: 3, ore: 1 } },
     bed: { name: '木床', width: 2, height: 2, cost: { wood: 5, grass: 4 }, activities: ['rest'] },
     bookshelf: { name: '书架', width: 2, height: 1, cost: { wood: 4, ore: 1 }, activities: ['read'] },
+    aquarium: AQUARIUM_RULES.furniture,
   },
   use: { max_seconds: 120, durations: { sit: 30, eat: 20, read: 45, rest: 60, write: 45 }, recovery_per_second: { sit: .5, eat: .3, read: .3, rest: 2, write: .3 } },
   notice: '建造、布置、来访和使用家具均由本人选择。use先真实走到家具旁，再执行一次有限活动；吃饭须自己选食物，到达才扣1份。cancel/leave可中断，不自动续用。室内有光但饥饿仍消耗；使用中的家具和站位被预约，所有家具占格且不能堵门。',
@@ -101,11 +104,11 @@ export function initializeHomes(world, { restore = false } = {}) {
 export function publicHome(home, { storage = false } = {}) {
   if (!home) return null;
   return { home_id: home.home_id, owner_agent_id: home.owner_agent_id, name: home.name, created_at: home.created_at, updated_at: home.updated_at,
-    furniture: home.furniture.filter(placed).map(f => ({ instance_id: f.instance_id, kind: f.kind, x: f.x, y: f.y, rotation: f.rotation })),
+    furniture: home.furniture.filter(placed).map(f => ({ instance_id: f.instance_id, kind: f.kind, x: f.x, y: f.y, rotation: f.rotation, ...(f.kind === 'aquarium' ? { aquarium: publicAquarium(f.aquarium) } : {}) })),
     displays: home.displays.map(d => ({ display_id: d.display_id, instance_id: d.instance_id, item_id: d.item_id, title: d.title, text: d.text, placed_at: d.placed_at })),
     books: (home.books || []).map(publicBook),
     messages: home.messages.map(m => ({ message_id: m.message_id, author_agent_id: m.author_agent_id, author_name: m.author_name, text: m.text, created_at: m.created_at })),
-    ...(storage ? { storage: home.furniture.filter(f => !placed(f)).map(f => ({ instance_id: f.instance_id, kind: f.kind })) } : {}) };
+    ...(storage ? { storage: home.furniture.filter(f => !placed(f)).map(f => ({ instance_id: f.instance_id, kind: f.kind, ...(f.kind === 'aquarium' ? { aquarium: publicAquarium(f.aquarium) } : {}) })) } : {}) };
 }
 export const publicHomes = world => Object.values(world.state.homes || {}).map(h => publicHome(h));
 export function publicHomePresence(a) {
@@ -175,6 +178,20 @@ function useRoute(world, a, home, furniture) {
   }
   return [...candidates.values()].map(position => ({ position, path: roomPath(home, a.home_presence.position, position, { blocked }) }))
     .filter(o => o.path).sort((a, b) => a.path.length - b.path.length)[0] || null;
+}
+// Shared room geometry for a caller-selected aquarium approach. This exposes
+// actual reachable space without giving the new service a second pathfinder.
+export function homeFurnitureInteraction(world, a, home, furniture) {
+  if (a.home_presence?.home_id !== home.home_id || !placed(furniture)) return { nearby: false, interaction_position: null, path: null };
+  const route = useRoute(world, a, home, furniture), d = Math.min(...cells(furniture).map(c => distance(c, a.home_presence.position)));
+  return { nearby: d >= 1 - 1e-8 && d <= 1 + 1e-8, interaction_position: route?.position || null, path: route?.path || null };
+}
+export function approachHomeFurniture(world, a, home, furniture, fail) {
+  const interaction = homeFurnitureInteraction(world, a, home, furniture);
+  if (interaction.nearby) fail('AQUARIUM_ALREADY_NEAR', '已经在鱼缸旁，可以自行选择查看或操作');
+  if (!interaction.path) fail('HOME_COLLISION', '鱼缸旁没有可到达的空位');
+  recordMovement(a.home_presence, interaction.path, world.now());
+  announce(world, a, home, 'aquarium_approaching', `${a.name}选择走到水族箱旁`, { instance_id: furniture.instance_id, ends_at: a.home_presence.movement?.ends_at });
 }
 function useAvailable(world, a, home, p, fail) {
   if (!home || !a.home_presence) fail('HOME_REQUIRED', '须实际进入小屋才能使用家具');
@@ -340,8 +357,8 @@ export function performHome(world, a, p, fail) {
     announce(world, a, home, 'home_renamed', `${a.name}把小屋命名为「${home.name}」`);
   } else if (p.intent === 'craft') {
     home = ownInside(world, a, fail); if (typeof p.kind !== 'string' || !Object.hasOwn(HOME_RULES.furniture_catalog, p.kind)) fail('INVALID_ACTION', '请选择家具目录内种类');
-    if (home.furniture.length >= 12) fail('HOME_FULL', '家具仓储与摆放共计最多12件');
-    charge(a, HOME_RULES.furniture_catalog[p.kind].cost, fail); home.furniture.push({ instance_id: uid('furniture'), kind: p.kind, x: null, y: null, rotation: 0 }); home.updated_at = now;
+    if (home.furniture.length >= HOME_RULES.max_furniture) fail('HOME_FULL', `家具仓储与摆放共计最多${HOME_RULES.max_furniture}件`);
+    charge(a, HOME_RULES.furniture_catalog[p.kind].cost, fail); home.furniture.push({ instance_id: uid('furniture'), kind: p.kind, x: null, y: null, rotation: 0, ...(p.kind === 'aquarium' ? { aquarium: emptyAquarium() } : {}) }); home.updated_at = now;
     announce(world, a, home, 'home_crafted', `${a.name}制作了${HOME_RULES.furniture_catalog[p.kind].name}`, { kind: p.kind });
   } else if (p.intent === 'place' || p.intent === 'store') {
     home = ownInside(world, a, fail); const f = home.furniture.find(f => f.instance_id === p.instance_id); if (!f) fail('HOME_OWNER_REQUIRED', '只能操作自己拥有的家具');
@@ -485,7 +502,7 @@ export function homesObservation(world, a) {
             if (b.instance_id) add({ intent: 'unshelve_book', book_id: b.book_id });
             for (const f of own.furniture.filter(f => placed(f) && ['bookshelf', 'display_shelf'].includes(f.kind))) if (b.instance_id !== f.instance_id && !furnitureBusy(world, own, f.instance_id) && !own.displays.some(d => d.instance_id === f.instance_id) && (own.books || []).filter(other => other.instance_id === f.instance_id).length < (f.kind === 'bookshelf' ? 8 : 1)) add({ intent: 'shelve_book', book_id: b.book_id, instance_id: f.instance_id });
           }
-          if (own.furniture.length < 12) for (const [kind, def] of Object.entries(HOME_RULES.furniture_catalog)) if (canAfford(a, def.cost)) add({ intent: 'craft', kind });
+          if (own.furniture.length < HOME_RULES.max_furniture) for (const [kind, def] of Object.entries(HOME_RULES.furniture_catalog)) if (canAfford(a, def.cost)) add({ intent: 'craft', kind });
           for (const f of [...own.furniture].sort((a, b) => Number(placed(a)) - Number(placed(b)))) {
             if (furnitureBusy(world, own, f.instance_id)) continue;
             if (placed(f) && !own.displays.some(d => d.instance_id === f.instance_id) && !(own.books || []).some(b => b.instance_id === f.instance_id)) add({ intent: 'store', instance_id: f.instance_id });

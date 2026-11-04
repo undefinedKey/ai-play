@@ -21,6 +21,7 @@ import { initializeEconomy, economyBalance, recordEconomyDelta } from './economy
 import { opportunitiesFor } from './opportunities.js';
 import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFatigueRecovery, tickFatigue } from './fatigue.js';
 import { initializeAppearance, publicAppearance } from './appearance.js';
+import { initializeWardrobe } from './lifestyle-state.js';
 import { initializePresence, seenPresence, departPresence, publicPresence } from './presence.js';
 import { runtimeReport } from './runtime-health.js';
 import { combatStats } from './combat.js';
@@ -207,6 +208,7 @@ export class World extends EventEmitter {
     initializeEconomy(a, this.now(), { initial: true });
     initializeFatigue(a, this.now());
     initializeAppearance(a, this.state.agents);
+    initializeWardrobe(a);
     this.state.agents[a.agent_id] = a; this.commit(); return this.publicAgent(a);
   }
   createController(agentId, { name = '参考运行器', kind = 'external', token: suppliedToken } = {}) {
@@ -311,7 +313,7 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.34.0-journey', recommended_skill_version: '0.34.0', max_capabilities: 16, ...this.features.rules(), ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.35.0-lifestyle', recommended_skill_version: '0.35.0', max_capabilities: 16, ...this.features.rules(), ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
@@ -491,7 +493,7 @@ export class World extends EventEmitter {
     this.features.guard(a, type, p, fail);
     if (a.ruins_job && !['ruins', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('RUINS_BUSY', '正在执行本人选择的遗迹行动，可等待或用ruins cancel结束；下一步由本人决定');
     if (a.fishing && !['fish', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('FISHING_BUSY', '正在执行本人选择的垂钓，可等待或fish cancel；下一步由本人决定');
-    if ((a.home_presence || a.home_travel) && !['home', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('HOME_BUSY', '你在小屋或家园行程中；先用 home leave/cancel 离开或结束行程再进行室外活动；可处理已有合作条款和退还本人托管');
+    if ((a.home_presence || a.home_travel) && !['home', 'wardrobe', 'aquarium', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('HOME_BUSY', '你在小屋或家园行程中；先用 home leave/cancel 离开或结束行程再进行室外活动；可处理已有合作条款和退还本人托管');
     if (a.home_presence && type === 'say' && p.channel !== 'nearby') fail('HOME_CHANNEL_REQUIRED', '屋内仅可向同屋附近角色说话');
     if (a.home_presence?.activity && type === 'inventory' && p.intent === 'use') cancelHomeUse(this, a, 'meal_changed');
     if (type === 'home' && ['leave', 'cancel'].includes(p.intent)) return performHome(this, a, p, fail);

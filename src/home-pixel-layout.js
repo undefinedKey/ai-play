@@ -2,7 +2,7 @@
 // rotated collision footprint and legal interaction point stay authoritative.
 export const HOME_ROOM = Object.freeze({ width: 640, height: 540, floorX: 70, floorY: 135, tileWidth: 50, tileHeight: 42 });
 
-const footprints = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1], bed: [2, 2], bookshelf: [2, 1] };
+const footprints = { chair: [1, 1], table: [2, 1], rug: [2, 2], display_shelf: [2, 1], bed: [2, 2], bookshelf: [2, 1], aquarium: [2, 1] };
 const defaults = {
   chair: { width: 50, height: 64, anchor: { x: 25, y: 64 }, seat: { x: 25, y: 40 } },
   table: { width: 100, height: 72, anchor: { x: 50, y: 72 } },
@@ -10,6 +10,7 @@ const defaults = {
   display_shelf: { width: 100, height: 100, anchor: { x: 50, y: 100 } },
   bed: { width: 100, height: 112, anchor: { x: 50, y: 112 }, seat: { x: 60, y: 63 } },
   bookshelf: { width: 100, height: 100, anchor: { x: 50, y: 100 } },
+  aquarium: { width: 96, height: 82, anchor: { x: 48, y: 81 } },
 };
 
 export function homeFurnitureRotation(item) {

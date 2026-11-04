@@ -14,7 +14,7 @@ export function validHome(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
   const schemas = {
     build: { 'name?': text(30) }, rename: { name: text(30) },
-    craft: { kind: v => ['chair', 'table', 'rug', 'display_shelf', 'bed', 'bookshelf'].includes(v) },
+    craft: { kind: v => ['chair', 'table', 'rug', 'display_shelf', 'bed', 'bookshelf', 'aquarium'].includes(v) },
     use: { instance_id: id, activity: v => ['sit', 'eat', 'read', 'rest'].includes(v), 'item_id?': id, 'book_id?': id },
     write_book: { instance_id: id, title: text(40), text: text(800) },
     shelve_book: { book_id: id, instance_id: id }, unshelve_book: { book_id: id }, book_comment: { book_id: id, text: text(200) },

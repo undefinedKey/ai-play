@@ -2,6 +2,9 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 import { Q_ACTOR_ACTIONS, Q_DIRECTIONS, Q_ACTOR_GEOMETRY, qActorPose, qCharacterPixels, qAccessoryPixels, qGearPixels, qMonsterPixels } from '../../src/q-actor-art.js';
+import { journeyIdentity } from '../../src/journey-pixel-art.js';
+import { wardrobeGarmentPixels, wardrobeHairPixels, wardrobeForegroundPixels } from '../../src/wardrobe-pixel-art.js';
+import { WARDROBE_CATALOG, WARDROBE_DYES, WARDROBE_HAIRSTYLES } from '../../skills/ai-plaza/scripts/lifestyle-contract.mjs';
 
 const oneShot=new Set(['attack','hurt','till','plant','water','harvest','craft','repair','upgrade','cook','eat']);
 export const Q_ACTOR_IDS=Object.freeze(Array.from({length:8},(_,i)=>`wanderer_${i+1}`));
@@ -51,5 +54,25 @@ export async function buildActorAssets({outputDir}){
     fragment.tools[`${id}_${level}`]=await atlas(outputDir,`${id}_${level}`,state=>qGearPixels(id,state,level));
     fragment.tool_icons[`${id}_${level}_icon`]=await icon(outputDir,`${id}_${level}_icon`,state=>qGearPixels(id,state,level));
   }
+  return fragment;
+}
+
+/** Optional worn layers share original actor geometry; unpublished wardrobes
+ * never create sprites. The manifest compacts their identical animation tables. */
+export async function buildWardrobeAssets({outputDir}) {
+  await mkdir(outputDir,{recursive:true});
+  const fragment={wardrobe:{},hairstyles:{},characters_no_hat:{},characters_no_hair:{},wardrobe_hands:{}};
+  for(const id of Q_ACTOR_IDS) {
+    const identity=journeyIdentity({agent_id:id,appearance:{sprite_id:id,seed:id}});
+    fragment.characters_no_hair[id]=await atlas(outputDir,`${id}_no_hair`,state=>qCharacterPixels(id,state).filter(p=>!['hair','hat','hood'].includes(p.part)));
+    if(['wanderer_2','wanderer_8'].includes(id))fragment.characters_no_hat[id]=await atlas(outputDir,`${id}_no_hat`,state=>qCharacterPixels(id,state).filter(p=>!['hat','hood'].includes(p.part)));
+    for(const {id:style} of WARDROBE_HAIRSTYLES.filter(item=>item.id!=='original'))
+      fragment.hairstyles[`hair_${style}_${id}`]=await atlas(outputDir,`hair_${style}_${id}`,state=>wardrobeHairPixels(style,identity,qActorPose(state.action,state.direction,state.frame)));
+    const skinKey=['#ffdbb1','#efbd8b','#dba775'].indexOf(identity.skin);
+    const existing=Object.values(fragment.wardrobe_hands).find(sprite=>sprite.image.endsWith(`q_hands_${skinKey}.png`));
+    fragment.wardrobe_hands[id]=existing||await atlas(outputDir,`hands_${skinKey}`,state=>wardrobeForegroundPixels(identity,qActorPose(state.action,state.direction,state.frame),qCharacterPixels(id,state)));
+  }
+  for(const item of WARDROBE_CATALOG)for(const dye of WARDROBE_DYES)
+    fragment.wardrobe[`${item.id}_${dye.id}`]=await atlas(outputDir,`wear_${item.id}_${dye.id}`,state=>wardrobeGarmentPixels(item.id,dye.id,qActorPose(state.action,state.direction,state.frame)));
   return fragment;
 }

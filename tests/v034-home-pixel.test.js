@@ -17,7 +17,8 @@ function validPixels(drawing){
   }
 }
 test('new native home drawings preserve every saved rotation, foot, seat and clipping envelope',()=>{
-  for(const [kind,spec] of Object.entries(HOME_PIXEL_ART)){
+  for(const kind of Object.keys(HOME_ARCHIVE_ART)){
+    const spec=HOME_PIXEL_ART[kind];
     const paintings=[];
     for(const rotation of [0,90,180,270]){
       const art=spec.variants[rotation],old=HOME_ARCHIVE_ART[kind].variants[rotation];

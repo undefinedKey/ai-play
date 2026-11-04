@@ -1,11 +1,22 @@
 import { PEER_MARKET_RULES, initializePeerMarket, publicPeerMarket, peerMarketObservation, tickPeerMarket, endPeerMarket, performPeerMarket } from './peer-market.js';
 import { COMMUNITY_RULES, initializeCommunity, publicCommunity, publicCommunityJob, communityObservation, tickCommunity, endCommunity, cancelCommunityUse, performCommunity, communityJob } from './community.js';
 import { JOURNEY_RULES, initializeJourney, publicJourney, publicJourneyJob, journeyObservation, tickJourney, endJourney, cancelJourney, performJourney, journeyJob } from './journey.js';
+import { WARDROBE_RULES, AQUARIUM_RULES, initializeLifestyle, publicWardrobe, wardrobeObservation, aquariumObservation, performWardrobe, performAquarium } from './lifestyle.js';
 
 // Explicit adapters for two existing world services, not a runtime plugin loader.
 // Each service owns its state, validation, public projection and lifecycle. Hooks
 // always receive the live World: rejected commands replace world.state atomically.
 const MODULES = Object.freeze([
+  Object.freeze({
+    id: 'wardrobe', rules: WARDROBE_RULES, initialize: initializeLifestyle, perform: performWardrobe,
+    publicWorld: () => ({ version: 1 }), publicAgent: a => ({ wardrobe: publicWardrobe(a) }), observe: wardrobeObservation,
+    tick: () => false, detach: () => {}, passive: p => p.intent === 'browse',
+  }),
+  Object.freeze({
+    id: 'aquarium', rules: AQUARIUM_RULES, initialize: () => {}, perform: performAquarium,
+    publicWorld: () => ({ version: 1 }), observe: aquariumObservation,
+    tick: () => false, detach: () => {}, passive: p => ['browse', 'inspect'].includes(p.intent), managesEconomy: true,
+  }),
   Object.freeze({
     id: 'journey', rules: JOURNEY_RULES,
     initialize: initializeJourney, perform: performJourney,

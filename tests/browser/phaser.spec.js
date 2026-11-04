@@ -121,6 +121,11 @@ test('画布像素沿真实折线路径逐段移动，减少动态停止播放�
  await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeGreaterThan(10);
  expect(raw.position.x).toBe(10);expect(raw.position.y).toBeCloseTo(10.4,5);
  await page.emulateMedia({reducedMotion:'reduce'});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
+ // Reduced motion stops frame playback, but a finite walk can still expire to
+ // its idle pose. Compare a settled semantic state, not two different actions.
+ await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action','idle');
+ await expect(unit).toHaveAttribute('data-foot-x','10');
+ expect(Number(await unit.getAttribute('data-foot-y'))).toBeCloseTo(10.4,5);
  const still=await settledPixels(page);await page.waitForTimeout(400);expect(await pixels(page)).toEqual(still);
  await page.emulateMedia({reducedMotion:'no-preference'});
  clock+=400;app.world.tick();await a.act('move',{x:10,y:9});clock+=1000;app.world.tick();await a.act('gather',{intent:'start',resource_id:'wood'});

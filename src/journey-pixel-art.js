@@ -1,5 +1,7 @@
 // Original hand-authored pixel clusters. No copied game assets or downsampled
 // ink illustrations: every rectangle is an integer cell in a 48×48 sprite.
+import { visibleWardrobe } from './wardrobe-state.js';
+import { WARDROBE_PIXEL_DYES, wardrobeGarmentPixels, wardrobeHairPixels } from './wardrobe-pixel-art.js';
 export const JOURNEY_SPRITE_GEOMETRY = Object.freeze({ width: 48, height: 48, foot: { x: 24, y: 43 } });
 const palettes = [
   { hair: '#714631', hairLight: '#a76e40', coat: '#65a744', coatLight: '#a6d96b', pants: '#516443' },
@@ -77,10 +79,12 @@ function toolPixels(d, id, pose, p) {
 }
 export function journeyCharacterPixels(actor, state) {
   const p = journeyIdentity(actor), d = drawing(), r = d.r;
+  const wardrobe=visibleWardrobe(actor),w=wardrobe.wearing,outfitColors=w.outfit&&WARDROBE_PIXEL_DYES[w.outfit.color_id];
   const frame = state.frame || 0, moving = ['walk', 'run'].includes(state.action), seated = state.action === 'rest';
   const stride = moving ? (state.action === 'run' ? [-4, 0, 4, 0] : [-2, 0, 2, 0])[frame % 4] : 0;
   const bob = moving ? frame % 2 === 1 ? -1 : 0 : state.action === 'gather' && frame === 2 ? 1 : 0;
   const by = bob + (seated ? 5 : 0), toolPose = state.action === 'attack' ? frame < 2 ? 'raised' : 'strike' : state.action === 'gather' ? frame < 2 ? 'raised' : 'strike' : 'idle';
+  const wardrobePose={action:state.action,direction:'east',frame,by,seated};
   if (seated) { r(16, 38, 17, 4, p.outline, 'legs'); r(17, 38, 14, 2, p.pants, 'legs'); r(28, 40, 8, 3, p.boots, 'legs'); }
   else { leg(d, 18 - stride, 36 + (moving && frame === 1 ? -1 : 0), p, true, moving && frame === 1); leg(d, 25 + stride, 36 + (moving && frame === 3 ? -1 : 0), p, false, moving && frame === 3); }
   // Far arm, short tunic, and collar make a two-head-high silhouette.
@@ -89,6 +93,8 @@ export function journeyCharacterPixels(actor, state) {
   r(17, 27 + by, 14, 11, p.outline); r(18, 28 + by, 12, 8, p.coat); r(19, 28 + by, 4, 8, p.coatLight); r(18, 35 + by, 12, 2, p.coat);
   r(22, 26 + by, 7, 3, p.skin); r(21, 28 + by, 9, 2, p.coatLight); r(25, 30 + by, 2, 6, '#fff0b0'); r(26, 32 + by, 1, 1, '#956d46');
   r(28, 33 + by, 2, 2, p.accent, 'identity-badge');
+  if(w.outfit){d.pixels.push(...wardrobeGarmentPixels(w.outfit.style_id,w.outfit.color_id,wardrobePose));r(14-Math.round(stride/2),29+by,4,5,w.outfit.style_id==='garden_apron'?'#fff0c8':outfitColors[0],'wardrobe-far-sleeve');}
+  if(w.back)d.pixels.push(...wardrobeGarmentPixels(w.back.style_id,w.back.color_id,wardrobePose));
   // Keep equipped armor visible, while all body and identity colors remain stable.
   const armor = actor.life?.equipment?.armor;
   if (armor === 'wooden_shield') {
@@ -116,14 +122,21 @@ export function journeyCharacterPixels(actor, state) {
   else { r(24, 18 + hy, 3, 4, p.outline, 'eyes'); r(30, 18 + hy, 2, 4, p.outline, 'eyes'); r(24, 18 + hy, 1, 1, '#fffdf0', 'eyes'); r(30, 18 + hy, 1, 1, '#fffdf0', 'eyes'); }
   r(20, 22 + hy, 3, 1, '#e8957a', 'face'); r(30, 23 + hy, 2, 1, '#e8957a', 'face'); r(27, 24 + hy, 2, 1, '#a26555', 'face');
   if (p.variant === 1) { r(14, 5 + hy, 17, 7, '#9d723e', 'hat'); r(16, 6 + hy, 13, 5, '#e4bb68', 'hat'); r(10, 11 + hy, 26, 3, p.outline, 'hat'); r(11, 11 + hy, 24, 2, '#f0d285', 'hat'); }
+  if(wardrobe.hairstyle!=='original'||w.head){
+    const hidden=new Set(wardrobe.hairstyle!=='original'?['hair','hat','hood']:['hat','hood']);
+    for(let i=d.pixels.length-1;i>=0;i--)if(hidden.has(d.pixels[i].part))d.pixels.splice(i,1);
+    if(wardrobe.hairstyle!=='original')d.pixels.push(...wardrobeHairPixels(wardrobe.hairstyle,p,wardrobePose));
+  }
   if (p.accessory === 'leaf') { r(13, 9 + hy, 4, 2, '#a8d55f', 'accessory'); r(11, 7 + hy, 4, 3, '#5fa64e', 'accessory'); r(12, 8 + hy, 2, 1, '#cbe78c', 'accessory'); }
   else if (p.accessory === 'ribbon') { r(12, 10 + hy, 4, 3, p.accent, 'accessory'); r(16, 11 + hy, 2, 2, '#ffe39d', 'accessory'); r(18, 10 + hy, 4, 3, p.accent, 'accessory'); }
   else if (p.accessory === 'star') { r(14, 9 + hy, 2, 6, '#ffe482', 'accessory'); r(12, 11 + hy, 6, 2, '#f0bd48', 'accessory'); }
   else { r(18, 27 + by, 13, 3, p.accent, 'accessory'); r(17, 29 + by, 4, 6, p.accent, 'accessory'); r(18, 33 + by, 2, 1, '#ffe9ae', 'accessory'); }
+  if(w.head)d.pixels.push(...wardrobeGarmentPixels(w.head.style_id,w.head.color_id,wardrobePose));
   let armX = 29 + Math.round(stride / 2), armY = 29 + by;
   if (['attack', 'gather'].includes(state.action)) { armX = toolPose === 'raised' ? 28 : 32; armY = toolPose === 'raised' ? 24 : 29 + by; }
   if (state.action === 'eat') { armX = 29; armY = 24 + (frame % 2); }
   r(armX, armY, 6, 6, p.outline, 'near-arm'); r(armX + 1, armY, 4, 4, p.coatLight, 'near-arm'); hand(d, armX + 1, armY + 4, p);
+  if(w.outfit)r(armX+1,armY,4,4,w.outfit.style_id==='garden_apron'?'#fff0c8':outfitColors[1],'wardrobe-near-sleeve');
   const held = state.action === 'gather' ? actor.life?.gathering?.tool_id : ['rest', 'eat'].includes(state.action) ? null : actor.life?.equipment?.weapon;
   toolPixels(d, held, toolPose, p);
   if (state.action === 'eat') foodPixels(d, state.itemId, frame);

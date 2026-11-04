@@ -55,6 +55,31 @@ def template():
 def remote_literal():
     return (REPO / 'deploy/release-orchestrator.py.tmpl').read_text(encoding='utf-8')
 
+# An independently declared v034 bundle inventory. Do not derive this from the
+# orchestrator: otherwise a misspelled/newly required path would pass the drill.
+V034_BUNDLE_PATHS = [
+    'deploy/verify-migration.py', 'deploy/verify-survival.mjs', 'deploy/verify-journey.mjs',
+    'server/homes.js', 'server/fishing.js', 'server/ruins.js', 'server/peer-market.js',
+    'server/community.js', 'server/feature-modules.js', 'server/journey.js',
+    'shared/fishing-layout.js', 'shared/ruins-layout.js', 'shared/maps/ruins.json',
+    'shared/peer-market.js', 'shared/journey-layout.js',
+    *['skills/ai-plaza/scripts/' + name + '.mjs' for name in [
+        'survival-context', 'homes-context', 'fishing-context', 'ruins-context', 'peer-market-context',
+        'community-contract', 'community-context', 'feature-protocols', 'journey-contract', 'journey-context']],
+    *['skills/ai-plaza/references/' + name + '.md' for name in [
+        'survival', 'homes', 'fishing-books', 'ruins', 'peer-market', 'community', 'journey']],
+]
+V035_BUNDLE_PATHS = ['server/lifestyle.js', 'server/lifestyle-state.js',
+    'skills/ai-plaza/scripts/lifestyle-contract.mjs', 'skills/ai-plaza/scripts/lifestyle-context.mjs',
+    'skills/ai-plaza/references/wardrobe-aquarium.md', 'docs/V035-WARDROBE-AQUARIUM-CONTRACT.md']
+
+def populate_bundle(candidate, version):
+    paths = V034_BUNDLE_PATHS + (V035_BUNDLE_PATHS if tuple(map(int, version.split('.'))) >= (0, 35, 0) else [])
+    for relative in paths:
+        path = candidate / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists(): path.write_text('Fixture artifact for ' + relative + '\n', encoding='utf-8')
+
 FAKE_COMMAND = r'''#!/usr/bin/env python3
 import json,os,sys,sqlite3,shutil
 from contextlib import closing
@@ -68,9 +93,10 @@ def version(): return json.loads((r/'opt/ai-plaza/package.json').read_text())['v
 if cmd=='git':
     if 'clone' in args: shutil.copytree(r/'candidate',Path(args[-1]))
     elif 'rev-parse' in args: print('a'*40)
-    elif 'show' in args: print((r/'candidate/deploy/release.sh').read_text())
+    elif 'show' in args: print((r/('candidate/package.json' if args[-1].endswith(':package.json') else 'candidate/deploy/release.sh')).read_text())
     elif 'cat-file' in args:
         log('bundle:validate')
+        if ':' in args[-1] and not (r/'candidate'/args[-1].split(':',1)[1]).is_file(): sys.exit(1)
         if stage=='bundle' and args[-1].endswith(':deploy/verify-survival.mjs'): sys.exit(1)
 elif cmd=='npm':
     assert s['bridge']; log('prepare:npm')
@@ -132,6 +158,68 @@ else: raise RuntimeError('unexpected fake command '+cmd)
 '''
 
 class RecoveryDrills(unittest.TestCase):
+    def test_versioned_bundle_preflight(self):
+        # Execute the real orchestrator preflight only, with Git/systemctl I/O
+        # confined to explicit files and stubs. No shell, SSH or services run.
+        r=self.fixture()
+        (r/'opt/ai-plaza').mkdir(parents=True)
+        (r/'opt/ai-plaza/package.json').write_text('{"version":"0.33.0"}')
+        candidate=r/'candidate'; candidate.mkdir()
+        calls=[]
+        def command(args, **kwargs):
+            calls.append(args)
+            output=''; code=0
+            if args[0]=='runuser':
+                self.assertEqual(args[-2:],['is-active','ai-plaza-bridge.service']); output='active'
+            elif args[0]=='git':
+                if 'rev-parse' in args: output='a'*40
+                elif 'show' in args:
+                    self.assertEqual(args[-1], 'a'*40+':package.json'); output=(candidate/'package.json').read_text()
+                elif 'cat-file' in args: code=0 if (candidate/args[-1].split(':',1)[1]).is_file() else 1
+                else: self.assertTrue('fetch' in args or 'status' in args)
+            else: self.fail('unexpected preflight command '+str(args))
+            return subprocess.CompletedProcess(args,code,stdout=output,stderr='')
+        def preflight(extra_required=None):
+            source=remote_literal().split('release=backup/(',1)[0]
+            source=source.replace('REVISION',repr('a'*40)).replace('MIGRATION',repr('')).replace('SKILL',repr(''))
+            for path in ['/opt/ai-plaza','/var/backups/ai-plaza']: source=source.replace(path,r.as_posix()+path)
+            if extra_required: source=source.replace('for required in required_paths:', 'required_paths.append('+repr(extra_required)+')\nfor required in required_paths:')
+            previous_umask=os.umask(0o077)
+            try:
+                with patch.object(sys,'argv',['orchestrator.py','release']), patch.object(subprocess,'run',side_effect=command):
+                    exec(compile(source,'release-preflight-fixture','exec'),{'__file__':str(r/'orchestrator.py')})
+            finally: os.umask(previous_umask)
+        for version in ['0.34.0','0.35.0','0.100.0','1.0.0']:
+            with self.subTest(version=version):
+                (candidate/'package.json').write_text(json.dumps({'version':version})); populate_bundle(candidate,version)
+                calls.clear(); preflight()
+                checked=[args[-1].split(':',1)[1] for args in calls if 'cat-file' in args]
+                expected=V034_BUNDLE_PATHS+(V035_BUNDLE_PATHS if version!='0.34.0' else [])
+                self.assertEqual(set(checked),set(expected))
+        with self.assertRaises(RuntimeError): preflight('server/not-in-the-target.js')
+        for relative in V035_BUNDLE_PATHS:
+            path=candidate/relative; contents=path.read_text(); path.unlink()
+            try:
+                with self.subTest(missing=relative), self.assertRaises(RuntimeError): preflight()
+            finally: path.write_text(contents)
+
+    def test_wardrobe_and_aquarium_preservation(self):
+        old=template(); new=copy.deepcopy(old)
+        empty={'version':1,'hairstyle':'original','items':[],'wearing':{'outfit':None,'head':None,'back':None},'page':0}
+        new['agents']['a']['wardrobe']=copy.deepcopy(empty)
+        MIGRATION.compare_states(old,new)
+        changed=copy.deepcopy(new); changed['agents']['a']['wardrobe']['hairstyle']='ponytail'
+        with self.assertRaisesRegex(AssertionError,'wardrobe preserved'): MIGRATION.compare_states(old,changed)
+        old=copy.deepcopy(new)
+        old['agents']['a']['wardrobe'].update(items=[{'garment_id':'garment_owned','style_id':'linen_shirt','color_id':'rose','created_at':1}],wearing={'outfit':'garment_owned','head':None,'back':None},page=1)
+        old['homes']={'home_a':{'furniture':[{'kind':'aquarium','instance_id':'tank_owned','aquarium':{'version':1,'fish':[{'fish_id':'fish_owned','item_id':'pond_fish','name':'鱼','added_at':1}],'decorations':[{'slot':0,'decoration_id':'water_grass'}]}}]}}
+        new=copy.deepcopy(old); MIGRATION.compare_states(old,new)
+        for field,value in [('items',[]),('hairstyle','bob'),('page',0)]:
+            changed=copy.deepcopy(new);changed['agents']['a']['wardrobe'][field]=value
+            with self.assertRaisesRegex(AssertionError,'wardrobe preserved'):MIGRATION.compare_states(old,changed)
+        changed=copy.deepcopy(new);changed['homes']['home_a']['furniture'][0]['aquarium']['fish']=[]
+        with self.assertRaisesRegex(AssertionError,'houses, furniture'):MIGRATION.compare_states(old,changed)
+
     def fixture(self):
         directory = tempfile.TemporaryDirectory(prefix='plaza-release-drill-'); self.addCleanup(directory.cleanup)
         r = Path(directory.name); (r/'var/lib/ai-plaza').mkdir(parents=True); (r/'var/backups/ai-plaza').mkdir(parents=True)
@@ -254,6 +342,7 @@ class RecoveryDrills(unittest.TestCase):
         (r/'candidate/deploy/verify-history.mjs').write_text('// Simulated only in this release fault drill.\n')
         (r/'candidate/deploy/verify-scenes.mjs').write_text('// Real locations are checked by migration-v017.test.js.\n')
         (r/'candidate/deploy/verify-survival.mjs').write_text('// Real survival migration is checked separately.\n')
+        populate_bundle(r/'candidate', '0.34.0')
         (r/'etc/ai-plaza/server.env').write_text('FIXTURE_ONLY=true\n')
         (r/'home/dsh/.config/ai-plaza/bridge.env').write_text('FIXTURE_ONLY=true\n')
         skill=r/'home/dsh/.agents/skills/ai-plaza'; (skill/'config.json').write_text('{}'); (skill/'version.json').write_text('{"version":"0.33.0"}')
