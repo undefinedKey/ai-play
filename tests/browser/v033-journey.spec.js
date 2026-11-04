@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { readFileSync } from 'node:fs';
 import { createHomesFixture } from '../helpers/homes-fixture.js';
 
 let f;
@@ -57,11 +56,6 @@ test('v033 actual encounter combat gathering and camp rest use the same identity
   await f.until(() => !actor.raw.adventure.plan);
   await actor.act('inventory', { intent: 'craft', item_id: 'axe' });
   const sprite = actor.raw.appearance.sprite_id;
-  // Only this isolated browser fixture opts its random actor into the existing
-  // Feiyu rig. Production eligibility and the original saved identity stay intact.
-  const manifest = JSON.parse(readFileSync(new URL('../../public/pixel-world/manifest.json', import.meta.url), 'utf8'));
-  manifest.paper_dolls.feiyu_v1.eligible_agent_ids = [actor.id];
-  await page.route('**/pixel-world/manifest.json*', route => route.fulfill({ json: manifest }));
   await enter(actor);
   const checks = audit(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -70,7 +64,7 @@ test('v033 actual encounter combat gathering and camp rest use the same identity
   await expect(unit).toBeVisible();
   await unit.click();
   await expect(unit.locator('.pixel-character')).toHaveAttribute('data-sprite-id', sprite);
-  await expect(unit.locator('.pixel-character')).toHaveAttribute('data-render-rig', /.+/);
+  await expect(unit.locator('.journey-pixel-sprite')).toHaveAttribute('data-art-style', 'original-pixel');
   await actor.act('journey', { intent: 'travel', node_id: 'camp', route: 'direct', mode: 'run' });
   await f.advance(100);
   await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action', 'run');
@@ -83,10 +77,15 @@ test('v033 actual encounter combat gathering and camp rest use the same identity
   await actor.act('say', { channel: 'nearby', text: '先看看这条小路，再决定走向哪里。' });
   await expect(page.getByTestId('speech-cloud')).toContainText('先看看');
   await page.getByTestId('journey-viewport').screenshot({ path: 'artifacts/v033-sideview-encounter.png' });
+  await page.getByRole('button', { name: '关闭林间行者的发言气泡' }).click();
   await actor.act('journey', { intent: 'hunt', monster_id: 'journey_slime' });
   await f.until(() => actor.raw.journey_job?.phase === 'fighting');
   await f.advance(100);
   await expect(page.getByTestId('observer-execution')).toContainText('正在交战');
+  await expect(page.getByTestId('journey-battle-banner')).toContainText('交战中');
+  await f.until(() => actor.raw.action?.outcome === 'hit');
+  await expect(page.getByTestId('journey-monster-journey_slime').locator('.journey-pixel-sprite')).toHaveAttribute('data-action', 'hurt');
+  await page.getByTestId('journey-viewport').screenshot({ path: 'artifacts/v033-sideview-combat.png' });
   await f.until(() => !actor.raw.journey_job);
   await expect(page.getByTestId('journey-monster-journey_slime')).toHaveClass(/defeated/);
   expect(actor.raw.adventure.kills).toBe(1);
@@ -94,7 +93,8 @@ test('v033 actual encounter combat gathering and camp rest use the same identity
   await actor.act('gather', { intent: 'start', node_id: 'journey_pine' });
   await f.until(() => actor.raw.life.gathering?.phase === 'working');
   await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action', 'gather');
-  await expect(unit.locator('.pixel-tool')).toHaveAttribute('data-item', 'axe');
+  expect(await unit.locator('[data-part="tool"]').count()).toBeGreaterThan(0);
+  expect((await actor.observe()).self.life.gathering.tool_id).toBe('axe');
   await expect(page.getByTestId('observer-execution')).toContainText('正在采集');
   await page.getByTestId('journey-viewport').screenshot({ path: 'artifacts/v033-sideview-gather.png' });
   await f.until(() => !actor.raw.life.gathering);
@@ -156,16 +156,13 @@ test('v033 actual bypass remains below the monster; disconnect freezes received 
   expect(checks.writes).toEqual([]); expect(checks.errors).toEqual([]);
 });
 
-test('v033 running interpolates real positions and independent rig limbs between world ticks; stop ends the gait', async ({ page }) => {
+test('v033 running interpolates real positions and original pixel gait frames between world ticks; stop ends the gait', async ({ page }) => {
   const actor = await f.actor('奔跑验证旅人');
-  const manifest = JSON.parse(readFileSync(new URL('../../public/pixel-world/manifest.json', import.meta.url), 'utf8'));
-  manifest.paper_dolls.feiyu_v1.eligible_agent_ids = [actor.id];
-  await page.route('**/pixel-world/manifest.json*', route => route.fulfill({ json: manifest }));
   await enter(actor);
   const checks = audit(page);
   await page.goto(f.base + '/watch?view=journey');
   const unit = page.getByTestId(`journey-agent-${actor.id}`);
-  await expect(unit.locator('.paper-doll-rig')).toBeAttached();
+  await expect(unit.locator('.journey-pixel-sprite')).toBeAttached();
   await unit.click();
   await page.evaluate(id => {
     window.journeySamples = [];
@@ -176,7 +173,8 @@ test('v033 running interpolates real positions and independent rig limbs between
       if (element) window.journeySamples.push({
         x: Number(element.dataset.footX),
         action: element.querySelector('.pixel-character')?.dataset.action,
-        parts: [...element.querySelectorAll('[data-rig-part]')].map(part => `${part.dataset.rigPart}:${part.style.transform}:${part.style.translate}`),
+        frame: element.querySelector('.journey-pixel-sprite')?.dataset.frame,
+        pixels: [...element.querySelectorAll('.journey-pixel-sprite rect')].map(part => [part.getAttribute('x'),part.getAttribute('y'),part.getAttribute('width'),part.getAttribute('height')].join(',')),
         camera: Number(document.querySelector('.journey-stage')?.dataset.cameraX),
       });
       requestAnimationFrame(sample);
@@ -190,8 +188,9 @@ test('v033 running interpolates real positions and independent rig limbs between
   const samples = await page.evaluate(() => { window.journeySampling = false; return window.journeySamples.filter(row => row.action === 'run'); });
   expect(samples.length).toBeGreaterThan(10);
   expect(new Set(samples.map(row => row.x)).size).toBeGreaterThan(8);
-  expect(new Set(samples.map(row => row.parts.join('|'))).size).toBeGreaterThan(8);
-  expect(samples.every(row => row.parts.length >= 15 && row.parts.every(part => !/NaN|Infinity/.test(part)))).toBe(true);
+  expect(new Set(samples.map(row => row.frame)).size).toBeGreaterThanOrEqual(3);
+  expect(new Set(samples.map(row => row.pixels.join('|'))).size).toBeGreaterThanOrEqual(3);
+  expect(samples.every(row => row.pixels.length >= 20 && row.pixels.every(part => !/NaN|Infinity/.test(part)))).toBe(true);
   for (let i = 1; i < samples.length; i++) expect(samples[i].x).toBeGreaterThanOrEqual(samples[i - 1].x - .02);
   expect(actor.raw.position.x).toBeGreaterThan(2);
   expect(actor.raw.position.x).toBeLessThan(12);
