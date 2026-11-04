@@ -40,6 +40,8 @@ async function startSamples(page,ids){
         if(body)state.rows.push({id,at:performance.now(),action:actor.dataset.action,animation:body.dataset.animationAction,
           source:body.style.backgroundImage+' '+body.style.backgroundPosition,
           pose:body.style.transform+' '+body.style.translate,
+          style:body.dataset.artStyle,frame:body.style.backgroundPosition,
+          gearFrame:actor.querySelector('.pixel-tool,.pixel-weapon')?.style.backgroundPosition??null,
           foot:[Number(unit.dataset.footX),Number(unit.dataset.footY)],tool:actor.querySelector('.pixel-tool')?.dataset.item??null});
       }
       state.timer=requestAnimationFrame(frame);
@@ -48,7 +50,7 @@ async function startSamples(page,ids){
 }
 async function stopSamples(page){return page.evaluate(()=>{cancelAnimationFrame(window.motionPolish.timer);return window.motionPolish.rows;});}
 
-test('v023真实走路采用更多支撑关键帧和连续姿态，世界足点仍限于获准路径',async({page})=>{
+test('真实Q像素走路连续推进足点并同步身体装备关键帧，世界足点仍限于获准路径',async({page})=>{
   const epoch=Date.now();let simulationTime=epoch;app.world.now=()=>simulationTime;
   const a=actor('连续步态验证旅人','wanderer_7');
   a.raw.position={x:9,y:10};a.raw.position_at=simulationTime;
@@ -70,11 +72,16 @@ test('v023真实走路采用更多支撑关键帧和连续姿态，世界足点�
   const rows=(await stopSamples(page)).filter(row=>row.action==='walk');
   const sourceCount=new Set(rows.map(row=>row.source)).size;
   expect(sourceCount).toBeGreaterThanOrEqual(4);
-  expect(rows.some(row=>row.source.includes('ink_motion_wanderer_7'))).toBe(true);
-  // This is a continuity assertion, not an FPS benchmark: changing the torso
-  // between atlas keys must produce more poses than discrete source frames.
-  expect(new Set(rows.map(row=>row.pose)).size).toBeGreaterThan(sourceCount);
-  expect(new Set(rows.map(row=>row.foot.join(','))).size).toBeGreaterThan(3);
+  expect(rows.every(row=>row.style==='q-pixel'&&row.source.includes('q_wanderer_7.png'))).toBe(true);
+  // Q limb/bob motion is authored into its four crisp keys. Continuity belongs
+  // to the actual path foot; a CSS torso wobble must not invent extra movement.
+  expect(new Set(rows.map(row=>row.pose)).size).toBe(1);
+  expect(rows.every(row=>row.gearFrame===row.frame)).toBe(true);
+  expect(new Set(rows.map(row=>row.foot.join(','))).size).toBeGreaterThan(sourceCount);
+  for(let i=1;i<rows.length;i++){
+    expect(rows[i].foot[0]).toBeGreaterThanOrEqual(rows[i-1].foot[0]-.00001);
+    expect(rows[i].foot[0]-rows[i-1].foot[0]).toBeLessThanOrEqual(.3);
+  }
   expect(rows.every(row=>row.foot[0]>=9&&row.foot[0]<=12&&row.foot[1]===10)).toBe(true);
   expect(a.raw.position).toEqual({x:12,y:10});
   await expect(unit.locator('.pixel-weapon')).toHaveAttribute('data-item','iron_sword');
@@ -107,7 +114,10 @@ test('v023徒手反复俯身拾取与站立挥斧有不同动作，取消不产�
   expect(new Set(late.map(row=>row.source)).size).toBeGreaterThan(1);
   expect(handRows.every(row=>row.tool===null&&row.animation==='plant')).toBe(true);
   expect(axeRows.every(row=>row.tool==='axe'&&row.animation==='gather')).toBe(true);
-  expect(new Set(axeRows.map(row=>row.pose)).size).toBeGreaterThan(new Set(axeRows.map(row=>row.source)).size);
+  expect(new Set(axeRows.map(row=>row.source)).size).toBeGreaterThanOrEqual(3);
+  expect(new Set(axeRows.map(row=>row.pose)).size).toBe(1);
+  expect(axeRows.every(row=>row.style==='q-pixel'&&row.gearFrame===row.frame&&row.foot[0]===28&&row.foot[1]===7)).toBe(true);
+  expect(handRows.every(row=>row.style==='q-pixel'&&row.foot[0]===11&&row.foot[1]===8)).toBe(true);
   expect(hand.raw.life.inventory.wood??0).toBe(initial.handWood);expect(axe.raw.life.inventory.wood??0).toBe(initial.axeWood);
   hand.act('gather',{intent:'cancel'});axe.act('gather',{intent:'cancel'});
   await expect(handUnit.locator('.pixel-character')).not.toHaveAttribute('data-action','gather');

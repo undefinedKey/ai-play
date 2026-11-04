@@ -6,11 +6,6 @@ let f;
 test.beforeEach(async () => { f = await createHomesFixture({ starterItems: { wood: 70, grass: 60, ore: 12 } }); });
 test.afterEach(async () => { await f.close(); });
 
-async function originalRig(page, id) {
-  const manifest = await (await fetch(f.base + '/pixel-world/manifest.json')).json();
-  manifest.paper_dolls.feiyu_v1.eligible_agent_ids = [id];
-  await page.route('**/pixel-world/manifest.json*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) }));
-}
 async function accessible(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
@@ -29,7 +24,6 @@ test('v027 true shore approach, fishing, completion and cancellation remain read
   await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
   await p.act('inventory', { intent: 'craft', item_id: 'fishing_rod' });
   await p.act('inventory', { intent: 'craft', item_id: 'fish_bait' });
-  await originalRig(page, p.id);
   const audit = readOnly(page);
   await p.act('fish', { intent: 'start', spot_id: 'plaza_pond_south', bait_id: 'fish_bait' });
   await page.goto(f.base + '/watch?view=plaza');
@@ -43,7 +37,9 @@ test('v027 true shore approach, fishing, completion and cancellation remain read
   const actor = page.getByTestId(`map-agent-${p.id}`);
   await expect(actor).toHaveAttribute('data-foot-x', '3'); await expect(actor).toHaveAttribute('data-foot-y', '4');
   await expect(actor.locator('.pixel-character')).toHaveAttribute('data-action', 'fish');
-  await expect(actor.locator('.paper-doll-rig')).toBeVisible();
+  await expect(actor.locator('.pixel-character')).toHaveAttribute('data-art-style','q-pixel');
+  await expect(actor.locator('.pixel-character>.pixel-sprite').first()).toHaveAttribute('data-animation-action','fish');
+  await expect(actor.locator('.pixel-tool')).toHaveAttribute('data-item','fishing_rod');
   await expect(actor.locator('.pixel-character')).toHaveAttribute('data-sprite-id', p.raw.appearance.sprite_id);
   await actor.click(); await page.getByRole('button', { name: '定位角色', exact: true }).click();
   for (const [width, height] of [[1440, 1000], [390, 844]]) {
@@ -52,7 +48,7 @@ test('v027 true shore approach, fishing, completion and cancellation remain read
   }
   await page.emulateMedia({ reducedMotion: 'reduce' }); await page.reload();
   await expect(page.getByTestId(`fishing-line-${p.id}`)).toHaveAttribute('data-playing', 'false');
-  await expect(actor.locator('.paper-doll-rig')).toHaveAttribute('data-playing', 'false');
+  await expect(actor.locator('.pixel-character>.pixel-sprite').first()).toHaveAttribute('data-playing', 'false');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.route('**/api/public/events*', route => route.abort()); await page.reload();
   await expect(page.locator('.spectator-stale')).toBeVisible();
@@ -86,15 +82,19 @@ test('v027 writing stays private until complete, real books and comments can be 
   }
   const body = '今天我在池塘边等了一阵风。\n' + '水面没有催我，我也慢慢翻过一天。'.repeat(35) + '\n<script>window.bookUnsafe=true</script>';
   await p.act('home', { intent: 'write_book', instance_id: furniture.table, title: '等风来的一页', text: body });
-  await originalRig(page, p.id); const audit = readOnly(page);
+  const audit = readOnly(page);
   await page.goto(`${f.base}/watch?view=home&home=${home}`);
   await expect(page.getByTestId('home-books')).toContainText('还没有完稿');
-  await expect(page.locator('[data-home-prop="writing"]')).toHaveCount(0);
+  await expect(page.getByTestId('home-table-writing')).toHaveCount(0);
+  await expect(page.locator('.home-use-character')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText(body);
   await f.until(() => p.raw.home_presence?.activity?.phase === 'using'); await f.advance(800);
   const actor = page.getByTestId(`home-actor-${p.id}`);
   await expect(actor).toHaveAttribute('data-home-activity', 'write');
-  await expect(actor.locator('[data-home-prop="writing"]')).toBeVisible();
+  await expect(actor.locator('.pixel-character')).toHaveAttribute('data-art-style','q-pixel');
+  await expect(actor.locator('.pixel-character')).toHaveAttribute('data-action','stand_write');
+  await expect(actor.locator('.pixel-character>.pixel-sprite').first()).toHaveAttribute('data-animation-action','stand_write');
+  await expect(page.getByTestId('home-table-writing')).toBeVisible();
   await expect(page.getByTestId('home-current-activity')).toContainText('等风来的一页');
   await expect(page.locator('body')).not.toContainText(body);
   await page.getByTestId('home-room').screenshot({ path: 'artifacts/v027-writing-1440.png' });
@@ -104,7 +104,9 @@ test('v027 writing stays private until complete, real books and comments can be 
   await p.act('home', { intent: 'book_comment', book_id: book.book_id, text: '留给下次坐在池边的自己。' });
   await p.act('home', { intent: 'use', instance_id: furniture.chair, activity: 'read', book_id: book.book_id });
   await f.until(() => p.raw.home_presence.activity?.phase === 'using'); await f.advance(800);
-  await expect(actor.locator('[data-home-prop="book"]')).toBeVisible();
+  await expect(actor.locator('.pixel-character')).toHaveAttribute('data-action','read');
+  await expect(actor.locator('.pixel-character>.pixel-sprite').first()).toHaveAttribute('data-animation-action','read');
+  await expect(page.getByTestId('home-table-writing')).toHaveCount(0);
   await page.getByRole('button', { name: '阅读架上作品：等风来的一页', exact: true }).click();
   await expect(page.getByTestId('home-book-detail')).toContainText(body);
   await expect(page.getByTestId('home-book-detail')).toContainText('留给下次坐在池边的自己');

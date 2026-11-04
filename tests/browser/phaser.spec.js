@@ -20,6 +20,14 @@ async function actor(request,name='真实画布旅人'){
 }
 async function ready(page){await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','ready');await expect(page.getByTestId('phaser-canvas')).toHaveCount(1);await assertCanvasResolution(page);}
 async function pixels(page,rect=[0,0,1536,1024]){return page.getByTestId('phaser-canvas').evaluate((canvas,[x,y,w,h])=>{const resolution=Number(canvas.dataset.renderResolution);x*=resolution;y*=resolution;w*=resolution;h*=resolution;const target=document.createElement('canvas');target.width=canvas.width;target.height=canvas.height;const ctx=target.getContext('2d');ctx.drawImage(canvas,0,0);const data=ctx.getImageData(x,y,w,h).data;let hash=2166136261,opaque=0;for(let i=0;i<data.length;i++){hash=Math.imul(hash^data[i],16777619);if(i%4===3&&data[i])opaque++;}return{hash:hash>>>0,opaque};},rect);}
+async function settledPixels(page){
+ // DOM data-playing changes before the sleeping Phaser loop consumes the
+ // updated packet. Establish a rendered baseline, then test continued freeze.
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ let previous,consecutive=0;
+ await expect.poll(async()=>{const current=await pixels(page);consecutive=previous?.hash===current.hash&&previous?.opaque===current.opaque?consecutive+1:0;previous=current;return consecutive;},{timeout:5000,intervals:[80,120,160]}).toBeGreaterThanOrEqual(4);
+ return previous;
+}
 async function capture(page,name){for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));await ready(page);const map=await page.getByTestId('world-camera').boundingBox();expect(map.width/map.height).toBeCloseTo(1.5,2);expect(map.y).toBeLessThan(width===390?300:270);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(audit.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/phaser-v018-${name}-${width}x${height}.png`});await page.getByTestId('phaser-canvas').screenshot({path:`artifacts/phaser-v018-${name}-${width}x${height}-canvas.png`});}}
 
 test('WebGL多纹理采样容忍插值误差，旋转三角形内部不出现透明洞',async({page})=>{
@@ -74,8 +82,11 @@ test('画布加载、网络失败、兼容图层重试及缺失纹理均明确�
  await page.goto(base+'/watch?view=plaza');await expect(page.getByText('游戏画布载入中…',{exact:true})).toBeVisible();await page.screenshot({path:'artifacts/phaser-v018-loading.png'});release();
  await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await expect(page.getByText(/当前为兼容图层显示/)).toBeVisible();await expect(page.getByTestId('phaser-canvas')).toHaveCount(0);await page.screenshot({path:'artifacts/phaser-v018-fallback.png'});
  await page.unroute('**/assets/phaser-renderer-*.js');await page.getByRole('button',{name:'重试游戏画布'}).click();await ready(page);
- await page.route('**/pixel-world/ink_buildings.png',route=>route.abort());await page.reload();await ready(page);await expect(page.getByText('部分场景素材未载入 · 已保留可用画面和真实位置')).toBeVisible();expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));await page.screenshot({path:'artifacts/phaser-v018-partial.png'});
- await page.unroute('**/pixel-world/ink_buildings.png');await page.reload();await ready(page);
+ const manifest=await(await request.get(base+'/pixel-world/manifest.json')).json(),building=manifest.props.bookshop;
+ expect(building?.animations.idle.frames.length).toBeGreaterThan(0);
+ const texturePath=new URL(building.animations.idle.frames[0].image||building.image,base).pathname,textureRoute=url=>url.pathname===texturePath;let blockedTextures=0;
+ await page.route(textureRoute,route=>{blockedTextures++;return route.abort();});await page.reload();await ready(page);await expect.poll(()=>blockedTextures).toBeGreaterThan(0);await expect(page.getByText('部分场景素材未载入 · 已保留可用画面和真实位置')).toBeVisible();expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));await page.screenshot({path:'artifacts/phaser-v018-partial.png'});
+ await page.unroute(textureRoute);await page.reload();await ready(page);
  await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.dispatchEvent(new Event('webglcontextlost')));await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await page.getByRole('button',{name:'重试游戏画布'}).click();await ready(page);
  await page.addInitScript(()=>{const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return /webgl/i.test(type)?null:original.call(this,type,...args);};});await page.reload();await ready(page);expect(await page.getByTestId('phaser-canvas').evaluate(canvas=>!!canvas.getContext('2d'))).toBe(true);expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));expect(pageErrors).toEqual([]);
 });
@@ -110,7 +121,7 @@ test('画布像素沿真实折线路径逐段移动，减少动态停止播放�
  await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeGreaterThan(10);
  expect(raw.position.x).toBe(10);expect(raw.position.y).toBeCloseTo(10.4,5);
  await page.emulateMedia({reducedMotion:'reduce'});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
- const still=await pixels(page);await page.waitForTimeout(400);expect(await pixels(page)).toEqual(still);
+ const still=await settledPixels(page);await page.waitForTimeout(400);expect(await pixels(page)).toEqual(still);
  await page.emulateMedia({reducedMotion:'no-preference'});
  clock+=400;app.world.tick();await a.act('move',{x:10,y:9});clock+=1000;app.world.tick();await a.act('gather',{intent:'start',resource_id:'wood'});
  await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action','gather');

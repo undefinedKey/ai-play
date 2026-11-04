@@ -10,7 +10,7 @@ const steps = [
   ['浏览器构建', ['node_modules/vite/bin/vite.js', 'build']],
   ['静态传输资源', ['scripts/build-static-transfer.mjs']],
   ['发布包完整性', ['deploy/check-artifacts.mjs']],
-  ['真实接入与旁观回归', ['node_modules/@playwright/test/cli.js', 'test', 'v034-world-art', 'v028-home-pixel', 'v033-journey', 'v032-community', 'v031-market', 'v030-ruins', 'v029-world-services', 'homes', 'scenes']],
+  ['真实接入与旁观回归', ['node_modules/@playwright/test/cli.js', 'test', 'v034-world-art', 'v028-home-pixel', 'v033-journey', 'v032-community', 'v031-market', 'v030-ruins', 'v029-world-services', 'homes', 'scenes', 'v027-leisure', 'phaser', 'wilderness', 'motion-polish']],
 ];
 for (const [name, args] of steps) {
   process.stdout.write(`\n验证：${name}\n`);
