@@ -442,6 +442,7 @@ body,.spectator-shell{background:#e6f0d2;color:var(--ink)}
 .topbar,.spectator-shell .spectator-topbar{background:#fff9e8;border-bottom:3px solid #6f8d5d;box-shadow:0 3px 0 #bdd392;color:#304d3b}
 .brand-mark,.spectator-shell .brand-mark{border-radius:2px;transform:none;background:#73ab65;border:2px solid #426849;box-shadow:2px 2px 0 #b8d593;color:#fff9e8}
 .brand strong,.spectator-shell .brand strong{color:#304d3b;font-family:inherit}.brand small,.brand strong span,.spectator-shell .brand small,.spectator-shell .brand strong span,.spectator-shell .spectator-badge,.spectator-shell .connection-state{color:#426849}
+.spectator-shell .connection-state.disconnected{color:#68482d}
 .panel,.spectator-shell .panel,.spectator-shell .map-panel{border:2px solid #6f8d5d;border-radius:3px;background:#fff9e8;box-shadow:3px 3px 0 #b9cd96}
 .section-heading,.spectator-shell .section-heading{background:#e3efc7;border-color:#a2bb83}
 .section-heading h2,.spectator-shell .section-heading h2,.spectator-shell .observer-copy>strong,.spectator-shell .scene-caption strong,.spectator-shell .cloud-heading strong{font-family:inherit;color:#304d3b;letter-spacing:.2px}

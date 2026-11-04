@@ -87,3 +87,63 @@ test('v034 DOM fallback and actual night retain pixel sources and state without 
   expect(events.writes).toEqual([]);expect(events.oldTextures).toEqual([]);expect(events.broken).toEqual([]);
   expect(events.errors.filter(e=>!e.includes('Failed to fetch dynamically imported module'))).toEqual([]);
 });
+
+test('v034 disconnected desktop header stays readable while the real world snapshot remains available',async({page})=>{
+  const a=await f.actor('等待重连的原旅人'),events=audit(page);
+  const saved=JSON.stringify({id:a.id,appearance:a.raw.appearance,position:a.raw.position,inventory:a.raw.life.inventory});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(f.base+'/watch?view=plaza');await worldReady(page);
+  const connection=page.locator('.spectator-topbar .connection-state');
+  await expect(connection).toContainText('正在实时观察');
+  await expect(page.getByTestId(`map-agent-${a.id}`)).toBeVisible();
+  // Preserve the real snapshot endpoint; only the event stream is unavailable.
+  let blockedStreams=0;
+  await page.route('**/api/public/events*',route=>{blockedStreams++;return route.abort('connectionfailed');});
+  await page.reload();await worldReady(page);
+  await expect.poll(()=>blockedStreams).toBeGreaterThan(0);
+  await expect(connection).toHaveClass(/disconnected/);
+  await expect(connection).toBeVisible();
+  await expect(connection).toContainText('正在等待连接');
+  await expect(page.locator('.spectator-stale')).toContainText('最近收到的公开记录');
+  await expect(page.getByTestId(`map-agent-${a.id}`).locator('.pixel-character')).toHaveAttribute('data-sprite-id',a.raw.appearance.sprite_id);
+  await screen(page,'disconnected-header');
+  expect(JSON.stringify({id:a.id,appearance:a.raw.appearance,position:a.raw.position,inventory:a.raw.life.inventory})).toBe(saved);
+  expect(events).toEqual({writes:[],errors:[],oldTextures:[],broken:[]});
+});
+
+test('v034 many real home messages remain readable and keyboard scrollable without changing AI state',async({page})=>{
+  test.setTimeout(60000);
+  const a=await f.actor('给小屋留言的原旅人');
+  await a.act('move',{x:10,y:8});await f.until(()=>!a.raw.movement);
+  await a.act('home',{intent:'build',name:'留着十七段故事的小屋'});
+  const home=`home_${a.id}`;
+  await a.act('home',{intent:'visit',home_id:home});await f.until(()=>a.raw.home_presence?.home_id===home);
+  // Real public actions populate the same overflowing list seen in occupied homes.
+  for(let i=1;i<=17;i++){
+    if(i>1)await f.advance(10000);
+    await a.act('home',{intent:'message',text:`第 ${i} 段小屋日记：今天把一路看到的花草和云朵记在门边。留一盏灯，也留一点时间，等下次回来继续写下真实发生的小事。`});
+  }
+  const state=()=>JSON.stringify({appearance:a.raw.appearance,position:a.raw.position,presence:a.raw.home_presence,home:f.app.world.state.homes[home]});
+  const saved=state(),events=audit(page);
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(`${f.base}/watch?view=home&home=${home}`);
+  await expect(page.getByTestId('home-room')).toHaveAttribute('data-home-id',home);
+  const messages=page.getByTestId('home-messages');
+  await expect(messages.locator('li')).toHaveCount(17);
+  await expect(page.locator('#home-messages-title>span')).toHaveText('17');
+  await expect(messages).toHaveAccessibleName('小屋公开留言，可滚动阅读');
+  await expect(messages).toHaveAttribute('tabindex','0');
+  expect(await messages.evaluate(node=>node.scrollHeight>node.clientHeight)).toBe(true);
+  // Enter through the keyboard tab order, then scroll the list rather than the page.
+  await messages.focus();await page.keyboard.press('Shift+Tab');
+  await expect(messages).not.toBeFocused();
+  await page.keyboard.press('Tab');await expect(messages).toBeFocused();
+  await expect(messages).toHaveCSS('outline-style','solid');
+  await expect(messages).toHaveCSS('outline-width','2px');
+  await page.keyboard.press('PageDown');
+  await expect.poll(()=>messages.evaluate(node=>node.scrollTop)).toBeGreaterThan(0);
+  await screen(page,'home-many-messages');await screen(page,'home-many-messages',true);
+  expect(await messages.evaluate(node=>node.scrollHeight>node.clientHeight)).toBe(true);
+  expect(state()).toBe(saved);
+  expect(events).toEqual({writes:[],errors:[],oldTextures:[],broken:[]});
+});

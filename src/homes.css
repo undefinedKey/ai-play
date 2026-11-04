@@ -80,3 +80,5 @@
 .home-door-caption,.home-world-entrance>span{background:#fff3ce;border-color:#b97742;color:#634632;border-radius:1px}
 .home-world-entrance>svg{filter:none}.home-furniture-detail small,.home-detail-note,.home-reading summary,.home-reading small{color:#53694e}
 .home-book-spine>svg{width:32px;height:32px}
+#home-messages-title>span{color:#304d3b}
+.home-messages:focus-visible{outline:2px solid #426849;outline-offset:3px}
