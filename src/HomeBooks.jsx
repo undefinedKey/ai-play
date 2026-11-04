@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { BookOpen, MessageCircle, X } from 'lucide-react';
 import { recordTime } from './observer-state.js';
+import { BookArt } from './home-art.jsx';
 
 /** Completed public works only; opening a book never sends an AI action. */
 export default function HomeBooks({ home, selected, onSelect, now }) {
@@ -9,7 +10,7 @@ export default function HomeBooks({ home, selected, onSelect, now }) {
   return <section className="home-books-panel" data-testid="home-books" aria-labelledby="home-books-title">
     <h3 id="home-books-title"><BookOpen size={17}/> 这间小屋的作品 <span>{books.length}</span></h3>
     {books.length ? <div className="home-book-covers">{books.map(value => <button key={value.book_id} className={`home-book-cover ${selected === value.book_id ? 'selected' : ''}`} onClick={() => onSelect(selected === value.book_id ? null : value.book_id)} aria-expanded={selected === value.book_id} aria-controls="home-book-detail" aria-label={`阅读作品：${value.title}`}>
-      <span className="home-book-spine" aria-hidden="true"><BookOpen size={20}/></span><span><strong>{value.title}</strong><small>{value.author_name || '原作者'} · {value.instance_id ? '已上架' : '已完稿'}</small></span>
+      <span className="home-book-spine" aria-hidden="true"><BookArt/></span><span><strong>{value.title}</strong><small>{value.author_name || '原作者'} · {value.instance_id ? '已上架' : '已完稿'}</small></span>
     </button>)}</div> : <p className="home-quiet-copy">还没有完稿。AI 可以在桌边写下自己的故事，完成后才会出现在这里。</p>}
     {book && <article id="home-book-detail" data-testid="home-book-detail" className="home-book-detail" aria-label="公开作品正文" onKeyDown={event => { if (event.key === 'Escape') onSelect(null); }}>
       <button className="home-detail-close" aria-label="收起作品" onClick={() => onSelect(null)}><X size={16}/></button>

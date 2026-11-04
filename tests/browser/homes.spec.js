@@ -110,11 +110,6 @@ test('v025 disconnected interior freezes confirmed position and keeps real furni
   await page.getByTestId('home-view').screenshot({ path: 'artifacts/v025-home-disconnected.png' });
 });
 
-async function enableHomeRig(page, id) {
-  const manifest = await (await fetch(f.base + '/pixel-world/manifest.json')).json();
-  manifest.paper_dolls.feiyu_v1.eligible_agent_ids = [id];
-  await page.route('**/pixel-world/manifest.json*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) }));
-}
 
 test('v026 an original AI walks to furniture before sitting, eating, reading and resting; spectators only inspect', async ({ page }) => {
   test.setTimeout(120000);
@@ -125,12 +120,11 @@ test('v026 an original AI walks to furniture before sitting, eating, reading and
     const item = (await p.observe()).homes.own_home.storage.find(i => i.kind === kind);
     await p.act('home', { intent: 'place', instance_id: item.instance_id, x, y });
   }
-  await enableHomeRig(page, p.id);
   const errors = [], writes = []; page.on('pageerror', e => errors.push(e.message));
   page.on('request', req => { if (req.url().startsWith(f.base) && !['GET', 'HEAD'].includes(req.method())) writes.push(req.url()); });
   await page.goto(`${f.base}/watch?view=home&home=${home}`);
   const actor = page.getByTestId(`home-actor-${p.id}`), character = actor.locator('.pixel-character');
-  await expect(character).toHaveAttribute('data-render-rig', 'feiyu_v1');
+  await expect(character).toHaveAttribute('data-art-style', 'q-pixel');
   const identity = p.raw.appearance.sprite_id;
   for (const [kind, furnitureKind] of [['sit', 'chair'], ['eat', 'table'], ['read', 'bookshelf'], ['rest', 'bed']]) {
     const item = own().furniture.find(item => item.kind === furnitureKind);
@@ -146,7 +140,7 @@ test('v026 an original AI walks to furniture before sitting, eating, reading and
     await f.until(() => p.raw.home_presence?.activity?.phase === 'using');
     await f.advance(800);
     await expect(actor).toHaveAttribute('data-home-phase', 'using');
-    await expect(character).toHaveAttribute('data-action', kind);
+    await expect(character).toHaveAttribute('data-action', kind==='rest'?'sleep':kind==='read'?'stand_read':kind);
     await expect(character).toHaveAttribute('data-sprite-id', identity);
     await expect(character).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await expect(character).toHaveCSS('overflow', 'visible');
@@ -154,13 +148,13 @@ test('v026 an original AI walks to furniture before sitting, eating, reading and
     await expect(actor).toHaveAttribute('data-foot-x', String(position.x));
     await expect(actor).toHaveAttribute('data-foot-y', String(position.y));
     if (kind === 'sit' || kind === 'rest') {
-      const visualAnchor = await character.evaluate(node => getComputedStyle(node).translate);
+      const visualAnchor = await actor.locator('.home-use-character').evaluate(node => getComputedStyle(node).translate);
       expect(visualAnchor).not.toBe('none');
       await expect(page.locator('.home-actor-label')).toHaveCSS('translate', visualAnchor);
     }
     if (kind === 'eat') { expect(p.raw.life.inventory.turnip).toBe(food - 1); await expect(actor.locator('[data-home-prop="bowl"]')).toBeVisible(); }
     if (kind === 'read') {
-      await expect(actor.locator('[data-home-prop="book"]')).toBeAttached();
+      await expect(character.locator('.pixel-sprite').first()).toHaveAttribute('data-pixel-action','stand_read');
       await page.getByTestId('home-reading').locator('summary').click();
       const reading = (await p.observe()).self.home_presence.activity.reading;
       await expect(page.getByTestId('home-reading')).toContainText(reading.text);
@@ -186,16 +180,15 @@ test('v026 use pose and real furnishings remain static in disconnected and reduc
   const chair = f.app.world.state.homes[home].furniture.find(item => item.kind === 'chair');
   await p.act('home', { intent: 'use', instance_id: chair.instance_id, activity: 'read' });
   await f.until(() => p.raw.home_presence?.activity?.phase === 'using'); await f.advance(800);
-  await enableHomeRig(page, p.id);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`${f.base}/watch?view=home&home=${home}`);
-  const actor = page.getByTestId(`home-actor-${p.id}`), rig = actor.locator('.paper-doll-rig');
-  await expect(rig).toHaveAttribute('data-action', 'read'); await expect(rig).toHaveAttribute('data-playing', 'false');
-  const pose = () => rig.locator('[data-rig-part]').evaluateAll(nodes => nodes.map(node => [node.dataset.rigPart, node.style.transform, node.style.translate]));
+  const actor = page.getByTestId(`home-actor-${p.id}`), rig = actor.locator('.pixel-character');
+  await expect(rig).toHaveAttribute('data-action', 'read'); await expect(rig.locator('.pixel-sprite').first()).toHaveAttribute('data-playing', 'false');
+  const pose = () => rig.locator('.pixel-sprite').evaluateAll(nodes => nodes.map(node => [node.dataset.item, node.style.backgroundImage, node.style.backgroundPosition, node.style.transform, node.style.translate]));
   const reduced = await pose(); await page.clock.install(); await page.clock.fastForward(3000); expect(await pose()).toEqual(reduced);
   await page.route('**/api/public/events*', route => route.abort('connectionfailed'));
   await page.emulateMedia({ reducedMotion: 'no-preference' }); await page.reload();
-  await expect(page.locator('.spectator-stale')).toBeVisible(); await expect(rig).toHaveAttribute('data-playing', 'false');
+  await expect(page.locator('.spectator-stale')).toBeVisible(); await expect(rig.locator('.pixel-sprite').first()).toHaveAttribute('data-playing', 'false');
   const frozen = await pose(), x = await actor.getAttribute('data-foot-x');
   await page.clock.fastForward(5000); expect(await pose()).toEqual(frozen); await expect(actor).toHaveAttribute('data-foot-x', x);
   await expect(page.getByTestId('home-current-activity')).toContainText('最近记录');

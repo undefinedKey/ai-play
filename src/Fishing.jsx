@@ -9,6 +9,11 @@ import './leisure.css';
 
 const fishNames = { silver_fish: '银鳞鱼', river_fish: '河鱼', golden_fish: '金鳞鱼', pond_fish: '池塘鱼' };
 
+function PixelStroke({from,to,color,width=1}){
+  const dx=to.x-from.x,dy=to.y-from.y,steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))));
+  return Array.from({length:steps+1},(_,i)=><rect key={i} x={Math.round(from.x+dx*i/steps)} y={Math.round(from.y+dy*i/steps)} width={width} height={width} fill={color}/>);
+}
+
 function FishingLine({ agent, spot, map, now, live }) {
   const state = fishingState(agent, now);
   if (!state?.working) return null;
@@ -17,11 +22,12 @@ function FishingLine({ agent, spot, map, now, live }) {
   const tip = { x: hand.x + (east ? -25 : -2), y: hand.y - 35 };
   const float = { x: (water.x + .5) * 32 + (east ? 0 : 13), y: (water.y + .5) * 32 - (east ? 0 : 7) };
   const playing = live && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && agent.status === 'active' && state.remaining > 0;
-  return <svg className={`fishing-line ${playing ? 'fishing-live' : ''}`} data-testid={`fishing-line-${agent.agent_id}`} data-fishing-phase="fishing" data-playing={playing} viewBox={`0 0 ${map.width * 32} ${map.height * 32}`} aria-hidden="true">
-    <g className="fishing-rod" style={{ transformOrigin: `${hand.x}px ${hand.y}px`, animationDelay: `-${state.elapsed}ms` }}><path d={`M${hand.x} ${hand.y} Q${tip.x + 5} ${tip.y + 10} ${tip.x} ${tip.y}`} stroke="#4f4936" strokeWidth="3" fill="none"/><path d={`M${hand.x} ${hand.y} Q${tip.x + 5} ${tip.y + 10} ${tip.x} ${tip.y}`} stroke="#aa8b58" strokeWidth="1" fill="none"/>
-    <path d={`M${tip.x} ${tip.y} Q${tip.x - 3} ${float.y - 7} ${float.x} ${float.y}`} stroke="#e7e3bd" strokeOpacity=".85" strokeWidth=".8" fill="none"/></g>
-    <g className="fishing-float" style={{ transformOrigin: `${float.x}px ${float.y}px` }}><ellipse cx={float.x} cy={float.y + 2} rx="7" ry="2" fill="none" stroke="#d4dfb8" strokeWidth=".8"/><ellipse className="fishing-ripple" cx={float.x} cy={float.y + 2} rx="12" ry="4" fill="none" stroke="#d4dfb8" strokeWidth=".6"/>
-      <path d={`M${float.x} ${float.y - 6}v8`} stroke="#574a35" strokeWidth="1"/><path d={`M${float.x - 1.5} ${float.y - 4}h3v5h-3Z`} fill="#b76143"/><path d={`M${float.x - 1.5} ${float.y + 1}h3v2h-3Z`} fill="#eee0b6"/>
+  return <svg className={`fishing-line ${playing ? 'fishing-live' : ''}`} data-testid={`fishing-line-${agent.agent_id}`} data-fishing-phase="fishing" data-playing={playing} shapeRendering="crispEdges" viewBox={`0 0 ${map.width * 32} ${map.height * 32}`} aria-hidden="true">
+    <g className="fishing-rod" style={{ transformOrigin: `${hand.x}px ${hand.y}px`, animationDelay: `-${state.elapsed}ms` }}><PixelStroke from={hand} to={tip} color="#634632" width={3}/><PixelStroke from={hand} to={tip} color="#e5a85b"/>
+    <PixelStroke from={tip} to={float} color="#fff9e8"/></g>
+    <g className="fishing-float" style={{ transformOrigin: `${float.x}px ${float.y}px` }} transform={`translate(${Math.round(float.x)} ${Math.round(float.y)})`}>
+      <path fill="#a9dce0" d="M-7 3h14v1h-14z"/><path className="fishing-ripple" fill="#a9dce0" d="M-10 1h4v1h-4zM6 1h4v1H6zM-6 5H6v1H-6z"/>
+      <path fill="#634632" d="M0-7h1V3H0z"/><path fill="#df7f61" d="M-1-5h3v5h-3z"/><path fill="#fff9e8" d="M-1 0h3v3h-3z"/>
     </g>
   </svg>;
 }
@@ -33,7 +39,7 @@ function FishingReelVisual({ agent, spot, world, map, now, live }) {
   const t = state.progress, endX = (agent.position.x + .5) * 32, endY = (agent.position.y + .5) * 32 - 20;
   const waterX = (spot.position.x + .5) * 32 + (agent.facing === 'north' ? 13 : 0), waterY = (spot.position.y + .5) * 32;
   const x = waterX + (endX - waterX) * t, y = waterY + (endY - waterY) * t - Math.sin(Math.PI * t) * 15;
-  return <svg className="fishing-line fishing-reel" data-testid={`fishing-reel-${agent.agent_id}`} viewBox={`0 0 ${map.width * 32} ${map.height * 32}`} aria-hidden="true"><path d={`M${endX} ${endY}l-5-30M${endX - 5} ${endY - 30}Q${x - 2} ${y - 10} ${x} ${y}`} fill="none" stroke="#b8ab7b" strokeWidth="1"/><g transform={`translate(${x},${y}) rotate(${-35 * t})`} opacity={1 - t}><path d="M-4 0Q0-5 5 0 0 5-4 0L-7-3v6Z" fill="#c1d0b8" stroke="#4a5f4f" strokeWidth=".8"/><circle cx="3" cy="-.4" r=".5" fill="#425340"/></g></svg>;
+  return <svg className="fishing-line fishing-reel" data-testid={`fishing-reel-${agent.agent_id}`} viewBox={`0 0 ${map.width * 32} ${map.height * 32}`} shapeRendering="crispEdges" aria-hidden="true"><PixelStroke from={{x:endX,y:endY}} to={{x:endX-5,y:endY-30}} color="#b97742" width={2}/><PixelStroke from={{x:endX-5,y:endY-30}} to={{x,y}} color="#fff9e8"/><g transform={`translate(${Math.round(x)},${Math.round(y)})`} opacity={1-t}><path fill="#426849" d="M-4-2h8v1h2v3H4v1h-8V1h-2V3h-2v-6h2v2h2z"/><path fill="#a9dce0" d="M-3-1h6v3h-6z"/><path fill="#fff9e8" d="M-2-1h4v1h-4z"/><path fill="#304d3b" d="M2 0h1v1H2z"/></g></svg>;
 }
 
 export function FishingLayer({ world, sceneId, map, now, live }) {
@@ -42,7 +48,7 @@ export function FishingLayer({ world, sceneId, map, now, live }) {
     const agents = (world.agents || []).filter(agent => agent.fishing?.spot_id === spot.id && fishingState(agent, now));
     const reels = (world.agents || []).filter(agent => fishingReel(agent, spot, world.events || [], now));
     return <React.Fragment key={spot.id}><button className={`fishing-spot ${selection.selected === `fish:${spot.id}` ? 'selected' : ''}`} data-testid={`fishing-spot-${spot.id}`} style={{ ...projectMapPoint(spot.interaction_position, map), zIndex: 900 }} aria-label={`查看钓点：${spot.name}，只读`} aria-pressed={selection.selected === `fish:${spot.id}`} onClick={() => selection.select(`fish:${spot.id}`)}>
-      <svg viewBox="0 0 34 42" aria-hidden="true"><ellipse cx="17" cy="39" rx="13" ry="3" fill="#354d3438"/><path d="m15 17 2 22h3l-1-22" fill="#866940" stroke="#55442e"/><path d="m3 5 27-2 1 21-27-1Z" fill="#d2bd88" stroke="#5b5139" strokeWidth="1.5"/><path d="M8 13q7-8 14 0-7 8-14 0m14 0 5-4v8Z" fill="#718b80" stroke="#505d4a" strokeWidth="1"/><circle cx="11" cy="12" r="1" fill="#403b2f"/></svg>
+      <svg viewBox="0 0 26 32" shapeRendering="crispEdges" aria-hidden="true"><path fill="#426849" d="M4 29h18v2H4z"/><path fill="#634632" d="M11 14h4v16h-4zM2 2h22v17H2z"/><path fill="#b97742" d="M12 19h2v10h-2z"/><path fill="#ffcd7a" d="M4 4h18v13H4z"/><path fill="#426849" d="M7 8h9v1h2V7h2v7h-2v-2h-2v1H7v-1H5V9h2z"/><path fill="#73b8c9" d="M7 9h8v3H7z"/><path fill="#304d3b" d="M8 9h1v1H8z"/></svg>
       <span>{spot.name}<small>{agents.some(agent => fishingState(agent, now)?.working) ? '正在垂钓' : agents.length ? '有人正走来' : '岸边空闲'}</small></span>
     </button>{agents.map(agent => <FishingLine key={agent.agent_id} agent={agent} spot={spot} map={map} now={now} live={live}/>)}{reels.map(agent => <FishingReelVisual key={`reel-${agent.agent_id}`} agent={agent} spot={spot} world={world} map={map} now={now} live={live}/>)}</React.Fragment>;
   })}</div>;

@@ -1,0 +1,209 @@
+{
+  "frames": {
+    "pine_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 80,
+        "h": 96
+      },
+      "anchor": {
+        "x": 40,
+        "y": 92
+      },
+      "duration": 1000
+    },
+    "oak_idle_0": {
+      "frame": {
+        "x": 88,
+        "y": 0,
+        "w": 88,
+        "h": 96
+      },
+      "anchor": {
+        "x": 44,
+        "y": 92
+      },
+      "duration": 1000
+    },
+    "ore_idle_0": {
+      "frame": {
+        "x": 176,
+        "y": 0,
+        "w": 64,
+        "h": 48
+      },
+      "anchor": {
+        "x": 32,
+        "y": 44
+      },
+      "duration": 1000
+    },
+    "berries_idle_0": {
+      "frame": {
+        "x": 264,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 44
+      },
+      "duration": 1000
+    },
+    "stump_idle_0": {
+      "frame": {
+        "x": 352,
+        "y": 0,
+        "w": 48,
+        "h": 32
+      },
+      "anchor": {
+        "x": 24,
+        "y": 28
+      },
+      "duration": 1000
+    },
+    "herb_idle_0": {
+      "frame": {
+        "x": 440,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 28
+      },
+      "duration": 1000
+    },
+    "grass_idle_0": {
+      "frame": {
+        "x": 528,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 28
+      },
+      "duration": 1000
+    },
+    "branches_idle_0": {
+      "frame": {
+        "x": 616,
+        "y": 0,
+        "w": 40,
+        "h": 28
+      },
+      "anchor": {
+        "x": 20,
+        "y": 24
+      },
+      "duration": 1000
+    },
+    "stones_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 96,
+        "w": 40,
+        "h": 28
+      },
+      "anchor": {
+        "x": 20,
+        "y": 24
+      },
+      "duration": 1000
+    },
+    "tree_sapling_idle_0": {
+      "frame": {
+        "x": 88,
+        "y": 96,
+        "w": 32,
+        "h": 40
+      },
+      "anchor": {
+        "x": 16,
+        "y": 36
+      },
+      "duration": 1000
+    },
+    "tree_young_idle_0": {
+      "frame": {
+        "x": 176,
+        "y": 96,
+        "w": 48,
+        "h": 64
+      },
+      "anchor": {
+        "x": 24,
+        "y": 60
+      },
+      "duration": 1000
+    },
+    "dead_tree_idle_0": {
+      "frame": {
+        "x": 264,
+        "y": 96,
+        "w": 64,
+        "h": 80
+      },
+      "anchor": {
+        "x": 32,
+        "y": 76
+      },
+      "duration": 1000
+    },
+    "tree_mature_idle_0": {
+      "frame": {
+        "x": 352,
+        "y": 96,
+        "w": 80,
+        "h": 96
+      },
+      "anchor": {
+        "x": 40,
+        "y": 92
+      },
+      "duration": 1000
+    },
+    "tree_stump_idle_0": {
+      "frame": {
+        "x": 440,
+        "y": 96,
+        "w": 48,
+        "h": 32
+      },
+      "anchor": {
+        "x": 24,
+        "y": 28
+      },
+      "duration": 1000
+    },
+    "tree_empty_idle_0": {
+      "frame": {
+        "x": 528,
+        "y": 96,
+        "w": 48,
+        "h": 32
+      },
+      "anchor": {
+        "x": 24,
+        "y": 28
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_wilderness.png",
+    "size": {
+      "w": 704,
+      "h": 192
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

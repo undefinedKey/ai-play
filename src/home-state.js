@@ -45,12 +45,12 @@ export function homeSeatAnchor(agent, furniture, artSpec) {
   return { x: seat.x - foot.x, y: seat.y - foot.y, kind: furniture.kind, facing: layout.facing };
 }
 
-export function homeUsePresentationStyle(agent, furniture, now, enabled, hipHeight = 21.8, artSpec) {
+export function homeUsePresentationStyle(agent, furniture, now, enabled, hipHeight = 21.8, artSpec, contactHeight) {
   const anchor = homeSeatAnchor(agent, furniture, artSpec), activity = agent?.home_presence?.activity;
   if (!anchor) return undefined;
   const elapsed = Math.max(0, Math.min(now, activity.ends_at ?? now) - activity.started_at);
   const t = enabled && agent.status === 'active' ? Math.max(0, Math.min(1, elapsed / 650)) : 1;
-  const progress = t * t * (3 - 2 * t), height = anchor.kind === 'bed' ? 12 : hipHeight - 7;
+  const progress = t * t * (3 - 2 * t), height = contactHeight ?? (anchor.kind === 'bed' ? 12 : hipHeight - 7);
   return { translate: `calc(${anchor.x} * 100cqw / 640 * ${progress}) calc((${anchor.y} * 100cqw / 640 + ${height}px * var(--pixel-scale)) * ${progress})` };
 }
 

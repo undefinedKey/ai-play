@@ -72,6 +72,22 @@ export function gatheringFrameTime(actor,workElapsed,definition,animationAction,
 export function actorVisualPose(actor,action,now,{facing='south',gaitPhase=0,enabled=true,definition,frame}={}){
   if(!enabled||!['active','alive'].includes(actor?.status))return STILL_POSE;
   const dx=facing==='east'?1:facing==='west'?-1:0,dy=facing==='south'?1:facing==='north'?-1:0;
+  // Q art has actual limb/bob frames. Integer local battle offsets keep its
+  // authored pixels crisp; they never advance the authoritative world foot.
+  if(definition?.render_style==='q-pixel'){
+    if(action==='attack'&&actor.action){
+      const a=actor.action;if(now<a.started_at||now>=a.ends_at||a.outcome==='cancelled')return STILL_POSE;
+      const resolved=a.resolved_at??a.impact_at,t=now-resolved;
+      const amount=a.outcome==='hit'&&t>=0?(t<80?3:t<160?2:t<240?1:0):-1;
+      return {...STILL_POSE,x:dx*amount,y:dy*amount};
+    }
+    if(action==='hurt'&&actor.hurt?.damage>0){
+      const h=actor.hurt;if(now<h.started_at||now>=h.ends_at)return STILL_POSE;
+      const amount=Math.ceil(3*(1-(now-h.started_at)/Math.max(1,h.ends_at-h.started_at)));
+      return {...STILL_POSE,x:-dx*amount,y:-dy*amount};
+    }
+    return STILL_POSE;
+  }
   const monster=actor.monster_id,slime=monster==='forest_slime',heavy=monster==='ruins_guardian';
   if(action==='walk'||action==='run'){
     if(!sampleMotion(actor,now).moving)return STILL_POSE;

@@ -1,0 +1,92 @@
+{
+  "frames": {
+    "supply_cache_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "supply_cache_resolved_0": {
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "wild_garden_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "wild_garden_resolved_0": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "spring_idle_0": {
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "spring_resolved_0": {
+      "frame": {
+        "x": 320,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    }
+  },
+  "meta": {
+    "image": "q_discoveries.png",
+    "size": {
+      "w": 512,
+      "h": 56
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

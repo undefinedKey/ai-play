@@ -1,0 +1,196 @@
+{
+  "frames": {
+    "turnip_untilled_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_tilled_0": {
+      "frame": {
+        "x": 54,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_seeded_0": {
+      "frame": {
+        "x": 108,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_growing_0": {
+      "frame": {
+        "x": 162,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_ready_0": {
+      "frame": {
+        "x": 216,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_empty_0": {
+      "frame": {
+        "x": 270,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "turnip_idle_0": {
+      "frame": {
+        "x": 324,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_untilled_0": {
+      "frame": {
+        "x": 378,
+        "y": 0,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_tilled_0": {
+      "frame": {
+        "x": 0,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_seeded_0": {
+      "frame": {
+        "x": 54,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_growing_0": {
+      "frame": {
+        "x": 108,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_ready_0": {
+      "frame": {
+        "x": 162,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_empty_0": {
+      "frame": {
+        "x": 216,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    },
+    "wheat_idle_0": {
+      "frame": {
+        "x": 270,
+        "y": 48,
+        "w": 54,
+        "h": 48
+      },
+      "anchor": {
+        "x": 27,
+        "y": 44
+      },
+      "duration": 180
+    }
+  },
+  "meta": {
+    "image": "q_crops.png",
+    "size": {
+      "w": 432,
+      "h": 96
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

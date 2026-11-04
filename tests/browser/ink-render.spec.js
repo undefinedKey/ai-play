@@ -1,11 +1,14 @@
 import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
 import {assertCanvasResolution} from './canvas-assertions.js';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {createApp} from '../../server/index.js';
 import {drawInkContactSheet} from './ink-contact-sheet.js';
 let app,server,base,clients;
-test.beforeEach(async()=>{app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});app.world.actionIntervalMs=0;app.world.tick=()=>{};clients=[];({server,url:base}=await app.start(0));});
+// Explicit historical art contract; current Q release is covered separately.
+test.beforeEach(async({page})=>{
+ await page.route('**/pixel-world/manifest.json*',route=>route.fulfill({status:200,contentType:'application/json',body:readFileSync(new URL('../../art/ink-world/v033-manifest.json',import.meta.url),'utf8')}));app=await createApp({dbPath:':memory:',authDbPath:':memory:',authMode:'local',production:true});app.world.actionIntervalMs=0;app.world.tick=()=>{};clients=[];({server,url:base}=await app.start(0));});
 test.afterEach(async()=>{for(const client of clients)await client.close();await app.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
 async function actor(request,index,sprite,x,y=10){
  const session=await(await request.get(base+'/api/session')).json();

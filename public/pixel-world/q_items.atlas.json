@@ -1,0 +1,443 @@
+{
+  "frames": {
+    "item_wood_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_ore_idle_0": {
+      "frame": {
+        "x": 32,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_turnip_idle_0": {
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_wheat_idle_0": {
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_turnip_seed_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_wheat_seed_idle_0": {
+      "frame": {
+        "x": 160,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_turnip_soup_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_wheat_bread_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_gold_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_berry_idle_0": {
+      "frame": {
+        "x": 32,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_moon_herb_idle_0": {
+      "frame": {
+        "x": 64,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_trail_ration_idle_0": {
+      "frame": {
+        "x": 96,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_moon_stew_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_grass_idle_0": {
+      "frame": {
+        "x": 160,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_pine_cone_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_torch_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 32,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_roasted_berry_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_iron_armor_idle_0": {
+      "frame": {
+        "x": 32,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_hunter_bow_idle_0": {
+      "frame": {
+        "x": 64,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_heavy_hammer_idle_0": {
+      "frame": {
+        "x": 96,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_heavy_armor_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_wooden_sword_idle_0": {
+      "frame": {
+        "x": 160,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_iron_sword_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_wooden_shield_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_fishing_rod_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_fish_bait_idle_0": {
+      "frame": {
+        "x": 32,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_pond_fish_idle_0": {
+      "frame": {
+        "x": 64,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_silver_fish_idle_0": {
+      "frame": {
+        "x": 96,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_grilled_fish_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_ruins_bronze_key_idle_0": {
+      "frame": {
+        "x": 160,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_ruins_leaf_medallion_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_ruins_stone_bird_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 96,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    },
+    "item_ruins_star_lens_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 128,
+        "w": 32,
+        "h": 32
+      },
+      "anchor": {
+        "x": 16,
+        "y": 16
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_items.png",
+    "size": {
+      "w": 256,
+      "h": 160
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

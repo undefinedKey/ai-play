@@ -19,4 +19,5 @@
 .world-service-card small{display:block;font-size:12px;line-height:1.6;color:#635c4a}
 .service-facts{display:flex;gap:7px 14px;flex-wrap:wrap;font-size:12px;line-height:1.6}
 .service-boundary,.service-snapshot{font-size:12px;line-height:1.6;margin:9px 0 0;color:#635c4a}
+.world-services{background:#e3efc7;color:#304d3b;border-color:#a2bb83}.world-service-card{background:#fff9e8;border:2px solid #a2bb83;border-radius:2px;color:#304d3b}.world-service-card h3{color:#304d3b}.world-services>summary>span,.world-service-card small,.world-service-card li>span,.service-boundary,.service-snapshot{color:#53694e}
 @media(max-width:600px){.world-services>summary{padding:11px 10px}.world-services>summary strong{margin-right:7px}.world-services-body{padding:0 9px 10px}.world-service-card{padding:10px}.observer-status .observer-action-result{font-size:11px}}

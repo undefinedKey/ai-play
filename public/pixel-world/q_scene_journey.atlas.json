@@ -1,0 +1,27 @@
+{
+  "frames": {
+    "ground": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1536,
+        "h": 1024
+      },
+      "anchor": {
+        "x": 0,
+        "y": 0
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_scene_journey.png",
+    "size": {
+      "w": 1536,
+      "h": 1024
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

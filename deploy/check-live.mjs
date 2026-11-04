@@ -178,6 +178,9 @@ for (const monster of world.adventure.monsters) {
   assert.equal(monster.patrol_interval_ms, 2000);
 }
 const manifest = await (await response('/pixel-world/manifest.json')).json();
+assert.equal(manifest.release,version);
+assert.equal(manifest.render_style,'q-pixel');
+assert.deepEqual(manifest.paper_dolls??{},{});
 // Scenes may reuse a ground texture; their authored terrain and prop placement
 // are independent, and the renderer draws scene-specific paths over that texture.
 assert.notDeepEqual(SCENES[0].props, SCENES[1].props);
@@ -240,7 +243,7 @@ function images(value) {
 }
 images(manifest);
 for (const path of paths) {
-  assert.match(path, /^\/pixel-world\/[a-z0-9_]+\.png$/);
+  assert.match(path, /^\/pixel-world\/q_[a-z0-9_]+\.png$/);
   const bytes = Buffer.from(await (await response(path)).arrayBuffer());
   assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 }

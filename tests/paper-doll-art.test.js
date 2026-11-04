@@ -1,3 +1,4 @@
+// Historical ink renderer coverage; active Q art is covered by v034 tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import {PAPER_DOLL_PARTS,samplePaperDollPose} from '../src/paper-doll-rig.js';
 import {selectPaperDoll,paperDollLayers} from '../src/paper-doll-render.js';
 import {spriteGeometry} from '../src/render-packet.js';
 
-const assets=JSON.parse(readFileSync(new URL('../public/pixel-world/manifest.json',import.meta.url)));
+const assets=JSON.parse(readFileSync(new URL('../art/ink-world/v033-manifest.json',import.meta.url)));
 const actor={agent_id:'agent_8afc5902-688e-42b6-953c-0544d0be6bd5',status:'active',scene_id:'plaza',appearance:{sprite_id:'wanderer_3'},life:{}};
 const selected=selectPaperDoll(assets,actor);
 const pointDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);

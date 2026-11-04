@@ -1,0 +1,66 @@
+{
+  "frames": {
+    "wood_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 1000
+    },
+    "ore_idle_0": {
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 1000
+    },
+    "kitchen_idle_0": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 1000
+    },
+    "supply_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 56
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_landmarks.png",
+    "size": {
+      "w": 512,
+      "h": 56
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

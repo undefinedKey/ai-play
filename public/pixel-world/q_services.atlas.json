@@ -1,0 +1,677 @@
+{
+  "frames": {
+    "bulletin_board_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "bulletin_board_open_0": {
+      "frame": {
+        "x": 116,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "bulletin_board_resolved_0": {
+      "frame": {
+        "x": 232,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "chess_table_idle_0": {
+      "frame": {
+        "x": 348,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "chess_table_open_0": {
+      "frame": {
+        "x": 464,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "chess_table_resolved_0": {
+      "frame": {
+        "x": 580,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "picnic_table_idle_0": {
+      "frame": {
+        "x": 696,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "picnic_table_open_0": {
+      "frame": {
+        "x": 812,
+        "y": 0,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "picnic_table_resolved_0": {
+      "frame": {
+        "x": 0,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "market_stall_idle_0": {
+      "frame": {
+        "x": 116,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 77.4
+      },
+      "duration": 180
+    },
+    "market_stall_open_0": {
+      "frame": {
+        "x": 232,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 77.4
+      },
+      "duration": 180
+    },
+    "market_stall_resolved_0": {
+      "frame": {
+        "x": 348,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 77.4
+      },
+      "duration": 180
+    },
+    "fishing_dock_idle_0": {
+      "frame": {
+        "x": 464,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "fishing_dock_open_0": {
+      "frame": {
+        "x": 580,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "fishing_dock_resolved_0": {
+      "frame": {
+        "x": 696,
+        "y": 80,
+        "w": 96,
+        "h": 80
+      },
+      "anchor": {
+        "x": 48,
+        "y": 76
+      },
+      "duration": 180
+    },
+    "community_picnic_idle_0": {
+      "frame": {
+        "x": 812,
+        "y": 80,
+        "w": 88,
+        "h": 66
+      },
+      "anchor": {
+        "x": 44,
+        "y": 36
+      },
+      "duration": 1000
+    },
+    "community_table_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 160,
+        "w": 68,
+        "h": 68
+      },
+      "anchor": {
+        "x": 34,
+        "y": 50
+      },
+      "duration": 1000
+    },
+    "community_stage_idle_0": {
+      "frame": {
+        "x": 116,
+        "y": 160,
+        "w": 116,
+        "h": 78
+      },
+      "anchor": {
+        "x": 58,
+        "y": 50
+      },
+      "duration": 1000
+    },
+    "community_board_idle_0": {
+      "frame": {
+        "x": 232,
+        "y": 160,
+        "w": 54,
+        "h": 72
+      },
+      "anchor": {
+        "x": 27,
+        "y": 64
+      },
+      "duration": 1000
+    },
+    "community_seat_idle_0": {
+      "frame": {
+        "x": 348,
+        "y": 160,
+        "w": 30,
+        "h": 30
+      },
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "duration": 1000
+    },
+    "community_mat_idle_0": {
+      "frame": {
+        "x": 464,
+        "y": 160,
+        "w": 28,
+        "h": 22
+      },
+      "anchor": {
+        "x": 14,
+        "y": 12
+      },
+      "duration": 1000
+    },
+    "ruins_gate_idle_0": {
+      "frame": {
+        "x": 580,
+        "y": 160,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_gate_closed_0": {
+      "frame": {
+        "x": 696,
+        "y": 160,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_gate_open_0": {
+      "frame": {
+        "x": 812,
+        "y": 160,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_archive_gate_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_archive_gate_closed_0": {
+      "frame": {
+        "x": 116,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_archive_gate_open_0": {
+      "frame": {
+        "x": 232,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_bridge_idle_0": {
+      "frame": {
+        "x": 348,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_bridge_broken_0": {
+      "frame": {
+        "x": 464,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_bridge_repaired_0": {
+      "frame": {
+        "x": 580,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_dial_idle_0": {
+      "frame": {
+        "x": 696,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_dial_leaf_0": {
+      "frame": {
+        "x": 812,
+        "y": 240,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_dial_sun_0": {
+      "frame": {
+        "x": 0,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_dial_moon_0": {
+      "frame": {
+        "x": 116,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_dial_unknown_0": {
+      "frame": {
+        "x": 232,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_runes_idle_0": {
+      "frame": {
+        "x": 348,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_runes_waiting_0": {
+      "frame": {
+        "x": 464,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_runes_solved_0": {
+      "frame": {
+        "x": 580,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_key_idle_0": {
+      "frame": {
+        "x": 696,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_key_available_0": {
+      "frame": {
+        "x": 812,
+        "y": 320,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_key_taken_0": {
+      "frame": {
+        "x": 0,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_leaf_idle_0": {
+      "frame": {
+        "x": 116,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_leaf_available_0": {
+      "frame": {
+        "x": 232,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_leaf_taken_0": {
+      "frame": {
+        "x": 348,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_bird_idle_0": {
+      "frame": {
+        "x": 464,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_bird_available_0": {
+      "frame": {
+        "x": 580,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_bird_taken_0": {
+      "frame": {
+        "x": 696,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_lens_idle_0": {
+      "frame": {
+        "x": 812,
+        "y": 400,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_lens_available_0": {
+      "frame": {
+        "x": 0,
+        "y": 480,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_relic_lens_taken_0": {
+      "frame": {
+        "x": 116,
+        "y": 480,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    },
+    "ruins_mural_idle_0": {
+      "frame": {
+        "x": 232,
+        "y": 480,
+        "w": 64,
+        "h": 64
+      },
+      "anchor": {
+        "x": 32,
+        "y": 52
+      },
+      "duration": 180
+    }
+  },
+  "meta": {
+    "image": "q_services.png",
+    "size": {
+      "w": 928,
+      "h": 560
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

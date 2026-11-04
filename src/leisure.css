@@ -43,3 +43,9 @@
 .fishing-spot{width:calc(24px * var(--world-scale,1));height:calc(30px * var(--world-scale,1));transform:translate(calc(-50% + 17px * var(--world-scale,1)),-50%)}
 .fishing-spot>svg{pointer-events:none;display:block}
 .fishing-spot>span{top:calc(32px * var(--world-scale,1))}
+.fishing-spot>svg{filter:none;image-rendering:pixelated}.fishing-spot>span{background:#fff9e8;border:1px solid #6f8d5d;border-radius:1px;color:#304d3b;box-shadow:2px 2px 0 #42684935}.fishing-spot small{color:#53694e}
+.home-books-panel,.home-book-detail{background:#fff9e8;border:2px solid #a2bb83;border-radius:2px;color:#304d3b;box-shadow:none}
+.home-book-cover{background:#edf4d9;border-color:#a2bb83;border-radius:2px;color:#304d3b}.home-book-cover.selected{background:#e3efc7;border-color:#6f8d5d}
+.home-book-spine{background:none;box-shadow:none;border-radius:0;rotate:none}
+.home-book-byline,.home-book-eyebrow,.home-book-readonly,.home-book-comments p{color:#53694e}
+.writing-live .table-pen{animation-timing-function:steps(2,end)}

@@ -3,3 +3,9 @@
 *.service text eol=lf
 *.example text eol=lf
 *.mjs text eol=lf
+
+# Reproducible art output; review the authored pixel sources and contact tests.
+public/pixel-world/manifest.json linguist-generated=true
+public/pixel-world/q_*.atlas.json linguist-generated=true
+src/q-service-art.js linguist-generated=true
+art/ink-world/v033-manifest.json linguist-generated=true

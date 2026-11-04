@@ -1,0 +1,25 @@
+{
+  "frames": {
+    "idle": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      }
+    }
+  },
+  "meta": {
+    "image": "q_hoe_1_icon.png",
+    "size": {
+      "w": 48,
+      "h": 48
+    },
+    "source": "original-authored-pixel-clusters",
+    "render_style": "q-pixel"
+  }
+}

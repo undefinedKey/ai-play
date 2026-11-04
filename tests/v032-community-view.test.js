@@ -89,8 +89,12 @@ test('v032 every landmark is rendered at its shared physical position and assets
     const art = communityArtwork[venue.id], anchor = [art.anchor.x * art.native_scale, art.anchor.y * art.native_scale];
     const packet = spriteRenderPacket(art, art.animations.idle.frames[0], renderSpace(venue.position, { anchor, depth: 100 + venue.position.y * 10 }));
     assert.equal(packet.x, (venue.position.x + .5) * 32); assert.equal(packet.y, (venue.position.y + .5) * 32);
-    assert.ok(art.sheet_width * packet.scale <= 116);
-    const source = readFileSync(new URL(`../public/pixel-world/community-${venue.id}.svg`, import.meta.url), 'utf8');
-    assert.match(source, /<svg /); assert.doesNotMatch(source, /<script|foreignObject|https?:\/\/(?!www\.w3\.org)/);
+    assert.ok(art.animations.idle.frames[0].w * packet.scale <= 116);
+    assert.equal(art.render_style,'q-pixel');
+    assert.match(art.image,/q_services\.png$/);
+    const png=readFileSync(new URL(`../public${art.image}`,import.meta.url));
+    assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+    const frame=art.animations.idle.frames[0];
+    assert.ok(frame.x+frame.w<=png.readUInt32BE(16)&&frame.y+frame.h<=png.readUInt32BE(20));
   }
 });

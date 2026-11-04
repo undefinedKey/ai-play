@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve,dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { HOME_PIXEL_ART } from '../src/home-pixel-manifest.js';
+import { HOME_PIXEL_ART, HOME_ARCHIVE_ART } from '../src/home-pixel-manifest.js';
+import { homeFurniturePixels, homeRoomPixels, homeCottagePixels, homeSouvenirPixels } from '../src/home-pixel-drawing.js';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function checkHomeArt(directories=['public','dist']) {
@@ -20,7 +21,7 @@ export function checkHomeArt(directories=['public','dist']) {
       assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
     }
   }
-  for(const [kind,art] of Object.entries(HOME_PIXEL_ART)) {
+  for(const [kind,art] of Object.entries(HOME_ARCHIVE_ART)) {
     assert.deepEqual(Object.keys(art.variants),['0','90','180','270']);
     const regions=new Set();
     for(const frame of Object.values(art.variants)) {
@@ -37,6 +38,33 @@ export function checkHomeArt(directories=['public','dist']) {
     }
     if(kind!=='rug')assert.equal(regions.size,4,`${kind}: missing real views`);
   }
+  function native(drawing,label) {
+    assert.ok(Number.isInteger(drawing.width)&&Number.isInteger(drawing.height)&&drawing.width>0&&drawing.height>0,label);
+    assert.ok(drawing.rects.length>0,`${label}: missing native drawing`);
+    for(const r of drawing.rects){
+      assert.ok([r.x,r.y,r.width,r.height].every(Number.isInteger),`${label}: noninteger source pixels`);
+      assert.ok(r.x>=0&&r.y>=0&&r.width>0&&r.height>0&&r.x+r.width<=drawing.width&&r.y+r.height<=drawing.height,`${label}: drawing exceeds source`);
+      assert.match(r.fill,/^#[0-9a-f]{6}$/i,`${label}: nonpixel color`);
+    }
+  }
+  for(const [kind,art] of Object.entries(HOME_PIXEL_ART)) {
+    assert.equal(art.format,'native-pixel');
+    assert.deepEqual(Object.keys(art.variants),['0','90','180','270']);
+    const views=new Set();
+    for(const [rotation,frame] of Object.entries(art.variants)) {
+      assert.equal(frame.format,'native-pixel');assert.equal(frame.src,undefined);
+      const drawing=homeFurniturePixels(kind,Number(rotation));native(drawing,`${kind}/${rotation}`);
+      assert.deepEqual(frame.native,{width:drawing.width,height:drawing.height});
+      // New art cannot move a saved furniture footprint or contact plane.
+      const old=HOME_ARCHIVE_ART[kind].variants[rotation];
+      for(const key of ['width','height','anchor','seat','foreground'])assert.deepEqual(frame[key],old[key],`${kind}/${rotation}.${key}`);
+      views.add(JSON.stringify(drawing));
+    }
+    if(kind!=='rug')assert.equal(views.size,4,`${kind}: four authored directions required`);
+  }
+  for(const phase of ['day','dusk','night','dawn'])native(homeRoomPixels(phase),`room/${phase}`);
+  native(homeCottagePixels(),'cottage');
+  for(const id of ['pine_cone','wood','ore','turnip','wheat_bread'])native(homeSouvenirPixels(id),`souvenir/${id}`);
   return source;
 }
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){checkHomeArt();console.log('Pixel home: eight original assets, four views, aspect and bounds verified');}
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){checkHomeArt();console.log('Pixel home: native drawings, four views, saved contacts and archival originals verified');}

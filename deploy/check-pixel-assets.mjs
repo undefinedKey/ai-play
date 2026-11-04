@@ -1,19 +1,19 @@
 import { RUINS_RULES } from '../shared/ruins-layout.js';
 import assert from 'node:assert/strict';
-import {readFileSync,readdirSync} from 'node:fs';
-import {resolve,dirname,extname} from 'node:path';
+import {readFileSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {SCENES,WORLD_MAP,isWalkable} from '../shared/world-layout.js';
-import {PAPER_DOLL_PARTS} from '../src/paper-doll-rig.js';
+import {Q_ACTOR_ACTIONS} from '../src/q-actor-art.js';
+import {LIFE_RULES} from '../server/life.js';
 
 // Check shipped originals and Vite's copy without an image authoring runtime.
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const version=JSON.parse(readFileSync(resolve(root,'package.json'))).version;
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
-const sourceDir=resolve(root,'art/ink-world');
-const originalHashes=new Set(readdirSync(sourceDir).filter(name=>extname(name)==='.png').map(name=>digest(readFileSync(resolve(sourceDir,name)))));
-const actions=['idle','walk','run','attack','hurt','till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','rest','tired'];
+const publicManifest=JSON.parse(readFileSync(resolve(root,'public/pixel-world/manifest.json')));
+const actions=Q_ACTOR_ACTIONS;
 const directions=['south','north','east'];
 const rectKey=frame=>[frame.x,frame.y,frame.w,frame.h].join(',');
 
@@ -21,12 +21,14 @@ for(const directory of ['public','dist']){
   const read=name=>readFileSync(resolve(root,directory,'pixel-world',name));
   const manifest=JSON.parse(read('manifest.json'));
   assert.equal(manifest.release,version,`${directory}: stale art release`);
-  assert.equal(manifest.render_style,'ink');
+  assert.equal(manifest.render_style,'q-pixel');
+  assert.equal(digest(JSON.stringify(manifest)),digest(JSON.stringify(publicManifest)),`${directory}: manifest differs from authored output`);
   assert.equal(manifest.tile_size,32);
   assert.deepEqual(manifest.map,WORLD_MAP);
   // Keep notices for the legacy authoring pipeline and retained source assets.
-  assert.equal(manifest.tool.name,'Pixelbolt');
-  assert.match(manifest.tool.commit,/^[a-f0-9]{40}$/);
+  assert.equal(manifest.tool.name,'Original Q World');
+  assert.equal(manifest.tool.generator,'scripts/build-q-world.mjs');
+  assert.equal(manifest.tool.license,'project-original');
   assert.match(read('PIXELBOLT-LICENSE.txt').toString(),/MIT License/);
   const images=new Map(),definitions=[];
   const collect=(value,path='manifest')=>{
@@ -38,17 +40,18 @@ for(const directory of ['public','dist']){
   };
   collect(manifest);
   function texture(image){
-    assert.match(image,/^\/pixel-world\/[a-z0-9_]+\.png$/);
+    assert.match(image,/^\/pixel-world\/q_[a-z0-9_]+\.png$/);
     if(images.has(image))return images.get(image);
     const filename=image.split('/').at(-1),bytes=read(filename);
     assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a',filename);
     const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
     assert.ok(width>0&&height>0&&width<=4096&&height<=4096,`${filename}: texture outside supported size`);
-    assert.ok(originalHashes.has(digest(bytes)),`${filename}: PNG differs from every original ink source`);
+    assert.equal(digest(bytes),manifest.texture_sha256?.[filename],`${filename}: PNG differs from the generated Q asset checksum`);
+    assert.equal(digest(bytes),digest(readFileSync(resolve(root,'public/pixel-world',filename))),`${filename}: dist/source mismatch`);
     const atlas=JSON.parse(read(filename.replace(/\.png$/,'.atlas.json')));
     assert.equal(atlas.meta.image,filename);
     assert.deepEqual(atlas.meta.size,{w:width,h:height},`${filename}: atlas size differs from PNG`);
-    assert.equal(atlas.meta.render_style,'ink',`${filename}: stale atlas style`);
+    assert.equal(atlas.meta.render_style,'q-pixel',`${filename}: stale atlas style`);
     assert.ok(Object.keys(atlas.frames||{}).length>0,`${filename}: empty atlas`);
     const result={width,height,atlas};images.set(image,result);return result;
   }
@@ -63,7 +66,7 @@ for(const directory of ['public','dist']){
     if(value.rotation!==undefined)assert.ok(Number.isFinite(value.rotation),`${label}: invalid rotation`);
   }
   for(const{path,definition:d}of definitions){
-    assert.equal(d.render_style,'ink',`${path}: pixel artwork is still reachable`);
+    assert.equal(d.render_style,'q-pixel',`${path}: old artwork is still reachable`);
     const base=texture(d.image);
     assert.equal(d.sheet_width??d.width,base.width,`${path}: incorrect source width`);
     assert.equal(d.sheet_height??d.height,base.height,`${path}: incorrect source height`);
@@ -92,18 +95,11 @@ for(const directory of ['public','dist']){
     point(entry.anchor||entry.frame.anchor,entry.frame,`${image}:${name}.anchor`);
   }
   const body=manifest.characters.wanderer_1;
-  const rig=manifest.paper_dolls?.feiyu_v1;
-  assert.equal(rig?.enabled,true,`${directory}: Feiyu prototype absent`);
-  assert.deepEqual(rig.eligible_agent_ids,['agent_8afc5902-688e-42b6-953c-0544d0be6bd5']);
-  for(const direction of directions){
-    const parts=rig.directions?.[direction]?.parts;
-    assert.deepEqual(Object.keys(parts||{}).sort(),[...PAPER_DOLL_PARTS].sort(),`${directory}: incomplete ${direction} skeleton`);
-    for(const part of Object.values(parts))assert.ok(Number.isFinite(part.rest_rotation),`${directory}: missing measured source axis`);
-  }
+  assert.deepEqual(manifest.paper_dolls??{}, {}, `${directory}: historical ink rig must not override a Q character`);
   assert.equal(Object.keys(manifest.characters).length,8);
   for(let i=1;i<=8;i++)assert.ok(manifest.characters[`wanderer_${i}`],`persisted wanderer_${i}`);
   for(const[group,ids]of Object.entries({equipment:['wooden_sword','iron_sword','wooden_shield','iron_armor','hunter_bow','heavy_hammer','heavy_armor'],accessories:['leaf','scarf','ribbon','star']}))for(const id of ids)assert.ok(manifest[group]?.[id],`${group}.${id}`);
-  for(const id of ['hoe','watering_can','axe','pickaxe'])for(const level of [1,2,3]){
+  for(const id of ['hoe','watering_can','axe','pickaxe','fishing_rod'])for(const level of [1,2,3]){
     assert.ok(manifest.tools[`${id}_${level}`]);assert.ok(manifest.tool_icons[`${id}_${level}_icon`]);
   }
   for(const group of ['characters','equipment','accessories','tools'])for(const[id,sprite]of Object.entries(manifest[group]))for(const action of actions){
@@ -123,13 +119,18 @@ for(const directory of ['public','dist']){
     assert.notDeepEqual(character.animations.walk.frames,character.animations.run.frames);
     assert.notDeepEqual(character.animations.attack_north.frames,character.animations.attack_south.frames);
   }
-  for(const group of ['equipment','accessories','tools'])for(const sprite of Object.values(manifest[group]))assert.ok(['hand','head','chest'].includes(sprite.attachment_slot),`${group}: missing attachment slot`);
+  for(const group of ['equipment','accessories','tools'])for(const sprite of Object.values(manifest[group])){
+    assert.equal(sprite.overlay_mode,'registered-canvas',`${group}: unregistered Q layer`);
+    assert.equal(sprite.native_scale,1);assert.deepEqual(sprite.anchor,{x:24,y:43});
+    for(const animation of Object.values(sprite.animations))for(const frame of animation.frames){assert.equal(frame.w,48);assert.equal(frame.h,48);assert.deepEqual(frame.anchor??sprite.anchor,{x:24,y:43});}
+  }
   for(const id of ['forest_slime','forest_boar','ruins_guardian']){
     const monster=manifest.monsters[id];assert.ok(monster,id);
     // Monsters have their own weight and cadence. Directions of one species
     // must agree, while worn items above still follow the human body exactly.
     for(const action of actions.slice(0,5))for(const direction of directions){const animation=monster.animations[`${action}_${direction}`],baseline=monster.animations[`${action}_south`];assert.equal(animation.frames.length,4);assert.deepEqual(animation.frames.map(f=>f.duration),baseline.frames.map(f=>f.duration));}
   }
+  for(const item of LIFE_RULES.items)assert.ok(manifest.items[`item_${item.id}`]||manifest.tool_icons[`${item.id}_1_icon`]||manifest.equipment[item.id],`real catalog ${item.id} must have current artwork`);
   for(const id of ['wood','ore','turnip','wheat','turnip_seed','wheat_seed','turnip_soup','wheat_bread','gold','berry','moon_herb','trail_ration','moon_stew','grass','pine_cone','torch','roasted_berry'])assert.ok(manifest.items[`item_${id}`]);
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['supply_cache','wild_garden','spring'])assert.equal(manifest.discoveries[id].animations.resolved.loop,false);
@@ -160,8 +161,8 @@ for(const directory of ['public','dist']){
     assert.equal(seen.size,WORLD_MAP.width*WORLD_MAP.height-scene.blocked.length,`${scene.id}: isolated walkable cell`);
   }
   for(const id of ['pine','oak','ore','berries','stump','herb','tree_sapling','tree_young','tree_mature','tree_stump']){
-    const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<1,id);
+    const asset=manifest.wilderness[id];assert.ok(asset?.native_scale>0&&asset.native_scale<=1,id);
     point(asset.anchor,asset.animations.idle.frames[0],`${id}.anchor`);
   }
-  console.log(`${directory}: ${images.size} unchanged ink textures, source frames, action attachments, scene footprints, portals and reachability verified.`);
+  console.log(`${directory}: ${images.size} native Q pixel textures, source frames, action attachments, scene footprints, portals and reachability verified.`);
 }

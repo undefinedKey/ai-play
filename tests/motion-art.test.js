@@ -1,7 +1,8 @@
+// Historical ink renderer coverage; active Q art is covered by v034 tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const manifest=JSON.parse(readFileSync(new URL('../public/pixel-world/manifest.json',import.meta.url)));
+const manifest=JSON.parse(readFileSync(new URL('../art/ink-world/v033-manifest.json',import.meta.url)));
 const geometry=JSON.parse(readFileSync(new URL('../art/ink-world/actor-geometry.json',import.meta.url)));
 const key=(frame,definition)=>[frame.image||definition.image,frame.x,frame.y,frame.w,frame.h].join(':');
 

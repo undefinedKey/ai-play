@@ -1,0 +1,131 @@
+{
+  "frames": {
+    "campfire_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_idle_1": {
+      "frame": {
+        "x": 48,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_idle_2": {
+      "frame": {
+        "x": 96,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_idle_3": {
+      "frame": {
+        "x": 144,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_campfire_0": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_campfire_1": {
+      "frame": {
+        "x": 240,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_campfire_2": {
+      "frame": {
+        "x": 288,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_campfire_3": {
+      "frame": {
+        "x": 336,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 150
+    },
+    "campfire_ashes_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 48,
+        "w": 48,
+        "h": 48
+      },
+      "anchor": {
+        "x": 24,
+        "y": 43
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_effects.png",
+    "size": {
+      "w": 384,
+      "h": 96
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

@@ -1,3 +1,4 @@
+// Historical ink renderer coverage; active Q art is covered by v034 tests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {inflateSync} from 'node:zlib';
 // checks cannot judge drawing quality, pose readability or scene composition;
 // the real screenshot matrix in V022-ART-DIRECTION.md remains a separate gate.
 const root=resolve(import.meta.dirname,'..');
-const manifest=JSON.parse(readFileSync(resolve(root,'public/pixel-world/manifest.json')));
+const manifest=JSON.parse(readFileSync(resolve(root,'art/ink-world/v033-manifest.json')));
 const groupIds={
   characters:Array.from({length:8},(_,i)=>`wanderer_${i+1}`),
   monsters:['forest_slime','forest_boar','ruins_guardian'],

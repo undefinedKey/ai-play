@@ -1,5 +1,6 @@
 import {expect} from '@playwright/test';
 import {createApp} from '../../server/index.js';
+import {readFileSync} from 'node:fs';
 
 // Isolated in-memory worlds only. There is no fixture endpoint or production
 // mutation: a real owner grant and the checked AI tool boundary authorize acts.
@@ -29,8 +30,10 @@ export async function createPaperDollFixture({manualClock=false}={}) {
     page.on('request',request=>{if(request.url().startsWith(base)&&!['GET','HEAD'].includes(request.method()))audit.writes.push(request.method());});
     // Only the test browser's copy is opted in. Names and shared sprite IDs do
     // not grant access; even another identical-looking resident stays legacy.
-    const source=await (await fetch(base+'/pixel-world/manifest.json')).json();
-    expect(source.paper_dolls?.feiyu_v1,'the actual shipped rig must be present').toBeTruthy();
+    // Historical compatibility fixture: the live release now uses Q atlases.
+    // Keep exercising the archived ink rig without making it an active asset.
+    const source=JSON.parse(readFileSync(new URL('../../art/ink-world/v033-manifest.json',import.meta.url)));
+    expect(source.paper_dolls?.feiyu_v1,'the preserved historical rig must be present').toBeTruthy();
     const manifest=structuredClone(source);
     manifest.paper_dolls.feiyu_v1.eligible_agent_ids=[...eligibleIds];
     audit.rig=manifest.paper_dolls.feiyu_v1;

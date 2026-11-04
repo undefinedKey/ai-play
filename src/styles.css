@@ -333,12 +333,12 @@
 .spectator-shell .page-intro h1 span{font-size:15px;color:#656453}
 .spectator-shell .map-panel{border:1px solid #746d57;box-shadow:0 3px 0 #aaa38f;border-radius:3px;background:#f1ebdb}
 .spectator-shell .map-toolbar{padding:9px 14px;background:#e9e2d1}
-.pixel-scene-image,.ink-sprite{image-rendering:auto}
+.pixel-scene-image{image-rendering:pixelated}.ink-sprite{image-rendering:auto}
 .wilderness-terrain{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .renderer-ready .wilderness-terrain,.renderer-ready .world-daylight{display:none}
 .world-daylight{position:absolute;inset:0;z-index:1000;pointer-events:none}
 .daylight-night{background:#182b494d}.daylight-dusk{background:#875c4029}.daylight-dawn{background:#ad9d8b1a}
-.ink-prop{transform:translate(calc(-1 * var(--prop-anchor-x) * var(--world-scale,1)),calc(-1 * var(--prop-anchor-y) * var(--world-scale,1)))!important}
+.scene-prop,.ink-prop{transform:translate(calc(-1 * var(--prop-anchor-x) * var(--world-scale,1)),calc(-1 * var(--prop-anchor-y) * var(--world-scale,1)))!important}
 .world-time{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 12px;background:#eee6d2;border-block:1px solid #b2a58a;color:#494633;font-size:12px}
 .world-time strong{font-size:13px}.world-time small{margin-left:auto;color:#544a3a;font-size:11px}.world-time .time-separator{width:1px;height:12px;background:#c1b491;margin-inline:4px}
 .world-time.phase-night{background:#313f48;color:#f2e7cb;border-color:#465664}.world-time.phase-night small{color:#e0d1ae}
@@ -434,4 +434,63 @@
 .farm-scene{aspect-ratio:1.5}.farm-scene-plot .plot-soil,.spectator-shell .farm-scene-plot .plot-soil{grid-template-columns:repeat(2,calc(54px * var(--plot-scale)));align-items:end;justify-items:center;gap:0;padding:0;border:0;background:transparent!important;clip-path:none;overflow:visible}
 .farm-scene-plot .plot-soil>.pixel-crop:nth-child(n+3){margin-top:calc(-9px * var(--plot-scale))}.spectator-shell .farm-scene-plot .plot-label{left:50%;transform:translateX(-50%)}.farm-scene-plot .plot-state{z-index:2}.farm-scene-caption{background:#e7d8b9eb;border-color:#7b6b4b;color:#403625}.farm-scene-caption small{color:#544732;border-color:#ac976d}.farm-scene-agent>span:last-child{border-color:#81704d;background:#e8d9ba;color:#3c3528}
 .spectator-shell .farm-scene-agent{top:41%}.spectator-shell .farm-scene-plot{top:55%;--plot-scale:1.5}
+/* v0.34: the same cream, leaf-green and warm-wood interface across every scene.
+   Scene/actor transforms stay in their own coordinate systems. */
+:root{--ink:#304d3b;--muted:#53694e;--green:#426849;--green-dark:#304d3b;--border:#a2bb83;--panel:#fff9e8;--orange:#a96532;--shadow:3px 3px 0 #8ca875;--q-cream:#fff9e8;--q-leaf:#e3efc7;--q-edge:#6f8d5d;color:var(--ink);background:#e6f0d2}
+body,.spectator-shell{background:#e6f0d2;color:var(--ink)}
+.spectator-shell{font-family:Inter,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+.topbar,.spectator-shell .spectator-topbar{background:#fff9e8;border-bottom:3px solid #6f8d5d;box-shadow:0 3px 0 #bdd392;color:#304d3b}
+.brand-mark,.spectator-shell .brand-mark{border-radius:2px;transform:none;background:#73ab65;border:2px solid #426849;box-shadow:2px 2px 0 #b8d593;color:#fff9e8}
+.brand strong,.spectator-shell .brand strong{color:#304d3b;font-family:inherit}.brand small,.brand strong span,.spectator-shell .brand small,.spectator-shell .brand strong span,.spectator-shell .spectator-badge,.spectator-shell .connection-state{color:#426849}
+.panel,.spectator-shell .panel,.spectator-shell .map-panel{border:2px solid #6f8d5d;border-radius:3px;background:#fff9e8;box-shadow:3px 3px 0 #b9cd96}
+.section-heading,.spectator-shell .section-heading{background:#e3efc7;border-color:#a2bb83}
+.section-heading h2,.spectator-shell .section-heading h2,.spectator-shell .observer-copy>strong,.spectator-shell .scene-caption strong,.spectator-shell .cloud-heading strong{font-family:inherit;color:#304d3b;letter-spacing:.2px}
+.button,.map-grid-toggle,.icon-button,input,textarea,select,.segmented button,.spectator-shell :is(.button,.map-grid-toggle,.camera-actions button,.camera-hud button,.observer-scope-controls select){border-radius:2px}
+.button.primary{background:#426849;border:2px solid #304d3b;box-shadow:0 2px 0 #8ca875;color:#fff9e8}
+.button.secondary,.spectator-shell .button.secondary{background:#e3efc7;border:2px solid #6f8d5d;color:#304d3b;box-shadow:0 2px 0 #bdd392}
+input,textarea,select{border-color:#a2bb83;background:#fffdf2;color:#304d3b}
+.spectator-shell .world-time,.spectator-shell .world-view-switch{background:#d8e9b2;border-color:#8ba86d;color:#304d3b}
+.spectator-shell .world-time strong,.spectator-shell .world-time small,.spectator-shell .world-view-switch button{color:#426849}
+.spectator-shell .spectator-population{color:#53694e}
+.spectator-shell .world-time.phase-night{background:#d9e5e7;color:#304d3b;border-color:#8da7a6}
+.spectator-shell .world-time.phase-dusk{background:#f5dfb3;color:#304d3b}.spectator-shell .world-time.phase-dawn{background:#e9e7c0;color:#304d3b}
+.spectator-shell .world-time:is(.phase-night,.phase-dusk,.phase-dawn) :is(strong,span,small){color:#304d3b}
+.spectator-shell .world-view-switch button{font-family:inherit;border-radius:3px 3px 0 0;background:#eaf4d5;border:2px solid #a2bb83;border-bottom:0;box-shadow:none}
+.spectator-shell .world-view-switch button.active{background:#fff9e8;color:#304d3b;border-color:#6f8d5d;box-shadow:inset 0 3px #efbd57}
+.spectator-shell .world-view-switch button:hover{background:#d8e9b2;color:#304d3b;border-color:#6f8d5d}
+.spectator-shell .world-view-switch button.active:hover{background:#fff3ce;color:#304d3b}
+.spectator-shell .observer-controls,.spectator-shell .observer-scope-controls,.spectator-shell .public-message-tray{background:#edf4d9;color:#304d3b;border-color:#a2bb83}
+.spectator-shell .observer-selection strong,.spectator-shell .observer-selection span,.spectator-shell .observer-scope-controls>span,.spectator-shell .public-message-tray>label,.spectator-shell .public-message-tray>details>summary{color:#426849}
+.spectator-shell .camera-actions button,.spectator-shell .camera-hud button,.spectator-shell .public-message-tray select,.spectator-shell .observer-scope-controls select{background:#fff9e8;color:#304d3b;border:1px solid #6f8d5d;box-shadow:0 2px 0 #bdd392}
+.spectator-shell .camera-hud{background:#e3efc7;border:2px solid #6f8d5d;border-radius:2px;box-shadow:2px 2px 0 #42684940}.spectator-shell .camera-hud output{color:#304d3b}
+.spectator-shell .world-camera{border-color:#6f8d5d;background:#acd88a}
+.spectator-shell .scene-caption,.spectator-shell .scene-empty,.spectator-shell .farm-scene-empty,.farm-scene-caption{background:#fff9e8ef;color:#304d3b;border:2px solid #6f8d5d;border-radius:2px;box-shadow:2px 2px 0 #42684935}
+.spectator-shell .scene-caption span,.farm-scene-caption small{color:#426849;border-color:#a2bb83}
+.spectator-shell .head-speech-cloud{border:2px solid #6f8d5d;border-radius:3px;background:#fff9e8;color:#304d3b;box-shadow:3px 3px 0 #42684940}
+.spectator-shell .cloud-text,.spectator-shell .cloud-heading strong{color:#304d3b}.spectator-shell .cloud-heading{border-color:#bdd392}.spectator-shell .cloud-heading button{background:#e3efc7;color:#426849}
+.spectator-shell .speech-leaders path{fill:#fff9e8;stroke:#6f8d5d}.spectator-shell .speech-leaders circle{fill:#6f8d5d}
+.spectator-shell :is(.observer-status,.profile-info,.profile-facts,.event-panel,.public-message-history,.public-message-tray>details>p,.resource-inspector){background:#fff9e8;color:#304d3b;border-color:#a2bb83}
+.spectator-shell :is(.observer-copy>span,.resource-inspector-title span,.resource-inspector>small,.profile-info>p,.profile-type,.profile-facts>div>span,.profile-facts>div>strong,.event-content,.event-content>span,.event-row>time,.event-footer,.feed-empty>span){color:#53694e}
+.spectator-shell .observer-avatar,.profile-cover,.spectator-shell .profile-cover{background:#d8e9b2;border:2px solid #8ba86d;border-radius:2px;box-shadow:none}
+.spectator-shell :is(.survival-status,.history-panel,.camp-life,.cooperation-section,.adventure-journey,.farm-view,.farm-owner,.farm-presence,.farm-note,.farm-tools,.observer-details>summary){background:#edf4d9;color:#304d3b;border-color:#a2bb83}
+.spectator-shell .observer-details>summary{font-family:inherit}
+.spectator-shell :is(.cooperation-card,.encounter-details,.personal-goal,.life-catalog-grid>section,.farm-tool-card,.spectator-group,.spectator-member-list button){background:#fff9e8;border-color:#a2bb83;border-radius:2px;color:#304d3b}
+.spectator-shell .farm-tool-card.worn,.spectator-shell .connection-banner,.spectator-shell .survival-status.starving,.spectator-shell .survival-status.dark-risk{background:#ffedbd;color:#68482d;border-color:#c39853}
+.spectator-shell .farm-tool-condition{background:#e3efc7;border-color:#a2bb83;color:#426849}
+.spectator-shell .farm-scene-plot .plot-label,.spectator-shell .farm-scene-plot .plot-state,.farm-scene-agent>span:last-child{background:#fff9e8ef;border-color:#6f8d5d;color:#304d3b;border-radius:2px;box-shadow:2px 2px 0 #42684930}
+.spectator-shell .farm-scene-plot .plot-label strong{font-family:inherit;color:#304d3b}
+.spectator-shell .map-bottom,.spectator-shell .camera-status{background:#e3efc7;border-color:#a2bb83;color:#426849}.spectator-shell .map-bottom>span{color:#53694e}
+.spectator-shell .page-footer,.spectator-shell .loading-layout,.spectator-shell .loading-layout span{color:#53694e;border-color:#a2bb83}
+.spectator-shell :is(button,a,summary,select,input):focus-visible,.spectator-shell :is(.topbar,.world-view-switch,.camera-hud,.public-message-tray) :is(button,a,summary,select):focus-visible,.spectator-shell .world-view-switch button.active:focus-visible{outline:3px solid #426849;outline-offset:3px}
+.spectator-shell .observer-vitals i{border-color:#8ba86d;background:#d8e9b2}.spectator-shell .observer-vitals .vital-health i:before{background:#cb7659}.spectator-shell .observer-vitals .vital-energy i:before{background:#73ab65}
+.status-label,.spectator-shell .status-label,.spectator-shell .status-label.active{background:#e3efc7;color:#426849;border-radius:2px}
+.spectator-shell .public-message-tray>details>summary span{background:#d8e9b2;color:#304d3b;border-color:#8ba86d}
+.spectator-shell :is(.quiet-note,.observer-condition-facts,.cloud-footer,.cloud-footer button,.cloud-recorded,.cloud-newer,.cloud-short-id){color:#53694e}
+.peer-market.peer-market,.peer-market .peer-market-toggle,.ruins-route-status.ruins-route-status{background:#e3efc7;color:#304d3b;border-color:#a2bb83}
+.peer-market :is(.peer-market-offer,.peer-market-empty),.ruins-inspector.ruins-inspector{background:#fff9e8;border:2px solid #a2bb83;border-radius:2px;color:#304d3b;box-shadow:none}
+.peer-market :is(.peer-market-close,.peer-market-filters button),.ruins-inspector .ruins-inspector-heading button{background:#fff9e8;color:#426849;border-color:#6f8d5d;border-radius:2px}
+.peer-market .peer-market-filters button[aria-pressed=true]{background:#426849;color:#fff9e8}
+.peer-market-sign.peer-market-sign,.ruins-object-label.ruins-object-label,.ruins-view-entrance.ruins-view-entrance{background:#fff9e8;color:#304d3b;border-color:#6f8d5d;border-radius:1px;box-shadow:2px 2px 0 #42684935}
+.peer-market-art.peer-market-art,.peer-market-art>.pixel-sprite,.ruins-object-art.ruins-object-art,.ruins-object-art>.pixel-sprite{filter:none;image-rendering:pixelated}
+.ruins-inspector blockquote{background:#edf4d9;border-color:#8ba86d}.peer-market-intro.peer-market-intro,.peer-market-footnote.peer-market-footnote,.peer-market .peer-market-toggle small,.peer-market .peer-market-toggle-hint,.ruins-inspector>small{color:#53694e}
 @media(max-width:760px){.spectator-shell .farm-scene-plot{top:54%;--plot-scale:.85}.spectator-shell .farm-scene-agent{top:40%}.spectator-shell .farm-scene-plot .plot-label{bottom:calc(100% + 4px)}.spectator-shell .farm-scene-plot .plot-state{margin-top:3px}.farm-scene-caption,.farm-scene-caption small{font-size:10px}}

@@ -1,0 +1,261 @@
+{
+  "frames": {
+    "bookshop_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "cottage_idle_0": {
+      "frame": {
+        "x": 112,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "shed_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "game_table_idle_0": {
+      "frame": {
+        "x": 336,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "oak_idle_0": {
+      "frame": {
+        "x": 448,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "birch_idle_0": {
+      "frame": {
+        "x": 560,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "apple_idle_0": {
+      "frame": {
+        "x": 672,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "well_idle_0": {
+      "frame": {
+        "x": 784,
+        "y": 0,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "bench_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "portal_plaza_idle_0": {
+      "frame": {
+        "x": 112,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "pine_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "pine_tall_idle_0": {
+      "frame": {
+        "x": 336,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "dead_tree_idle_0": {
+      "frame": {
+        "x": 448,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "ruin_arch_idle_0": {
+      "frame": {
+        "x": 560,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "ruin_column_idle_0": {
+      "frame": {
+        "x": 672,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "ruin_wall_idle_0": {
+      "frame": {
+        "x": 784,
+        "y": 104,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "rock_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 208,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "rock_large_idle_0": {
+      "frame": {
+        "x": 112,
+        "y": 208,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    },
+    "portal_adventure_idle_0": {
+      "frame": {
+        "x": 224,
+        "y": 208,
+        "w": 112,
+        "h": 104
+      },
+      "anchor": {
+        "x": 56,
+        "y": 100
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_props.png",
+    "size": {
+      "w": 896,
+      "h": 312
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

@@ -1,3 +1,4 @@
+import { qServiceArtwork } from './q-service-art.js';
 // Presentation consumes only public ruin state. A clock never unlocks a door,
 // repairs a bridge, takes a relic, or supplies a puzzle choice.
 const symbolNames = Object.freeze({ leaf: '树叶', sun: '太阳', moon: '月亮' });
@@ -36,20 +37,19 @@ export function ruinsExecution(world, agent, now) {
   return { kind: 'ruins', text: job.intent === 'enter' ? '正在前往遗迹入口' : job.intent === 'leave' ? '正在前往遗迹出口' : `正在走向${object?.name || '遗迹设施'}` };
 }
 
-const atlas = '/pixel-world/ruins-mechanisms.svg?v=0.30.0';
 const art = new Map();
-function sprite(frame) {
-  if (!art.has(frame)) art.set(frame, Object.freeze({ image: atlas, sheet_width: 1536, sheet_height: 256, render_style: 'ink', anchor_mode: 'source', anchor: { x: 64, y: 104 }, native_scale: .5, animations: { idle: { loop: false, frames: [{ x: frame % 12 * 128, y: Math.floor(frame / 12) * 128, w: 128, h: 128, duration: 1000 }] } } }));
-  return art.get(frame);
+function sprite(kind,state) {
+  const key=`${kind}:${state}`;
+  if (!art.has(key)){const source=qServiceArtwork[`ruins_${kind}`]||qServiceArtwork.ruins_mural;art.set(key,Object.freeze({...source,animations:{idle:source.animations[state]||source.animations.idle}}));}
+  return art.get(key);
 }
 export function ruinsArtwork(object, state) {
-  let frame = 18;
-  if (object.id === 'main_gate') frame = state.key === 'open' ? 1 : 0;
-  else if (object.id === 'archive_gate') frame = state.key === 'open' ? 3 : 2;
-  else if (object.kind === 'bridge') frame = state.key === 'repaired' ? 5 : 4;
-  else if (object.kind === 'dial') frame = ({ leaf: 6, sun: 7, moon: 8 })[state.symbol] ?? 9;
-  else if (object.kind === 'runes') frame = state.key === 'solved' ? 11 : 10;
-  else if (object.kind === 'key') frame = state.key === 'taken' ? 13 : 12;
-  else if (object.kind === 'relic') frame = state.key === 'taken' ? 17 : ({ relic_leaf: 14, relic_bird: 15, relic_lens: 16 })[object.id] ?? 17;
-  return sprite(frame);
+  if(object.id==='main_gate')return sprite('gate',state.key==='open'?'open':'closed');
+  if(object.id==='archive_gate')return sprite('archive_gate',state.key==='open'?'open':'closed');
+  if(object.kind==='bridge')return sprite('bridge',state.key==='repaired'?'repaired':'broken');
+  if(object.kind==='dial')return sprite('dial',state.symbol||'unknown');
+  if(object.kind==='runes')return sprite('runes',state.key==='solved'?'solved':'waiting');
+  if(object.kind==='key')return sprite('key',state.key==='taken'?'taken':'available');
+  if(object.kind==='relic')return sprite(['relic_leaf','relic_bird','relic_lens'].includes(object.id)?object.id:'relic_leaf',state.key==='taken'?'taken':'available');
+  return sprite('mural','idle');
 }

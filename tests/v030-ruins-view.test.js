@@ -8,6 +8,7 @@ import { observerExecution, observerActionResult } from '../src/world-services-s
 import { actorScene, sceneActors } from '../src/scene-state.js';
 import { terrainDrawing, wildernessGround } from '../src/wilderness-art.js';
 import { souvenirNames } from '../src/home-state.js';
+import { homeSouvenirPixels } from '../src/home-pixel-drawing.js';
 
 const object = id => RUINS_OBJECTS.find(item => item.id === id);
 const initial = () => ({ gate: { open: false }, bridge: { repaired: false, job: null }, runes: { solved: false, orientations: ['leaf', 'leaf', 'leaf'] }, key: { ...object('key_cache'), claimed_by: null }, relics: RUINS_RULES.relics.map(item => ({ ...item, claimed_by: null })), objects: RUINS_OBJECTS });
@@ -25,7 +26,8 @@ test('v030 public ruin states control actual gate bridge dial and relic atlas fr
   ]) {
     const before = visual(id); mutate(); const after = visual(id);
     assert.notDeepEqual(before.animations.idle.frames, after.animations.idle.frames, id);
-    assert.match(after.image, /ruins-mechanisms\.svg/);
+    assert.equal(after.render_style,'q-pixel');
+    assert.match(after.image, /q_services\.png$/);
   }
   assert.equal(ruinsObjectState(ruins, object('relic_leaf'), 2000).claimant, 'real-actor');
   assert.equal(ruinsObjectState(null, object('main_gate'), 2000).key, 'unknown');
@@ -63,10 +65,12 @@ test('v030 independent ruin scene neither copies outdoor actors nor infers a hom
 });
 
 test('v030 three genuine relics have home display names and original distinct shapes', () => {
-  const source = readFileSync(new URL('../src/home-art.jsx', import.meta.url), 'utf8');
+  const shapes=new Set();
   for (const item of RUINS_ITEMS.filter(item => item.kind === 'relic')) {
-    assert.equal(souvenirNames[item.id], item.name); assert.ok(source.includes(`item==='${item.id}'`));
+    assert.equal(souvenirNames[item.id], item.name);
+    const drawing=homeSouvenirPixels(item.id);
+    assert.ok(drawing.rects.length>0);shapes.add(JSON.stringify(drawing));
+    assert.ok(drawing.rects.every(r=>[r.x,r.y,r.width,r.height].every(Number.isInteger)));
   }
-  const atlas = readFileSync(new URL('../public/pixel-world/ruins-mechanisms.svg', import.meta.url), 'utf8');
-  assert.match(atlas, /Original ink-and-paper mechanism atlas/);
+  assert.equal(shapes.size,3,'three owned relics remain visually distinguishable');
 });

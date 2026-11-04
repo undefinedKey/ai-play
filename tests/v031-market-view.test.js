@@ -43,6 +43,7 @@ test('v031 market stall draws at its real world anchor on a small footprint with
   const frame = marketArtwork.animations.idle.frames[0], position = { x: 28, y: 17 };
   const packet = spriteRenderPacket(marketArtwork, frame, renderSpace(position, { anchor: [48, 77.4], depth: 270 }));
   assert.equal(packet.x, 28.5 * 32); assert.equal(packet.y, 17.5 * 32);
-  assert.equal(packet.scale, .6); assert.deepEqual(packet.anchor, [80, 129]);
+  assert.equal(marketArtwork.render_style,'q-pixel');
+  assert.deepEqual(packet.anchor.map(value=>value*packet.scale), [48, 77.4]);
   assert.ok(frame.w * packet.scale <= 96); assert.equal(packet.depth, 270);
 });

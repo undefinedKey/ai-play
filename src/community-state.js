@@ -1,4 +1,5 @@
 import { COMMUNITY_VENUES, COMMUNITY_STATUSES } from '../shared/community.js';
+import { qServiceArtwork } from './q-service-art.js';
 
 const names = { open: '等待开始', active: '活动进行中', ended: '已结束', cancelled: '已取消', expired: '已到期', interrupted: '已中止' };
 export const communityActivityNames = Object.freeze({ sit: '坐一会儿', eat: '用餐', listen: '在台下聆听', perform: '公开表演' });
@@ -42,11 +43,4 @@ export function communityPerformanceHistory(world) {
   }).slice(0, 3).map(event => ({ ...event.payload, completed: true, completed_at: event.occurred_at }));
 }
 
-const artwork = (kind, width, height, x, y, scale) => Object.freeze({ image: `/pixel-world/community-${kind}.svg?v=0.32.0`, sheet_width: width, sheet_height: height,
-  render_style: 'ink', anchor_mode: 'source', anchor: { x, y }, native_scale: scale,
-  animations: { idle: { loop: false, frames: [{ x: 0, y: 0, w: width, h: height, duration: 1000 }] } } });
-export const communityArtwork = Object.freeze({
-  picnic: artwork('picnic', 160, 120, 80, 65, .55), table: artwork('table', 160, 160, 80, 118, .42),
-  stage: artwork('stage', 240, 160, 120, 103, .48), board: artwork('board', 120, 160, 60, 143, .45),
-  seat: artwork('seat', 80, 80, 40, 61, .37), mat: artwork('mat', 80, 60, 40, 35, .34),
-});
+export const communityArtwork = Object.freeze(Object.fromEntries(['picnic','table','stage','board','seat','mat'].map(kind=>[kind,qServiceArtwork[`community_${kind}`]])));

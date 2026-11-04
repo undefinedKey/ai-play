@@ -15,7 +15,7 @@ const variant = (kind, index, scale, facing, extras = () => ({})) => {
 };
 const make = (kind, scale, extra = () => ({})) => ({ variants: Object.fromEntries([0,90,180,270].map((rotation,i) => [rotation,variant(kind,[0,3,2,1][i],scale,['south','west','north','east'][i],(w,h) => extra(rotation,w,h))])) });
 
-export const HOME_PIXEL_ART = {
+export const HOME_ARCHIVE_ART = {
   chair: make('chair', .142, (rotation,w,h) => ({
     seat: { x: w * (rotation === 90 ? .4 : rotation === 270 ? .6 : .5), y: h * .57 },
     foreground: rotation === 180
@@ -39,5 +39,19 @@ export const HOME_PIXEL_ART = {
   })) },
 };
 
-export const HOME_ROOM_ART = { src:`${root}room.png`,width:1366,height:1152 };
-export const HOME_COTTAGE_ART = { src:`${root}cottage.png`,width:1536,height:1024,sourceRect:{x:284,y:157,w:968,h:782} };
+export const HOME_ARCHIVE_ROOM = { src:`${root}room.png`,width:1366,height:1152 };
+export const HOME_ARCHIVE_COTTAGE = { src:`${root}cottage.png`,width:1536,height:1024,sourceRect:{x:284,y:157,w:968,h:782} };
+
+// The current drawings are original integer-pixel geometry. Keep the measured
+// room-space contract: existing saves, seat contact and occlusion do not move.
+export const HOME_PIXEL_ART = Object.fromEntries(Object.entries(HOME_ARCHIVE_ART).map(([kind, spec]) => [kind, {
+  format: 'native-pixel', release: '0.34.0',
+  variants: Object.fromEntries(Object.entries(spec.variants).map(([rotation, art]) => {
+    const { src, sheet, sourceRect, planeRotation, ...placement } = art;
+    return [rotation, { ...placement, format: 'native-pixel', release: '0.34.0',
+      native: { width: Math.round(art.width), height: Math.round(art.height) }, rotation: Number(rotation) }];
+  })),
+}]));
+export const HOME_ROOM_ART = { format:'native-pixel',release:'0.34.0',width:640,height:540 };
+export const HOME_COTTAGE_ART = { format:'native-pixel',release:'0.34.0',width:120,height:97 };
+export const HOME_Q_HIP_HEIGHT = 7;

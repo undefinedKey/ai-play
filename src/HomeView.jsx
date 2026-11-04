@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, BookOpen, Home, Lamp, MessageCircle, Armchair, Utensils, Moon, PenLine, X } from 'lucide-react';
-import { usePixelNow, usePixelManifest } from './PixelWorld.jsx';
+import { usePixelNow } from './PixelWorld.jsx';
 import { HomeCharacter } from './HomeCharacter.jsx';
-import { usePaperDollReady } from './PaperDollCharacter.jsx';
 import HomeBooks from './HomeBooks.jsx';
-import { selectPaperDoll } from './paper-doll-render.js';
 import { SpeechBubbles } from './SpeechOverlay.jsx';
 import { publicName, recordTime } from './observer-state.js';
-import { CottageArt, FurnitureArt, RoomArt, SouvenirArt, furnitureArtSpec } from './home-art.jsx';
+import { BookArt, CottageArt, FurnitureArt, HomeSignArt, RoomArt, SouvenirArt, WritingArt, furnitureArtSpec } from './home-art.jsx';
+import { homePixelContactHeight } from './home-pixel-pose.js';
 import { furnitureNames, furnitureSize, furnitureUses, homeActivity, homeActivityNames, homeFurnitureOccupant, homeActorProxy, homeActors, homePoint, homePosition, homeSeatAnchor, homeUsePresentationStyle, souvenirNames } from './home-state.js';
 import { homeActorDepth, homeFurnitureLayout } from './home-pixel-layout.js';
 import './homes.css';
@@ -19,14 +18,12 @@ export function HomeEntrance({ world, map, onClick }) {
   if (!entrance || !onClick) return null;
   return <button className="home-world-entrance" style={{ ...projectMapPoint(entrance, map), zIndex: 95 + entrance.y * 10 }} onClick={onClick}
     data-testid="home-world-entrance" aria-label={`旁观家园入口，广场坐标 ${entrance.x}, ${entrance.y}`} title="查看小屋 · 只切换旁观画面">
-    <svg viewBox="0 0 54 68" aria-hidden="true"><ellipse cx="27" cy="63" rx="20" ry="4" fill="#354d3440"/><g fill="none" stroke="#52422e" strokeWidth="2.2" strokeLinejoin="round"><path d="M13 16v46h5V16" fill="#9e794b"/><path d="m4 9 34-2 12 14-12 15-34-2Z" fill="#e0c38c"/><path d="m10 21 10-8 10 8m-18-1v9h16v-9m-9 9v-6h4v6" strokeWidth="1.5"/><path d="M35 19h8m-4-4 4 4-4 4" strokeWidth="1.5"/></g></svg><span>小屋入口</span>
+    <HomeSignArt/><span>小屋入口</span>
   </button>;
 }
 
 function HomeActor({ agent, home, world, selected, onSelect, now, live }) {
   const proxy = homeActorProxy(agent);
-  const assets = usePixelManifest(), selection = selectPaperDoll(assets, agent), rig = selection?.rig;
-  const rigReady = usePaperDollReady(selection);
   const clock = usePixelNow(now, live && agent.status === 'active', proxy);
   const position = homePosition(agent, clock, live && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   if (!position) return null;
@@ -34,9 +31,9 @@ function HomeActor({ agent, home, world, selected, onSelect, now, live }) {
   const activity = homeActivity(agent, clock), furniture = home.furniture.find(item => item.instance_id === activity?.instance_id);
   const using = activity?.phase === 'using', enabled = live && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const artSpec = furniture && furnitureArtSpec(furniture.kind);
-  const presentationStyle = rigReady ? homeUsePresentationStyle(proxy, furniture, clock, enabled, rig.dimensions?.hipHeight, artSpec) : undefined;
   const seat = homeSeatAnchor(proxy, furniture, artSpec);
-  const depth = homeActorDepth(position, seat && rigReady ? homeFurnitureLayout(furniture, world.home_rules, artSpec) : null);
+  const presentationStyle = homeUsePresentationStyle(proxy, furniture, clock, enabled, undefined, artSpec, homePixelContactHeight(activity,furniture,seat?.facing));
+  const depth = homeActorDepth(position, seat ? homeFurnitureLayout(furniture, world.home_rules, artSpec) : null);
   return <><button className={`home-actor ${selected === agent.agent_id ? 'selected' : ''} ${using ? 'using-furniture' : ''}`} style={{ ...homePoint(position), zIndex: depth }}
     data-testid={`home-actor-${agent.agent_id}`} data-home-id={agent.home_presence.home_id} data-speech-agent={agent.agent_id}
     data-foot-x={position.x} data-foot-y={position.y} data-home-phase={activity?.phase} data-home-activity={activity?.kind} data-home-furniture={activity?.instance_id} aria-label={`查看${name}的公开档案${activity ? `，${activity.label}` : ''}`} onClick={() => onSelect(agent.agent_id)}>
@@ -59,8 +56,8 @@ function PlacedFurniture({ item, display, book, rules, active, onDisplay, onBook
       aria-label={label} aria-expanded={active} aria-controls={`home-${kind}-detail`} onClick={click}>
       <FurnitureArt kind={item.kind} rotation={layout.rotation} layer="base" item={display?.item_id}/>
       {(book || display) && <span className="home-exhibit-mark"><BookOpen size={12}/></span>}
-      {book && <svg className="home-shelf-book" viewBox="0 0 30 25" aria-hidden="true"><path d="m5 3 18 2v18L5 20Z" fill="#77917a" stroke="#4c4736" strokeWidth="1.5"/><path d="m8 4v17m4-12 7 1m-7 3 7 1" fill="none" stroke="#e5d9b6" strokeWidth="1.2"/></svg>}
-      {writing && <svg className={`home-table-writing ${live && occupant.status === 'active' ? 'writing-live' : ''}`} data-testid="home-table-writing" viewBox="0 0 42 26" aria-hidden="true"><path d="m4 4 29-2 3 21-29 1Z" fill="#f4e6bf" stroke="#7f6949"/><path d="m10 8 18-1M10 12l15-1m-14 5 17-1" fill="none" stroke="#8e7b5b" strokeWidth=".8"/><path className="table-pen" d="m25 15 10-14 2 2-11 14Z" fill="#535343" stroke="#403e31" strokeWidth=".5"/></svg>}
+      {book && <BookArt className="home-shelf-book"/>}
+      {writing && <WritingArt className={`home-table-writing ${live && occupant.status === 'active' ? 'writing-live' : ''}`} data-testid="home-table-writing"/>}
       {state && <span className="home-furniture-use-dot" aria-hidden="true"/>}
     </button>
     {seated && <span className="home-furniture-foreground" data-occludes-agent={occupant.agent_id} data-furniture-instance={item.instance_id} style={{ ...layout.style, zIndex: layout.foregroundDepth }} aria-hidden="true">
