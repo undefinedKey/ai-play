@@ -53,7 +53,6 @@
 .journey-pixel-sprite > svg { display: block; width: 100%; height: 100%; overflow: visible; image-rendering: pixelated; }
 .journey-actor.paused > .journey-pixel-sprite { filter: grayscale(.7); }
 .journey-foot-shadow { position: absolute; left: 20%; width: 60%; bottom: calc(3px * var(--pixel-scale)); height: calc(3px * var(--pixel-scale)); background: #40753b66; z-index: -1; }
-.journey-actor.selected .journey-foot-shadow { outline: 2px solid #fff2a3; background: #e8db6d80; box-shadow: 0 2px #75983d; }
 .journey-name { position: absolute; top: -17px; left: 50%; transform: translateX(-50%); font-size: 10px; line-height: 16px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff9df; background: #365e3f; border: 2px solid #244532; padding: 0 5px; text-shadow: none; box-shadow: 1px 2px #d0e49a66; }
 .journey-hp { position: absolute; left: 20%; bottom: calc(-7px * var(--journey-actor-scale,1)); width: 60%; height: 6px; background: #fff5d6; border: 2px solid #476635; }
 .journey-hp > i { height: 100%; display: block; background: #7ac644; }
