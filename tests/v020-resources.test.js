@@ -7,7 +7,7 @@ import { World } from '../server/world.js';
 import { LIFE_RULES, initializeLife } from '../server/life.js';
 import { RESOURCE_NODES, publicResources } from '../server/resources.js';
 import { publicDayCycle } from '../server/day-cycle.js';
-import { findPath, isWalkable } from '../server/spatial.js';
+import { findPath, isWalkable, sceneDefinition } from '../server/spatial.js';
 import { spectatorSnapshot } from '../server/spectator.js';
 
 function fixture(t, persistent = false) {
@@ -41,8 +41,9 @@ const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
 
 test('v020 shared authored nodes are reachable and public data excludes private reservations', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p);
-  assert.equal(RESOURCE_NODES.length, 32);
-  for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, { x: 11, y: 8 }, def.interaction_position), def.id); }
+  assert.equal(RESOURCE_NODES.filter(n => n.scene_id !== 'journey').length, 32, 'all original resource locations remain');
+  assert.deepEqual(RESOURCE_NODES.filter(n => n.scene_id === 'journey').map(n => n.id).sort(), ['journey_berries', 'journey_ore', 'journey_pine']);
+  for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, sceneDefinition(def.scene_id).portal.position, def.interaction_position), def.id); }
   assert.equal(a.life.tools.hoe.durability, 20); assert.equal(a.life.tools.axe.owned, false); assert.equal(a.life.tools.axe.durability, 0);
   gather(f, p, 'camp_branches');
   Object.assign(f.world.state.resources.nodes.camp_branches.reservation, { run_id: 'PRIVATE_RUN', token: 'PRIVATE_TOKEN' });

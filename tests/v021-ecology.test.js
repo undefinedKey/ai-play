@@ -7,7 +7,7 @@ import { World } from '../server/world.js';
 import { initializeLife } from '../server/life.js';
 import { RESOURCE_NODES, TREE_RULES, initializeResources, publicResources, tickResources } from '../server/resources.js';
 import { initializeDayCycle } from '../server/day-cycle.js';
-import { findPath, isWalkable } from '../server/spatial.js';
+import { findPath, isWalkable, sceneDefinition } from '../server/spatial.js';
 
 function fixture(t, persistent = false) {
   let now = 2000000000000;
@@ -39,12 +39,13 @@ const node = (f, id) => f.world.state.resources.nodes[id];
 
 test('v021 forest sites and grass are bounded, reachable, unique, and keep all three original tree locations', t => {
   const f = fixture(t), trees = RESOURCE_NODES.filter(n => n.kind === 'tree');
-  assert.equal(RESOURCE_NODES.length, 32); assert.equal(trees.length, 23);
+  assert.equal(RESOURCE_NODES.filter(n => n.scene_id !== 'journey').length, 32); assert.equal(trees.filter(n => n.scene_id !== 'journey').length, 23);
+  assert.equal(trees.filter(n => n.scene_id === 'journey').length, 1);
   assert.equal(trees.filter(n => n.initial_stage === 'empty').length, 2);
   assert.equal(RESOURCE_NODES.filter(n => n.kind === 'grass').length, 2);
   assert.equal(new Set(RESOURCE_NODES.map(n => n.id)).size, RESOURCE_NODES.length);
   assert.equal(new Set(RESOURCE_NODES.map(n => `${n.scene_id}:${n.position.x},${n.position.y}`)).size, RESOURCE_NODES.length);
-  for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, { x: 11, y: 8 }, def.interaction_position), def.id); }
+  for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, sceneDefinition(def.scene_id).portal.position, def.interaction_position), def.id); }
   for (const [id, scene_id, position] of [['east_pine', 'plaza', { x: 29, y: 7 }], ['south_pine', 'plaza', { x: 30, y: 21 }], ['wild_pine', 'adventure', { x: 29, y: 12 }]]) {
     const def = RESOURCE_NODES.find(n => n.id === id); assert.equal(def.scene_id, scene_id); assert.deepEqual(def.position, position);
   }

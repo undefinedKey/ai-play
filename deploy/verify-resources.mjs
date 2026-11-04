@@ -64,11 +64,12 @@ export function verifyResources(old, current) {
   assert.deepEqual(Object.keys(state.nodes).sort(), definitions.map(n => n.id).sort());
   if (previous) {
     const beforeV029 = previous.version === 2 && !Object.hasOwn(previous.nodes, 'camp_fallen_berries');
-    const expectedIds = beforeV029 ? PRE_V029_V2_IDS : catalogue(previous.version).map(n => n.id);
+    const beforeJourney = previous.version === 2 && !Object.hasOwn(previous.nodes, 'journey_pine');
+    const expectedIds = beforeV029 ? PRE_V029_V2_IDS : catalogue(previous.version).filter(n => !beforeJourney || n.scene_id !== 'journey').map(n => n.id);
     assert.deepEqual(Object.keys(previous.nodes).sort(), [...expectedIds].sort(), 'all old node identities must be known and retained');
   }
   let initializedAt = null;
-  if (state.version === 2 && previous?.version !== 2) {
+  if (state.version === 2 && definitions.some(def => def.kind === 'tree' && !previous?.nodes?.[def.id])) {
     // An untouched newly authored mature tree supplies the common initialization
     // timestamp. Bound it independently by the saved clock and restart evidence;
     // never accept different migration clocks for different tree nodes.

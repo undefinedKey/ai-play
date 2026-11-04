@@ -36,7 +36,7 @@ test('v021 actual SQLite v1-to-v2 migration preserves partial/empty old trees an
   f.world.state.resources.nodes.south_pine = { stock: 0, regrow_at: now + 120000, reservation: { agent_id: 'old', job_id: 'old-work', expires_at: now + 100000 } };
   f.world.state.resources.nodes.camp_branches = { stock: 1, regrow_at: now + 45000, reservation: null };
   const { old, current } = f.restart(5000);
-  const result = verifyResources(old, current); assert.equal(result.resource_version, 2); assert.equal(result.nodes, 32);
+  const result = verifyResources(old, current); assert.equal(result.resource_version, 2); assert.equal(result.nodes, RESOURCE_NODES.length);
   assert.equal(current.resources.nodes.east_pine.stock, 2); assert.equal(current.resources.nodes.east_pine.ecology.stage, 'mature');
   assert.deepEqual(current.resources.nodes.south_pine.ecology, { stage: 'stump', stage_started_at: now + 5000, next_at: now + 65000, generation: 0, origin: 'wild' });
   assert.equal(current.resources.nodes.south_pine.regrow_at, now + 965000);

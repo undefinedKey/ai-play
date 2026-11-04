@@ -6,8 +6,13 @@ import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { World } from '../server/world.js';
 import { verifyResources } from '../deploy/verify-resources.mjs';
+import { RESOURCE_NODES } from '../shared/resources-layout.js';
 
 const NODE = 'camp_fallen_berries', START = 2000000000000;
+function restoreV028Catalog(world) {
+  delete world.state.resources.nodes[NODE];
+  for (const node of RESOURCE_NODES.filter(node => node.scene_id === 'journey')) delete world.state.resources.nodes[node.id];
+}
 function fixture(t) {
   const root = resolve(tmpdir()), directory = mkdtempSync(join(root, 'v029-services-'));
   const dbPath = join(directory, 'world.sqlite'); let now = START;
@@ -33,13 +38,13 @@ function pythonVerify(old, current) {
 }
 
 test('v029 real SQLite v028 upgrade adds only shared fruit; identity, goals and empty personal supplies remain exact', t => {
-  const f = fixture(t); delete f.world.state.resources.nodes[NODE];
+  const f = fixture(t); restoreV028Catalog(f.world);
   const saved = f.world.state.resources.nodes.camp_branches;
   saved.stock = 1; saved.regrow_at = START + 600000;
   saved.reservation = { agent_id: f.id, job_id: 'interrupted-old-job', expires_at: START + 90000 };
   const { old, current } = f.restart();
   assert.equal(Object.keys(old.resources.nodes).length, 31);
-  assert.equal(verifyResources(old, current).nodes, 32);
+  assert.equal(verifyResources(old, current).nodes, RESOURCE_NODES.length);
   assert.deepEqual(current.resources.nodes[NODE], { stock: 1, regrow_at: null, reservation: null });
   assert.deepEqual(current.resources.nodes.camp_branches, { stock: 1, regrow_at: START + 600000, reservation: null });
   const a = current.agents[f.id], before = old.agents[f.id];
@@ -57,8 +62,9 @@ test('v029 real SQLite v028 upgrade adds only shared fruit; identity, goals and 
 });
 
 test('v029 migration rejects missing/unknown old nodes, forged stock/deadlines, replayed reservations and clock changes', t => {
-  const f = fixture(t); delete f.world.state.resources.nodes[NODE];
+  const f = fixture(t); restoreV028Catalog(f.world);
   const { old, current } = f.restart();
+  assert.equal(verifyResources(old, current).nodes, RESOURCE_NODES.length);
   for (const mutate of [s => { delete s.resources.nodes.camp_stones; }, s => { s.resources.nodes.unknown = { stock: 1, regrow_at: null, reservation: null }; }]) {
     const bad = structuredClone(old); mutate(bad); assert.throws(() => verifyResources(bad, current));
   }
@@ -74,9 +80,9 @@ test('v029 existing depleted shared fruit keeps its deadline across restart and 
   const f = fixture(t), node = f.world.state.resources.nodes[NODE];
   node.stock = 0; node.regrow_at = START + 120000;
   let pair = f.restart(60000);
-  assert.equal(verifyResources(pair.old, pair.current).nodes, 32);
+  assert.equal(verifyResources(pair.old, pair.current).nodes, RESOURCE_NODES.length);
   assert.deepEqual(pair.current.resources.nodes[NODE], { stock: 0, regrow_at: START + 120000, reservation: null });
-  pair = f.restart(60000); assert.equal(verifyResources(pair.old, pair.current).nodes, 32);
+  pair = f.restart(60000); assert.equal(verifyResources(pair.old, pair.current).nodes, RESOURCE_NODES.length);
   assert.deepEqual(pair.current.resources.nodes[NODE], { stock: 1, regrow_at: null, reservation: null });
   assert.deepEqual(pair.current.agents[f.id].life.inventory, {});
   assert.equal(pair.current.agents[f.id].survival.satiety, 0);

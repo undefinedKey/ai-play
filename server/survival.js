@@ -121,7 +121,7 @@ export function captureSurvival(world) {
     const until = active ? Math.min(now, a.run.expires_at, (a.last_contact_at ?? -45000) + 45000) : a.survival.last_at;
     const m = a.movement;
     const maxDistance = m ? Math.min(pathLength(m.path), (m.settled_distance || 0) + (m.mode === 'run' ? a.fatigue.energy / (combatStats(a).move_energy_per_tile * 2) : Infinity)) : 0;
-    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity, a.home_travel?.expires_at ?? Infinity, a.fishing?.expires_at ?? Infinity) : until;
+    const moveUntil = m ? Math.min(until, m.ends_at, a.adventure?.plan?.expires_at ?? Infinity, a.life?.gathering?.expires_at ?? Infinity, a.survival?.travel?.expires_at ?? Infinity, a.home_travel?.expires_at ?? Infinity, a.fishing?.expires_at ?? Infinity, a.ruins_job?.expires_at ?? Infinity, world.features?.activity(a).expiresAt ?? Infinity) : until;
     const frame = { from: a.survival.last_at, until: Math.max(a.survival.last_at, until), scene_id: a.scene_id, position: { ...a.position }, maxDistance, moveUntil,
       satiety: a.survival.satiety, movement: a.movement ? { ...a.movement, path: a.movement.path.map(p => ({ ...p })) } : null, torch: a.survival.torch ? { ...a.survival.torch } : null,
       home_presence: a.home_presence ? { home_id: a.home_presence.home_id, entered_at: a.home_presence.entered_at } : null,

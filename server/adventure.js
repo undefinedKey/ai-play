@@ -332,6 +332,7 @@ export function tickAdventure(world, survivalFrames = null) {
   for(const a of Object.values(world.state.agents)) {
     changed=trimMotionState(a,now)||changed;
     const action=a.action;
+    if(action?.scene_id==='journey') continue;
     if(action?.outcome!==null || !action) continue;
     const p=a.adventure?.plan,m=state.monsters.find(m=>m.monster_id===action.target_id);
     if(!agentPermitted(world,a,now) || !p || p.expires_at<=now || p.intent!=='hunt' || p.monster_id!==action.target_id) {cancelAttack(a,now);changed=true;continue;}

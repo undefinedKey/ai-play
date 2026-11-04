@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { SCENES, isWalkable } from '../shared/world-layout.js';
+import { SCENES, SCENE_IDS, isWalkable } from '../shared/world-layout.js';
 import { RESOURCE_NODES } from '../shared/resources-layout.js';
 import { CAMP_SITES, SURVIVAL_RULES } from '../shared/survival-rules.js';
 import { FISHING_SPOTS } from '../shared/fishing-layout.js';
 import { PEER_MARKET_RULES, PEER_MARKET_STATUSES } from '../shared/peer-market.js';
 import { COMMUNITY_RULES, COMMUNITY_STATUSES } from '../shared/community.js';
+import { JOURNEY_RULES, JOURNEY_NODES, JOURNEY_MONSTERS } from '../shared/journey.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -19,6 +20,23 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.equal(health.capabilities.sideview_journey, true);
+assert.equal(world.journey.version, 1);
+assert.deepEqual(world.journey.nodes, JOURNEY_NODES);
+assert.deepEqual(world.journey.monsters.map(m=>m.monster_id), JOURNEY_MONSTERS.map(m=>m.monster_id));
+assert.ok(world.scenes.some(s=>s.id==='journey' && s.projection==='sideview'));
+for (const monster of world.journey.monsters) {
+  assert.equal(monster.scene_id,'journey'); assert.ok(Number.isFinite(monster.hp));
+  assert.equal(monster.contributions,undefined); assert.equal(monster.next_attack_at,undefined);
+}
+const journeyScope = await (await response('/api/public/world?scene=journey')).json();
+assert.equal(journeyScope.scope.scene_id,'journey'); assert.equal(journeyScope.adventure.monsters.length,0);
+assert.equal(journeyScope.journey.monsters.length,2);
+assert.deepEqual(journeyScope.resources.nodes.map(n=>n.id).sort(),[...JOURNEY_RULES.resource_ids].sort());
+for (const actor of world.agents) if(actor.journey_job) {
+  assert.equal(actor.journey_job.run_id,undefined); assert.equal(actor.journey_job.session_epoch,undefined);
+  assert.equal(actor.journey_job.movement_id,undefined);
+}
 assert.equal(health.capabilities.community, true);
 assert.equal(world.community.version, 1);
 assert.deepEqual(world.community.venues.map(v=>v.id), COMMUNITY_RULES.venues.map(v=>v.id));
@@ -163,7 +181,7 @@ const manifest = await (await response('/pixel-world/manifest.json')).json();
 // Scenes may reuse a ground texture; their authored terrain and prop placement
 // are independent, and the renderer draws scene-specific paths over that texture.
 assert.notDeepEqual(SCENES[0].props, SCENES[1].props);
-for (const scene of SCENES) {
+for (const scene of SCENES.filter(s=>s.projection!=='sideview')) {
   assert.equal(manifest.scenes[scene.id].width, scene.map.width * 32);
   assert.equal(manifest.scenes[scene.id].height, scene.map.height * 32);
   assert.ok(isWalkable(scene.id, scene.portal.position));
@@ -174,7 +192,7 @@ for (const scene of SCENES) {
   }
 }
 for (const agent of world.agents) {
-  assert.ok(['plaza', 'adventure', 'ruins'].includes(agent.scene_id));
+  assert.ok(SCENE_IDS.includes(agent.scene_id));
   assert.ok(isWalkable(agent.scene_id, agent.position));
   assert.equal(agent.life.plots.length, 2);
   for (const plot of agent.life.plots) assert.equal(typeof plot.tilled, 'boolean');

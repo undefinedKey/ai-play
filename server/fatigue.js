@@ -83,9 +83,13 @@ export function captureFatigueRecovery(world) {
       return [a.agent_id, { rate: HOME_RULES.use.recovery_per_second[job.kind] ?? idle,
         until: Math.min(now, job.ends_at, job.expires_at, homeLightUntil(world, a)), after: idle }];
     }
+    if (active && a.scene_id === 'journey' && a.journey_job?.phase === 'resting' && !a.movement) {
+      const job = a.journey_job;
+      return [a.agent_id, { rate: 2, until: Math.min(now, job.ends_at, job.expires_at, a.run.expires_at, (a.last_contact_at ?? -45000) + 45000), after: 0 }];
+    }
     if((a.home_presence?.movement || a.movement)?.version===2) {
       const m=a.home_presence?.movement || a.movement,previous=m.settled_distance||0;
-      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.fishing?.expires_at??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);
+      const cutoff=active?Math.min(now,a.run.expires_at,(a.last_contact_at??-45000)+45000,a.adventure?.plan?.expires_at??Infinity,a.life?.gathering?.expires_at??Infinity,a.home_travel?.expires_at??Infinity,a.fishing?.expires_at??Infinity,a.ruins_job?.expires_at??Infinity,world.features?.activity(a).expiresAt??Infinity,a.home_presence?homeLightUntil(world,a):Infinity,m.ends_at):Math.min(now,a.position_at??now);
       const budget=m.mode==='run'?energy(a)/(combatStats(a).move_energy_per_tile*2):Infinity;
       const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
       const stop=samplePath(m.path,progress).position;

@@ -137,7 +137,7 @@ for(const directory of ['public','dist']){
   for(const id of ['turnip','wheat'])for(const stage of ['untilled','tilled','seeded','growing','ready'])assert.ok(manifest.crops[id].animations[stage]?.frames.length,`${id}.${stage}`);
   for(const id of ['campfire','campfire_ashes'])assert.ok(manifest.effects[id]?.animations.idle.frames.length,id);
   assert.notDeepEqual(manifest.effects.campfire.animations.idle.frames,manifest.effects.campfire_ashes.animations.idle.frames);
-  for(const scene of SCENES){
+  for(const scene of SCENES.filter(s=>s.projection!=='sideview')){
     assert.deepEqual(scene.map,WORLD_MAP);
     assert.equal(manifest.scenes[scene.id].width,WORLD_MAP.width*32);
     assert.equal(manifest.scenes[scene.id].height,WORLD_MAP.height*32);

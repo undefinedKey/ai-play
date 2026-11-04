@@ -10,6 +10,9 @@ const tree = (id, scene, x, y, options = {}) => node(id, 'tree', scene, x, y, x 
   duration_seconds: 14, energy_cost: 6, natural_regrowth: true, initial_stage: 'mature', ...options,
 });
 export const RESOURCE_NODES = Object.freeze([
+  tree('journey_pine', 'journey', 24, 15, { name: '林间空地松木', interaction_position: { x: 24, y: 16 }, yield_count: 3 }),
+  node('journey_ore', 'ore_vein', 'journey', 29, 15, 29, 16, 'ore', { name: '空地露天矿', tool_id: 'pickaxe', yield_count: 3, duration_seconds: 18, energy_cost: 6, regrow_seconds: 180 }),
+  node('journey_berries', 'berry_bush', 'journey', 40, 15, 40, 16, 'berry', { name: '营地浆果丛', max_stock: 3, duration_seconds: 8, energy_cost: 2, yield_count: 2 }),
   node('camp_branches', 'branches', 'plaza', 10, 8, 11, 8, 'wood', { name: '营地枯枝', regrow_seconds: 600 }),
   node('camp_stones', 'stones', 'plaza', 12, 8, 11, 8, 'ore', { name: '营地碎石', max_stock: 2, regrow_seconds: 60, duration_seconds: 18, energy_cost: 6 }),
   // Fallen fruit is a small shared resource, not a rescue grant. Anyone can

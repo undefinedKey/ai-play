@@ -70,7 +70,7 @@ export function samplePaperDollPose(actor,action,now,{phase=0,enabled=true,facin
   const hurt=active&&action==='hurt'&&inWindow(actor.hurt,now)?actor.hurt:null;
   const work=active&&['gather','plant'].includes(action)?workAt(actor,now):null;
   const receipt=active&&Number.isFinite(elapsed)&&elapsed>=0&&elapsed<1600&&['till','water','harvest','plant','craft','repair','upgrade','cook','eat'].includes(action);
-  const resting=active&&action==='rest'&&(actor.adventure?.plan?.intent==='rest'||actor.activity?.activity_id==='relax');
+  const resting=active&&action==='rest'&&(actor.adventure?.plan?.intent==='rest'||actor.activity?.activity_id==='relax'||actor.scene_id==='journey'&&actor.journey_job?.phase==='resting');
   const tired=active&&action==='tired'&&['tired','exhausted'].includes(actor.fatigue?.state);
   let kind=moving?(run?'run':'walk'):attack?'attack':hurt?'hurt':work?'gather':receipt?action:resting?'rest':tired?'tired':'idle';
   let stage=kind==='idle'?'rest':kind,cycle=wrap(phase);

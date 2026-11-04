@@ -21,6 +21,8 @@ export function characterAction(agent, events, now, moving = false) {
   if (fishingState(agent, now)?.working) return 'fish';
   const community = communityUseState(agent, now);
   if (community?.using) return community.activity;
+  if (agent.scene_id === 'journey' && agent.journey_job?.phase === 'resting'
+    && now >= agent.journey_job.started_at && now < Math.min(agent.journey_job.ends_at, agent.journey_job.expires_at)) return 'rest';
   const repair = agent.ruins_job;
   if (agent.scene_id === 'ruins' && repair?.scene_id === 'ruins' && repair.phase === 'repairing'
     && Number.isFinite(repair.started_at) && Number.isFinite(repair.ends_at)

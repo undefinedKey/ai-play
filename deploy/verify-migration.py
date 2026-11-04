@@ -281,6 +281,15 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
     assert not new.get('home_invitations'), 'temporary home invitations must be invalidated at restart'
     expected_agents = compare_peer_market(old, new, compare_cooperations(old, new))
     compare_community(old, new)
+    if 'journey' in old or 'journey' in new:
+        if project_root is None:
+            project_root = Path(__file__).resolve().parent.parent
+        helper = Path(project_root).resolve() / 'deploy/verify-journey.mjs'
+        assert helper.is_file(), 'tracked journey verification helper required'
+        result = subprocess.run(['node', str(helper)], input=json.dumps({'old': old, 'new': new}), capture_output=True,
+            text=True, encoding='utf-8', timeout=60)
+        assert result.returncode == 0, 'journey state preservation verification failed'
+        assert json.loads(result.stdout).get('journey_state_preserved') is True
     for key, a in old['agents'].items():
         b = new['agents'][key]
         assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'

@@ -1,5 +1,6 @@
 const site = (id, name, scene_id, x, y, biome) => ({ id, name, scene_id, position: { x, y }, interaction_position: { x: x - 1, y }, biome, radius: 1 });
 export const CAMP_SITES = Object.freeze([
+  { ...site('journey_camp', '林间营地火塘', 'journey', 44, 16, 'woodland'), interaction_position: { x: 43, y: 16 } },
   site('plaza_hearth', '营地东侧火塘', 'plaza', 14, 11, 'meadow'),
   site('orchard_hearth', '林园空地', 'plaza', 28, 16, 'woodland'),
   site('trail_hearth', '林道宿营地', 'adventure', 17, 15, 'woodland'),

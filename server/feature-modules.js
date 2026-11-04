@@ -1,10 +1,20 @@
 import { PEER_MARKET_RULES, initializePeerMarket, publicPeerMarket, peerMarketObservation, tickPeerMarket, endPeerMarket, performPeerMarket } from './peer-market.js';
 import { COMMUNITY_RULES, initializeCommunity, publicCommunity, publicCommunityJob, communityObservation, tickCommunity, endCommunity, cancelCommunityUse, performCommunity, communityJob } from './community.js';
+import { JOURNEY_RULES, initializeJourney, publicJourney, publicJourneyJob, journeyObservation, tickJourney, endJourney, cancelJourney, performJourney, journeyJob } from './journey.js';
 
 // Explicit adapters for two existing world services, not a runtime plugin loader.
 // Each service owns its state, validation, public projection and lifecycle. Hooks
 // always receive the live World: rejected commands replace world.state atomically.
 const MODULES = Object.freeze([
+  Object.freeze({
+    id: 'journey', rules: JOURNEY_RULES,
+    initialize: initializeJourney, perform: performJourney,
+    publicWorld: publicJourney, observe: journeyObservation,
+    publicAgent: a => ({ journey_job: publicJourneyJob(a) }),
+    tick: tickJourney, detach: endJourney, cancelUse: cancelJourney, job: journeyJob,
+    passive: p => ['browse', 'stop'].includes(p.intent),
+    busy: { code: 'JOURNEY_BUSY', message: '正在执行本人选择的森林行程；可等待或用 journey stop 结束，下一步由本人决定' },
+  }),
   Object.freeze({
     id: 'peer_market', rules: PEER_MARKET_RULES,
     initialize: initializePeerMarket, perform: performPeerMarket,

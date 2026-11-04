@@ -10,11 +10,11 @@ import { COMMUNITY_VENUES } from '../shared/community.js';
 const serviceBodies = new Set(COMMUNITY_VENUES.flatMap(v=>v.footprint.map(p=>`${v.scene_id}:${p.x},${p.y}`)));
 const prop = (map,name) => map.layers.find(l=>l.type==='objectgroup').objects.find(o=>o.name===name);
 test('expanded Tiled world preserves old legal cells except explicit service furniture bodies',()=>{
-  assert.deepEqual(compileWorldMaps([ruins,adventure,plaza]),SCENES);
+  assert.deepEqual(compileWorldMaps([ruins,adventure,plaza]),SCENES.filter(s=>s.projection!=='sideview'));
   assert.deepEqual(WORLD_MAP,{width:48,height:32});
   const baseline=JSON.parse(readFileSync(new URL('../art/wilderness/v019-map-baseline.json',import.meta.url)));
   for(const old of baseline){const blocked=new Set(old.blocked.map(p=>`${p.x},${p.y}`));for(let y=0;y<old.height;y++)for(let x=0;x<old.width;x++)if(!blocked.has(`${x},${y}`)&&!serviceBodies.has(`${old.scene_id}:${x},${y}`))assert.ok(isWalkable(old.scene_id,{x,y}),`${old.scene_id} ${x},${y}`);}
-  assert.ok(SCENES.every(s=>s.props.some(p=>p.position.x>=24)&&s.props.some(p=>p.position.y>=16)));
+  assert.ok(SCENES.filter(s=>s.projection!=='sideview').every(s=>s.props.some(p=>p.position.x>=24)&&s.props.some(p=>p.position.y>=16)));
 });
 test('editing a sprite moves its collision with its feet; linked arrival gates derive from the other scene',()=>{
   const edited=structuredClone(plaza);prop(edited,'village_tree_0').x+=32;prop(edited,'portal').x+=32;
