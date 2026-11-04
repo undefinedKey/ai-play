@@ -12,11 +12,12 @@ import {sampleGait,animationDuration,gatheringFrameTime,actorAnimationAction,act
 import {samplePresentationClock} from './presentation-clock.js';
 import {PaperDollCharacter,usePaperDollReady} from './PaperDollCharacter.jsx';
 import {selectPaperDoll} from './paper-doll-render.js';
+import {communityUseState} from './community-state.js';
 
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.31.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.32.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = value; for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -122,7 +123,7 @@ export function CharacterSprite({ agent, events = [], now = Date.now(), live = f
   const requestedTool = action === 'gather'?agent.life?.gathering?.tool_id:action === 'till' ? 'hoe' : action === 'water' ? 'watering_can' : maintenance?.payload?.tool_id || maintenance?.payload?.item_id;
   const tool = ['hoe','watering_can','axe','pickaxe'].includes(requestedTool) ? requestedTool : null;
   const toolLevel = tool ? Math.max(1,Math.min(3,agent.life?.tools?.[tool]?.level || 1)) : null;
-  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','fish'].includes(action);
+  const handsBusy = ['till','plant','water','harvest','craft','repair','upgrade','gather','cook','eat','fish','sit','listen','perform'].includes(action);
   return <span className={`pixel-character ${className}`} data-render-rig={rigReady?selectedRig.id:undefined} data-sprite-id={id || 'unassigned'} data-action={action} data-facing={facing} data-action-phase={agent.action?.phase||undefined} data-action-outcome={agent.action?.outcome||undefined} style={{ '--character-accent': agent.appearance?.accent || agent.color || '#63825b' }}>
     {rigReady?<PaperDollCharacter selection={selectedRig} agent={agent} assets={assets} action={action} now={actionNow} facing={facing} timeline={timeline} tool={tool} toolLevel={toolLevel} handsBusy={handsBusy} portrait={portrait} Sprite={PixelSprite}/>:<>
     <PixelSprite definition={sprite} action={action} animationAction={animationAction} startedAt={pose.current.at} sampledElapsed={timeline.elapsed} poseFrame={timeline.frame} visualPose={timeline.pose} facing={facing} animate={active && action !== 'idle'}/>
@@ -166,12 +167,14 @@ export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,s
   const clock=usePixelNow(now,live&&agent.status==='active',agent);
   const position=confirmedPosition(agent,clock,live&&!reducedMotion());
   const name=publicName(agent,agents);
+  const communityUse=communityUseState(agent,clock);
   const crowded=agents.filter(a=>a.scene_id===agent.scene_id&&['active','paused'].includes(a.status)&&a.position?.x===agent.position?.x&&a.position?.y===agent.position?.y).length>1;
   return <button className={`world-actor ${adventure?'adventure-agent':'map-agent'} ${selected===agent.agent_id?'selected':''} ${agent.status==='paused'?'paused':''}`} data-speech-agent={agent.agent_id} data-testid={`${adventure?'adventure-agent':'map-agent'}-${agent.agent_id}`} data-scene-id={agent.scene_id} data-foot-x={position.x} data-foot-y={position.y} data-crowded={crowded} style={{...projectMapPoint(position,map),'--unit-map-x':`${(position.x+.5)/map.width*100}cqw`,'--unit-offset':`${slot?.x||0}px`,'--unit-row':`${slot?.y||0}px`,zIndex:101+position.y*10}} onClick={()=>onSelect(agent.agent_id)} aria-label={`查看${name}${adventure?'的冒险档案':''}，${agent.status==='paused'?'已暂停':'活动中'}`}>
     <RenderSpace position={position} depth={101+position.y*10} offset={{x:(slot?.x||0)*.55,y:(slot?.y||0)*.2}}><CharacterSprite agent={agent} events={events} now={now} live={live}/></RenderSpace><span className={adventure?'adventure-agent-name':'map-agent-name'}>{name}</span>
     {agent.hurt&&clock>=agent.hurt.started_at&&clock<agent.hurt.ends_at&&<span className="combat-number" aria-hidden="true">−{agent.hurt.damage}</span>}
     {adventure&&agent.adventure&&<span className="unit-health"><i style={{width:`${Math.max(0,Math.min(100,agent.adventure.hp/agent.adventure.max_hp*100))}%`}}/></span>}
     {agent.activity&&agent.status==='active'&&<span className="map-agent-activity">{agent.activity.name}</span>}
+    {communityUse&&<span className="community-actor-status" data-testid={`community-use-${agent.agent_id}`} data-community-phase={communityUse.phase}>{!live?'最近记录 · ':''}{communityUse.using?communityUse.label:'正走向所选站位'}</span>}
   </button>;
 }
 

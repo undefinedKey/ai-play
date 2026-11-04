@@ -1,4 +1,5 @@
 import { fishingState } from './fishing-view-state.js';
+import { communityUseState } from './community-state.js';
 const occurredAt = value => typeof value === 'number' ? value : Date.parse(value || '') || 0;
 const recent = (at, now, duration = 1600) => Number.isFinite(at) && now >= at && now - at < duration;
 const cooperationCook = (event, agentId) => event.type === 'cooperation_completed' && event.payload?.template_id === 'camp_meal' && event.payload.status === 'completed' && event.payload.members?.some(member => member.agent_id === agentId && member.role_id === 'cook');
@@ -18,6 +19,8 @@ export function characterAction(agent, events, now, moving = false) {
     if(motion.moving)return motion.mode==='run'?'run':'walk';
   }
   if (fishingState(agent, now)?.working) return 'fish';
+  const community = communityUseState(agent, now);
+  if (community?.using) return community.activity;
   const repair = agent.ruins_job;
   if (agent.scene_id === 'ruins' && repair?.scene_id === 'ruins' && repair.phase === 'repairing'
     && Number.isFinite(repair.started_at) && Number.isFinite(repair.ends_at)
@@ -55,6 +58,7 @@ export function characterAction(agent, events, now, moving = false) {
 
 /** A repeated receipt restarts its one-shot pose, even if the action is unchanged. */
 export function characterActionKey(agent, events, action) {
+  if(agent.community_job?.phase==='using'&&agent.community_job.activity===action)return `community:${agent.community_job.job_id}`;
   if(action==='repair'&&agent.ruins_job?.phase==='repairing')return `repair:${agent.ruins_job.job_id}`;
   if(action==='fish')return `fish:${agent.fishing?.job_id||''}`;
   if(action==='attack'&&agent.action)return `${action}:${agent.action.action_id}`;
@@ -96,6 +100,7 @@ export function movementFacing(previous, current) {
 export function actorFacing(actor,action,now,fallback='south'){
   if(action==='attack'&&['prepare','recovery'].includes(actionPhase(actor.action,now)))return actor.action.facing||actor.facing||fallback;
   if(actor.movement?.version===2&&actor.movement.scene_id===actor.scene_id)return sampleMotion(actor,now).facing;
+  const community=communityUseState(actor,now);if(community?.using)return community.facing;
   return actor.facing||fallback;
 }
 
@@ -115,6 +120,7 @@ import {sampleMotion,actionPhase} from '../shared/motion.js';
 // The renderer does not invent a hit at impact_at. Until the actual outcome is
 // available it holds the ready pose; only a confirmed hit gets the strike pose.
 export function actionPose(actor,action,now,events=[]){
+  const community=communityUseState(actor,now);if(community?.using&&community.activity===action)return {elapsed:community.elapsed};
   if(action==='attack'&&actor.action){
     const a=actor.action;
     if(!a.outcome||now<(a.resolved_at??a.impact_at))return {frame:now<a.started_at+(a.impact_at-a.started_at)*.45?0:1,elapsed:Math.max(0,now-a.started_at)};

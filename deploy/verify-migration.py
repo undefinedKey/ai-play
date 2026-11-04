@@ -199,6 +199,77 @@ def compare_peer_market(old, new, agents):
         assert new['agents'][aid].get('peer_market_page', 0) == before.get('peer_market_page', 0), 'AI board reading selection is preserved'
     return agents
 
+def compare_community(old, new):
+    """Independently prove interruption only: no new participation, meal or show."""
+    if 'community' not in old and 'community' not in new:
+        return
+    expected = deepcopy(old.get('community', {'version': 1, 'events': {}}))
+    assert expected.get('version') == 1 and isinstance(expected.get('events'), dict), 'known community persistence required'
+    fresh = [e for e in new.get('events', []) if str(e.get('cursor', '')).isdigit() and int(e['cursor']) > old.get('sequence', 0)]
+    restarts = [e for e in fresh if e.get('type') == 'server_restarted']
+    assert len(restarts) == 1, 'one restart proves community migration'
+    restart = restarts[0]
+    changes = [e for e in fresh if e.get('type', '').startswith('community_')]
+    ongoing = [e for e in expected['events'].values() if e['status'] in ['open', 'active']]
+    old_jobs = [(aid, a, a['community_job']) for aid, a in old['agents'].items() if a.get('community_job')]
+    assert len(changes) == len(ongoing) + len(old_jobs), 'only original community events and jobs may be interrupted'
+    fields = ['event_id', 'revision', 'venue_id', 'title', 'text', 'host_agent_id', 'host_name', 'status',
+              'member_agent_ids', 'created_at', 'started_at', 'expires_at', 'ended_at', 'end_reason']
+
+    def prove_time(event, earliest):
+        assert safe_time(event.get('occurred_at')) and earliest <= event['occurred_at'] <= restart['occurred_at'], 'community interruption occurs during restart'
+        assert int(event['cursor']) < int(restart['cursor']), 'community interruption must precede restart record'
+
+    def actor_location(agent_id):
+        location = {'scene_id': new['agents'][agent_id].get('scene_id')}
+        # Community initializes before temporary home presence is discarded.
+        presence = old['agents'][agent_id].get('home_presence')
+        if presence:
+            location['home_id'] = presence['home_id']
+        return location
+
+    for gathering in ongoing:
+        matching = [e for e in changes if e.get('type') == 'community_event_changed' and
+                    e.get('payload', {}).get('event', {}).get('event_id') == gathering['event_id']]
+        assert len(matching) == 1, 'exactly one interruption for each original gathering'
+        event = matching[0]
+        ended_at = event['payload']['event'].get('ended_at')
+        assert safe_time(ended_at) and gathering['created_at'] <= ended_at <= event['occurred_at'], 'original gathering has a valid interruption time'
+        prove_time(event, gathering['created_at'])
+        gathering.update(status='interrupted', end_reason='restarted', ended_at=ended_at)
+        public = {key: deepcopy(gathering[key]) for key in fields}
+        public['joined_count'] = len(gathering['member_agent_ids'])
+        expected_payload = {'change': 'interrupted', 'event': public, 'agent_id': gathering['host_agent_id'],
+                            'name': gathering['host_name'], 'text': gathering['host_name'] + '：活动因主持许可中断而结束',
+                            **actor_location(gathering['host_agent_id'])}
+        assert event['payload'] == expected_payload, 'community interruption preserves exact original public terms and membership'
+    ended = sorted([e for e in expected['events'].values() if e['status'] not in ['open', 'active']],
+                   key=lambda e: (e.get('ended_at') or 0, e['event_id']), reverse=True)
+    for gathering in ended[40:]:
+        del expected['events'][gathering['event_id']]
+    assert new.get('community') == expected, 'community terms, deadlines, host/member bindings and completed records preserved exactly'
+
+    job_fields = ['job_id', 'kind', 'venue_id', 'seat_id', 'phase', 'activity', 'interaction_position',
+                  'started_at', 'use_started_at', 'ends_at', 'expires_at']
+    for aid, agent, job in old_jobs:
+        matching = [e for e in changes if e.get('type') == 'community_use_cancelled' and
+                    e.get('payload', {}).get('agent_id') == aid and e['payload'].get('job_id') == job['job_id']]
+        assert len(matching) == 1, 'exactly one cancellation for each original finite community job'
+        event = matching[0]
+        prove_time(event, job['started_at'])
+        expected_payload = {key: deepcopy(job[key]) for key in job_fields}
+        if job['phase'] == 'using' and job['activity'] == 'eat':
+            expected_payload['item_id'] = job['item_id']
+        if job['phase'] == 'using' and job['activity'] == 'perform':
+            expected_payload['title'] = job['title'][:40]
+        expected_payload.update(agent_id=aid, name=agent['name'], reason='restarted',
+                                text=agent['name'] + '中断了本次场地活动，下一步由本人决定', **actor_location(aid))
+        assert event['payload'] == expected_payload, 'job cancellation cannot publish draft, complete work or manufacture speech'
+    for aid, agent in old['agents'].items():
+        assert new['agents'][aid].get('community_job') is None, 'restart cannot resume travel, seating, a meal or a performance'
+        assert new['agents'][aid].get('community_page') == agent.get('community_page', 0), 'private community reading selection preserved'
+
+
 def compare_states(old, new, project_root=None, require_history=False, require_scenes=False):
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
@@ -209,6 +280,7 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
         assert new.get('ruins') == old.get('ruins', initial_ruins), 'ruin routes, dials and finite relic claims preserved; upgrades cannot solve or grant rewards'
     assert not new.get('home_invitations'), 'temporary home invitations must be invalidated at restart'
     expected_agents = compare_peer_market(old, new, compare_cooperations(old, new))
+    compare_community(old, new)
     for key, a in old['agents'].items():
         b = new['agents'][key]
         assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'
@@ -310,6 +382,7 @@ def verify(path, root=Path('/')):
         'exploration_goals_and_cooldowns_preserved': True,
         'cooperations_consents_escrow_returns_preserved': True,
         'peer_market_terms_escrow_returns_preserved': True,
+        'community_terms_membership_jobs_preserved': True,
         'public_history_preserved': True,
         'scene_locations_preserved': True,
         'survival_state_preserved': True,

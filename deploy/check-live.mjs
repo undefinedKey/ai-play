@@ -4,6 +4,7 @@ import { RESOURCE_NODES } from '../shared/resources-layout.js';
 import { CAMP_SITES, SURVIVAL_RULES } from '../shared/survival-rules.js';
 import { FISHING_SPOTS } from '../shared/fishing-layout.js';
 import { PEER_MARKET_RULES, PEER_MARKET_STATUSES } from '../shared/peer-market.js';
+import { COMMUNITY_RULES, COMMUNITY_STATUSES } from '../shared/community.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -18,6 +19,25 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.equal(health.capabilities.community, true);
+assert.equal(world.community.version, 1);
+assert.deepEqual(world.community.venues.map(v=>v.id), COMMUNITY_RULES.venues.map(v=>v.id));
+for (const venue of world.community.venues) {
+  const expected = COMMUNITY_RULES.venues.find(v=>v.id===venue.id);
+  assert.deepEqual(venue.position, expected.position);
+  assert.deepEqual(venue.footprint, expected.footprint);
+  assert.ok(isWalkable('plaza', venue.interaction_position));
+  for (const seat of venue.seats) assert.ok(isWalkable('plaza', seat.position));
+}
+for (const event of world.community.events) {
+  assert.ok(COMMUNITY_STATUSES.includes(event.status));
+  assert.equal(event.host_binding, undefined); assert.equal(event.member_bindings, undefined);
+}
+for (const actor of world.agents) if (actor.community_job) {
+  assert.equal(actor.community_job.run_id, undefined); assert.equal(actor.community_job.session_epoch, undefined);
+  assert.equal(actor.community_job.hp_at_start, undefined); assert.equal(actor.community_job.movement_id, undefined);
+  if (actor.community_job.phase === 'approaching') assert.equal(actor.community_job.text, undefined);
+}
 assert.equal(health.capabilities.peer_market, true);
 assert.equal(world.peer_market.version, 1);
 assert.deepEqual(world.peer_market.place, PEER_MARKET_RULES.place);

@@ -60,6 +60,23 @@ export function verifyHistory(old, current) {
     } else if (event.type === 'personal_goal_ended') {
       assert.ok(['active', 'needs_review'].includes(agent?.personal_goal?.status));
       assert.equal(p.status, 'expired'); assert.equal(p.text, `${agent.name}的公开短期目标已到期`);
+    } else if (event.type === 'community_event_changed') {
+      const original = old.community?.events?.[p.event?.event_id];
+      assert.ok(original && ['open', 'active'].includes(original.status));
+      assert.equal(p.change, 'interrupted'); assert.equal(p.event.status, 'interrupted');
+      assert.equal(p.event.end_reason, 'restarted');
+      for (const key of ['event_id', 'revision', 'venue_id', 'host_agent_id', 'title', 'text', 'member_agent_ids', 'created_at', 'started_at', 'expires_at'])
+        assert.deepEqual(p.event[key], original[key], 'restart cannot edit terms or invent participation');
+      assert.ok(Number(event.cursor) < Number(restart.cursor));
+      // Python independently proves the complete record, private bindings and
+      // exact public interruption payload; history replays only that fact.
+    } else if (event.type === 'community_use_cancelled') {
+      const original = agent?.community_job;
+      assert.ok(original && p.job_id === original.job_id);
+      assert.equal(p.reason, 'restarted');
+      assert.equal(p.text, `${agent.name}中断了本次场地活动，下一步由本人决定`);
+      assert.equal(current.agents[p.agent_id].community_job, null);
+      assert.ok(Number(event.cursor) < Number(restart.cursor));
     } else if (event.type === 'peer_market_changed') {
       assert.equal(old.peer_market?.offers?.[p.offer?.offer_id]?.status, 'open');
       assert.equal(p.change, 'interrupted');
@@ -72,7 +89,7 @@ export function verifyHistory(old, current) {
       // compare_cooperations in the Python verifier proves every scalar,
       // accepted member, refund and exact lifecycle transition independently.
     } else {
-      assert.ok(!['message', 'cooperation_completed', 'exploration_resolved'].includes(event.type) &&
+      assert.ok(!event.type.startsWith('community_') && !['message', 'cooperation_completed', 'exploration_resolved'].includes(event.type) &&
         !/^life_(gather_finished|traded|harvested|crafted|equipped|tool_upgraded|tool_repaired|consumed)$/.test(event.type), 'no new work or speech during release');
     }
     recordHistoryEvent(world, event);

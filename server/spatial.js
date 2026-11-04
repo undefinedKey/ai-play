@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { WORLD_MAP, SCENE_IDS, SCENES, sceneDefinition, isWalkable as gridWalkable } from '../shared/world-layout.js';
 import { MOTION_RULES, metric, pathLength, samplePath, facingBetween } from '../shared/motion.js';
 import { ruinsCellAllowed } from '../shared/ruins-layout.js';
+import { COMMUNITY_VENUES } from '../shared/community.js';
 export { WORLD_MAP, SCENE_IDS, SCENES, sceneDefinition };
 export const MOVEMENT_RULES = { version: 2, modes: { walk: { speed: MOTION_RULES.walk_speed, energy_multiplier: 1 }, run: { speed: MOTION_RULES.run_speed, energy_multiplier: 2 } }, max_step: 3, simulation_ms: 100 };
 export const MAX_MOVE = 3;
@@ -33,9 +34,17 @@ export function boundedPosition(p) {
 }
 const key = p => `${p.x},${p.y}`;
 const neighbors = p => [{ x: p.x + 1, y: p.y }, { x: p.x, y: p.y + 1 }, { x: p.x - 1, y: p.y }, { x: p.x, y: p.y - 1 }];
+const communityBodies = new Set(COMMUNITY_VENUES.flatMap(v => v.footprint.map(p => `${v.scene_id}:${p.x},${p.y}`)));
+// An old save may stand where a newly installed table now is. Keep that exact
+// position and permit one outward path, never a new destination or through-path.
+const communityLegacyOrigin = (sceneId, p) => {
+  const cells = physicalCells(p);
+  return cells.length > 0 && cells.some(c => communityBodies.has(`${sceneId}:${key(c)}`))
+    && cells.every(c => gridWalkable(sceneId,c) || communityBodies.has(`${sceneId}:${key(c)}`));
+};
 /** Bounded BFS, deterministic east/south/west/north ties. Includes start/end. */
 export function findPath(sceneId, start, target, { maxSteps = WORLD_MAP.width * WORLD_MAP.height, allowed = () => true } = {}) {
-  if (!isWalkable(sceneId, start) || !isWalkable(sceneId, target) || !allowed(target)) return null;
+  if ((!isWalkable(sceneId, start) && !communityLegacyOrigin(sceneId,start)) || !isWalkable(sceneId, target) || !allowed(target)) return null;
   if (metric(start,target) < 1e-8) return [{...start}];
   if ((start.x===target.x && Math.floor(start.y)===Math.floor(target.y) || start.y===target.y && Math.floor(start.x)===Math.floor(target.x)) && metric(start,target)<=1) return [{...start},{...target}];
   const integer = p => Number.isInteger(p.x) && Number.isInteger(p.y);
@@ -96,7 +105,7 @@ export function initializeScene(a, now) {
   const p = a.adventure?.plan, e = a.adventure?.encounter;
   const wild = a.adventure?.in_field === true || p && (p.zone_id && p.zone_id !== 'camp' || p.monster_id) || e?.status === 'pending';
   a.scene_id = SCENE_IDS.includes(oldScene) ? oldScene : wild ? 'adventure' : 'plaza';
-  a.position = isWalkable(a.scene_id, original) ? original : nearestWalkable(a.scene_id, original);
+  a.position = isWalkable(a.scene_id, original) || communityLegacyOrigin(a.scene_id, original) ? original : nearestWalkable(a.scene_id, original);
   a.movement = null;
   a.action = null; a.hurt = null; a.position_at = now;
   a.facing = ['north','south','east','west'].includes(a.facing) ? a.facing : 'south';
@@ -128,7 +137,7 @@ export function advanceMovement(a, now, { until = now, maxDistance = Infinity, o
   return next !== previous;
 }
 function publicRoute(sceneId, path, maxPoints, world) {
-  if (!Array.isArray(path) || path.length < 1 || path.length > maxPoints || !path.every(p => isWalkable(sceneId, p) && (!world || isWorldWalkable(world, sceneId, p))) ||
+  if (!Array.isArray(path) || path.length < 1 || path.length > maxPoints || !path.every((p,i) => i===0 && path.length>1 && communityLegacyOrigin(sceneId,p) || isWalkable(sceneId, p) && (!world || isWorldWalkable(world, sceneId, p))) ||
     path.some((p, i) => i > 0 && (!(p.x===path[i-1].x || p.y===path[i-1].y) || metric(p,path[i-1]) > 1 || !metric(p,path[i-1])))) return null;
   return path.map(({ x, y }) => ({ x, y }));
 }

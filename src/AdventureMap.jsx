@@ -20,6 +20,7 @@ import CooperationPanel from './CooperationPanel.jsx';
 import HomeView from './HomeView.jsx';
 import RuinsMap, { RuinsEntrance } from './Ruins.jsx';
 import PeerMarketBoard from './PeerMarket.jsx';
+import CommunityBoard from './Community.jsx';
 import { selectedHome } from './home-state.js';
 import { Compass, Flag, Heart, Home, Leaf, Map, Shield, Sparkles, Sprout, Swords, Users } from 'lucide-react';
 
@@ -133,6 +134,7 @@ export default function WorldScene({ world, selected, onSelect, grid, onGrid, li
     {following&&<p className="camera-status" role="status">关注 {publicName(followed,world.agents)} · {view==='farm'?'农田近景不移动镜头':followed?.status==='active'?'镜头随位置更新':followed?.status==='paused'?'已暂停，镜头停留在当前位置':'已离线，镜头保留最后位置'}{!live?' · 最近收到的位置，等待重连':''}</p>}
     {view==='ruins'?<RuinsMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={displayNow} onView={changeView}/>:view==='home'?<HomeView world={world} home={home} requestedHome={requestedHome} selected={selected} onSelect={choose} onHome={id=>changeView('home',id)} now={displayNow} live={live} grid={grid}/>:view==='farm'?<FarmPanel world={world} selected={selected} onSelect={choose} now={now} live={live}/>:view==='adventure'&&world.adventure?<AdventureMap world={world} selected={selected} onSelect={choose} grid={grid} live={live} now={displayNow} onRuins={()=>changeView('ruins')}/>:React.cloneElement(plaza,{onSelect:choose,now:displayNow,onHomeEntrance:()=>changeView('home')})}
     <PeerMarketBoard world={world} visible={view==='plaza'} selected={selectedResource} onSelect={setSelectedResource} now={displayNow} live={live}/>
+    <CommunityBoard world={world} visible={view==='plaza'} selected={selectedResource} onSelect={setSelectedResource} now={displayNow} live={live}/>
     <FishingInspector world={world} selected={view==='home'?null:selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/><ResourceInspector world={world} selected={view==='home'?null:selectedResource} onClose={()=>setSelectedResource(null)} now={displayNow} live={live}/><FireInspector world={world} selected={view==='home'?null:selectedResource} onClose={()=>setSelectedResource(null)} live={live}/>
     {scopeControls}
     <ObserverStatus world={world} agent={agent} live={live} now={now}/><SurvivalStatus world={world} agent={agent} live={live}/>

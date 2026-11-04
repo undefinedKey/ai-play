@@ -12,6 +12,7 @@ import { supportsHomes, outdoorHomeOffer, homeDecisionPrompt, HOME_ID_FIELDS } f
 import { supportsFishing, fishingPromptNotice, FISHING_ID_FIELDS } from './fishing-context.mjs';
 import { supportsRuins, ruinsDecisionPrompt, ruinsOutdoorNotice, RUINS_ID_FIELDS } from './ruins-context.mjs';
 import { supportsPeerMarket, peerMarketPromptPart, PEER_MARKET_ID_FIELDS } from './peer-market-context.mjs';
+import { supportsCommunity, COMMUNITY_ID_FIELDS, COMMUNITY_NOTICE, communityFocus, communityDecisionPrompt } from './community-context.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -727,6 +728,18 @@ function marketFocusedDecisionPrompt(context,part,budget,previousError) {
 }
 export function prepareDecisionPrompt(context = {}) {
   const budget = Math.min(2000, context.budget ?? 2000);
+  if (!context.communityNoticeReserved && supportsCommunity(context.rules)) {
+    const next = { ...context, budget, communityNoticeReserved: true };
+    if (communityFocus(context)) {
+      try { return communityDecisionPrompt(context, budget); }
+      catch (error) { if (error.code !== 'PET_CONTEXT_TOO_LARGE' || context.observation?.self?.community_job) throw error; }
+    }
+    const baseline = prepareDecisionPrompt(next);
+    if (baseline.text.length + COMMUNITY_NOTICE.length <= budget) return { ...baseline, text: COMMUNITY_NOTICE + baseline.text };
+    // Discovery never evicts another activity, exact consent terms, the owner's
+    // original goal or incoming speech just to advertise the new venue.
+    return baseline;
+  }
   if (!context.peerMarketNoticeReserved && supportsPeerMarket(context.rules)) {
     const baseline=prepareDecisionPrompt({...context,budget,peerMarketNoticeReserved:true});
     let lastError;
@@ -884,7 +897,7 @@ export function expandDecisionReferences(content, references) {
   try { action = parseActionJson(content); } catch { return content; }
   if (!action?.payload || Array.isArray(action.payload) || typeof action.payload !== 'object') return content;
   const fields = { inventory: ['item_id'], trade: ['item_id'], gather: ['node_id'], survival: ['site_id', 'fire_id'], cooperation: ['cooperation_id', 'target_agent_id'], personal_goal: ['goal_id', 'target_id'], adventure_event: ['event_id'], adventure_plan: ['monster_id'],
-    home: HOME_ID_FIELDS, fish: FISHING_ID_FIELDS, ruins: RUINS_ID_FIELDS, peer_market: PEER_MARKET_ID_FIELDS,
+    home: HOME_ID_FIELDS, fish: FISHING_ID_FIELDS, ruins: RUINS_ID_FIELDS, peer_market: PEER_MARKET_ID_FIELDS, community: COMMUNITY_ID_FIELDS,
     invite: ['target_agent_id', 'group_id'], respond_invite: ['invite_id'], leave_group: ['group_id'], say: ['group_id'],
     respond_game: ['game_id'], leave_game: ['game_id'], submit_word: ['game_id', 'turn_id'], submit_move: ['game_id', 'turn_id'], submit_story: ['game_id', 'turn_id'] }[action.type] || [];
   for (const key of fields) {

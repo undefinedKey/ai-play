@@ -159,6 +159,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.31.0') >= 0 && ['scripts/peer-market-context.mjs', 'references/peer-market.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '新版集市、赠礼与自主委托协议不完整，未执行升级');
   }
+  if (compareVersions(version, '0.32.0') >= 0 && ['scripts/community-contract.mjs', 'scripts/community-context.mjs', 'scripts/feature-protocols.mjs', 'references/community.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '新版公共场地契约、接入模块与说明不完整，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

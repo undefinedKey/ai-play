@@ -1,6 +1,9 @@
 import React, {useEffect,useState} from 'react';
 import {samplePaperDollPose} from './paper-doll-rig.js';
 import {sampleFishingPose} from './fishing-pose.js';
+import {sampleCommunityPose} from './community-pose.js';
+import {communityUseState} from './community-state.js';
+import {CharacterHeldProp} from './CharacterHeldProp.jsx';
 import {paperDollImages,paperDollLayers} from './paper-doll-render.js';
 
 /** Keep the complete legacy character visible until every rig texture is
@@ -27,9 +30,11 @@ export function usePaperDollReady(selection){
 }
 
 export function PaperDollCharacter({selection,agent,assets,action,now,facing,timeline,tool,toolLevel,handsBusy,portrait=false,Sprite}){
-  const sample=action==='fish'?sampleFishingPose(agent,now,{enabled:timeline.playing,facing,rig:selection.rig}):samplePaperDollPose(agent,action,now,{phase:timeline.gaitPhase||0,enabled:timeline.playing,facing,elapsed:timeline.actionElapsed,rig:selection.rig});
+  const community=communityUseState(agent,now);
+  const sample=community?.using&&community.activity===action?sampleCommunityPose(agent,now,{enabled:timeline.playing,facing,rig:selection.rig}):action==='fish'?sampleFishingPose(agent,now,{enabled:timeline.playing,facing,rig:selection.rig}):samplePaperDollPose(agent,action,now,{phase:timeline.gaitPhase||0,enabled:timeline.playing,facing,elapsed:timeline.actionElapsed,rig:selection.rig});
   const layers=paperDollLayers(selection.rig,sample,assets,agent,{facing,tool,toolLevel,handsBusy,portrait});
   return <span className="paper-doll-rig" data-rig-id={selection.id} data-facing={facing} data-action={action} data-playing={timeline.playing?'true':'false'} style={{display:'contents'}}>
     {layers.map(layer=><Sprite key={layer.key} definition={layer.definition} sourceFrame={layer.frame} visualPose={layer.pose} sourceRotation={layer.sourceRotation} layer={layer.layer} rigPart={layer.part} attachmentSlot={layer.slot} textureDependency={layer.textureDependency} className={layer.className} itemId={layer.itemId} toolLevel={layer.toolLevel} action={action} facing={facing}/>) }
+    {community?.using&&community.activity===action&&<CharacterHeldProp value={sample.homeProp} facing={facing}/>}
   </span>;
 }

@@ -8,6 +8,7 @@ export const HISTORY_RETENTION = Object.freeze({ days: 30, max_entries: 4096, ma
 const categories = new Set(['speech', 'activity', 'game', 'exploration', 'life', 'goal', 'cooperation']);
 const outcomes = new Set(['recorded', 'completed', 'cancelled', 'interrupted', 'expired', 'ended']);
 const types = new Map([
+  ['community_event_changed','activity'], ['community_use_finished','activity'], ['community_use_cancelled','activity'],
   ['peer_market_changed', 'life'],
   ...['ruins_entered','ruins_left','ruins_claimed','ruins_gate_opened','ruins_bridge_repaired','ruins_runes_submitted'].map(type => [type, 'exploration']),
   ...['fish_finished', 'fish_cancelled', 'home_book_written', 'home_book_shelved', 'home_book_unshelved', 'home_book_commented'].map(type => [type, 'life']),
@@ -52,6 +53,7 @@ function projectDetails(type, raw, known) {
   const projected = publicEvent({ type, payload: raw }, known);
   if (!projected) return null;
   const details = projected.payload;
+  if (type === 'community_event_changed' && (!details.event || ['open','active'].includes(details.event.status) || !known.has(details.event.host_agent_id))) return null;
   if (type === 'peer_market_changed' && (!details.offer || details.offer.status === 'open' ||
       !known.has(details.offer.owner_agent_id) || details.offer.status === 'settled' && !known.has(details.offer.taker_agent_id))) return null;
   if (type === 'activity_finished' && raw.interrupted === true && details.outcome === 'cancelled') details.interrupted = true;
@@ -70,6 +72,8 @@ function projectDetails(type, raw, known) {
 }
 
 function outcomeFor(type, d) {
+  if (type === 'community_event_changed') return ({ended:'ended',cancelled:'cancelled',expired:'expired',interrupted:'interrupted'})[d.event?.status] || 'ended';
+  if (type === 'community_use_cancelled') return d.reason === 'expired' ? 'expired' : d.reason === 'cancelled' ? 'cancelled' : 'interrupted';
   if (type === 'peer_market_changed') return ({ settled: 'completed', cancelled: 'cancelled', expired: 'expired', declined: 'ended', interrupted: 'interrupted' })[d.offer?.status] || 'ended';
   if (type === 'message') return 'recorded';
   if (type === 'fish_cancelled') return d.reason === 'expired' ? 'expired' : d.reason === 'cancelled' ? 'cancelled' : 'interrupted';
@@ -121,6 +125,7 @@ function fromEvent(world, event) {
   const details = projectDetails(event.type, raw, allIds);
   if (!details) return null;
   let ids = [details.agent_id];
+  if (event.type === 'community_event_changed') ids = [details.event.host_agent_id, ...details.event.member_agent_ids];
   if (event.type === 'peer_market_changed') ids = [details.offer.owner_agent_id, details.offer.taker_agent_id, details.offer.target_agent_id];
   if (types.get(event.type) === 'cooperation') ids = details.cooperation.members.map(m => m.agent_id);
   if (event.type === 'game_finished') {

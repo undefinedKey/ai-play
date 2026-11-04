@@ -1,6 +1,7 @@
 // Pure data compiler shared by Node, the browser and map validation tooling.
 // Tiled tile objects use bottom-left alignment; sprite feet are at (64,120).
 import { RUINS_RULES } from './ruins-layout.js';
+import { COMMUNITY_VENUES } from './community.js';
 const ids = ['plaza', 'adventure', 'ruins'];
 const fail = message => { throw new Error(`Invalid Tiled world map: ${message}`); };
 function need(value, message) { if (!value) fail(message); }
@@ -65,7 +66,10 @@ export function compileTiledScene(source) {
     return { id: object.name, kind, position, footprint };
   });
   const portal = props.find(p => p.id === 'portal'); need(portal, 'missing portal');
-  const blocked = [...new Map(props.flatMap(p => p.footprint).map(p => [`${p.x},${p.y}`, p])).values()];
+  // Service furniture is rendered by its interactive overlay. Its physical
+  // footprint is authored once in the portable venue contract, not a second prop.
+  const serviceFootprints = COMMUNITY_VENUES.filter(v => v.scene_id === meta.scene_id).flatMap(v => v.footprint);
+  const blocked = [...new Map([...props.flatMap(p => p.footprint), ...serviceFootprints].map(p => [`${p.x},${p.y}`, p])).values()];
   const blockedKeys = new Set(blocked.map(p => `${p.x},${p.y}`));
   need(!blockedKeys.has(`${portal.position.x},${portal.position.y}`), 'blocked portal');
   const visited = new Set(), pending = [portal.position];

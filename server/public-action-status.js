@@ -2,9 +2,10 @@
 // private communication, hidden game choices and model reasoning stay private.
 const PUBLIC_ACTION_TYPES = new Set([
   'move', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event',
-  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'peer_market', 'wait',
+  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'peer_market', 'community', 'wait',
 ]);
 const PUBLIC_ACTION_ERRORS = new Set([
+  'COMMUNITY_BUSY','COMMUNITY_OCCUPIED','COMMUNITY_UNAVAILABLE','COMMUNITY_STALE','COMMUNITY_PAGE','COMMUNITY_LIMIT','COMMUNITY_ALREADY_JOINED','COMMUNITY_FULL','COMMUNITY_HOST','COMMUNITY_NOT_JOINED','COMMUNITY_STARTED','COMMUNITY_NOT_STARTED','NO_COMMUNITY_USE','NOT_AT_BOARD','NOT_AT_VENUE',
   'MARKET_UNAVAILABLE', 'MARKET_STALE', 'MARKET_TARGET', 'MARKET_LIMIT', 'MARKET_RETURN_PENDING', 'MARKET_RETURN', 'MARKET_PAGE', 'NOT_AT_MARKET', 'INVENTORY_FULL',
   'FATIGUE_EXHAUSTED', 'INSUFFICIENT_ITEMS', 'INSUFFICIENT_GOLD', 'NOT_AT_CAMP',
   'ACTIVITY_BUSY', 'GATHER_BUSY', 'FISHING_BUSY', 'HOME_BUSY', 'HOME_USE_BUSY',

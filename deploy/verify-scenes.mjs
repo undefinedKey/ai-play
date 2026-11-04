@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { SCENE_IDS, SCENES, WORLD_MAP } from '../shared/world-layout.js';
+import { COMMUNITY_VENUES } from '../shared/community.js';
 
 export function expectedScene(agent) {
   if (SCENE_IDS.includes(agent.scene_id)) return agent.scene_id;
@@ -12,13 +13,23 @@ export function expectedScene(agent) {
 }
 
 export function expectedPosition(agent) {
-  const scene = expectedScene(agent), blocked = new Set(SCENES.find(s => s.id === scene).blocked.map(p => `${p.x},${p.y}`));
+  const scene = expectedScene(agent), definition = SCENES.find(s => s.id === scene), blocked = new Set(definition.blocked.map(p => `${p.x},${p.y}`));
   // Independently verify a saved physical point: a centre or a point on one
   // cardinal edge whose two endpoints are both authored walkable cells.
   const p = agent.position;
   const validCell = (x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < WORLD_MAP.width && y >= 0 && y < WORLD_MAP.height && !blocked.has(`${x},${y}`);
   if (Number.isFinite(p?.x) && Number.isFinite(p?.y) && (Number.isInteger(p.x) || Number.isInteger(p.y)) &&
       validCell(Math.floor(p.x), Math.floor(p.y)) && validCell(Math.ceil(p.x), Math.ceil(p.y))) return { x: p.x, y: p.y };
+  // A new service fixture never relocates an existing resident. Independently
+  // prove the saved point stood on original authored terrain, not a lake/tree,
+  // before allowing a newly introduced table/noticeboard to overlap that point.
+  const bodies = new Set(COMMUNITY_VENUES.filter(v => v.scene_id === scene).flatMap(v => v.footprint).map(c => `${c.x},${c.y}`));
+  const originalBlocked = new Set(definition.props.flatMap(prop => prop.footprint).map(c => `${c.x},${c.y}`));
+  if (Number.isFinite(p?.x) && Number.isFinite(p?.y) && (Number.isInteger(p.x) || Number.isInteger(p.y))) {
+    const endpoints = [{ x: Math.floor(p.x), y: Math.floor(p.y) }, { x: Math.ceil(p.x), y: Math.ceil(p.y) }];
+    if (endpoints.some(c => bodies.has(`${c.x},${c.y}`)) && endpoints.every(c => c.x >= 0 && c.y >= 0 && c.x < WORLD_MAP.width && c.y < WORLD_MAP.height && !originalBlocked.has(`${c.x},${c.y}`)))
+      return { x: p.x, y: p.y };
+  }
   const clamp = (n, size) => Number.isFinite(n) ? Math.max(0, Math.min(size - 1, Math.floor(n))) : Math.floor(size / 2);
   const origin = { x: clamp(agent.position?.x, WORLD_MAP.width), y: clamp(agent.position?.y, WORLD_MAP.height) };
   let best, bestDistance = Infinity;

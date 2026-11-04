@@ -1,6 +1,6 @@
 {
   "name": "ai-plaza",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,7 +13,8 @@
     "test": "node --test --test-concurrency=1 tests/*.test.js",
     "test:e2e": "playwright test",
     "runner": "node runner/cli.js",
-    "maps:check": "node scripts/check-world-maps.mjs"
+    "maps:check": "node scripts/check-world-maps.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
