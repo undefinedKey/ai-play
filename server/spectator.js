@@ -1,3 +1,4 @@
+import { publicPeerMarket, publicPeerOffer } from './peer-market.js';
 import { publicRuins, publicRuinsJob } from './ruins.js';
 import { publicFishing, publicFishingWorld } from './fishing.js';
 import { publicActionStatus } from './public-action-status.js';
@@ -97,6 +98,13 @@ const publicEventFields = {
 };
 const cooperationEvents=new Set(['cooperation_proposed','cooperation_started','cooperation_progress','cooperation_review','cooperation_completed','cooperation_ended']);
 export function publicEvent(event, agentIds) {
+  if (event.type === 'peer_market_changed') {
+    const offer = publicPeerOffer(event.payload?.offer);
+    const change = event.payload?.change;
+    if (!offer || !['posted', 'settled', 'cancelled', 'expired', 'declined', 'interrupted'].includes(change)) return null;
+    return { event_id: string(event.event_id), type: event.type, occurred_at: number(event.occurred_at), cursor: string(event.cursor), world_revision: number(event.world_revision),
+      payload: { scene_id: 'plaza', change, offer, text: string(event.payload?.text)?.slice(0, 200) } };
+  }
   if(cooperationEvents.has(event.type)) {
     const payload=publicCooperation(event.payload);
     return payload?{event_id:string(event.event_id),type:event.type,occurred_at:number(event.occurred_at),cursor:string(event.cursor),world_revision:number(event.world_revision),payload}:null;
@@ -141,7 +149,7 @@ export function spectatorSnapshot(world) {
     room: { id: string(room.id), name: string(room.name), status: string(room.status), capacity: number(room.capacity), width: number(room.width), height: number(room.height), world_revision: number(room.world_revision) },
     agents: Object.values(agents).map(agent => ({ agent_id: string(agent.agent_id), name: string(agent.name), bio: string(agent.bio), avatar: string(agent.avatar), color: string(agent.color), is_platform: agent.is_platform === true, scene_id: SCENE_IDS.includes(agent.scene_id) ? agent.scene_id : undefined, position: position(agent.position), position_at:number(agent.position_at), facing:string(agent.facing), movement: publicMovement(agent, world), action:publicAction(agent), action_status:publicActionStatus(agent, world.now()), hurt:publicHurt(agent), status: string(agent.status), group_id: string(agent.group_id) || null, activity: activity(agent.activity), leisure: publicLeisure(agent, world.now()), adventure: publicFighter(agent), personal_goal: publicPersonalGoal(agent), life: publicLife(agent, world.now()), appearance: publicAppearance(agent), fatigue: publicFatigue(agent), survival: publicSurvivor(world, agent), presence: publicPresence(agent), home_presence: publicHomePresence(agent), home_travel: publicHomeTravel(agent), fishing: publicFishing(agent), ruins_job: publicRuinsJob(agent) })),
     scenes: structuredClone(SCENES), leisure_policy: { ...catalog.leisure_policy }, adventure: publicAdventure(world.state), life: catalog.life, fatigue: catalog.fatigue,
-    ruins: publicRuins(world), fishing: publicFishingWorld(world), homes: publicHomes(world), home_rules: structuredClone(HOME_RULES), resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
+    peer_market: publicPeerMarket(world), ruins: publicRuins(world), fishing: publicFishingWorld(world), homes: publicHomes(world), home_rules: structuredClone(HOME_RULES), resources: publicResources(world.state, world.now()), day_cycle: publicDayCycle(world.state, world.now()), survival: publicSurvival(world),
     places: catalog.places.map(place => ({ id: string(place.id), scene_id: SCENE_IDS.includes(place.scene_id) ? place.scene_id : undefined, name: string(place.name), x: number(place.x), y: number(place.y), radius: number(place.radius) })),
     activities: catalog.activities.map(item => ({ id: string(item.id), name: string(item.name), place_id: string(item.place_id), duration_seconds: number(item.duration_seconds), description: string(item.description),
       ...(item.content ? { content: { title: string(item.content.title), text: string(item.content.text), source: string(item.content.source) } } : {}), ...(item.task ? { task: task(item.task) } : {}) })),

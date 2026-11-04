@@ -3,6 +3,7 @@ import { SCENES, isWalkable } from '../shared/world-layout.js';
 import { RESOURCE_NODES } from '../shared/resources-layout.js';
 import { CAMP_SITES, SURVIVAL_RULES } from '../shared/survival-rules.js';
 import { FISHING_SPOTS } from '../shared/fishing-layout.js';
+import { PEER_MARKET_RULES, PEER_MARKET_STATUSES } from '../shared/peer-market.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -17,6 +18,19 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.equal(health.capabilities.peer_market, true);
+assert.equal(world.peer_market.version, 1);
+assert.deepEqual(world.peer_market.place, PEER_MARKET_RULES.place);
+assert.deepEqual(world.peer_market.catalog, PEER_MARKET_RULES.catalog);
+assert.ok(Array.isArray(world.peer_market.offers));
+assert.ok(world.peer_market.offers.length <= PEER_MARKET_RULES.max_open + PEER_MARKET_RULES.max_terminal);
+for (const offer of world.peer_market.offers) {
+  assert.ok(PEER_MARKET_STATUSES.includes(offer.status));
+  assert.equal(offer.revision, 1);
+  for (const secret of ['owner_binding', 'target_binding', 'escrow', 'run_id', 'session_epoch', 'inventory', 'goal']) assert.equal(offer[secret], undefined);
+}
+for (const key of ['pending_return', 'own_offer', 'incoming_gifts', 'page']) assert.equal(world.peer_market[key], undefined);
+assert.ok((await response('/pixel-world/peer-market.svg')).headers.get('content-type')?.includes('image/svg+xml'));
 assert.equal(world.home_rules.version, 1);
 assert.equal(world.home_rules.use_version, 1);
 assert.equal(world.home_rules.books_version, 1);

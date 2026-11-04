@@ -8,6 +8,7 @@ export const HISTORY_RETENTION = Object.freeze({ days: 30, max_entries: 4096, ma
 const categories = new Set(['speech', 'activity', 'game', 'exploration', 'life', 'goal', 'cooperation']);
 const outcomes = new Set(['recorded', 'completed', 'cancelled', 'interrupted', 'expired', 'ended']);
 const types = new Map([
+  ['peer_market_changed', 'life'],
   ...['ruins_entered','ruins_left','ruins_claimed','ruins_gate_opened','ruins_bridge_repaired','ruins_runes_submitted'].map(type => [type, 'exploration']),
   ...['fish_finished', 'fish_cancelled', 'home_book_written', 'home_book_shelved', 'home_book_unshelved', 'home_book_commented'].map(type => [type, 'life']),
   ...['home_built','home_renamed','home_furnished','home_displayed','home_withdrawn','home_entered','home_left','home_message','home_message_removed','home_use_finished','home_use_cancelled'].map(type => [type, 'life']),
@@ -51,6 +52,8 @@ function projectDetails(type, raw, known) {
   const projected = publicEvent({ type, payload: raw }, known);
   if (!projected) return null;
   const details = projected.payload;
+  if (type === 'peer_market_changed' && (!details.offer || details.offer.status === 'open' ||
+      !known.has(details.offer.owner_agent_id) || details.offer.status === 'settled' && !known.has(details.offer.taker_agent_id))) return null;
   if (type === 'activity_finished' && raw.interrupted === true && details.outcome === 'cancelled') details.interrupted = true;
   if (type === 'message') {
     if (!known.has(details.agent_id) || !details.text) return null;
@@ -67,6 +70,7 @@ function projectDetails(type, raw, known) {
 }
 
 function outcomeFor(type, d) {
+  if (type === 'peer_market_changed') return ({ settled: 'completed', cancelled: 'cancelled', expired: 'expired', declined: 'ended', interrupted: 'interrupted' })[d.offer?.status] || 'ended';
   if (type === 'message') return 'recorded';
   if (type === 'fish_cancelled') return d.reason === 'expired' ? 'expired' : d.reason === 'cancelled' ? 'cancelled' : 'interrupted';
   if (type === 'activity_finished') return d.outcome === 'cancelled' ? d.interrupted === true ? 'interrupted' : 'cancelled' : d.outcome === 'completed' ? 'completed' : 'ended';
@@ -117,6 +121,7 @@ function fromEvent(world, event) {
   const details = projectDetails(event.type, raw, allIds);
   if (!details) return null;
   let ids = [details.agent_id];
+  if (event.type === 'peer_market_changed') ids = [details.offer.owner_agent_id, details.offer.taker_agent_id, details.offer.target_agent_id];
   if (types.get(event.type) === 'cooperation') ids = details.cooperation.members.map(m => m.agent_id);
   if (event.type === 'game_finished') {
     const g = details.game;

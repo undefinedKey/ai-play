@@ -1,3 +1,4 @@
+import { PEER_MARKET_RULES, initializePeerMarket, publicPeerMarket, peerMarketObservation, tickPeerMarket, endPeerMarket, performPeerMarket } from './peer-market.js';
 import { RUINS_RULES, initializeRuins, publicRuins, ruinsObservation, performRuins, tickRuins, cancelRuins, publicRuinsJob } from './ruins.js';
 import { EventEmitter } from 'node:events';
 import { randomUUID, randomBytes, randomInt, createHash } from 'node:crypto';
@@ -44,7 +45,7 @@ const textField = (v, max, name, fallback = '') => {
   if (typeof v !== 'string' || [...v].length > max) fail('INVALID_ACTION', `${name}最多 ${max} 个字符`);
   return v.trim();
 };
-const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'wait'];
+const ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'peer_market', 'wait'];
 const PLACES = [
   { id: 'pond', scene_id: 'plaza', name: '薄荷小池', x: 4, y: 4, radius: 3 },
   { id: 'garden', scene_id: 'plaza', name: '中央花园', x: 11, y: 8, radius: 3 },
@@ -92,6 +93,7 @@ export class World extends EventEmitter {
     for (const a of Object.values(this.state.agents)) { initializeLife(a); initializeEconomy(a, this.now()); initializePersonalGoal(a); initializePresence(a, { legacy: true, events: this.state.events }); }
     initializeHistory(this); this.historyMaintenanceAt = this.now() + 60000;
     initializeCooperations(this, { restore: !!saved });
+    initializePeerMarket(this, { restore: !!saved });
     initializeHomes(this, { restore: !!saved });
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
@@ -186,7 +188,7 @@ export class World extends EventEmitter {
       color: /^#[0-9a-f]{6}$/i.test(input.color || '') ? input.color : '#609279', is_platform: input.is_platform === true,
       scene_id: 'plaza', position: { x: 9 + (Object.keys(this.state.agents).length % 3), y: 7 + (Object.keys(this.state.agents).length % 2) },
       status: 'offline', session_epoch: 0, group_id: null, activity: null, run: null, goal: '', diagnostics: { state: 'waiting', calls_used: 0, last_error: null },
-      pause_reason: null, next_action_id: null, last_contact_at: null, last_action_at: null, reserved_until: null };
+      pause_reason: null, next_action_id: null, last_contact_at: null, last_action_at: null, reserved_until: null, peer_market_return: null, peer_market_page: 0 };
     if (input.invitation_claim !== undefined) {
       const claim = input.invitation_claim;
       if (!claim || typeof claim.invite_id !== 'string' || !/^ai_invite_[0-9a-f-]{36}$/i.test(claim.invite_id) || typeof claim.device_hash !== 'string' || !/^[0-9a-f]{64}$/i.test(claim.device_hash)) fail('INVALID_ACTION', '邀请恢复标记无效');
@@ -268,7 +270,7 @@ export class World extends EventEmitter {
   }
   detach(a, { leaveField = true } = {}) {
     detachHomes(this, a); cancelFishing(this, a); cancelRuins(this, a, 'interrupted');
-    if (leaveField) reviewCooperations(this, a);
+    if (leaveField) { reviewCooperations(this, a); endPeerMarket(this, a); }
     endEncounter(this, a);
     if (leaveField) reviewPersonalGoal(this, a);
     cancelGather(this, a, 'interrupted');
@@ -292,19 +294,19 @@ export class World extends EventEmitter {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
       cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(), resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
-      ruins: publicRuins(this), fishing: publicFishingWorld(this), homes: publicHomes(this), home_rules: clone(HOME_RULES),
+      peer_market: publicPeerMarket(this), ruins: publicRuins(this), fishing: publicFishingWorld(this), homes: publicHomes(this), home_rules: clone(HOME_RULES),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response', 'home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), simulation_time: this.simulationTime, server_time: this.now() });
   }
   ownerSnapshot() {
     const snap = this.publicSnapshot();
-    snap.agents = Object.values(this.state.agents).map(a => ({ ...this.publicAgent(a), ...cooperationObservation(this, a), life: publicLife(a, this.now(), { privateInventory: true }), run: clone(a.run), goal: a.goal, diagnostics: clone(a.diagnostics), pause_reason: a.pause_reason }));
+    snap.agents = Object.values(this.state.agents).map(a => ({ ...this.publicAgent(a), ...cooperationObservation(this, a), peer_market: peerMarketObservation(this, a), life: publicLife(a, this.now(), { privateInventory: true }), run: clone(a.run), goal: a.goal, diagnostics: clone(a.diagnostics), pause_reason: a.pause_reason }));
     snap.controllers = Object.values(this.state.controllers).filter(c => !c.revoked).map(({ token_hash, revoked, ...c }) => clone(c));
     return snap;
   }
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.30.0-ruins', recommended_skill_version: '0.30.0', max_capabilities: 16, ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.31.0-peer-market', recommended_skill_version: '0.31.0', max_capabilities: 16, peer_market: clone(PEER_MARKET_RULES), ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
       resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
@@ -326,7 +328,7 @@ export class World extends EventEmitter {
     return clone({ world_api_version: '0.2', run_id: a.run.run_id, session_epoch: a.session_epoch, expires_at: a.run.expires_at,
       self: { ...this.publicAgent(a), life: publicLife(a, this.now(), { privateInventory: true }) }, nearby_agents: Object.values(this.state.agents).filter(b => b.agent_id !== a.agent_id && b.status === 'active' && sameScene(a, b) && distance(a.home_presence?.position || a.position, b.home_presence?.position || b.position) <= 6).map(b => this.publicAgent(b)),
       group, game: group && this.state.game?.group_id === group.group_id ? publicGame(this.state.game) : null,
-      ...cooperationObservation(this, a), ruins, fishing: fishingObservation(this, a), homes: homesObservation(this, a),
+      ...cooperationObservation(this, a), peer_market: peerMarketObservation(this, a), ruins, fishing: fishingObservation(this, a), homes: homesObservation(this, a),
       resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
       invitations: Object.values(this.state.invitations).filter(i => i.target_agent_id === a.agent_id && i.status === 'pending' && i.expires_at > this.now()),
       scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, adventure: publicAdventure(this.state), life: LIFE_RULES, opportunities: a.home_presence || a.home_travel ? [] : [...survivalOpportunities(this, a), ...opportunitiesFor(this, a), ...ruins.opportunities.map(action => ({id: `ruins_${action.payload.intent}_${action.payload.object_id || ''}_${action.payload.direction || ''}`, label: '遗迹互动', reason: '按遗迹规则执行本人选择的一次行动，不自动执行下一步', action}))].filter(o => a.scene_id !== 'ruins' || o.action?.type !== 'adventure_plan' || o.action.payload.intent === 'stop').filter(o => !(a.fishing || a.ruins_job) || o.action?.type === 'ruins' && o.action.payload.intent === 'cancel' || o.action?.type === 'inventory' && o.action.payload.intent === 'use' || o.action?.type === 'survival' && o.action.payload.intent === 'torch' || o.action?.type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(o.action.payload.intent)), movement: a.home_presence ? { ...HOME_RULES.map, candidates: [], scene_id: 'home', max_step: 3 } : movementOptions(a.position, a.scene_id, this), server_time: this.now(), cursor: String(this.state.sequence), world_revision: this.state.room.world_revision, next_action_id: a.next_action_id, allowed_actions: ACTIONS });
@@ -428,7 +430,7 @@ export class World extends EventEmitter {
     try { outcome = this.perform(a, args.type, args.payload || {}, args.action_id); }
     catch (e) { if (!(e instanceof WorldError)) throw e; this.state = backup; a = this.state.agents[a.agent_id]; error = { code: e.code, message: e.message, ...e.details }; }
     if (!error) {
-      if (args.type !== 'cooperation') recordEconomyDelta(a, balanceBefore, { source_id: args.action_id, reason: `${args.type}${args.payload?.intent ? `_${args.payload.intent}` : ''}`, at: this.now(), world: this, countProgress: !(args.type === 'home' && args.payload?.intent === 'withdraw') });
+      if (!['cooperation', 'peer_market'].includes(args.type)) recordEconomyDelta(a, balanceBefore, { source_id: args.action_id, reason: `${args.type}${args.payload?.intent ? `_${args.payload.intent}` : ''}`, at: this.now(), world: this, countProgress: !(args.type === 'home' && args.payload?.intent === 'withdraw') });
       if (args.type === 'inventory' && args.payload?.intent === 'craft') progressPersonalGoal(this, a, { kind: 'cook_item', target_id: args.payload.item_id, source_id: args.action_id });
       if (outcome?.life) outcome.life = publicLife(a, this.now(), { privateInventory: true, includeLedger: false });
     }
@@ -478,6 +480,8 @@ export class World extends EventEmitter {
   }
   perform(a, type, p, actionId) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) fail('INVALID_ACTION', '动作参数必须为对象');
+    // Reading or withdrawing a published contract never replaces the AI's current physical activity.
+    if (type === 'peer_market' && ['browse', 'cancel', 'decline'].includes(p.intent)) return performPeerMarket(this, a, p, fail, actionId);
     if (a.ruins_job && !['ruins', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('RUINS_BUSY', '正在执行本人选择的遗迹行动，可等待或用ruins cancel结束；下一步由本人决定');
     if (a.fishing && !['fish', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('FISHING_BUSY', '正在执行本人选择的垂钓，可等待或fish cancel；下一步由本人决定');
     if ((a.home_presence || a.home_travel) && !['home', 'wait', 'say', 'personal_goal'].includes(type) && !(type === 'inventory' && p.intent === 'use') && !(type === 'survival' && p.intent === 'torch') && !(type === 'cooperation' && ['respond', 'confirm', 'leave', 'claim_return'].includes(p.intent))) fail('HOME_BUSY', '你在小屋或家园行程中；先用 home leave/cancel 离开或结束行程再进行室外活动；可处理已有合作条款和退还本人托管');
@@ -493,6 +497,7 @@ export class World extends EventEmitter {
     if (type === 'home') return performHome(this, a, p, fail);
     if (type === 'fish') return performFishing(this, a, p, fail);
     if (type === 'ruins') return performRuins(this, a, p, fail);
+    if (type === 'peer_market') return performPeerMarket(this, a, p, fail, actionId);
     if (a.survival?.travel && !['survival', 'say', 'inventory'].includes(type)) cancelSurvivalTravel(this, a, 'replaced');
     if (type === 'survival') return performSurvival(this, a, p, fail, actionId);
     if (type === 'adventure_event') return performAdventureEvent(this, a, p, fail);
@@ -799,6 +804,7 @@ export class World extends EventEmitter {
     if (tickPersonalGoals(this)) changed = true;
     const homeStep = tickHomes(this, survivalFrame); changed = homeStep.changed || changed; motionChanged = homeStep.motionChanged || motionChanged;
     if (tickCooperations(this)) changed = true;
+    if (tickPeerMarket(this)) changed = true;
     for (const i of Object.values(this.state.invitations)) if (i.status === 'pending' && i.expires_at <= now) { i.status = 'expired'; changed = true; }
     const game = this.state.game;
     if (game?.status === 'recruiting' && game.deadline <= now) { this.startGame(); changed = true; }

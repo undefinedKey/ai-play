@@ -60,6 +60,13 @@ export function verifyHistory(old, current) {
     } else if (event.type === 'personal_goal_ended') {
       assert.ok(['active', 'needs_review'].includes(agent?.personal_goal?.status));
       assert.equal(p.status, 'expired'); assert.equal(p.text, `${agent.name}的公开短期目标已到期`);
+    } else if (event.type === 'peer_market_changed') {
+      assert.equal(old.peer_market?.offers?.[p.offer?.offer_id]?.status, 'open');
+      assert.equal(p.change, 'interrupted');
+      assert.equal(p.offer.status, 'interrupted');
+      assert.equal(p.offer.end_reason, 'restarted');
+      assert.ok(Number(event.cursor) < Number(restart.cursor));
+      // The Python verifier independently proves exact terms, escrow and refund.
     } else if (event.type === 'cooperation_ended') {
       assert.ok(['proposed', 'active', 'needs_review'].includes(old.cooperations?.[p.cooperation_id]?.status));
       // compare_cooperations in the Python verifier proves every scalar,

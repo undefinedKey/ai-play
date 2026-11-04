@@ -145,6 +145,60 @@ def compare_cooperations(old, new):
     assert new.get('cooperations', {}) == expected, 'cooperation terms, bindings, sources, escrow and progress preserved'
     return agents
 
+def compare_peer_market(old, new, agents):
+    """Replay only existing escrow refunds; no new posting, consent or settlement."""
+    if 'peer_market' not in old and 'peer_market' not in new:
+        return agents
+    initial = {'version': 1, 'offers': {}}
+    expected = deepcopy(old.get('peer_market', initial))
+    assert expected.get('version') == 1 and isinstance(expected.get('offers'), dict), 'known market persistence required'
+    events = [e for e in new.get('events', []) if str(e.get('cursor', '')).isdigit() and int(e['cursor']) > old.get('sequence', 0)]
+    restarts = [e for e in events if e.get('type') == 'server_restarted']
+    changes = [e for e in events if e.get('type') == 'peer_market_changed']
+    open_offers = [o for o in expected['offers'].values() if o['status'] == 'open']
+    assert len(changes) == len(open_offers), 'exactly one interruption per original open offer'
+    public_fields = ['offer_id', 'revision', 'kind', 'title', 'owner_agent_id', 'owner_name', 'target_agent_id', 'target_name',
+                     'give', 'want', 'created_at', 'expires_at', 'status', 'settled_at', 'ended_at', 'taker_agent_id', 'taker_name', 'end_reason', 'provenance']
+    for offer in open_offers:
+        matching = [e for e in changes if e.get('payload', {}).get('offer', {}).get('offer_id') == offer['offer_id']]
+        assert len(matching) == 1 and len(restarts) == 1, 'market interruption and restart records required'
+        event, restart = matching[0], restarts[0]
+        ended_at = event['payload']['offer'].get('ended_at')
+        assert safe_time(ended_at) and offer['created_at'] <= ended_at <= event['occurred_at'] <= restart['occurred_at'], 'market refund time is during restart'
+        assert int(event['cursor']) < int(restart['cursor']), 'market interruption precedes restart record'
+        assert event['payload'].get('change') == 'interrupted' and event['payload'].get('scene_id') == 'plaza', 'only restart market interruption is permitted'
+        assert event['payload'].get('text') == offer['owner_name'] + '：集市条款因活动授权中断而撤回', 'market lifecycle summary cannot add speech'
+        owner = agents[offer['owner_agent_id']]
+        refund = offer['escrow']
+        assert refund == offer['give'] and (refund.get('items') or refund.get('gold')), 'refund must equal original escrow'
+        assert owner.get('peer_market_return') is None, 'pending refund cannot be overwritten'
+        inventory = owner['life']['inventory']
+        next_gold = owner['adventure']['gold'] + refund['gold']
+        fits = safe_time(next_gold) and all(safe_time(inventory.get(k, 0) + v) for k, v in refund['items'].items())
+        if fits:
+            for key, amount in refund['items'].items(): inventory[key] = inventory.get(key, 0) + amount
+            owner['adventure']['gold'] = next_gold
+            ledger = owner['life']['ledger']
+            source = 'peer_market:' + offer['offer_id'] + ':return'
+            rows = [e for e in new['agents'][offer['owner_agent_id']]['life']['ledger']['entries'] if e['source_id'] == source]
+            assert len(rows) == 1 and safe_time(rows[0].get('at')) and offer['created_at'] <= rows[0]['at'] <= ended_at, 'exact timestamped market refund ledger entry required'
+            ledger['total_entries'] = min(9007199254740991, ledger['total_entries'] + 1)
+            row = {'entry_id': 'ledger_' + str(ledger['total_entries']), 'source_id': source, 'at': rows[0]['at'],
+                   'reason': 'peer_market_return', 'items': refund['items'], 'gold_delta': refund['gold'],
+                   'balances': {'inventory': {k: v for k, v in inventory.items() if v != 0}, 'gold': next_gold}}
+            ledger['entries'] = (ledger['entries'] + [row])[-100:]
+        else:
+            owner['peer_market_return'] = {'offer_id': offer['offer_id'], 'assets': deepcopy(refund)}
+        offer.update(status='interrupted', end_reason='restarted', ended_at=ended_at, escrow={'items': {}, 'gold': 0})
+        assert event['payload']['offer'] == {k: offer[k] for k in public_fields}, 'public interruption proves exact unchanged terms and identities'
+    ended = sorted([o for o in expected['offers'].values() if o['status'] != 'open'], key=lambda o: (o.get('ended_at') or 0, o['offer_id']), reverse=True)
+    for offer in ended[40:]: del expected['offers'][offer['offer_id']]
+    assert new.get('peer_market') == expected, 'market terms, prior settlements, bindings, provenance and escrow must be preserved'
+    for aid, before in old['agents'].items():
+        assert new['agents'][aid].get('peer_market_return') == agents[aid].get('peer_market_return'), 'private pending market assets preserved exactly'
+        assert new['agents'][aid].get('peer_market_page', 0) == before.get('peer_market_page', 0), 'AI board reading selection is preserved'
+    return agents
+
 def compare_states(old, new, project_root=None, require_history=False, require_scenes=False):
     assert set(old['agents']) == set(new['agents']), 'roles preserved'
     assert old['controllers'] == new['controllers'], 'controller credentials preserved'
@@ -154,7 +208,7 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
                          'dials': [0, 0, 0], 'claims': {}, 'last_attempt': None}
         assert new.get('ruins') == old.get('ruins', initial_ruins), 'ruin routes, dials and finite relic claims preserved; upgrades cannot solve or grant rewards'
     assert not new.get('home_invitations'), 'temporary home invitations must be invalidated at restart'
-    expected_agents = compare_cooperations(old, new)
+    expected_agents = compare_peer_market(old, new, compare_cooperations(old, new))
     for key, a in old['agents'].items():
         b = new['agents'][key]
         assert b.get('home_presence') is None and b.get('home_travel') is None, 'restart cannot resume temporary home visits or travel'
@@ -183,7 +237,7 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
         assert a.get('diagnostics', {}).get('calls_used', 0) == b.get('diagnostics', {}).get('calls_used', 0)
         assert b['presence_record']['version'] == 1
         for field in ['level', 'xp', 'gold', 'kills']:
-            assert a['adventure'][field] == b['adventure'][field]
+            assert expected_agents[key]['adventure'][field] == b['adventure'][field]
         compare_v014_records(old, new, key, a, b)
         assert b['life']['gathering'] is None
     if require_scenes or any('scene_id' in a for a in [*old['agents'].values(), *new['agents'].values()]):
@@ -255,6 +309,7 @@ def verify(path, root=Path('/')):
         'homes_furniture_displays_messages_preserved': True,
         'exploration_goals_and_cooldowns_preserved': True,
         'cooperations_consents_escrow_returns_preserved': True,
+        'peer_market_terms_escrow_returns_preserved': True,
         'public_history_preserved': True,
         'scene_locations_preserved': True,
         'survival_state_preserved': True,

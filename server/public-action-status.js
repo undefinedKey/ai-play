@@ -2,9 +2,10 @@
 // private communication, hidden game choices and model reasoning stay private.
 const PUBLIC_ACTION_TYPES = new Set([
   'move', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event',
-  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'wait',
+  'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'peer_market', 'wait',
 ]);
 const PUBLIC_ACTION_ERRORS = new Set([
+  'MARKET_UNAVAILABLE', 'MARKET_STALE', 'MARKET_TARGET', 'MARKET_LIMIT', 'MARKET_RETURN_PENDING', 'MARKET_RETURN', 'MARKET_PAGE', 'NOT_AT_MARKET', 'INVENTORY_FULL',
   'FATIGUE_EXHAUSTED', 'INSUFFICIENT_ITEMS', 'INSUFFICIENT_GOLD', 'NOT_AT_CAMP',
   'ACTIVITY_BUSY', 'GATHER_BUSY', 'FISHING_BUSY', 'HOME_BUSY', 'HOME_USE_BUSY',
   'MOVEMENT_BUSY', 'GAME_BUSY', 'GATHER_UNAVAILABLE', 'RESOURCE_BUSY',
