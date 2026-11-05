@@ -1,0 +1,105 @@
+{
+  "frames": {
+    "market_stall_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 176,
+        "h": 140
+      },
+      "anchor": {
+        "x": 88,
+        "y": 132
+      },
+      "duration": 1000
+    },
+    "community_table_idle_0": {
+      "frame": {
+        "x": 176,
+        "y": 0,
+        "w": 68,
+        "h": 68
+      },
+      "anchor": {
+        "x": 34,
+        "y": 50
+      },
+      "duration": 1000
+    },
+    "journey_idle_0": {
+      "frame": {
+        "x": 352,
+        "y": 0,
+        "w": 104,
+        "h": 154
+      },
+      "anchor": {
+        "x": 52,
+        "y": 146
+      },
+      "duration": 1000
+    },
+    "community_seat_north_idle_0": {
+      "frame": {
+        "x": 528,
+        "y": 0,
+        "w": 30,
+        "h": 30
+      },
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "duration": 1000
+    },
+    "community_seat_south_idle_0": {
+      "frame": {
+        "x": 704,
+        "y": 0,
+        "w": 30,
+        "h": 30
+      },
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "duration": 1000
+    },
+    "community_seat_east_idle_0": {
+      "frame": {
+        "x": 880,
+        "y": 0,
+        "w": 30,
+        "h": 30
+      },
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "duration": 1000
+    },
+    "community_seat_west_idle_0": {
+      "frame": {
+        "x": 1056,
+        "y": 0,
+        "w": 30,
+        "h": 30
+      },
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_plaza_services.png",
+    "size": {
+      "w": 1408,
+      "h": 154
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

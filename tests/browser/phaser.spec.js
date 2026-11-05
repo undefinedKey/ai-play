@@ -64,10 +64,10 @@ test('Phaser真实画布绘制地面物件人物装备，真实移动改变像�
  const bare=await pixels(page);
  const a=await actor(request);await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`)).toBeVisible();
  await expect.poll(async()=>(await pixels(page)).hash).not.toBe(bare.hash);
- await a.act('move',{x:11,y:8});clock+=2000;await a.observe();app.world.tick();await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character')).toHaveAttribute('data-action','idle');const raw=app.world.agent(a.agent.agent_id);raw.life.inventory.wooden_sword=1;app.world.commit();
+ await a.act('move',{x:24,y:16});clock+=2000;await a.observe();app.world.tick();await expect(page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character')).toHaveAttribute('data-action','idle');const raw=app.world.agent(a.agent.agent_id);raw.life.inventory.wooden_sword=1;app.world.commit();
  const beforeGear=await pixels(page);await a.act('inventory',{intent:'equip',item_id:'wooden_sword'});
  await expect.poll(async()=>(await pixels(page)).hash).not.toBe(beforeGear.hash);
- const beforeMove=await pixels(page);const receipt=await a.act('move',{x:12,y:8});expect(receipt.path.length).toBeLessThanOrEqual(4);
+ const beforeMove=await pixels(page);const receipt=await a.act('move',{x:25,y:16});expect(receipt.path.length).toBeLessThanOrEqual(4);
  await expect.poll(async()=>(await pixels(page)).hash).not.toBe(beforeMove.hash);
  const fixed=JSON.stringify({scene:raw.scene_id,position:raw.position});const old=await page.getByTestId('phaser-canvas').elementHandle();
  await page.getByRole('button',{name:'冒险地图',exact:true}).click();await ready(page);expect(await old.evaluate(el=>el.isConnected)).toBe(false);expect(JSON.stringify({scene:raw.scene_id,position:raw.position})).toBe(fixed);await expect(page.locator('.world-actor')).toHaveCount(0);expect((await pixels(page)).hash).not.toBe(beforeMove.hash);
@@ -82,7 +82,7 @@ test('画布加载、网络失败、兼容图层重试及缺失纹理均明确�
  await page.goto(base+'/watch?view=plaza');await expect(page.getByText('游戏画布载入中…',{exact:true})).toBeVisible();await page.screenshot({path:'artifacts/phaser-v018-loading.png'});release();
  await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-renderer-state','fallback');await expect(page.getByText(/当前为兼容图层显示/)).toBeVisible();await expect(page.getByTestId('phaser-canvas')).toHaveCount(0);await page.screenshot({path:'artifacts/phaser-v018-fallback.png'});
  await page.unroute('**/assets/phaser-renderer-*.js');await page.getByRole('button',{name:'重试游戏画布'}).click();await ready(page);
- const manifest=await(await request.get(base+'/pixel-world/manifest.json')).json(),building=manifest.props.bookshop;
+ const manifest=await(await request.get(base+'/pixel-world/manifest.json')).json(),building=manifest.plaza_props.bookshop;
  expect(building?.animations.idle.frames.length).toBeGreaterThan(0);
  const texturePath=new URL(building.animations.idle.frames[0].image||building.image,base).pathname,textureRoute=url=>url.pathname===texturePath;let blockedTextures=0;
  await page.route(textureRoute,route=>{blockedTextures++;return route.abort();});await page.reload();await ready(page);await expect.poll(()=>blockedTextures).toBeGreaterThan(0);await expect(page.getByText('部分场景素材未载入 · 已保留可用画面和真实位置')).toBeVisible();expect((await pixels(page)).opaque).toBe(await page.getByTestId('phaser-canvas').evaluate(canvas=>canvas.width*canvas.height));await page.screenshot({path:'artifacts/phaser-v018-partial.png'});
@@ -106,29 +106,29 @@ test('当前场景和整个世界同步可切换，公开名册仍完整，重�
 });
 
 test('画布像素沿真实折线路径逐段移动，减少动态停止播放且断线不假扮实时活动',async({page,request})=>{
- const a=await actor(request,'路径旅人'),raw=app.world.agent(a.agent.agent_id);raw.position={x:9,y:10};raw.position_at=clock;app.world.commit();
+ const a=await actor(request,'路径旅人'),raw=app.world.agent(a.agent.agent_id);raw.position={x:13,y:25};raw.position_at=clock;app.world.commit();
  await page.goto(base+'/watch?view=plaza');await ready(page);
  const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`),before=await pixels(page);
- const receipt=await a.act('move',{x:10,y:11});expect(receipt.path).toEqual([{x:9,y:10},{x:10,y:10},{x:10,y:11}]);
- expect(raw.position).toEqual({x:9,y:10});
+ const receipt=await a.act('move',{x:14,y:26});expect(receipt.path).toEqual([{x:13,y:25},{x:14,y:25},{x:14,y:26}]);
+ expect(raw.position).toEqual({x:13,y:25});
  clock+=100;app.world.tick();
- await expect.poll(()=>unit.getAttribute('data-foot-x').then(Number)).toBeGreaterThan(9);
- await expect(unit).toHaveAttribute('data-foot-y','10');
- expect(raw.position.x).toBeCloseTo(9.2,5);expect(raw.position.y).toBe(10);
+ await expect.poll(()=>unit.getAttribute('data-foot-x').then(Number)).toBeGreaterThan(13);
+ await expect(unit).toHaveAttribute('data-foot-y','25');
+ expect(raw.position.x).toBeCloseTo(13.2,5);expect(raw.position.y).toBe(25);
  await expect.poll(()=>pixels(page).then(p=>p.hash)).not.toBe(before.hash);
  clock+=600;app.world.tick();
- await expect(unit).toHaveAttribute('data-foot-x','10');
- await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeGreaterThan(10);
- expect(raw.position.x).toBe(10);expect(raw.position.y).toBeCloseTo(10.4,5);
+ await expect(unit).toHaveAttribute('data-foot-x','14');
+ await expect.poll(()=>unit.getAttribute('data-foot-y').then(Number)).toBeGreaterThan(25);
+ expect(raw.position.x).toBe(14);expect(raw.position.y).toBeCloseTo(25.4,5);
  await page.emulateMedia({reducedMotion:'reduce'});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','false');
  // Reduced motion stops frame playback, but a finite walk can still expire to
  // its idle pose. Compare a settled semantic state, not two different actions.
  await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action','idle');
- await expect(unit).toHaveAttribute('data-foot-x','10');
- expect(Number(await unit.getAttribute('data-foot-y'))).toBeCloseTo(10.4,5);
+ await expect(unit).toHaveAttribute('data-foot-x','14');
+ expect(Number(await unit.getAttribute('data-foot-y'))).toBeCloseTo(25.4,5);
  const still=await settledPixels(page);await page.waitForTimeout(400);expect(await pixels(page)).toEqual(still);
  await page.emulateMedia({reducedMotion:'no-preference'});
- clock+=400;app.world.tick();await a.act('move',{x:10,y:9});clock+=1000;app.world.tick();await a.act('gather',{intent:'start',resource_id:'wood'});
+ clock+=400;app.world.tick();await a.act('gather',{intent:'start',node_id:'camp_branches'});clock+=100;app.world.tick();
  await expect(unit.locator('.pixel-character')).toHaveAttribute('data-action','gather');
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});const hidden=await pixels(page);await page.waitForTimeout(450);expect(await pixels(page)).toEqual(hidden);
  await page.evaluate(()=>{delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});await expect(unit.locator('.pixel-sprite').first()).toHaveAttribute('data-playing','true');

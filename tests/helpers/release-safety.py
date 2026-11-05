@@ -73,8 +73,10 @@ V035_BUNDLE_PATHS = ['server/lifestyle.js', 'server/lifestyle-state.js',
     'skills/ai-plaza/scripts/lifestyle-contract.mjs', 'skills/ai-plaza/scripts/lifestyle-context.mjs',
     'skills/ai-plaza/references/wardrobe-aquarium.md', 'docs/V035-WARDROBE-AQUARIUM-CONTRACT.md']
 
+V036_BUNDLE_PATHS = ['server/plaza-layout.js', 'shared/plaza-layout.js', 'shared/plaza-map.js', 'shared/maps/plaza.json', 'scripts/build-plaza-map.mjs', 'skills/ai-plaza/scripts/plaza-layout.mjs', 'skills/ai-plaza/scripts/plaza-context.mjs', 'skills/ai-plaza/references/plaza-layout.md', 'docs/V036-PLAZA-LAYOUT-CONTRACT.md']
+
 def populate_bundle(candidate, version):
-    paths = V034_BUNDLE_PATHS + (V035_BUNDLE_PATHS if tuple(map(int, version.split('.'))) >= (0, 35, 0) else [])
+    paths = V034_BUNDLE_PATHS + (V035_BUNDLE_PATHS if tuple(map(int, version.split('.'))) >= (0, 35, 0) else []) + (V036_BUNDLE_PATHS if tuple(map(int, version.split('.'))) >= (0, 36, 0) else [])
     for relative in paths:
         path = candidate / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -189,15 +191,15 @@ class RecoveryDrills(unittest.TestCase):
                 with patch.object(sys,'argv',['orchestrator.py','release']), patch.object(subprocess,'run',side_effect=command):
                     exec(compile(source,'release-preflight-fixture','exec'),{'__file__':str(r/'orchestrator.py')})
             finally: os.umask(previous_umask)
-        for version in ['0.34.0','0.35.0','0.100.0','1.0.0']:
+        for version in ['0.34.0','0.35.0','0.36.0','0.100.0','1.0.0']:
             with self.subTest(version=version):
                 (candidate/'package.json').write_text(json.dumps({'version':version})); populate_bundle(candidate,version)
                 calls.clear(); preflight()
                 checked=[args[-1].split(':',1)[1] for args in calls if 'cat-file' in args]
-                expected=V034_BUNDLE_PATHS+(V035_BUNDLE_PATHS if version!='0.34.0' else [])
+                expected=V034_BUNDLE_PATHS+(V035_BUNDLE_PATHS if version!='0.34.0' else [])+(V036_BUNDLE_PATHS if tuple(map(int,version.split('.'))) >= (0,36,0) else [])
                 self.assertEqual(set(checked),set(expected))
         with self.assertRaises(RuntimeError): preflight('server/not-in-the-target.js')
-        for relative in V035_BUNDLE_PATHS:
+        for relative in V035_BUNDLE_PATHS + V036_BUNDLE_PATHS:
             path=candidate/relative; contents=path.read_text(); path.unlink()
             try:
                 with self.subTest(missing=relative), self.assertRaises(RuntimeError): preflight()

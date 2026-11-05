@@ -11,7 +11,7 @@ function crowdedResident(t, energy = 98) {
   world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id });
   world.callTool(world.authenticate(c.token), 'join_world');
   const own = world.agent(a.agent_id);
-  own.position = { x: 11, y: 8 }; own.adventure.level = 20; own.adventure.max_hp = own.adventure.hp = 135;
+  own.position = { ...world.getRules().life.camp_place.service_center }; own.adventure.level = 20; own.adventure.max_hp = own.adventure.hp = 135;
   own.adventure.gold = 5988; own.survival.satiety = 67.38; own.fatigue.energy = energy;
   Object.assign(own.life.inventory, { turnip: 160, berry: 14, wood: 300, ore: 334, wheat: 2, grass: 10, torch: 1 });
   const observation = world.observation(own), rules = world.getRules();

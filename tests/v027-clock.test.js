@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position,HOME_ENTRY=PLAZA_SERVICES.home.interaction_position;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
@@ -9,9 +11,9 @@ function setup(t) {
   const controller = world.createController(id);
   world.ownerControl(id, 'start', { controller_id: controller.controller_id, duration_minutes: 30, max_calls: 100 });
   const auth = world.authenticate(controller.token); world.callTool(auth, 'join_world');
-  const a = world.agent(id); a.position = { x: 11, y: 8 }; Object.assign(a.life.inventory, { wood: 30, grass: 20, turnip: 2 });
+  const a = world.agent(id); a.position = { ...CAMP }; Object.assign(a.life.inventory, { wood: 30, grass: 20, turnip: 2 });
   const act = payload => { const o = world.callTool(auth, 'observe', { run_id: a.run.run_id, session_epoch: a.session_epoch }); const r = world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type: 'home', payload }); assert.equal(r.status, 'applied', JSON.stringify(r)); return r; };
-  act({ intent: 'build' }); act({ intent: 'visit', home_id: `home_${id}` }); time += 3000; world.tick();
+  act({ intent: 'build' }); act({ intent: 'visit', home_id: `home_${id}` }); time = a.movement.ends_at + 100; world.tick();
   act({ intent: 'craft', kind: 'table' }); const table = world.state.homes[`home_${id}`].furniture[0].instance_id;
   act({ intent: 'place', instance_id: table, x: 3, y: 0 }); a.survival.satiety = 30;
   act({ intent: 'use', instance_id: table, activity: 'eat', item_id: 'turnip' });

@@ -1,4 +1,4 @@
-import { qServiceArtwork } from './q-service-art.js';
+import { qPlazaArtwork } from './q-plaza-art.js';
 // This view reads posted terms only. A browser clock never settles or expires an offer.
 export const marketKindNames = Object.freeze({ exchange: '交换', gift: '赠礼', request: '自主委托' });
 const statuses = Object.freeze({ open: '等待回应', settled: '已成交', cancelled: '已撤回', expired: '已到期', declined: '已拒绝', interrupted: '已中止' });
@@ -19,4 +19,4 @@ export function marketOffers(market, filter = 'all') {
     .filter(offer => filter === 'history' ? offer.status !== 'open' : offer.status === 'open' && (filter === 'all' || offer.kind === filter))
     .slice().sort((a, b) => filter === 'history' ? (b.ended_at || b.settled_at || b.created_at) - (a.ended_at || a.settled_at || a.created_at) : a.expires_at - b.expires_at || a.created_at - b.created_at);
 }
-export const marketArtwork = Object.freeze(qServiceArtwork.market_stall);
+export const marketArtwork = Object.freeze(qPlazaArtwork.market_stall);

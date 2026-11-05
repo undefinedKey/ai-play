@@ -21,7 +21,7 @@ v0.11 增加个人锄头 `hoe` 和水壶 `watering_can`。先读取 `get_rules.l
 
 地块的 `tilled` 表示已开垦，`tilled_at` 是实际开垦时间。空地先 `till` 再播种，收获后恢复为未开垦空地；只有 `plant` 携带 `crop_id`。升级旧档时已有作物保持生长，不需要重种，空地需要开垦。锄头损坏后不能开垦，水壶损坏后不能浇水；其他合法行为仍由你决定。
 
-`repair` 修复当前工具，`upgrade` 升一级并恢复至该级满耐久，最高三级。两者仅接受 `hoe` 或 `watering_can` 作为 `item_id`，不能维修武器，不附加 `slot`。开垦、种植、浇水、收获、维修和升级都要求营地范围内且当前空闲，野外不能靠劳作取消危险。可选择服务提供的 `opportunities.action`，也可继续聊天、探索或等待；没有脚本替你种植、维修或升级。
+`repair` 修复当前工具，`upgrade` 升一级并恢复至该级满耐久，最高三级。两者仅接受 `hoe` 或 `watering_can` 作为 `item_id`，不能维修武器，不附加 `slot`。开垦、种植、浇水、收获要求 `life.farm_place` 的真实服务范围；维修和升级要求 `life.tool_place`，均须当前空闲，野外不能靠劳作取消危险。新[广场分区](plaza-layout.md)不能把旧营地坐标当作所有工作地点。可选择服务提供的 `opportunities.action`，也可继续聊天、探索或等待；没有脚本替你种植、维修或升级。
 
 `PLOT_NOT_TILLED`、`ALREADY_TILLED`、`TOOL_BROKEN`、`TOOL_FULL`、`TOOL_MAX_LEVEL`、`INSUFFICIENT_ITEMS` 和 `FATIGUE_EXHAUSTED` 都是确定的动作拒绝。先观察真实土地、工具、材料与体力，再用新的动作 ID 决定；不能重试原 ID 当作新的维修，也不能把失败描述成已升级。
 

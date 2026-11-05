@@ -1,4 +1,4 @@
-import { LIFE_RULES, publicLife } from './life.js';
+import { LIFE_RULES, publicLife, lifeServiceFor } from './life.js';
 import { ADVENTURE_ZONES } from './adventure.js';
 import { FATIGUE_RULES, publicFatigue } from './fatigue.js';
 import { combatStats } from './combat.js';
@@ -22,7 +22,8 @@ function ordinaryOpportunities(world, a) {
   const atCamp = a.scene_id === 'plaza' && distance(a.position, ADVENTURE_ZONES[0]) <= ADVENTURE_ZONES[0].radius;
   // Rest is checked at its camp destination, including when returning from
   // another scene. Suggestions must satisfy the same survival gate as the action.
-  const canRest = survivalRecoveryAllowed(world, { ...a, scene_id: 'plaza', position: { x: 11, y: 8 } });
+  const canRest = survivalRecoveryAllowed(world, { ...a, scene_id: 'plaza', position: LIFE_RULES.camp_place.service_center });
+  const atService=place=>!place||a.scene_id===place.scene_id&&distance(a.position,place.service_center)<=place.radius;
   if (f.hp < f.max_hp || energy < 100 || (a.survival?.satiety ?? 100) < 100) {
     const food = LIFE_RULES.items.find(item => item.kind === 'food' && held(item.id) && (item.heal > 0 && f.hp < f.max_hp || item.energy_restore > 0 && energy < 100 || foodWouldRestoreSatiety(a, item)));
     if (food) add('eat', `吃${food.name}`, `生命${f.hp}/${f.max_hp}、体力${energy}/100、饱食${a.survival?.satiety ?? 100}/100；本食物最多恢复生命${food.heal || 0}、体力${food.energy_restore || 0}、饱食${food.satiety_restore || 0}，野外危险仍在`, 'inventory', { intent: 'use', item_id: food.id });
@@ -91,12 +92,12 @@ function ordinaryOpportunities(world, a) {
   const target = energy >= FATIGUE_RULES.hunt_min_energy ? world.state.adventure.monsters.filter(m => m.status === 'alive' && m.hp > 0)
     .sort((x, y) => x.attack - y.attack || distance(a.position, x.position) - distance(a.position, y.position))[0] : null;
   const farmOptions = [];
-  if (atCamp && !f.in_field) {
-    if (!options.some(option => option.id === 'rest')) add('relax', '在花园小憩', `可以休息、聊天或看看周围，${canRest ? '活动期间恢复体力' : '恢复体力仍需饱食和真实光照'}；是否参加由自己决定`, 'start_activity', { activity_id: 'relax' });
+  if (!f.in_field && [LIFE_RULES.camp_place,LIFE_RULES.farm_place,LIFE_RULES.tool_place,LIFE_RULES.cooking_place,LIFE_RULES.market.place].some(atService)) {
+    if (atCamp&&!options.some(option => option.id === 'rest')) add('relax', '在花园小憩', `可以休息、聊天或看看周围，${canRest ? '活动期间恢复体力' : '恢复体力仍需饱食和真实光照'}；是否参加由自己决定`, 'start_activity', { activity_id: 'relax' });
     const toolLevel = id => LIFE_RULES.tools.find(tool => tool.id === id).levels.find(level => level.level === life.tools[id].level);
     const toolUsable = id => life.tools[id].durability > 0 && energy >= toolLevel(id).energy_cost;
     const canPay = cost => Object.entries(cost).every(([id, quantity]) => held(id) >= quantity);
-    const farmAdd = (priority, id, label, reason, type, payload) => farmOptions.push({ priority, id, label, reason, action: { type, payload } });
+    const farmAdd = (priority, id, label, reason, type, payload) => { if(atService(lifeServiceFor(type,payload))) farmOptions.push({ priority, id, label, reason, action: { type, payload } }); };
     for (const plot of life.plots) {
       const crop = LIFE_RULES.crops.find(c => c.id === plot.crop_id);
       if (crop && energy >= FATIGUE_RULES.costs.harvest && plot.ready_at !== null && plot.ready_at <= world.now()
@@ -176,12 +177,12 @@ function ordinaryOpportunities(world, a) {
     const slots = Math.max(0, Math.min(3, 6 - reserved - options.length)), selected = distinct.slice(0, slots);
     // With two or more living slots, keep one concrete strategy alternative
     // visible without evicting the highest-priority farm/repair choice.
-    if (slots >= 2 && equipmentIds.size && !selected.some(option => equipmentIds.has(option.id))) selected[selected.length - 1] = distinct.find(option => equipmentIds.has(option.id));
+    if (slots >= 2 && distinct.some(option=>equipmentIds.has(option.id)) && !selected.some(option => equipmentIds.has(option.id))) selected[selected.length - 1] = distinct.find(option => equipmentIds.has(option.id));
     options.push(...selected.map(({ priority, ...option }) => option));
     if (resource) addResource(resource);
     if (planting) addPlant();
   } else {
-    add('return_camp', canRest ? '回营地休息或照料农田' : '返回营地', canRest ? '安全区可种植、收获、制作和穿戴装备' : '当前休息条件不足；只返回营地，补给和光源仍由自己决定', 'adventure_plan', { intent: canRest ? 'rest' : 'retreat' });
+    add('return_camp', canRest ? '返回会客地休息' : '返回会客地', '只返回中央会客地；农事、制作、补给和料理分别需到真实站点，不自动继续', 'adventure_plan', { intent: canRest ? 'rest' : 'retreat' });
     // Keep a concrete resource and optional replanting/crafting choice while
     // reserving one slot for exploration; none of these suggestions is queued.
     if (planting && options.length < 5) addPlant();

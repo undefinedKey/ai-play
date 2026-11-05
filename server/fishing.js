@@ -1,6 +1,6 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { FISHING_SPOTS } from '../shared/fishing-layout.js';
-import { adjustInventory, campAvailable, LIFE_RULES } from './life.js';
+import { adjustInventory, serviceAvailable, LIFE_RULES } from './life.js';
 import { findWorldPath, recordMovement, stopMovement } from './spatial.js';
 import { spendEnergy, FATIGUE_RULES } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
@@ -98,12 +98,12 @@ export function fishingObservation(world, a) {
       if (idle && a.fatigue.energy >= 2) {
         if (!(a.life.inventory.fish_bait > 0) && pay({ grass: 1 })) add('craft', 'fish_bait');
         try {
-          campAvailable(world, a, failLocal);
+          serviceAvailable(world, a, LIFE_RULES.tool_place, failLocal);
           const rod = a.life.tools.fishing_rod, levels = LIFE_RULES.tools.find(t => t.id === 'fishing_rod').levels, level = rodLevel(a), next = levels.find(l => l.level === rod.level + 1);
           if (!rod.owned && pay(LIFE_RULES.recipes.find(r => r.item_id === 'fishing_rod').ingredients)) add('craft', 'fishing_rod');
           if (rod.owned && rod.durability < rod.max_durability && pay(level.repair_cost)) add('repair', 'fishing_rod');
           if (rod.owned && next && pay(next.upgrade_cost)) add('upgrade', 'fishing_rod');
-        } catch { /* Camp preparation is offered only at the actual camp. */ }
+        } catch { /* Rod preparation is offered only at its actual tool station. */ }
       }
     }
   }

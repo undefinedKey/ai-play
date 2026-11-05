@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -6,6 +7,7 @@ import { PlazaRunner, parseModelAction, enqueueEvents } from '../skills/ai-plaza
 import { DshPetClient, prepareDecisionPrompt, expandDecisionReferences } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
 import { supportsHomes } from '../skills/ai-plaza/scripts/homes-context.mjs';
 import { reviewCooperations } from '../server/cooperation.js';
+import { findWorldPath } from '../server/spatial.js';
 
 const home = (intent, fields = {}) => ({ type: 'home', payload: { intent, ...fields } });
 const cooperationAction = (intent, fields = {}) => ({ type: 'cooperation', payload: { intent, ...fields } });
@@ -29,7 +31,7 @@ async function fixture(t) {
     } });
     const runner = new PlazaRunner({ mode: 'dsh-pet', toolClient: client, petClient: pet, now: () => now, idleMs: 30000 });
     runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-    const a = world.agent(record.agent_id); a.position = { x: 11, y: 8 }; Object.assign(a.life.inventory, { wood: 30, grass: 20, ore: 20, pine_cone: 3, turnip: 4 });
+    const a = world.agent(record.agent_id); a.position = lifePosition(world, 'camp_place'); Object.assign(a.life.inventory, { wood: 30, grass: 20, ore: 20, pine_cone: 3, turnip: 4 });
     // A rejected action rolls back the World transaction to a fresh state tree;
     // always inspect its current actor, not a stale pre-rollback object.
     const result = { get a() { return world.agent(record.agent_id); }, auth, runner, calls, prompts, responses, pet }; actors.push(result); return result;
@@ -69,7 +71,7 @@ test('真实DshPet→Runner→World建屋/摆放/陈列/邀请/串门/留言，�
   const own = () => world.observation(owner.a).homes.own_home;
   assert.equal(own().name, '原AI自己取的屋名'); assert.equal(owner.a.life.inventory.wood, 24);
   await f.decide(owner, home('visit', { home_id: own().home_id })); f.advance(10000);
-  assert.equal(owner.a.home_presence.home_id, own().home_id); assert.deepEqual(owner.a.position, { x: 9, y: 8 });
+  assert.equal(owner.a.home_presence.home_id, own().home_id); assert.deepEqual(owner.a.position, { x: world.getRules().homes.entrance.x, y: world.getRules().homes.entrance.y });
   await f.decide(owner, (data, prompt) => { assert.match(prompt, /现在屋内/); assert.match(prompt, /display_shelf/); return home('craft', { kind: 'display_shelf' }); });
   const shelf = own().storage[0].instance_id;
   await f.decide(owner, data => data.options.find(a => a.payload.intent === 'place'));
@@ -211,6 +213,11 @@ test('真实DshPet合作供菜者在屋内时，户外厨师不能跨屋结算�
   assert.deepEqual([owner.a.life.inventory.turnip_soup || 0, guest.a.life.inventory.turnip_soup || 0], soups);
   assert.equal(world.observation(owner.a).cooperation.escrow.turnip, 4, '拒绝保留原托管，不消耗或分发');
   await f.decide(owner, home('leave')); assert.equal(owner.a.home_presence, null, JSON.stringify({ error: owner.runner.lastError, feedback: owner.runner.checkpoint.last_action_feedback, pending: owner.runner.checkpoint.pending_action, last: owner.calls.filter(c => c.name === 'act').at(-1) }));
+  // Leaving reaches the actual home entrance, not the separate meeting area.
+  const route = findWorldPath(world, 'plaza', owner.a.position, lifePosition(world, 'camp_place')); assert.ok(route);
+  for (let i = 3; i < route.length + 3; i += 3) {
+    await f.decide(owner, { type: 'move', payload: route[Math.min(i, route.length - 1)] }); f.advance(2000);
+  }
   await f.decide(guest, cooperationAction('cook', { cooperation_id: id, revision: project.revision }));
   assert.equal(world.observation(owner.a).cooperation.status, 'completed');
   assert.deepEqual([owner.a.life.inventory.turnip_soup || 0, guest.a.life.inventory.turnip_soup || 0], soups.map(n => n + 1));

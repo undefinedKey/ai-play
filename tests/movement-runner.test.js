@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { plazaPortalPosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -127,10 +128,10 @@ for (const mode of ['model', 'dsh-pet']) test(`${mode}新场景交给服务校�
 });
 
 test('场景移动结果未知时保持原pending，恢复已确认路径不按新位置二次改坐标', async t => {
-  const f = await fixture(t, { choose: () => move(10, 7), loseFirstReceipt: true });
+  let chosen; const f = await fixture(t, { choose: data => { const p = data.movement.candidates[0]; chosen = move(p.x ?? p[0], p.y ?? p[1]); return chosen; }, loseFirstReceipt: true });
   await assert.rejects(f.runner.decide(), { code: 'WORLD_UNAVAILABLE' });
   const saved = JSON.parse(readFileSync(f.checkpointPath, 'utf8'));
-  assert.deepEqual(saved.pending_action.payload, { x: 10, y: 7 });
+  assert.deepEqual(saved.pending_action.payload, chosen.payload);
   assert.equal(saved.pending_movement, undefined); assert.equal(saved.pending_scene_id, 'plaza');
   f.a.position = { x: 20, y: 15 }; // World may advance after an acknowledged action whose reply was lost.
   await f.runner.connect();
@@ -180,7 +181,7 @@ test('场景候选只采用服务提供的连续路径，局部坐标不能跨�
 
 for (const mode of ['model', 'dsh-pet']) test(`${mode}生成期间真实穿门丢弃旧选择，不换新action_id重发或ACK旧批次`, async t => {
   const f = await fixture(t, { mode, choose: () => move(22, 7), duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
-  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.a.position = plazaPortalPosition(f.world); f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   const oldId = f.a.next_action_id;
   f.runner.checkpoint.queue.push({ event_id: 'scene-test-message', type: 'message', payload: { agent_id: 'peer', channel: 'group', text: '远程同伴消息' } });
   await f.runner.decide();
@@ -193,7 +194,7 @@ for (const mode of ['model', 'dsh-pet']) test(`${mode}生成期间真实穿门�
 
 test('最后观察后穿门的STALE_ACTION回执重新观察并保留批次，不陷入旧动作重试', async t => {
   const f = await fixture(t, { choose: () => move(10, 7), beforeAct: ({ world, a, advance }) => {
-    a.position = { x: 22, y: 8 }; world.perform(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' }); advance(2000); world.tick();
+    a.position = plazaPortalPosition(world); world.perform(a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' }); advance(2000); world.tick();
   } });
   f.runner.checkpoint.queue.push({ event_id: 'before-door', type: 'message', payload: { agent_id: 'peer', text: '请自己决定' } });
   await f.runner.decide();
@@ -205,7 +206,7 @@ test('最后观察后穿门的STALE_ACTION回执重新观察并保留批次，�
 
 test('模型选择wait时跨门也先重观察，不能ACK旧场景消息', async t => {
   const f = await fixture(t, { choose: () => ({ type: 'wait', payload: {} }), duringModel: ({ world, advance }) => { advance(2000); world.tick(); } });
-  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.a.position = plazaPortalPosition(f.world); f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   f.runner.checkpoint.queue.push({ event_id: 'before-wait-door', type: 'message', payload: { agent_id: 'peer', text: '旧场景消息' } });
   await f.runner.decide();
   assert.equal(f.a.scene_id, 'adventure'); assert.equal(f.runner.checkpoint.last_action_feedback.code, 'STALE_ACTION');
@@ -219,7 +220,7 @@ test('checkpoint中尚无服务回执的旧场景动作不能在换图后恢复�
   f.runner.checkpoint.pending_scene_id = 'plaza'; f.runner.checkpoint.calls_used = 3;
   f.runner.checkpoint.event_batch = { id: 'retained', events: [{ event_id: 'unacked', type: 'message', payload: { text: '待处理' } }] };
   f.runner.checkpoint.pending_batch_id = 'retained'; f.runner.save();
-  f.a.position = { x: 22, y: 8 }; f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  f.a.position = plazaPortalPosition(f.world); f.world.perform(f.a, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   f.advance(2000); f.world.tick(); await f.runner.recoverPending();
   assert.equal(f.a.scene_id, 'adventure'); assert.equal(f.runner.checkpoint.pending_action, null);
   assert.equal(f.runner.checkpoint.pending_scene_id, undefined); assert.equal(f.runner.checkpoint.event_batch.id, 'retained');

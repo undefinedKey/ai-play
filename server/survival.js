@@ -2,6 +2,7 @@ import { cancelRuins } from './ruins.js';
 import { cancelFishing } from './fishing.js';
 import { homeLightUntil, cancelHomeTravel, cancelHomeUse, detachHomes } from './homes.js';
 import { randomUUID } from 'node:crypto';
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import { SURVIVAL_RULES, siteDefinition, fireDefinition, fireFuel, publicFire, publicSurvival, publicSurvivor, initializeSurvivor, survivalLight, survivalPhaseAt, survivalRound } from './survival-state.js';
 import { adjustInventory, cancelGather } from './life.js';
 import { spendEnergy } from './fatigue.js';
@@ -177,7 +178,7 @@ function environmentHit(world, a, kind, damage) {
   announce(world, a, 'survival_damage', { kind, damage, hp: a.adventure.hp }, `${a.name}受到${kind === 'darkness' ? '黑暗' : '饥饿'}影响，损失${damage}点生命`);
   if (a.adventure.hp === 0) {
     detachHomes(world, a, 'rescued');
-    changeScene(world, a, 'plaza', { x: 11, y: 8 }, 'rescue'); a.adventure.hp = 10; leaveAdventureField(world, a);
+    changeScene(world, a, 'plaza', PLAZA_SERVICES.camp.interaction_position, 'rescue'); a.adventure.hp = 10; leaveAdventureField(world, a);
     a.survival.protected_until = world.now() + SURVIVAL_RULES.rescue_protection_seconds * 1000;
     a.survival.darkness_seconds = 0; a.survival.dark_hits = 0; a.survival.starvation_seconds = 0; a.survival.hunger_hits = 0;
     announce(world, a, 'survival_rescued', { kind, protected_until: a.survival.protected_until }, `${a.name}倒地后被救回营地，恢复10点生命并获得120秒反应保护，仍需自己选择补给和光源`);

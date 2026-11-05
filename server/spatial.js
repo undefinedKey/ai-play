@@ -38,6 +38,7 @@ const communityBodies = new Set(COMMUNITY_VENUES.flatMap(v => v.footprint.map(p 
 // An old save may stand where a newly installed table now is. Keep that exact
 // position and permit one outward path, never a new destination or through-path.
 const communityLegacyOrigin = (sceneId, p) => {
+  if(sceneId==='plaza') return false; // v036 records and repairs old blocked origins explicitly.
   const cells = physicalCells(p);
   return cells.length > 0 && cells.some(c => communityBodies.has(`${sceneId}:${key(c)}`))
     && cells.every(c => gridWalkable(sceneId,c) || communityBodies.has(`${sceneId}:${key(c)}`));

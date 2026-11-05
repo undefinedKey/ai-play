@@ -5,6 +5,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
 import { findPath, isWalkable } from '../server/spatial.js';
+import { PLAZA_CAMP_SITES, PLAZA_RESOURCE_POSITIONS, PLAZA_SERVICES } from '../shared/plaza-layout.js';
+
+const CAMP = PLAZA_SERVICES.camp.interaction_position;
+const TOOLS = PLAZA_SERVICES.tools.interaction_position;
+const HEARTH = PLAZA_CAMP_SITES.find(site => site.id === 'plaza_hearth');
+const ORCHARD = PLAZA_RESOURCE_POSITIONS.orchard_berries;
 
 // These are explicit scripted choices through HTTP/MCP, not an AI-preference
 // evaluation. Only the clock is controlled: no inventory, position, HP, energy,
@@ -76,9 +82,10 @@ test('v021 real HTTP/MCP survival day: axe, felling, planting, shared fire, cook
   const initial = await p.observe(), epoch = f.app.world.state.day_cycle.epoch_at, grants = actorsGrants();
   function actorsGrants() { return [p, dark].map(a => structuredClone(a.raw.run)); }
   assert.equal((await f.api('/api/health')).body.version, JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
-  assert.deepEqual(initial.self.position, { x: 9, y: 7 }); assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 });
+  assert.deepEqual(initial.self.position, { x: CAMP.x - 1, y: CAMP.y }); assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 });
   assert.ok((await p.client.listTools()).tools.find(x => x.name === 'act').inputSchema.properties.type.enum.includes('survival'));
   await gather(f, p, 'camp_stones'); assert.equal(held(p, 'ore'), 1);
+  await walkTo(f, p, TOOLS);
   const axe = await p.applied('inventory', { intent: 'craft', item_id: 'axe' }); ledger(p, axe.req.action_id, { wood: -2, ore: -1, axe: 1 });
   assert.equal(held(p, 'wood'), 1); assert.equal(p.raw.life.tools.axe.durability, 12);
 
@@ -107,7 +114,7 @@ test('v021 real HTTP/MCP survival day: axe, felling, planting, shared fire, cook
   const plantCount = p.raw.life.ledger.total_entries; assert.deepEqual(await p.call('act', planted.req), planted.receipt); assert.equal(p.raw.life.ledger.total_entries, plantCount);
 
   await p.applied('survival', { intent: 'approach', site_id: 'plaza_hearth' });
-  await f.until(() => !p.raw.survival.travel, 'chosen site approach truly arrives'); assert.deepEqual(p.raw.position, { x: 13, y: 11 });
+  await f.until(() => !p.raw.survival.travel, 'chosen site approach truly arrives'); assert.deepEqual(p.raw.position, HEARTH.interaction_position);
   assert.equal(Object.keys(f.app.world.state.survival.fires).length, 0, 'approach never auto-builds');
   const built = await p.applied('survival', { intent: 'build', site_id: 'plaza_hearth', kind: 'campfire' });
   const fireId = Object.keys(f.app.world.state.survival.fires)[0]; assert.ok(fireId);
@@ -119,7 +126,7 @@ test('v021 real HTTP/MCP survival day: axe, felling, planting, shared fire, cook
   assert.equal(p.raw.survival.satiety, Math.min(100, Math.round((hungerBefore + 18) * 10000) / 10000));
   assert.equal(p.raw.fatigue.energy, Math.min(100, Math.round((energyBefore + 5) * 100) / 100)); ledger(p, eaten.req.action_id, { roasted_berry: -1 });
   const unusedBerry = held(p, 'berry'); assert.equal(unusedBerry, 1);
-  await walkTo(f, dark, { x: 26, y: 11 }); assert.ok(f.now() < epoch + 300000, 'all preparation is achieved during the first daylight period');
+  await walkTo(f, dark, ORCHARD.interaction_position); assert.ok(f.now() < epoch + 300000, 'all preparation is achieved during the first daylight period');
 
   const beforeReads = JSON.stringify({ p: [p.raw.position, p.raw.life.inventory, p.raw.run], d: [dark.raw.position, dark.raw.run], fires: f.app.world.state.survival, resources: f.app.world.state.resources });
   for (const [i, response] of [await f.api('/api/public/world?scene=plaza&site_id=plaza_hearth'), await f.api('/api/world', undefined, dark.owner), await f.api('/api/world', undefined, f.admin)].entries()) {

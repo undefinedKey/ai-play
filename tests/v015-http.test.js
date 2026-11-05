@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -37,7 +38,7 @@ async function fixture(t, accounts = false) {
     const act = async (type, payload) => call('act', await request(type, payload));
     const applied = async (type, payload) => { const result = await act(type, payload); assert.equal(result.status, 'applied', JSON.stringify(result)); return result; };
     const p = { id: a.agent_id, get raw() { return app.world.agent(a.agent_id); }, client, call, observe, request, act, applied, session, token: controller.token };
-    p.raw.position = { x: 11, y: 8 }; actors.push(p); return p;
+    p.raw.position = {...PLAZA_SERVICES.camp.interaction_position}; actors.push(p); return p;
   };
   const advance = async ms => { const end = now + ms; while (now < end) { now = Math.min(now + 1000, end); app.world.tick(); for (const p of actors) if (p.raw.status === 'active') await p.observe(); } };
   const publicWorld = async () => (await api('/api/public/world')).body;
@@ -90,7 +91,7 @@ test('v0.15 HTTP: two AIs consent, explicitly escrow/cook, and receive the agree
   const publicState = await f.publicWorld(), withoutLightSources = structuredClone(publicState);
   for (const actor of withoutLightSources.agents) if (actor.survival?.light) delete actor.survival.light.source_id;
   const visible = JSON.stringify(withoutLightSources);
-  for (const secret of ['PRIVATE_供菜者', 'PRIVATE_厨师', supplier.token, chef.token, 'source_id', 'token_hash', 'cooperation_return']) assert.ok(!visible.includes(secret), secret);
+  for (const secret of ['PRIVATE_供菜者', 'PRIVATE_厨师', supplier.token, chef.token, '"source_id"', 'token_hash', 'cooperation_return']) assert.ok(!visible.includes(secret), secret);
 });
 
 test('v0.15 HTTP: sequential patrol works with 40-second decisions and a level-20 one-hit guard', async t => {

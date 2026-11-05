@@ -1,3 +1,5 @@
+import {walkFixture} from '../helpers/walk-fixture.js';
+import {PLAZA_SERVICES} from '../../shared/plaza-layout.js';
 import {test,expect} from '@playwright/test';
 import {assertCanvasResolution} from './canvas-assertions.js';
 import AxeBuilder from '@axe-core/playwright';
@@ -21,16 +23,16 @@ async function hash(page){return page.getByTestId('phaser-canvas').evaluate(canv
 
 test('v020四倍真实世界保留角色尺寸，像素荒野昼夜、全景与三视口可读',async({page,request})=>{
  const a=await actor(request,'有很长中文名字的荒野旅行者');await a.act('say',{channel:'nearby',text:'先看看东坡的松林，再决定要不要出发。'});const writes=[];page.on('request',r=>{if(r.method()!=='GET')writes.push(r.url());});
- await page.goto(base+'/watch?view=plaza');await ready(page);const camera=page.getByTestId('world-camera');await expect(camera).toHaveAttribute('data-camera-zoom','2.00');
- const character=page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character'),near=(await character.boundingBox()).width;await page.getByRole('button',{name:'查看全景',exact:true}).click();await expect(camera).toHaveAttribute('data-camera-zoom','1.00');expect((await character.boundingBox()).width).toBeCloseTo(near/2,1);await page.screenshot({path:'artifacts/v020-wilderness-overview.png'});
- await page.getByTestId('resource-east_pine').click();await expect(page.getByTestId('resource-inspector')).toContainText('需要斧头');await expect(page.getByTestId('resource-inspector')).toContainText('(29, 7)');await page.keyboard.press('Escape');await expect(page.getByTestId('resource-inspector')).toHaveCount(0);await page.getByRole('button',{name:'镜头复位',exact:true}).click();
+ await page.goto(base+'/watch?view=plaza');await ready(page);const camera=page.getByTestId('world-camera');await expect(camera).toHaveAttribute('data-camera-zoom','1.00');await page.getByRole('button',{name:'放大地图',exact:true}).click();await expect(camera).toHaveAttribute('data-camera-zoom','1.25');
+ const character=page.getByTestId(`map-agent-${a.agent.agent_id}`).locator('.pixel-character'),near=(await character.boundingBox()).width;await page.getByRole('button',{name:'查看全景',exact:true}).click();await expect(camera).toHaveAttribute('data-camera-zoom','1.00');expect((await character.boundingBox()).width).toBeCloseTo(near/1.25,1);await page.screenshot({path:'artifacts/v020-wilderness-overview.png'});
+ await page.getByTestId('resource-east_pine').click();await expect(page.getByTestId('resource-inspector')).toContainText('需要斧头');await expect(page.getByTestId('resource-inspector')).toContainText('(43, 4)');await page.keyboard.press('Escape');await expect(page.getByTestId('resource-inspector')).toHaveCount(0);await page.getByRole('button',{name:'镜头复位',exact:true}).click();
  const day=await hash(page);await advanceTo(a,app.world.state.day_cycle.epoch_at+370000);await expect(page.getByTestId('world-time')).toHaveAttribute('data-phase','night');await expect(page.getByTestId('phaser-world')).toHaveAttribute('data-day-phase','night');await expect.poll(()=>hash(page)).not.toBe(day);
  for(const[width,height]of[[1440,900],[390,844],[390,900]]){await page.setViewportSize({width,height});await page.evaluate(()=>scrollTo(0,0));expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();expect(axe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)}))).toEqual([]);await page.screenshot({path:`artifacts/v020-night-${width}x${height}.png`});}
  expect(writes).toEqual([]);await expect(page.locator('.resident-list')).toHaveCount(0);await expect(page.locator('body')).not.toContainText('PRIVATE_WILDERNESS_GOAL');
 });
 
 test('v020原AI走到扩展林区才用斧头工作，真实共享库存耗尽与再生可见',async({page,request})=>{
- const a=await actor(request),raw=app.world.agent(a.agent.agent_id);await a.act('move',{x:11,y:8});await until(a,()=>!raw.movement);await a.act('gather',{intent:'start',node_id:'camp_stones'});await until(a,()=>!raw.life.gathering);await a.act('inventory',{intent:'craft',item_id:'axe'});
+ const a=await actor(request),raw=app.world.agent(a.agent.agent_id);await a.act('gather',{intent:'start',node_id:'camp_stones'});await until(a,()=>!raw.life.gathering);await walkFixture(a,PLAZA_SERVICES.tools.interaction_position,predicate=>until(a,predicate),()=>raw);await a.act('inventory',{intent:'craft',item_id:'axe'});
  await page.goto(base+'/watch?view=plaza');await ready(page);await page.getByRole('button',{name:'查看全景',exact:true}).click();const tree=page.getByTestId('resource-east_pine');
  await a.act('gather',{intent:'start',node_id:'east_pine'});await expect(tree).toHaveAttribute('data-resource-state','reserved');expect(raw.life.gathering.phase).toBe('approaching');
  await until(a,()=>raw.life.gathering?.phase==='working');expect(raw.position.x).toBeGreaterThanOrEqual(24);await expect(tree).toHaveAttribute('data-resource-state','working');const unit=page.getByTestId(`map-agent-${a.agent.agent_id}`);await expect(unit.locator('.pixel-tool')).toHaveAttribute('data-item','axe');
@@ -55,9 +57,9 @@ test('v020昼夜断线不跳阶段，素材缺失和兼容图层保留资源只�
 
 
 test('v020原AI制作镐并经入口到山脊，矿脉工作使用真实工具和共享库存',async({page,request})=>{
- const a=await actor(request,'山脊采矿旅人'),raw=app.world.agent(a.agent.agent_id);await a.act('move',{x:11,y:8});await until(a,()=>!raw.movement);
+ const a=await actor(request,'山脊采矿旅人'),raw=app.world.agent(a.agent.agent_id);
  for(let i=0;i<2;i++){await a.act('gather',{intent:'start',node_id:'camp_stones'});await until(a,()=>!raw.life.gathering);}
- await a.act('inventory',{intent:'craft',item_id:'pickaxe'});expect(raw.life.tools.pickaxe.durability).toBe(12);
+ await walkFixture(a,PLAZA_SERVICES.tools.interaction_position,predicate=>until(a,predicate),()=>raw);await a.act('inventory',{intent:'craft',item_id:'pickaxe'});expect(raw.life.tools.pickaxe.durability).toBe(12);
  await a.act('adventure_plan',{intent:'explore',zone_id:'quarry'});await until(a,()=>raw.scene_id==='adventure'&&!raw.adventure.plan);expect(raw.position.x).toBeGreaterThan(30);
  await page.goto(base+'/watch?view=adventure');await ready(page);await page.getByRole('button',{name:'查看全景',exact:true}).click();
  await a.act('gather',{intent:'start',node_id:'ridge_ore'});await until(a,()=>raw.life.gathering?.phase==='working');const node=page.getByTestId('resource-ridge_ore');await expect(node).toHaveAttribute('data-resource-state','working');await expect(page.getByTestId('adventure-agent-'+a.agent.agent_id).locator('.pixel-tool')).toHaveAttribute('data-item','pickaxe');expect(raw.life.tools.pickaxe.durability).toBe(11);

@@ -5,6 +5,7 @@ import { LIFE_RULES, publicGathering } from '../server/life.js';
 import { MARKET_RULES } from '../server/economy.js';
 import { RESOURCE_NODES, publicResources } from '../server/resources.js';
 import { findPath, isWalkable } from '../server/spatial.js';
+import { PLAZA_RESOURCE_POSITIONS } from '../shared/plaza-layout.js';
 
 const FALLEN = 'camp_fallen_berries';
 const applied = result => { assert.equal(result.status, 'applied', JSON.stringify(result.error)); return result; };
@@ -19,7 +20,7 @@ function fixture(t) {
     world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id, duration_minutes: 60, max_calls: 10000 });
     const auth = world.authenticate(c.token), seen = world.callTool(auth, 'join_world');
     const p = { id: a.agent_id, auth, session: { run_id: seen.run_id, session_epoch: seen.session_epoch } };
-    actors.push(p); raw(p).position = { x: 11, y: 8 }; raw(p).position_at = now;
+    actors.push(p); raw(p).position = { ...world.getRules().life.camp_place.service_center }; raw(p).position_at = now;
     return p;
   };
   const request = (p, type, payload) => ({ ...p.session, action_id: observe(p).next_action_id, type, payload });
@@ -56,9 +57,11 @@ test('v029 food service publishes equal prices and a reachable shared, finite fa
   assert.equal(LIFE_RULES.items.find(i => i.id === 'wheat_bread').energy_restore, 24);
   assert.deepEqual(f.observe(p).life.market, f.observe(q).life.market);
   const def = RESOURCE_NODES.find(n => n.id === FALLEN);
-  assert.deepEqual(def.position, { x: 9, y: 9 }); assert.deepEqual(def.interaction_position, { x: 10, y: 9 });
+  assert.deepEqual(def.position, PLAZA_RESOURCE_POSITIONS[FALLEN].position); assert.deepEqual(def.interaction_position, PLAZA_RESOURCE_POSITIONS[FALLEN].interaction_position);
   assert.ok(isWalkable('plaza', def.position)); assert.ok(isWalkable('plaza', def.interaction_position));
-  assert.deepEqual(findPath('plaza', { x: 11, y: 8 }, def.interaction_position), [{ x: 11, y: 8 }, { x: 11, y: 9 }, { x: 10, y: 9 }]);
+  const path = findPath('plaza', LIFE_RULES.camp_place.service_center, def.interaction_position);
+  assert.ok(path); assert.deepEqual(path[0], LIFE_RULES.camp_place.service_center); assert.deepEqual(path.at(-1), def.interaction_position);
+  assert.ok(path.length - 1 <= 4, 'zero-energy walk and 7.5s night pickup must fit before the first ordinary 10s starvation hit');
   assert.equal(def.energy_cost, 0); assert.equal(def.tool_id, null); assert.equal(def.duration_seconds, 6);
   assert.equal(def.yield_count, 1); assert.equal(def.max_stock, 1); assert.equal(def.regrow_seconds, 120);
   assert.deepEqual(def.available_phases, ['day', 'dusk', 'night', 'dawn']);
@@ -69,7 +72,7 @@ test('v029 food service publishes equal prices and a reachable shared, finite fa
 });
 
 test('v029 buying food at zero energy only transfers the purchased inventory; eating requires a separate action', t => {
-  const f = fixture(t), p = f.make(); f.empty(p); f.raw(p).adventure.gold = 12;
+  const f = fixture(t), p = f.make(); f.empty(p); f.raw(p).position = { ...MARKET_RULES.place.service_center }; f.raw(p).adventure.gold = 12;
   const request = f.request(p, 'trade', { intent: 'buy', item_id: 'wheat_bread', quantity: 1 });
   applied(f.world.callTool(p.auth, 'act', request));
   assert.equal(f.raw(p).life.inventory.wheat_bread, 1); assert.equal(f.raw(p).adventure.gold, 0);
@@ -86,6 +89,7 @@ test('v029 buying food at zero energy only transfers the purchased inventory; ea
 
 test('v029 failed food purchases leave balances, body, quota and ledger unchanged; existing quantity/window limits still apply', t => {
   const f = fixture(t), p = f.make(); f.empty(p);
+  f.raw(p).position = { ...MARKET_RULES.place.service_center };
   const buy = (item_id, quantity = 1) => f.act(p, 'trade', { intent: 'buy', item_id, quantity });
   for (const id of ['turnip', 'wheat_bread']) {
     const before = balances(f.raw(p)); rejected(buy(id), 'INSUFFICIENT_GOLD'); assert.deepEqual(balances(f.raw(p)), before);
@@ -96,7 +100,7 @@ test('v029 failed food purchases leave balances, body, quota and ledger unchange
   }
   f.raw(p).position = { x: 20, y: 10 };
   const before = balances(f.raw(p)); assert.equal(buy('wheat_bread').status, 'rejected'); assert.deepEqual(balances(f.raw(p)), before);
-  f.raw(p).position = { x: 11, y: 8 };
+  f.raw(p).position = { ...MARKET_RULES.place.service_center };
   applied(buy('turnip', 10)); applied(buy('wheat_bread', 10));
   assert.equal(f.raw(p).life.market.bought, 20); assert.equal(f.raw(p).adventure.gold, 330);
   assert.equal(f.raw(p).survival.satiety, 0); assert.equal(f.raw(p).fatigue.energy, 0);
@@ -113,7 +117,7 @@ for (const phase of ['day', 'night']) test(`v029 ${phase}: an empty, penniless, 
   const job = publicGathering(f.raw(p));
   assert.equal(job.energy_cost, 0); assert.equal(job.duration_seconds, phase === 'night' ? 7.5 : 6);
   assert.equal(job.day_phase, phase); assert.equal(f.raw(p).fatigue.energy, 0);
-  assert.deepEqual(f.raw(p).position, { x: 10, y: 9 });
+  assert.deepEqual(f.raw(p).position, PLAZA_RESOURCE_POSITIONS[FALLEN].interaction_position);
   f.until(() => !f.raw(p).life.gathering, 8000);
   assert.ok(f.now() - at < 10000, 'short pickup can finish before the first ordinary starvation hit');
   assert.equal(f.raw(p).survival.protected_until, 0, 'fixture grants no artificial damage immunity');
@@ -134,7 +138,7 @@ test('v029 zero work cost survives arrival recalculation across dusk/night; ordi
   f.until(() => f.raw(p).life.gathering?.phase === 'working', 2000);
   assert.equal(publicGathering(f.raw(p)).energy_cost, 0); assert.equal(publicGathering(f.raw(p)).duration_seconds, 7.5);
   applied(f.act(p, 'gather', { intent: 'cancel' }));
-  f.raw(p).position = { x: 11, y: 8 };
+  f.raw(p).position = { ...PLAZA_RESOURCE_POSITIONS.camp_branches.interaction_position };
   rejected(f.act(p, 'gather', { intent: 'start', node_id: 'camp_branches' }), 'FATIGUE_EXHAUSTED');
   assert.equal(f.raw(p).life.gathering, null); assert.equal(f.world.state.resources.nodes.camp_branches.reservation, null);
 });

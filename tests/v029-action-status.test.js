@@ -21,7 +21,7 @@ test('real public HTTP receipts reflect server validation; retries and runtime r
   const p = await f.actor('公开测试者');
   const row = async () => (await f.api('/api/public/world')).body.agents.find(a => a.agent_id === p.id);
   assert.equal((await row()).action_status, null);
-  p.raw.position = { x: 11, y: 8 }; p.raw.adventure.gold = 0; p.raw.life.inventory = {};
+  p.raw.position = { ...(await p.call('get_rules')).life.market.place.service_center }; p.raw.adventure.gold = 0; p.raw.life.inventory = {};
   const req = await p.request('trade', { intent: 'buy', item_id: 'wheat_bread', quantity: 1 });
   const receipt = await p.send(req); assert.equal(receipt.error.code, 'INSUFFICIENT_GOLD');
   const rejected = { type: 'trade', status: 'rejected', at: f.now(), error_code: 'INSUFFICIENT_GOLD' };
@@ -44,7 +44,7 @@ test('real public HTTP receipts reflect server validation; retries and runtime r
 test('accepted gathering is shown alongside a running task, not as completion; subsequent private communication is hidden', async t => {
   const f = await createHomesFixture({ frontend: false }); t.after(f.close);
   const p = await f.actor('原来的采集者');
-  p.raw.position = { x: 11, y: 8 }; p.raw.life.inventory = {};
+  p.raw.position = { ...(await p.call('get_rules')).life.camp_place.service_center }; p.raw.life.inventory = {};
   await p.act('gather', { intent: 'start', node_id: 'camp_fallen_berries', mode: 'walk' });
   const snapshot = (await f.api('/api/public/world')).body, a = snapshot.agents.find(a => a.agent_id === p.id);
   assert.equal(a.action_status.status, 'applied'); assert.equal(a.life.gathering.phase, 'approaching');

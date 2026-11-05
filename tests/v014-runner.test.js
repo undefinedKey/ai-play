@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition, resourcePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -28,7 +29,7 @@ async function fixture(t, mode = 'dsh-pet') {
     fetchImpl: async (_, options) => { const messages = JSON.parse(options.body).messages; prompts.push(messages[0].content); contexts.push(JSON.parse(messages[1].content));
       return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(answer) } }] }) }; } });
   runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-  const a = () => world.agent(record.agent_id); a().position = { x: 11, y: 8 };
+  const a = () => world.agent(record.agent_id); a().position = lifePosition(world, 'camp_place');
   const refresh = () => { runner.observation = world.observation(a()); runner.observedAt = now; };
   const advance = ms => { while (ms > 0) { const step = Math.min(ms, 1000); now += step; ms -= step; world.callTool(auth, 'observe', runner.session()); world.tick(); } refresh(); };
   const decide = async next => { answer = next; advance(6000); await runner.decide(); };
@@ -74,7 +75,7 @@ test('pending选择在极限2000UTF16内保留主人/消息/三威胁/成本/食
 });
 
 for (const mode of ['dsh-pet', 'model']) test(`${mode}探索发现可等待或拒绝，旧hunt被真实拒绝，选择由原AI提交`, async t => {
-  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.adventure.discovery_sequence = 0;
+  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.position = { x: 11, y: 8 }; f.a.adventure.discovery_sequence = 0;
   await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const encounter = f.a.adventure.encounter; assert.equal(encounter.status, 'pending');
   const deadline = encounter.expires_at, inventory = structuredClone(f.a.life.inventory);
@@ -97,7 +98,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}公开短期目标仅记�
   assert.equal(f.a.personal_goal.status, 'needs_review'); assert.equal(f.a.personal_goal.expires_at, deadline);
   await f.decide(action('wait')); assert.equal(f.a.personal_goal.status, 'needs_review'); assert.equal(f.a.life.gathering, null);
   await f.decide(action('personal_goal', { intent: 'confirm', goal_id: goalId })); assert.equal(f.a.personal_goal.status, 'active');
-  await f.decide(action('gather', { intent: 'start', resource_id: 'wood' })); f.advance(13000);
+  f.a.position = resourcePosition(f.world, 'camp_branches'); f.refresh(); await f.decide(action('gather', { intent: 'start', resource_id: 'wood' })); f.advance(13000);
   assert.equal(f.a.personal_goal.progress, 1); assert.equal(f.a.life.gathering, null);
   await f.decide(action('personal_goal', { intent: 'cancel', goal_id: goalId })); assert.equal(f.a.personal_goal.status, 'cancelled');
 });
@@ -110,7 +111,7 @@ test('发现和目标复核按本人/队友筛选，普通目标进度不触发�
 });
 
 test('装备有效属性与比较可读，16能力只在完整支持时报告，旧服保持12', async t => {
-  const f = await fixture(t); Object.assign(f.a.life.inventory, { hunter_bow: 1, heavy_hammer: 1, heavy_armor: 1 }); f.refresh();
+  const f = await fixture(t); Object.assign(f.a.life.inventory, { hunter_bow: 1, heavy_hammer: 1, heavy_armor: 1, turnip: 2, wheat: 2 }); f.refresh();
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.match(prompt, /personal_goal\{intent:set/); assert.ok(data.goals.some(([kind, ids]) => kind === 'resolve_exploration' && ids.includes('forest')));
   assert.deepEqual(data.gear.find(row => row[0] === 'heavy_armor').slice(4, 7), [null, null, null]); assert.ok(data.combat); assert.ok(data.gear?.some(row => row[0] === 'hunter_bow' && row[4] === 3 && row[5] === 2000 && row[6] === 2));
@@ -164,7 +165,7 @@ for (const kind of ['word_chain', 'riddle']) test(kind + '在长主人要求和�
 
 
 for (const mode of ['dsh-pet', 'model']) test(mode + '探索实际收益在新聊天到来后仍交还原AI', async t => {
-  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.adventure.discovery_sequence = 0;
+  const f = await fixture(t, mode); f.a.scene_id = 'adventure'; f.a.position = { x: 11, y: 8 }; f.a.adventure.discovery_sequence = 0;
   await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const eventId = f.a.adventure.encounter.event_id; assert.ok(f.runner.observation.self.adventure.encounter.choices.some(c => c.choice_id === 'wood'));
   await f.decide(action('adventure_event', { event_id: eventId, choice_id: 'wood' }));
@@ -178,7 +179,7 @@ for (const mode of ['dsh-pet', 'model']) test(mode + '探索实际收益在新�
 
 
 test('pending的格式重试实际告知原AI纠正，只有后续合法回答才执行', async t => {
-  const f = await fixture(t); f.a.scene_id = 'adventure'; await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
+  const f = await fixture(t); f.a.scene_id = 'adventure'; f.a.position = { x: 11, y: 8 }; await f.decide(action('adventure_plan', { intent: 'explore', zone_id: 'forest' })); f.advance(16000);
   const eventId = f.a.adventure.encounter.event_id, prompts = [], flags = [], before = f.runner.checkpoint.calls_used;
   f.runner.petClient.decide = async context => {
     const prompt = decisionPrompt(context); assert.ok(prompt.length <= 2000); prompts.push(prompt); flags.push(context.correction);

@@ -8,11 +8,11 @@ const PixelRects = ({drawing}) => drawing.rects.map((rect,index)=><rect key={ind
 
 export function CottageArt({ small=false }) {
   const drawing=homeCottagePixels();
-  return <svg viewBox="0 0 120 97" shapeRendering="crispEdges" aria-hidden="true" data-art-release="0.35.0" className={small?'cottage-art small':'cottage-art'}><PixelRects drawing={drawing}/></svg>;
+  return <svg viewBox="0 0 120 97" shapeRendering="crispEdges" aria-hidden="true" data-art-release="0.36.0" className={small?'cottage-art small':'cottage-art'}><PixelRects drawing={drawing}/></svg>;
 }
 
 export function RoomArt({ grid=false, phase='day' }) {
-  return <svg className="home-room-art" viewBox="0 0 640 540" shapeRendering="crispEdges" aria-hidden="true" data-art-release="0.35.0">
+  return <svg className="home-room-art" viewBox="0 0 640 540" shapeRendering="crispEdges" aria-hidden="true" data-art-release="0.36.0">
     <PixelRects drawing={homeRoomPixels(phase)}/>
     {grid&&<g fill="#634632" opacity=".3">{Array.from({length:9},(_,i)=><rect key={`v${i}`} x={120+i*50} y="135" width="1" height="336"/>)}{Array.from({length:7},(_,i)=><rect key={`h${i}`} x="70" y={177+i*42} width="500" height="1"/>)}</g>}
   </svg>;
@@ -25,7 +25,7 @@ export function FurnitureArt({ kind, rotation=0, layer='base', item, live=false,
   const normal=((Number(rotation)||0)%360+360)%360,art=spec.variants[normal]||spec.variants[0];
   const {width:w,height:h}=art,foreground=layer==='foreground',drawing=homeFurniturePixels(kind,normal,layer);
   if(foreground&&!art.foreground)return null;
-  return <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" className={`home-furniture-art furniture-${kind}`} aria-hidden="true" data-art-release="0.35.0" data-art-kind={kind} data-art-rotation={normal} data-art-layer={layer}>
+  return <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" shapeRendering="crispEdges" className={`home-furniture-art furniture-${kind}`} aria-hidden="true" data-art-release="0.36.0" data-art-kind={kind} data-art-rotation={normal} data-art-layer={layer}>
     {foreground&&<defs><clipPath id={`${id}-front`}>{art.foreground.rects.map(([x,y,width,height],i)=><rect key={i} x={x} y={y} width={width} height={height}/>)}</clipPath></defs>}
     <g clipPath={foreground?`url(#${id}-front)`:undefined}><svg width={w} height={h} viewBox={`0 0 ${drawing.width} ${drawing.height}`} preserveAspectRatio="none"><PixelRects drawing={drawing}/></svg></g>
     {!foreground&&kind==='display_shelf'&&item&&normal===0&&<svg x={w*.16} y={h*.22} width={w*.27} height={h*.33} viewBox="0 0 24 24"><PixelRects drawing={homeSouvenirPixels(item)}/></svg>}

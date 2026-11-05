@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES,PLAZA_CAMP_SITES,PLAZA_RESOURCE_POSITIONS} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position,HEARTH=PLAZA_CAMP_SITES.find(s=>s.id==='plaza_hearth'),DARK_START={x:HEARTH.position.x-7,y:HEARTH.position.y};
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -8,7 +10,7 @@ import { spectatorSnapshot } from '../server/spectator.js';
 import { publicSurvivor } from '../server/survival-state.js';
 
 const START = 2000000000000;
-function fixture(t, { position = { x: 11, y: 8 }, energy = 100, inventory = {}, night = false, dbPath = ':memory:' } = {}) {
+function fixture(t, { position = { ...CAMP }, energy = 100, inventory = {}, night = false, dbPath = ':memory:' } = {}) {
   let now = START;
   const world = new World({ now: () => now, dbPath, actionIntervalMs: 0 }); let closed = false;
   const close = () => { if (!closed) { world.close(); closed = true; } }; t.after(close);
@@ -41,7 +43,7 @@ function near(actual, expected, label = '') { assert.ok(Math.abs(actual - expect
 
 for (const source of ['fire', 'torch']) test(`v021 ${source} exact burnout inside a delayed tick agrees with 100 ms stepping`, t => {
   function setup() {
-    const f = fixture(t, { position: { x: 13, y: 11 }, night: true });
+    const f = fixture(t, { position: { ...HEARTH.interaction_position }, night: true });
     if (source === 'fire') fireFixture(f, 0.25);
     else f.raw().survival.torch = { lit: true, fuel_seconds: 0.25, updated_at: f.now() };
     return f;
@@ -63,11 +65,11 @@ test('v021 delayed dusk-to-night crossing starts darkness at the actual phase bo
 });
 
 test('v021 exhausted run cannot borrow its untravelled path to obtain light during a delayed tick', t => {
-  const f = fixture(t, { position: { x: 7, y: 11 }, energy: 0.3, night: true }); fireFixture(f, 90);
+  const f = fixture(t, { position: { ...DARK_START }, energy: 0.3, night: true }); fireFixture(f, 90);
   f.raw().survival.darkness_seconds = 89;
   applied(f.act('survival', { intent: 'approach', site_id: 'plaza_hearth', mode: 'run' }));
   const expires = f.raw().run.expires_at; f.jump(2000);
-  near(f.raw().position.x, 8); near(f.raw().position.y, 11);
+  near(f.raw().position.x, DARK_START.x+1); near(f.raw().position.y, DARK_START.y);
   assert.equal(f.raw().movement, null); assert.equal(f.raw().survival.travel, null);
   near(f.raw().survival.darkness_seconds, 91, 'the actual stopped position remains outside radius five');
   assert.equal(publicSurvivor(f.world, f.raw()).light.lit, false); assert.equal(f.raw().run.expires_at, expires);
@@ -103,13 +105,13 @@ test('v021 a subsecond grant expiry caps movement, torch and hunger without exte
   applied(f.act('survival', { intent: 'approach', site_id: 'plaza_hearth' }));
   f.raw().run.expires_at = f.now() + 250; const expiry = f.raw().run.expires_at;
   f.jump(1000); assert.equal(f.raw().status, 'paused'); assert.equal(f.raw().run.expires_at, expiry);
-  near(Math.abs(f.raw().position.x - 11) + Math.abs(f.raw().position.y - 8), 0.5);
+  near(Math.abs(f.raw().position.x - CAMP.x) + Math.abs(f.raw().position.y - CAMP.y), 0.5);
   near(f.raw().survival.satiety, 99.99); near(f.raw().survival.torch.fuel_seconds, 89.75);
   assert.equal(f.raw().survival.torch.lit, false); assert.equal(f.raw().survival.travel, null); assert.equal(f.raw().movement, null);
 });
 
 test('v021 darkness damage at the work completion boundary cancels gathering before any reward', t => {
-  const f = fixture(t, { night: true }); const stock = f.world.state.resources.nodes.camp_branches.stock;
+  const f = fixture(t, { night: true, position:PLAZA_RESOURCE_POSITIONS.camp_branches.interaction_position }); const stock = f.world.state.resources.nodes.camp_branches.stock;
   const beforeWood = f.raw().life.inventory.wood, expires = f.raw().run.expires_at;
   applied(f.act('gather', { intent: 'start', node_id: 'camp_branches' }));
   assert.equal(f.raw().life.gathering.phase, 'working'); assert.equal(f.raw().life.gathering.ends_at, f.now() + 15000, 'night work uses the published 1.25 time multiplier');
@@ -123,7 +125,7 @@ test('v021 darkness damage at the work completion boundary cancels gathering bef
 
 test('v021 a late tick cannot travel past the earlier darkness hit that cancels the journey', t => {
   function setup() {
-    const f = fixture(t, { position: { x: 7, y: 11 }, night: true });
+    const f = fixture(t, { position: { ...DARK_START }, night: true });
     f.raw().survival.darkness_seconds = 99.9;
     applied(f.act('survival', { intent: 'approach', site_id: 'plaza_hearth' })); return f;
   }
@@ -131,7 +133,7 @@ test('v021 a late tick cannot travel past the earlier darkness hit that cancels 
   assert.equal(stepped.raw().adventure.hp, 36); assert.equal(delayed.raw().adventure.hp, 36);
   assert.equal(stepped.raw().movement, null); assert.equal(delayed.raw().movement, null);
   assert.equal(stepped.raw().survival.travel, null); assert.equal(delayed.raw().survival.travel, null);
-  near(Math.abs(stepped.raw().position.x - 7) + Math.abs(stepped.raw().position.y - 11), 0.2);
+  near(Math.abs(stepped.raw().position.x - DARK_START.x) + Math.abs(stepped.raw().position.y - DARK_START.y), 0.2);
   near(delayed.raw().position.x, stepped.raw().position.x, 'hit must stop at the same physical position');
   near(delayed.raw().position.y, stepped.raw().position.y, 'hit must stop at the same physical position');
   near(delayed.raw().fatigue.energy, stepped.raw().fatigue.energy, 'movement energy cannot be spent after its interruption');
@@ -156,7 +158,7 @@ test('v021 a rest tick cannot recover energy after satiety reaches zero mid-tick
 });
 
 test('v021 construction and shared fuel are exact-once, while only the owner can extinguish', t => {
-  const f = fixture(t, { position: { x: 13, y: 11 }, inventory: { wood: 10, grass: 4 } });
+  const f = fixture(t, { position: { ...HEARTH.interaction_position }, inventory: { wood: 10, grass: 4 } });
   const build = f.request('survival', { intent: 'build', site_id: 'plaza_hearth', kind: 'campfire' });
   const first = applied(f.world.callTool(f.auth, 'act', build)); assert.deepEqual(f.world.callTool(f.auth, 'act', build), first);
   const fire = Object.values(f.world.state.survival.fires)[0]; assert.equal(Object.keys(f.world.state.survival.fires).length, 1);
@@ -164,7 +166,7 @@ test('v021 construction and shared fuel are exact-once, while only the owner can
   assert.deepEqual(f.raw().life.ledger.entries.filter(e => e.source_id === build.action_id).map(e => e.items), [{ wood: -3, grass: -2 }], 'World.act records exactly one build cost entry');
   const other = f.world.createAgent({ name: '另一位火塘使用者' }), c = f.world.createController(other.agent_id);
   f.world.ownerControl(other.agent_id, 'start', { controller_id: c.controller_id }); const auth = f.world.authenticate(c.token), j = f.world.callTool(auth, 'join_world');
-  const a = f.world.agent(other.agent_id); a.position = { x: 13, y: 11 }; a.life.inventory.wood = 2;
+  const a = f.world.agent(other.agent_id); a.position = { ...HEARTH.interaction_position }; a.life.inventory.wood = 2;
   const req = payload => ({ run_id: j.run_id, session_epoch: j.session_epoch, action_id: a.next_action_id, type: 'survival', payload });
   const fuel = req({ intent: 'fuel', fire_id: fire.fire_id, item_id: 'wood', quantity: 1 });
   const receipt = applied(f.world.callTool(auth, 'act', fuel)); assert.deepEqual(f.world.callTool(auth, 'act', fuel), receipt);

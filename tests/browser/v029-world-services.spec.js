@@ -9,8 +9,10 @@ test.afterEach(async () => { await f.close(); });
 
 function lowResources(p) {
   // Isolated starting state. Real HTTP/MCP requests below choose every action.
-  p.raw.position = { x: 11, y: 8 }; p.raw.position_at = f.now();
+  p.raw.position = { x: 36, y: 12 }; p.raw.position_at = f.now();
   p.raw.fatigue.energy = 0; p.raw.survival.satiety = 0;
+  // Isolate receipt/observer semantics from fatal hunger during the longer street walk.
+  p.raw.survival.protected_until = f.now() + 120000;
   p.raw.life.inventory = {}; p.raw.adventure.gold = 0;
   f.app.world.commit();
 }

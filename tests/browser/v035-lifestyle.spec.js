@@ -2,6 +2,8 @@ import {test,expect} from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import {createHomesFixture} from '../helpers/homes-fixture.js';
 
+import { walkFixture } from '../helpers/walk-fixture.js';
+import { PLAZA_SERVICES } from '../../shared/plaza-layout.js';
 let f;
 test.beforeEach(async()=>{f=await createHomesFixture({starterItems:{wood:100,grass:100,ore:40,berry:8,moon_herb:8,turnip:8,wheat_bread:4,silver_fish:2}});});
 test.afterEach(async()=>{await f.close();});
@@ -44,8 +46,9 @@ test('v035 original AI chooses garments dyes and hair; actual wardrobe is visibl
  }
  for(const style_id of ['short','bob','original','ponytail']){await p.act('wardrobe',{intent:'hairstyle',style_id});await expect(plaza).toHaveAttribute('data-hairstyle',style_id);}
  await accessible(page);await page.screenshot({path:'artifacts/v035-dressed-plaza.png'});
+ await walkFixture(p,PLAZA_SERVICES.farm.interaction_position,f.until);
  await page.getByRole('button',{name:'农作区',exact:true}).click();await dressed(page.getByTestId('farm-present-agent').locator('.pixel-character'),p);
- await p.act('home',{intent:'build',name:'衣服和鱼的小屋'});const home=`home_${p.id}`;
+ await camp(p);await p.act('home',{intent:'build',name:'衣服和鱼的小屋'});const home=`home_${p.id}`;
  await p.act('home',{intent:'visit',home_id:home});await f.until(()=>p.raw.home_presence?.home_id===home);
  await page.goto(`${f.base}/watch?view=home&home=${home}`);await dressed(page.getByTestId(`home-actor-${p.id}`).locator('.pixel-character'),p);
  await p.act('home',{intent:'leave'});await p.act('adventure_plan',{intent:'explore',zone_id:'forest'});await f.until(()=>p.raw.scene_id==='adventure');
@@ -68,6 +71,7 @@ test('v035 original AI chooses garments dyes and hair; actual wardrobe is visibl
 test('v035 real catch enters a physically approached tank with four facings names and refundable decoration; guests only inspect',async({page})=>{
  test.setTimeout(180000);const p=await f.actor('自己布置鱼缸的旅人');await camp(p);
  const beforeFish={pond_fish:p.raw.life.inventory.pond_fish||0,silver_fish:p.raw.life.inventory.silver_fish||0};
+ await walkFixture(p,PLAZA_SERVICES.tools.interaction_position,f.until);
  await p.act('inventory',{intent:'craft',item_id:'fishing_rod'});await p.act('inventory',{intent:'craft',item_id:'fish_bait'});
  await p.act('fish',{intent:'start',spot_id:'plaza_pond_south',bait_id:'fish_bait'});await f.until(()=>!p.raw.fishing);
  const caught=['pond_fish','silver_fish'].find(id=>(p.raw.life.inventory[id]||0)>beforeFish[id]);expect(caught).toBeTruthy();

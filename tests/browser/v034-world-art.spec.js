@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { createHomesFixture } from '../helpers/homes-fixture.js';
 import { assertCanvasResolution } from './canvas-assertions.js';
 
+import { walkFixture } from '../helpers/walk-fixture.js';
+import { PLAZA_SERVICES } from '../../shared/plaza-layout.js';
 let f;
 test.beforeEach(async()=>{f=await createHomesFixture({starterItems:{wood:60,grass:40,ore:8}});});
 test.afterEach(async()=>{await f.close();});
@@ -53,7 +55,7 @@ test('v034 all independent maps use Q art on desktop and phone without changing 
 test('v034 actual farm stages show native ground crops and owned tools; viewer remains read only',async({page})=>{
   test.setTimeout(90000);
   const a=await f.actor('农田的原角色');
-  await a.act('move',{x:11,y:8});await f.until(()=>!a.raw.movement);
+  await walkFixture(a,PLAZA_SERVICES.farm.interaction_position,f.until);
   const events=audit(page);
   await page.goto(f.base+'/watch?view=farm');
   const unit=page.getByTestId('farm-present-agent');
@@ -114,7 +116,7 @@ test('v034 disconnected desktop header stays readable while the real world snaps
 test('v034 many real home messages remain readable and keyboard scrollable without changing AI state',async({page})=>{
   test.setTimeout(60000);
   const a=await f.actor('给小屋留言的原旅人');
-  await a.act('move',{x:10,y:8});await f.until(()=>!a.raw.movement);
+  await a.act('adventure_plan',{intent:'retreat'});await f.until(()=>!a.raw.adventure.plan);
   await a.act('home',{intent:'build',name:'留着十七段故事的小屋'});
   const home=`home_${a.id}`;
   await a.act('home',{intent:'visit',home_id:home});await f.until(()=>a.raw.home_presence?.home_id===home);

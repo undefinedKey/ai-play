@@ -21,7 +21,7 @@ function fixture(t) {
   const id = created.agent_id, ctl = world.createController(id);
   world.ownerControl(id, 'start', { controller_id: ctl.controller_id, duration_minutes: 60, max_calls: null, goal: '按自己的想法生活\n可以发呆 🐟' });
   world.callTool(world.authenticate(ctl.token), 'join_world');
-  const a = world.agent(id); a.position = { x: 11, y: 8 }; a.fatigue.energy = 0; a.survival.satiety = 0;
+  const a = world.agent(id); a.position = { ...world.getRules().life.camp_place.service_center }; a.fatigue.energy = 0; a.survival.satiety = 0;
   a.life.inventory = {}; a.adventure.gold = 0; a.adventure.hp = 23;
   t.after(() => { world.close(); assert.equal(dirname(directory), root); rmSync(directory, { recursive: true, force: true }); });
   return { id, get world() { return world; }, restart(ms = 5000) {

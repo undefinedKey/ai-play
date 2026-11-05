@@ -1,3 +1,5 @@
+import {walkFixture} from './helpers/walk-fixture.js';
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHomesFixture } from './helpers/homes-fixture.js';
@@ -11,7 +13,7 @@ test('v031 real MCP food exchange and delivery commission require explicit origi
   const f = await createHomesFixture({ frontend: false, authMode: 'accounts', starterItems: { wood: 12, grass: 4, ore: 4, wheat: 6 } }); t.after(f.close);
   const p = await f.actor('做面包的来客'), q = await f.actor('自愿交矿的人'), r = await f.actor('另一个来客');
   const identity = [p, q, r].map(a => ({ id: a.id, goal: a.raw.goal, run: structuredClone(a.raw.run), appearance: structuredClone(a.raw.appearance) }));
-  await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  await walkFixture(p,PLAZA_SERVICES.kitchen.interaction_position,f.until);
   await p.act('inventory', { intent: 'craft', item_id: 'wheat_bread' });
   const bread = p.raw.life.inventory.wheat_bread;
   await go(f, p);
@@ -19,7 +21,7 @@ test('v031 real MCP food exchange and delivery commission require explicit origi
   await p.act('peer_market', { intent: 'post', kind: 'request', title: '一份面包换两份矿石', give: { items: { wheat_bread: 1 } }, want: { items: { ore: 2 } } });
   const offer = await own(p); assert.equal(p.raw.life.inventory.wheat_bread, bread - 1);
   assert.equal(q.raw.life.inventory.ore, 4, 'reading a commission does not spend or assign a task');
-  await p.act('move', { x: 27, y: 18 }); await f.until(() => !p.raw.movement);
+  await p.act('move', { x: 39, y: 24 }); await f.until(() => !p.raw.movement);
   await go(f, q); await go(f, r);
   const before = [p, q, r].map(a => ({ ore: a.raw.life.inventory.ore, bread: a.raw.life.inventory.wheat_bread || 0 }));
   const requests = await Promise.all([q.request('peer_market', { intent: 'accept', ...ref(offer) }), r.request('peer_market', { intent: 'accept', ...ref(offer) })]);
@@ -49,7 +51,7 @@ test('v031 real MCP food exchange and delivery commission require explicit origi
 test('v031 a genuinely claimed relic can be explicitly gifted and then displayed by its new owner, without rewriting finder or auto-decorating', { timeout: 60000 }, async t => {
   const f = await createHomesFixture({ frontend: false, authMode: 'accounts', starterItems: { wood: 30, grass: 12, ore: 5 } }); t.after(f.close);
   const p = await f.actor('遗物发现者'), q = await f.actor('自己选择收藏的人'), r = await f.actor('不相关的人');
-  await q.act('move', { x: 10, y: 8 }); await f.until(() => !q.raw.movement);
+  await q.act('adventure_plan',{intent:'retreat'});await f.until(()=>!q.raw.adventure.plan);
   await q.act('home', { intent: 'build', name: '我的陈列小屋' });
   const homeId = `home_${q.id}`;
   await q.act('home', { intent: 'visit', home_id: homeId }); await f.until(() => !!q.raw.home_presence);
@@ -63,7 +65,7 @@ test('v031 a genuinely claimed relic can be explicitly gifted and then displayed
   p.raw.scene_id = 'ruins'; p.raw.position = { ...relic.interaction_position };
   await p.act('ruins', { intent: 'claim', object_id: relic.id });
   const provenance = structuredClone(f.app.world.state.ruins.claims[relic.id]);
-  p.raw.scene_id = 'plaza'; p.raw.position = { x: 11, y: 8 }; p.raw.adventure.in_field = false;
+  p.raw.scene_id = 'plaza'; p.raw.position = { x: 24, y: 16 }; p.raw.adventure.in_field = false;
   await go(f, p);
   await p.act('peer_market', { intent: 'post', kind: 'gift', target_agent_id: q.id, give: { items: { [relic.item_id]: 1 } } });
   let offer = await own(p);

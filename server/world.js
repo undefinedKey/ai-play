@@ -22,6 +22,8 @@ import { opportunitiesFor } from './opportunities.js';
 import { FATIGUE_RULES, initializeFatigue, publicFatigue, spendEnergy, captureFatigueRecovery, tickFatigue } from './fatigue.js';
 import { initializeAppearance, publicAppearance } from './appearance.js';
 import { initializeWardrobe } from './lifestyle-state.js';
+import { PLAZA_LAYOUT, PLAZA_SERVICES, PLAZA_PLACES } from '../shared/plaza-layout.js';
+import { initializePlazaLayout, announcePlazaMigration } from './plaza-layout.js';
 import { initializePresence, seenPresence, departPresence, publicPresence } from './presence.js';
 import { runtimeReport } from './runtime-health.js';
 import { combatStats } from './combat.js';
@@ -49,12 +51,7 @@ const textField = (v, max, name, fallback = '') => {
   return v.trim();
 };
 const LEGACY_ACTIONS = ['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'wait'];
-const PLACES = [
-  { id: 'pond', scene_id: 'plaza', name: '薄荷小池', x: 4, y: 4, radius: 3 },
-  { id: 'garden', scene_id: 'plaza', name: '中央花园', x: 11, y: 8, radius: 3 },
-  { id: 'reading', scene_id: 'plaza', name: '林间书屋', x: 19, y: 4, radius: 3 },
-  { id: 'play', scene_id: 'plaza', name: '独处游戏角', x: 19, y: 12, radius: 3 },
-];
+const PLACES = PLAZA_PLACES;
 const ACTIVITIES = [
   { id: 'watch_pond', name: '池边看水', place_id: 'pond', duration_seconds: 45, description: '在池边停留，观察这个共享世界；可以随时离开。' },
   { id: 'relax', name: '花园休息', place_id: 'garden', duration_seconds: 60, description: '在花园休息一会儿，不必发言或等待其他角色。' },
@@ -92,6 +89,7 @@ export class World extends EventEmitter {
     initializeSurvivalWorld(this.state, this.now());
     for (const a of Object.values(this.state.agents)) initializeSurvivor(a, this.now(), { restore: !!saved });
     initializeRuins(this, { restore: !!saved });
+    const plazaTransitions=initializePlazaLayout(this,{restore:!!saved});
     for (const a of Object.values(this.state.agents)) initializeScene(a, this.now());
     for (const a of Object.values(this.state.agents)) { initializeFatigue(a, this.now(), { restore: !!saved }); initializeAppearance(a, this.state.agents); }
     initializeAdventure(this.state, this.now());
@@ -100,6 +98,7 @@ export class World extends EventEmitter {
     initializeCooperations(this, { restore: !!saved });
     this.features.initialize({ restore: !!saved });
     initializeHomes(this, { restore: !!saved });
+    announcePlazaMigration(this,plazaTransitions);
     if (saved) {
       for (const a of Object.values(this.state.agents)) {
         endEncounter(this, a); reviewPersonalGoal(this, a, 'restarted');
@@ -191,7 +190,7 @@ export class World extends EventEmitter {
     const name = textField(input.name, 20, '名字'); if (!name) fail('INVALID_ACTION', '请填写角色名字');
     const a = { agent_id: uid('agent'), owner_id: input.owner_id || 'local-owner', name, bio: textField(input.bio, 200, '介绍'), avatar: textField(input.avatar, 20, '头像', '🌱'),
       color: /^#[0-9a-f]{6}$/i.test(input.color || '') ? input.color : '#609279', is_platform: input.is_platform === true,
-      scene_id: 'plaza', position: { x: 9 + (Object.keys(this.state.agents).length % 3), y: 7 + (Object.keys(this.state.agents).length % 2) },
+      scene_id: 'plaza', position: { x: PLAZA_SERVICES.camp.interaction_position.x - 1 + (Object.keys(this.state.agents).length % 3), y: PLAZA_SERVICES.camp.interaction_position.y + (Object.keys(this.state.agents).length % 2) },
       status: 'offline', session_epoch: 0, group_id: null, activity: null, run: null, goal: '', diagnostics: { state: 'waiting', calls_used: 0, last_error: null },
       pause_reason: null, next_action_id: null, last_contact_at: null, last_action_at: null, reserved_until: null, peer_market_return: null, peer_market_page: 0 };
     if (input.invitation_claim !== undefined) {
@@ -299,7 +298,7 @@ export class World extends EventEmitter {
   publicAgent(a) { return clone({ agent_id: a.agent_id, name: a.name, bio: a.bio, avatar: a.avatar, color: a.color, is_platform: a.is_platform, scene_id: a.scene_id, position: a.position, position_at:a.position_at, facing:a.facing, movement: publicMovement(a, this), action:publicAction(a), hurt:publicHurt(a), status: a.status, group_id: a.group_id, activity: publicActivity(a.activity), leisure: publicLeisure(a, this.now()), adventure: publicFighter(a), personal_goal: publicPersonalGoal(a), life: publicLife(a, this.now()), fatigue: publicFatigue(a), survival: publicSurvivor(this, a), appearance: publicAppearance(a), presence: publicPresence(a), home_presence: publicHomePresence(a), home_travel: publicHomeTravel(a), fishing: publicFishing(a), ruins_job: publicRuinsJob(a), ...this.features.publicAgent(a), session_epoch: a.session_epoch }); }
   publicSnapshot() {
     return clone({ room: this.state.room, agents: Object.values(this.state.agents).map(a => this.publicAgent(a)), groups: Object.values(this.state.groups), game: publicGame(this.state.game),
-      scenes: SCENES, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
+      scenes: SCENES, plaza_layout:PLAZA_LAYOUT, places: PLACES, activities: ACTIVITIES, games: GAMES, leisure_policy: LEISURE_POLICY, adventure: publicAdventure(this.state), life: LIFE_RULES, fatigue: FATIGUE_RULES,
       cooperation: COOPERATION_RULES, cooperations: publicCooperations(this), history: this.historyMetadata(), resources: publicResources(this.state, this.now()), day_cycle: publicDayCycle(this.state, this.now()), survival: publicSurvival(this),
       ...this.features.publicWorld(), ruins: publicRuins(this), fishing: publicFishingWorld(this), homes: publicHomes(this), home_rules: clone(HOME_RULES),
       events: this.state.events.filter(e => !['cooperation_invitation', 'cooperation_response', 'home_invitation', 'home_invitation_response', 'home_invitation_expired'].includes(e.type)).slice(-150).map(({ recipients, ...event }) => event), simulation_time: this.simulationTime, server_time: this.now() });
@@ -313,8 +312,8 @@ export class World extends EventEmitter {
   historyPage(query = {}) { return historyPage(this, query, message => fail('INVALID_ACTION', message)); }
   historyMetadata() { return historyMetadata(this); }
   getRules() {
-    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.35.0-lifestyle', recommended_skill_version: '0.35.0', max_capabilities: 16, ...this.features.rules(), ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
-      resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES),
+    return { world_api_version: '0.2', skill_version: '0.1.0', rules_version: '0.36.0-plaza', recommended_skill_version: '0.36.0', max_capabilities: 16, ...this.features.rules(), ruins: clone(RUINS_RULES), fishing: clone(FISHING_RULES), homes: clone(HOME_RULES), personal_goals: clone(PERSONAL_GOAL_RULES), cooperation: clone(COOPERATION_RULES), room: { capacity: 5, ...WORLD_MAP },
+      resources: clone(RESOURCE_RULES), day_cycle: clone(DAY_RULES), survival: clone(SURVIVAL_RULES), plaza_layout:clone(PLAZA_LAYOUT),
       scenes: clone(SCENES), places: clone(PLACES), activities: clone(ACTIVITIES), games: clone(GAMES), leisure_policy: clone(LEISURE_POLICY), adventure: clone(ADVENTURE_RULES), life: clone(LIFE_RULES), fatigue: clone(FATIGUE_RULES), max_duration_minutes: 525600, max_calls: 1000000000,
       movement: clone(MOVEMENT_RULES), visible_radius: 6, speech_radius: 4, max_move: MAX_MOVE, max_text_length: 200, action_interval_ms: this.actionIntervalMs,
       invitation_seconds: GAME_TIMING.invitation_seconds, invitation_cooldown_seconds: 60, lease_seconds: 45, event_window_seconds: 600,
@@ -574,7 +573,7 @@ export class World extends EventEmitter {
       if (a.activity?.activity_id !== 'treasure_hunt') this.finishActivity(a, { cancelled: true });
       stopAdventure(this, a, 'stopped', '原 AI 选择手动移动，原冒险计划结束');
       recordMovement(a, path, this.now(), p.mode);
-      if (distance(a.position, ADVENTURE_RULES.zones[0]) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
+      if (a.scene_id!=='adventure'||distance(a.position, SCENES.find(s=>s.id==='adventure').portal.position) <= ADVENTURE_RULES.monster_ai.camp_safe_radius) leaveAdventureField(this, a);
       this.event('agent_moved', { agent_id: a.agent_id, position: a.position, path, text: `${a.name}开始${p.mode === 'run' ? '跑' : '走'}向 (${p.x}, ${p.y})` }, this.activeIds().filter(id => sameScene(a, this.agent(id)) && distance(this.agent(id).position, a.position) <= 6)); return { scene_id: a.scene_id, position: a.position, target:{x:p.x,y:p.y}, path, movement:publicMovement(a, this) };
     }
     if (type === 'say') {

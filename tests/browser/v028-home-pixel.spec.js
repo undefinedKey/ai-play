@@ -8,7 +8,7 @@ test.beforeEach(async () => { f = await createHomesFixture({ starterItems: { woo
 test.afterEach(async () => { await f.close(); });
 
 async function buildHome(actor, name) {
-  await actor.act('move', { x: 10, y: 8 }); await f.until(() => !actor.raw.movement);
+  await actor.act('adventure_plan', { intent: 'retreat' }); await f.until(() => !actor.raw.adventure.plan);
   await actor.act('home', { intent: 'build', name });
   const id = `home_${actor.id}`;
   await actor.act('home', { intent: 'visit', home_id: id }); await f.until(() => actor.raw.home_presence?.home_id === id);
@@ -77,7 +77,7 @@ test('v028 pixel furniture keeps real saved positions, four headings, flat rugs 
       expect(value.width).toBeGreaterThan(0); expect(value.height).toBeGreaterThan(0);
       expect(value.width / value.height).toBeCloseTo(value.expectedWidth / value.expectedHeight, 2);
       expect(value.stretch).not.toBe('none'); expect(value.imageCount).toBe(0);
-      expect(value.rectCount).toBeGreaterThan(5); expect(value.release).toBe('0.35.0');
+      expect(value.rectCount).toBeGreaterThan(5); expect(value.release).toBe('0.36.0');
     }
     await accessible(page);
     await page.getByTestId('home-view').screenshot({ path: `artifacts/v028-pixel-room-${width}.png` });

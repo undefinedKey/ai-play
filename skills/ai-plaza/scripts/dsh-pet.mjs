@@ -15,6 +15,7 @@ import { supportsPeerMarket, peerMarketPromptPart, PEER_MARKET_ID_FIELDS } from 
 import { supportsCommunity, COMMUNITY_ID_FIELDS, COMMUNITY_NOTICE, communityFocus, communityDecisionPrompt } from './community-context.mjs';
 import { journeyFocus, journeyNotice, journeyDecisionPrompt, JOURNEY_ID_FIELDS } from './journey-context.mjs';
 import { lifestyleFocus, lifestyleNotice, lifestyleDecisionPrompt, WARDROBE_ID_FIELDS, AQUARIUM_ID_FIELDS } from './lifestyle-context.mjs';
+import { plazaPromptNotice, plazaRejectedService, preservesPlazaContext } from './plaza-context.mjs';
 
 export class PetError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -64,9 +65,9 @@ export const FATIGUE_GUIDANCE = '体力由服务按真实行动结算，疲劳�
 const fatigueContext = self => self.fatigue ? [self.fatigue.energy, self.fatigue.attack_multiplier, self.fatigue.hunt_min_energy] : undefined;
 const ENERGY_GUIDANCE = 'energy=[体力0~100,攻击倍率,起猎门槛]；营地恢复，rest/relax更快，撤退可用。\n';
 
-export const LIFE_GUIDANCE = '可按自己的偏好探索、种田、制作装备、吃食物或等待，不需他人邀请。farm{intent:plant|water|harvest,plot_id,crop_id?}仅plant用crop_id；inventory{intent:craft|equip|unequip|use,item_id?,slot?}仅unequip用slot。种田/换装需营地空闲，制作看配方station_id；食物use可在野外使用。有农具目录时按实际工具规则开垦、维修或升级。opportunities只提供当前合法机会，可直接返回其中action，不强制选择。';
-export const FARM_TOOLS_GUIDANCE = 'life.tools为真实农具等级/耐久。farm{intent:till,plot_id}先开垦再种植，收获后需再开垦；锄头用于开垦、水壶用于浇水，损坏时对应劳作不可用。inventory{intent:repair|upgrade,item_id:hoe|watering_can}在营地空闲时按目录耗材料和体力，升级回满耐久；upgrade_cost为升到该档费用。种什么、何时维修升级由你选择，不自动代办。';
-export const SUPPLIES_GUIDANCE = '服务目录支持时，可自主gather{intent:start,resource_id}执行一次有限采集；resources版本1/2可选真实node_id先走到再采一次。gather{intent:cancel}取消，不自动重复；不必打怪取得材料。料理沿用inventory{intent:craft|use,item_id}，以目录真实配方与恢复效果为准。trade{intent:buy|sell,item_id,quantity}按营地实际价格与数量限制交易，只处理自己的库存和金币。不会自动种植、烹饪、交易或选择下一项；wait可继续有限计划，随时可以取消或聊天。';
+export const LIFE_GUIDANCE = '可按自己的偏好探索、种田、制作装备、吃食物或等待，不需他人邀请。farm{intent:plant|water|harvest,plot_id,crop_id?}仅plant用crop_id；inventory{intent:craft|equip|unequip|use,item_id?,slot?}仅unequip用slot。种田/换装须对应服务范围且空闲，制作看配方station_id；食物use可在野外使用。有农具目录时按实际工具规则开垦、维修或升级。opportunities只提供当前合法机会，可直接返回其中action，不强制选择。';
+export const FARM_TOOLS_GUIDANCE = 'life.tools为真实农具等级/耐久。farm{intent:till,plot_id}先开垦再种植，收获后需再开垦；锄头用于开垦、水壶用于浇水，损坏时对应劳作不可用。inventory{intent:repair|upgrade,item_id:hoe|watering_can}在实际工具服务点空闲时按目录耗材料和体力，升级回满耐久；upgrade_cost为升到该档费用。种什么、何时维修升级由你选择，不自动代办。';
+export const SUPPLIES_GUIDANCE = '服务目录支持时，可自主gather{intent:start,resource_id}执行一次有限采集；resources版本1/2可选真实node_id先走到再采一次。gather{intent:cancel}取消，不自动重复；不必打怪取得材料。料理沿用inventory{intent:craft|use,item_id}，以目录真实配方与恢复效果为准。trade{intent:buy|sell,item_id,quantity}在实际补给点按价格和数量限制交易，只处理自己的库存和金币。不会自动种植、烹饪、交易或选择下一项；wait可继续有限计划，随时可以取消或聊天。';
 
 function opportunitiesContext(observation) {
   const candidates = normalizedOpportunities(observation).filter(o => ['adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'start_activity'].includes(o.action?.type));
@@ -125,7 +126,7 @@ const supplyGuidance = data => (data.gathering ? data.gathering.length > 2 ? 'ga
   (data.supply?.gather ? 'supply.gather=[id,x,y,半径,秒,体力,产量,冷却秒]，gather{intent:start,resource_id}有限采集。' : '') +
   (data.supply?.cook ? data.supply.cook.some(row => row.length > 5) ? 'cook=[id,材料,回血,回体力,耗体,补饱,站点]；inventory{intent:craft,item_id}；lit_campfire近亮火，portable随身。' : 'cook=[id,材料,回血,回体力,制作耗体力]用inventory{intent:craft,item_id}。' : '') +
   (data.supply?.prices ? 'prices=[物品,买价,卖价]，null不可；trade{intent:buy|sell,item_id,quantity}≤max_quantity，quota=[可买,可卖,重置秒]。' : '') +
-  (data.supply ? '交易及无站点配方需营地空闲。\n' : '');
+  (data.supply ? '交易/厨房/普通制作须对应服务点空闲。\n' : '');
 
 // Last-resort format for UTF-16 /chat limits (emoji use two code units). Keep
 // original goal/message and actionable state; reduce explanation, never JSON text.
@@ -140,11 +141,11 @@ function minimumPrompt(data, { ownerGoal, correction, adventure = false, gameTyp
     (data.discovery ? DISCOVERY_GUIDANCE : '') +
     (data.food ? FOOD_GUIDANCE : '') + supplyGuidance(data) +
     (data.combat ? data.gear ? STRATEGY_COMPACT_GUIDANCE : 'combat=[实际伤害,防御,射程,攻击间隔ms,每击体力,每格体力]。\n' : '') +
-    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
+    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；按服务站位inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
     (data.goals ? COMPACT_GOAL_GUIDANCE : data.goal_offer && !data.personal_goal ? `可自选personal_goal{intent:set,kind,target_id,target_count:1..10}；kind/target_id例：${data.goal_offer.map(row => row.join('/')).join(',')}。公开勿泄私，非自动。\n` : data.personal_goal ? endedGoal(data.personal_goal) ? endedGoalGuidance : Array.isArray(data.personal_goal) ? GOAL_TUPLE_GUIDANCE : 'personal_goal为公开目标；personal_goal{intent:confirm|cancel,goal_id}复核不续期、不自动做。\n' : '') +
     (data.opportunities?.length ? 'opportunities.action可选，无需邀请才探索。\n' : '') +
     (data.life?.tools ? 'life.tools=[id,级,耐久,上限,劳作体力,升档材料,维修材料]，材料=[木材,矿石]；farm{intent:till,plot_id}先垦，inventory{intent:repair|upgrade,item_id}。\n' : '') +
-    (data.last_action ? '仅到applied；rejected未执行。\n' : '') +
+    (data.last_action ? '仅到applied；rejected未执行。' + (data.last_action.service ? 'service=[站点,x,y,半径]，非瞬移。' : '') + '\n' : '') +
     (correction ? '纠正上次格式。\n' : '') + '公开数据：';
   return scenePromptText(prefix, data.self) + JSON.stringify(data, (key, value) => ['gear_offer', 'goal_offer', 'explore_offer'].includes(key) ? undefined : value);
 }
@@ -160,7 +161,7 @@ function emergencyAdventurePrompt(data, ownerGoal, correction, includeMovement =
     self: { ...(data.leisure?.recent.length ? { name: data.self.name } : {}), ...(data.self.scene_id ? { scene_id: data.self.scene_id } : {}), position: data.self.position, adventure: pick(data.self.adventure, ['hp', 'max_hp', 'decision_seconds', 'plan']) },
     ...(data.leisure?.recent.length ? { leisure: data.leisure } : {}),
     adventure: { monsters: data.adventure.monsters },
-    last_action: data.last_action ? pick(data.last_action, ['status', 'code', 'requested', 'applied']) : undefined,
+    last_action: data.last_action ? pick(data.last_action, ['status', 'code', 'requested', 'applied', 'service']) : undefined,
     events: data.events.filter(e => /message|chat/.test(e.type)).slice(-1).map(e => pick(e, ['agent_id', 'text', 'channel'])),
   };
   const speaker = critical.events[0]?.agent_id;
@@ -262,7 +263,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     games: away ? undefined : (observation.games || rules.games || []).map(g => [g.id, g.name]),
     activities: away ? undefined : (observation.activities || rules.activities || []).map(a => [a.id, a.place_id]),
     places: away ? undefined : (observation.places || rules.places || []).map(p => [p.id, p.x, p.y, p.radius]),
-    ...(lastActionFeedback ? { last_action: { ...pick(lastActionFeedback, ['type', 'status', 'game_type', 'code', 'requested', 'applied', 'retry_after_ms']), message: text(lastActionFeedback.message, 80) } } : {}),
+    ...(lastActionFeedback ? { last_action: { ...pick(lastActionFeedback, ['type', 'status', 'game_type', 'code', 'requested', 'applied', 'service', 'retry_after_ms']), message: text(lastActionFeedback.message, 80) } } : {}),
     events: selected.map(e => ({ type: text(e.type, 40), ...pick(e.payload, e.payload?.agent_id === self.agent_id ? ['monster_id'] : ['agent_id', 'monster_id', 'channel']), text: text(e.payload?.text, 200) })),
   };
   if (data.group && !data.group.group_id) delete data.group;
@@ -294,7 +295,7 @@ function adventurePrompt({ observation, events, rules, ownerGoal, correction, la
     (data.food ? FOOD_GUIDANCE : '') +
     supplyGuidance(data) +
     (data.combat ? data.gear ? STRATEGY_COMPACT_GUIDANCE : 'combat=[实际伤害,防御,射程,攻击间隔ms,每击体力,每格体力]。\n' : '') +
-    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；营地inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
+    (data.gear_offer && !data.gear ? '可选hunter_bow远慢省体、heavy_hammer高攻慢耗体、heavy_armor高防重；按服务站位inventory{intent:craft|equip,item_id}仅这两键，勿传slot。\n' : '') +
     (data.goals ? COMPACT_GOAL_GUIDANCE : data.goal_offer && !data.personal_goal ? `可自选personal_goal{intent:set,kind,target_id,target_count:1..10}；kind/target_id例：${data.goal_offer.map(row => row.join('/')).join(',')}。公开勿泄私，非自动。\n` : data.personal_goal ? endedGoal(data.personal_goal) ? endedGoalGuidance : 'personal_goal{intent:confirm|cancel,goal_id}处理公开目标；不自动做或续期。\n' : '') +
     (data.energy ? ENERGY_GUIDANCE : '') +
     '也可' + socialActions() + '不强制换玩法。MOVE_ADJUSTED仅到applied，未到requested。\n' +
@@ -485,7 +486,7 @@ function originalDecisionPrompt({ observation = {}, events = [], rules = {}, own
     activities: activities.map(a => [a.id, a.name, a.place_id, a.duration_seconds]),
     games: games.map(g => [g.id, g.name]),
     ...(choosing && (leisure.recent.length || leisure.break_seconds || Object.keys(leisure.blocked_games).length) ? { leisure: { recent: leisure.recent, break_seconds: leisure.break_seconds, blocked_games: leisure.blocked_games, available_games: leisure.available_games } } : {}),
-    ...(lastActionFeedback ? { last_action: pick(lastActionFeedback, ['type', 'status', 'game_type', 'code', 'requested', 'applied', 'message', 'retry_after_ms']) } : {}),
+    ...(lastActionFeedback ? { last_action: pick(lastActionFeedback, ['type', 'status', 'game_type', 'code', 'requested', 'applied', 'service', 'message', 'retry_after_ms']) } : {}),
     content: currentCatalog?.content ? { title: text(currentCatalog.content.title, 40), text: text(currentCatalog.content.text, 200) } : undefined,
     task: activity?.task ? { ...pick(activity.task, ['kind', 'prompt', 'answer_type']),
       ...(activity.target ? { target: pick(activity.target, ['x', 'y']) } : {}),
@@ -730,11 +731,29 @@ function marketFocusedDecisionPrompt(context,part,budget,previousError) {
 }
 export function prepareDecisionPrompt(context = {}) {
   const budget = Math.min(2000, context.budget ?? 2000);
+  if (!context.plazaReceiptReserved) {
+    const service = plazaRejectedService(context);
+    if (service) return prepareDecisionPrompt({ ...context, plazaReceiptReserved: true, lastActionFeedback: { ...context.lastActionFeedback, service } });
+  }
   // A side-view journey is an actual independent world scene, not a camera
   // projection of the outdoor map. Its current commands take precedence over
   // optional catalogs; no notice can overwrite a running journey or its risks.
   if (journeyFocus(context)) {
     return journeyDecisionPrompt(context, budget);
+  }
+  if(!context.plazaNoticeReserved) {
+    const notices=[plazaPromptNotice(context),plazaPromptNotice(context,true)].filter(Boolean);
+    if(notices.length) {
+      const next={...context,budget,plazaNoticeReserved:true},baseline=prepareDecisionPrompt(next);
+      for(const notice of notices) {
+        if(baseline.text.length+notice.length<=budget)return {...baseline,text:notice+baseline.text};
+        try {
+          const prepared=prepareDecisionPrompt({...next,budget:budget-notice.length});
+          if(preservesPlazaContext(baseline,prepared,expandDecisionReferences))return {...prepared,text:notice+prepared.text};
+        } catch(error) {if(error.code!=='PET_CONTEXT_TOO_LARGE')throw error;}
+      }
+      return baseline;
+    }
   }
   if (!context.lifestyleNoticeReserved) {
     const focus = lifestyleFocus(context);

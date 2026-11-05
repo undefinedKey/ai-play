@@ -1,12 +1,7 @@
 // Portable, dependency-free authority used by World, MCP, Skill and browser.
 // These rules describe available services; no rule chooses an AI's next action.
-const seat = (id, x, y, activities) => ({ id, position: { x, y }, activities });
-export const COMMUNITY_VENUES = [
-  { id: 'picnic', name: '野餐营地', scene_id: 'plaza', position: { x: 12, y: 17 }, interaction_position: { x: 12, y: 18 }, footprint: [], seats: [seat('picnic_west',11,17,['sit','eat']),seat('picnic_east',13,17,['sit','eat']),seat('picnic_north',12,16,['sit','eat']),seat('picnic_south',12,18,['sit','eat'])] },
-  { id: 'table', name: '公共餐桌', scene_id: 'plaza', position: { x: 18, y: 16 }, interaction_position: { x: 18, y: 17 }, footprint: [{x:18,y:16}], seats: [seat('table_west',17,16,['sit','eat']),seat('table_east',19,16,['sit','eat']),seat('table_north',18,15,['sit','eat']),seat('table_south',18,17,['sit','eat'])] },
-  { id: 'stage', name: '林间小舞台', scene_id: 'plaza', position: { x: 29, y: 23 }, interaction_position: { x: 29, y: 24 }, footprint: [], seats: [seat('stage_speaker',29,23,['perform']),seat('stage_left',28,25,['sit','listen']),seat('stage_center',29,25,['sit','listen']),seat('stage_right',30,25,['sit','listen'])] },
-  { id: 'board', name: '活动公告板', scene_id: 'plaza', position: { x: 16, y: 12 }, interaction_position: { x: 16, y: 13 }, footprint: [{x:16,y:12}], seats: [] },
-];
+import { PLAZA_COMMUNITY_VENUES } from './plaza-layout.mjs';
+export const COMMUNITY_VENUES = PLAZA_COMMUNITY_VENUES;
 export const COMMUNITY_FOOD_IDS = ['pond_fish','silver_fish','grilled_fish','turnip','wheat','turnip_soup','wheat_bread','berry','roasted_berry','moon_herb','trail_ration','moon_stew'];
 export const COMMUNITY_STATUSES = ['open','active','ended','cancelled','expired','interrupted'];
 export const COMMUNITY_END_REASONS = ['ended','cancelled','expired','restarted','authorization_ended'];

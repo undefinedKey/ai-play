@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { animationFrame, characterAction, characterActionKey, movementFacing, actionPose, actionFrame, actorFacing } from './pixel-state.js';
 import { mapDimensions, projectMapPoint } from './map-projection.js';
+import {plazaPropArtwork} from './plaza-state.js';
 import { sceneDefinition } from '../shared/world-layout.js';
 import { confirmedPosition } from './scene-state.js';
 import { publicName } from './observer-state.js';
@@ -18,7 +19,7 @@ import {hydrateWardrobeManifest,wardrobeLayerKeys,visibleWardrobe} from './wardr
 let manifest, manifestRequest;
 const manifestListeners = new Set();
 function requestManifest() {
-  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.35.0').then(response => {
+  if (!manifestRequest) manifestRequest = fetch('/pixel-world/manifest.json?v=0.36.0').then(response => {
     if (!response.ok) throw new Error('Pixel assets unavailable');
     return response.json();
   }).then(value => { manifest = hydrateWardrobeManifest(value); for (const listener of manifestListeners) listener(); }).catch(() => {
@@ -160,7 +161,7 @@ export function PixelScene({ grid, map, sceneId='plaza', live = false, label }) 
     </svg>}
     {!assets && <span className="pixel-scene-loading">荒野场景载入中…</span>}
     {assets&&!scene&&<span className="pixel-scene-loading" role="status">当前场景素材暂不可用</span>}
-    {assets&&(failed||sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]))&&<span className="scene-asset-warning" role="status">部分场景素材未载入 · 角色位置仍按服务器记录显示</span>}
+    {assets&&(failed||sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!plazaPropArtwork(assets,sceneId,prop)))&&<span className="scene-asset-warning" role="status">部分场景素材未载入 · 角色位置仍按服务器记录显示</span>}
     {grid && <span className="pixel-grid"/>}
   </div>;
 }
@@ -169,7 +170,7 @@ export function SceneProps({sceneId,map}){
   const assets=usePixelManifest();
   const scene=sceneDefinition(sceneId);
   const inkKinds={pine:'pine',pine_tall:'pine',oak:'oak',birch:'oak',apple:'oak',dead_tree:assets?.wilderness?.dead_tree?'dead_tree':'stump',rock:assets?.wilderness?.stones?'stones':'ore',rock_large:'ore'};
-  return <>{scene?.props.filter(prop=>!(sceneId==='ruins'&&prop.id.startsWith('fixture_'))&&prop.kind!=='pond'&&!RESOURCE_NODES.some(n=>n.kind==='tree'&&n.scene_id===sceneId&&n.position.x===prop.position.x&&n.position.y===prop.position.y)).map(prop=>{const kind=prop.kind;const definition=assets?.render_style==='q-pixel'?assets?.props?.[kind]||assets?.wilderness?.[inkKinds[kind]]:assets?.wilderness?.[inkKinds[kind]]||assets?.props?.[kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.render_style==='ink'?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-y={prop.position.y} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,transform:definition?.anchor_mode==='source'?'translate(calc(-1 * var(--prop-anchor-x) * var(--world-scale,1)),calc(-1 * var(--prop-anchor-y) * var(--world-scale,1)))':undefined,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneDefinition(scene.portal.to_scene_id)?.name||'其他场景'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':sceneId==='ruins'?'← 林地':'← 广场'}</span>}</>;
+  return <>{scene?.props.filter(prop=>!(sceneId==='ruins'&&prop.id.startsWith('fixture_'))&&prop.kind!=='pond'&&!RESOURCE_NODES.some(n=>n.kind==='tree'&&n.scene_id===sceneId&&n.position.x===prop.position.x&&n.position.y===prop.position.y)).map(prop=>{const kind=prop.kind;const definition=assets?.render_style==='q-pixel'?plazaPropArtwork(assets,sceneId,prop)||assets?.wilderness?.[inkKinds[kind]]:assets?.wilderness?.[inkKinds[kind]]||assets?.props?.[kind],unit=definition?.native_scale||1,anchor=definition?.native_scale?[definition.anchor.x*unit,definition.anchor.y*unit]:[64,120];return <RenderSpace key={prop.id} position={prop.position} depth={100+prop.position.y*10} anchor={anchor}><span className={`scene-prop ${definition?.render_style==='ink'?'ink-prop':''}`} data-prop-id={prop.id} data-prop-kind={prop.kind} data-foot-x={prop.position.x} data-foot-y={prop.position.y} data-art-group={sceneId==='plaza'&&assets?.plaza_props?.[prop.id]?'plaza_props':'props'} style={{...projectMapPoint(prop.position,map),zIndex:100+prop.position.y*10,transform:definition?.anchor_mode==='source'?'translate(calc(-1 * var(--prop-anchor-x) * var(--world-scale,1)),calc(-1 * var(--prop-anchor-y) * var(--world-scale,1)))':undefined,'--prop-anchor-x':`${anchor[0]}px`,'--prop-anchor-y':`${anchor[1]}px`}} aria-hidden="true"><PixelSprite definition={definition}/></span></RenderSpace>;})}{scene&&<span className="scene-portal-label" style={projectMapPoint({...scene.portal.position,y:scene.portal.position.y-2.7},map)} role="img" aria-label={`场景入口，通往${sceneDefinition(scene.portal.to_scene_id)?.name||'其他场景'}，仅由 AI 旅行计划通过`}>{sceneId==='plaza'?'林地 →':sceneId==='ruins'?'← 林地':'← 广场'}</span>}</>;
 }
 
 export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,slot,adventure=false}){
@@ -189,7 +190,7 @@ export function WorldActor({agent,agents,events,now,live,selected,onSelect,map,s
 
 export function PixelFarmBackdrop() {
   const assets = usePixelManifest();
-  return <div className="pixel-farm-backdrop" data-art-style={assets?.farm_scene?.render_style||assets?.render_style||'pixel'} role="img" aria-label="营地农作区近景，木篱笆与工具棚">
+  return <div className="pixel-farm-backdrop" data-art-style={assets?.farm_scene?.render_style||assets?.render_style||'pixel'} role="img" aria-label="本人农田记录示意，木篱笆与工具棚">
     {assets?.farm_scene?.image ? <img className="pixel-scene-image" src={assets.farm_scene.image} alt="" draggable="false"/> : <span className="pixel-scene-loading">农作区载入中…</span>}
   </div>;
 }

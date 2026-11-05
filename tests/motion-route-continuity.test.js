@@ -5,6 +5,8 @@ import { publicMovement, publicPath, isWalkable } from '../server/spatial.js';
 import { sampleMotion, metric } from '../shared/motion.js';
 import { characterAction } from '../src/pixel-state.js';
 import { confirmedPosition } from '../src/scene-state.js';
+import { PLAZA_CAMP_SITES } from '../shared/plaza-layout.js';
+const plazaHearth=PLAZA_CAMP_SITES.find(site=>site.id==='plaza_hearth');
 
 function fixture(t, position={x:11,y:8}) {
   const epoch=2_000_000_000_000;let now=epoch;
@@ -20,7 +22,7 @@ function fixture(t, position={x:11,y:8}) {
 }
 const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-6,`${actual} != ${expected}`);
 
-for(const [mode,origin] of [['run',{x:7,y:8}],['walk',{x:35,y:8}]]) {
+for(const [mode,origin] of [['run',{x:7,y:8}],['walk',{x:3,y:18}]]) {
   test(`accepted long ${mode} travel publishes real motion and animates between packets`,t=>{
     const f=fixture(t,origin),result=f.act('survival',{intent:'approach',site_id:'plaza_hearth',mode});
     assert.equal(result.status,'applied');assert.ok(f.raw.movement.path.length>6);
@@ -35,9 +37,9 @@ for(const [mode,origin] of [['run',{x:7,y:8}],['walk',{x:35,y:8}]]) {
     assert.ok(isWalkable('plaza',f.raw.position));
     const remaining=f.raw.movement.ends_at-f.now();
     f.advance(remaining);
-    assert.deepEqual(f.raw.position,{x:13,y:11});assert.equal(f.raw.movement,null);assert.equal(f.raw.survival.travel,null);
+    assert.deepEqual(f.raw.position,plazaHearth.interaction_position);assert.equal(f.raw.movement,null);assert.equal(f.raw.survival.travel,null);
     assert.equal(f.world.state.events.filter(event=>event.type==='survival_arrived').length,1,'arrival remains an actual once-only server receipt');
-    f.advance(500);assert.deepEqual(f.raw.position,{x:13,y:11});
+    f.advance(500);assert.deepEqual(f.raw.position,plazaHearth.interaction_position);
   });
 }
 

@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -32,7 +33,7 @@ async function fixture(t) {
     const act = async (type, payload) => call('act', await request(type, payload));
     const applied = async (type, payload) => { const r = await act(type, payload); assert.equal(r.status, 'applied', JSON.stringify(r)); return r; };
     const p = { id: a.agent_id, get raw() { return app.world.agent(a.agent_id); }, client, call, observe, request, act, applied, session };
-    p.raw.position = { x: 11, y: 8 }; actors.push(p); return p;
+    p.raw.position = {...PLAZA_SERVICES.camp.interaction_position}; actors.push(p); return p;
   };
   const advance = async ms => {
     const end = now + ms;
@@ -93,9 +94,9 @@ test('v0.14 HTTP: public acquisition goal counts new gains, exposes no existing 
   await p.applied('personal_goal', { intent: 'set', kind: 'collect_item', target_id: 'wood', target_count: 3, duration_seconds: 600, title: '<img src=x onerror=alert(1)>' });
   const initial = (await p.observe()).self.personal_goal;
   assert.equal(initial.progress, 0);
-  await p.applied('gather', { intent: 'start', resource_id: 'wood' }); await f.advance(12000);
+  p.raw.position={x:14,y:26}; await p.applied('gather', { intent: 'start', resource_id: 'wood' }); await f.advance(12000);
   assert.equal((await p.observe()).self.personal_goal.progress, 1);
-  await p.applied('inventory', { intent: 'craft', item_id: 'wooden_sword' });
+  p.raw.position={...PLAZA_SERVICES.tools.interaction_position}; await p.applied('inventory', { intent: 'craft', item_id: 'wooden_sword' });
   assert.equal((await p.observe()).self.personal_goal.progress, 1, 'spending cannot undo a published acquisition');
   const bad = await p.act('personal_goal', { intent: 'confirm', goal_id: 'stale_goal' }); assert.equal(bad.status, 'rejected');
   const lateRequest = await p.request('personal_goal', { intent: 'confirm', goal_id: initial.goal_id });
@@ -111,20 +112,20 @@ test('v0.14 HTTP: public acquisition goal counts new gains, exposes no existing 
 
 test('v0.14 HTTP: strategy recipes and equipped effective attributes agree through MCP', async t => {
   const f = await fixture(t), p = await f.actor('装备旅人');
-  Object.assign(p.raw.life.inventory, { wood: 60, ore: 60 });
+  p.raw.position={...PLAZA_SERVICES.tools.interaction_position}; Object.assign(p.raw.life.inventory, { wood: 60, ore: 60 });
   const rules = await p.call('get_rules');
   for (const id of ['hunter_bow', 'heavy_hammer', 'heavy_armor']) {
     assert.ok(rules.life.strategy_equipment.item_ids.includes(id));
     await p.applied('inventory', { intent: 'craft', item_id: id });
   }
-  await p.applied('inventory', { intent: 'equip', item_id: 'hunter_bow' });
+  p.raw.position={...PLAZA_SERVICES.camp.interaction_position}; await p.applied('inventory', { intent: 'equip', item_id: 'hunter_bow' });
   let a = (await p.observe()).self;
   assert.equal(a.life.stats.range, 3); assert.equal(a.life.stats.attack_interval_ms, 2000); assert.equal(a.life.stats.attack_energy, 2);
   await p.applied('inventory', { intent: 'equip', item_id: 'heavy_armor' });
   a = (await p.observe()).self;
   assert.equal(a.life.stats.defense, 5); assert.equal(a.life.stats.attack_interval_ms, 3000);
   const energy = a.fatigue.energy;
-  await p.applied('move', { x: 12, y: 8 }); await f.advance(500);
+  await p.applied('move', {x:25,y:16}); await f.advance(500);
   a = (await p.observe()).self;
   assert.ok(Math.abs(energy - a.fatigue.energy - a.life.stats.move_energy_per_tile) < 0.00001);
   await p.applied('inventory', { intent: 'equip', item_id: 'heavy_hammer' });

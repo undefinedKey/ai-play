@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -59,13 +60,14 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}真实狩猎耗尽后唤�
   assert.equal(f.a.adventure.plan?.intent, 'rest', JSON.stringify({ error: f.runner.lastError, feedback: f.runner.checkpoint.last_action_feedback, context: f.contexts.at(-1) }));
   assert.equal(f.runner.checkpoint.calls_used, 3);
   assert.ok(f.calls.findLast(c => c.name === 'report_status').args.capabilities.includes('fatigue'));
-  f.advance(30000); assert.equal(f.a.scene_id, 'plaza'); assert.ok(f.a.fatigue.energy > 0);
+  for (let i = 0; i < 70 && f.a.fatigue.energy === 0; i++) f.advance(1000);
+  assert.equal(f.a.scene_id, 'plaza'); assert.ok(f.a.fatigue.energy > 0, JSON.stringify({ position: f.a.position, plan: f.a.adventure.plan, survival: f.a.survival, last: f.a.adventure.last_result })); assert.equal(f.a.adventure.plan?.phase, 'resting');
 });
 
 for (const resting of [false, true]) test(`真实劳作疲劳通知后原AI选择${resting ? 'relax' : 'wait'}，没有强制换玩法`, async t => {
   const f = await fixture(t, () => resting ? action('start_activity', { activity_id: 'relax' }) : action('wait'));
-  f.a.position = { x: 11, y: 8 }; f.a.fatigue.energy = 26;
-  f.world.perform(f.a, 'inventory', { intent: 'craft', item_id: 'wooden_sword' }); f.refresh(); f.enqueue();
+  f.a.position = lifePosition(f.world, 'crafting_place'); f.a.fatigue.energy = 26;
+  f.world.perform(f.a, 'inventory', { intent: 'craft', item_id: 'wooden_sword' }); f.a.position = lifePosition(f.world, 'camp_place'); f.refresh(); f.enqueue();
   assert.ok(f.runner.checkpoint.queue.some(e => e.type === 'fatigue_tired'));
   await f.runner.decide();
   assert.equal(f.a.activity?.activity_id || null, resting ? 'relax' : null);

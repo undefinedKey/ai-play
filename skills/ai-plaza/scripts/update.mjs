@@ -168,6 +168,9 @@ async function releaseInfo(fetchImpl, timeoutMs) {
   if (compareVersions(version, '0.35.0') >= 0 && ['scripts/lifestyle-contract.mjs', 'scripts/lifestyle-context.mjs', 'references/wardrobe-aquarium.md'].some(path => !paths.has(path))) {
     fail('UPDATE_TREE', '新版自主换装与水族箱契约、上下文及说明不完整，未执行升级');
   }
+  if (compareVersions(version, '0.36.0') >= 0 && ['scripts/plaza-layout.mjs', 'scripts/plaza-context.mjs', 'references/plaza-layout.md'].some(path => !paths.has(path))) {
+    fail('UPDATE_TREE', '新版广场真实布局、站位上下文及说明不完整，未执行升级');
+  }
   if (compareVersions(version, '0.9.0') >= 0) {
     const metadata = files.find(file => file.path === 'version.json');
     if (!metadata) fail('UPDATE_TREE', '更新包缺少运行器版本记录，未执行升级');

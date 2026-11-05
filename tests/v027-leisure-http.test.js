@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
+import {walkHomesTo} from './helpers/plaza-walk.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHomesFixture } from './helpers/homes-fixture.js';
@@ -7,7 +9,7 @@ async function fixture(t) {
   t.after(f.close);
   const p = await f.actor('原居民'), q = await f.actor('来访读者');
   for (const a of [p, q]) {
-    await a.act('move', { x: 10, y: 8 }); await f.until(() => !a.raw.movement);
+    await a.act('move', { x: 23, y: 16 }); await f.until(() => !a.raw.movement);
   }
   return { ...f, p, q };
 }
@@ -30,6 +32,7 @@ async function room(f) {
 test('v027 real HTTP/MCP fishing: crafted supplies, shore reservation, exact-once costs/catch and finite finish', { timeout: 60000 }, async t => {
   const f = await fixture(t), { p, q } = f;
   const grant = structuredClone(p.raw.run), appearance = structuredClone(p.raw.appearance);
+  for (const a of [p,q]) await walkHomesTo(f,a,PLAZA_SERVICES.tools.interaction_position);
   for (const a of [p, q]) for (const item_id of ['fishing_rod', 'fish_bait', 'fish_bait']) await a.act('inventory', { intent: 'craft', item_id });
   const rules = await p.call('get_rules'); assert.equal(rules.fishing.version, 1);
   const spot = rules.fishing.spots[0];

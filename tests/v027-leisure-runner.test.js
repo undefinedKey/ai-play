@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -112,7 +113,7 @@ async function fixture(t) {
   } });
   const runner = new PlazaRunner({ mode: 'dsh-pet', toolClient, petClient, now: () => now, idleMs: 60000 });
   runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-  const actor = () => world.agent(created.agent_id); actor().position = { x: 11, y: 8 }; Object.assign(actor().life.inventory, { wood: 100, grass: 100, ore: 100, turnip: 10 });
+  const actor = () => world.agent(created.agent_id); actor().position = lifePosition(world, 'camp_place'); Object.assign(actor().life.inventory, { wood: 100, grass: 100, ore: 100, turnip: 10 });
   const advance = ms => { while (ms > 0) { const step = Math.min(500, ms); ms -= step; now += step; if (now - heartbeat >= 5000) { world.callTool(auth, 'observe', runner.session()); heartbeat = now; } world.tick(); } runner.observation = world.observation(actor()); runner.observedAt = now; };
   const decide = async response => { responses.push(response); advance(2500); await runner.decide(); };
   t.after(async () => { await runner.stop(); world.close(); });
@@ -121,6 +122,7 @@ async function fixture(t) {
 
 test('真实原桌宠→Runner→World：制作竿饵、走到岸边只钓一次而不自动续钓', async t => {
   const f = await fixture(t), before = { agent: f.actor().agent_id, run: f.actor().run.run_id };
+  f.actor().position = lifePosition(f.world, 'crafting_place');
   await f.decide({ type: 'inventory', payload: { intent: 'craft', item_id: 'fishing_rod' } });
   await f.decide({ type: 'inventory', payload: { intent: 'craft', item_id: 'fish_bait' } });
   assert.ok(f.actor().life.tools.fishing_rod.owned); assert.equal(f.actor().life.inventory.fish_bait, 1);

@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -15,7 +16,7 @@ function fixture(mode) {
       const a = world.createAgent({ name }), c = world.createController(a.agent_id);
       world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id, duration_minutes: 60, max_calls: 100 });
       const auth = world.authenticate(c.token), observation = world.callTool(auth, 'join_world');
-      const raw = world.agent(a.agent_id); raw.position = { x: 11, y: 8 };
+      const raw = world.agent(a.agent_id); raw.position = {...PLAZA_SERVICES.camp.interaction_position};
       return { a: raw, c, auth, session: { run_id: observation.run_id, session_epoch: observation.session_epoch } };
     };
     const a = make('supplier'), b = make('cook');

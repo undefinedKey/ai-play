@@ -1,3 +1,4 @@
+import {PLAZA_PLACES,PLAZA_SERVICES} from '../shared/plaza-layout.js';
 import { findPath } from '../server/spatial.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,10 +50,7 @@ const solve = activity => activity.task.prompt.match(/\d+/g).map(Number).reduce(
 test('地点、阅读原文和活动目录可供 AI 观察，返回数据不能修改世界目录', t => {
   const f = fixture(t), p = f.make();
   const rules = f.world.callTool(p.auth, 'get_rules');
-  assert.deepEqual(rules.places.map(({ id, x, y, radius }) => ({ id, x, y, radius })), [
-    { id: 'pond', x: 4, y: 4, radius: 3 }, { id: 'garden', x: 11, y: 8, radius: 3 },
-    { id: 'reading', x: 19, y: 4, radius: 3 }, { id: 'play', x: 19, y: 12, radius: 3 },
-  ]);
+  assert.deepEqual(rules.places,PLAZA_PLACES);
   assert.equal(rules.activities.find(a => a.id === 'read').content.source, '广场原创');
   assert.ok(rules.activities.find(a => a.id === 'read').content.text.length > 60);
   const observation = f.observe(p);
@@ -61,12 +59,12 @@ test('地点、阅读原文和活动目录可供 AI 观察，返回数据不能�
   assert.ok(observation.allowed_actions.includes('start_activity'));
   assert.ok(observation.allowed_actions.includes('finish_activity'));
   rules.places[0].x = 999; observation.activities[0].duration_seconds = 1;
-  assert.equal(f.world.getRules().places[0].x, 4); assert.equal(f.world.getRules().activities[0].duration_seconds, 45);
+  assert.equal(f.world.getRules().places[0].x, PLAZA_SERVICES.pond.interaction_position.x); assert.equal(f.world.getRules().activities[0].duration_seconds, 45);
 });
 
 test('没有旁观者和其他角色，活动仍随世界时钟完成，读取不代替 AI 续租', t => {
   const f = fixture(t), p = f.make();
-  f.walk(p, 4, 4);
+  f.walk(p, 7, 8);
   const started = f.act(p, 'start_activity', { activity_id: 'watch_pond' });
   assert.equal(started.status, 'applied'); assert.equal(started.activity.ends_at - started.activity.started_at, 45000);
   f.advance(45000, [p]);
@@ -84,7 +82,7 @@ test('开始活动校验地点、活动 ID 和参数，失败不会替换现有�
     const result = f.act(p, 'start_activity', payload);
     assert.equal(result.status, 'rejected'); assert.equal(result.error.code, 'INVALID_ACTION');
   }
-  f.walk(p, 7, 4); // Manhattan radius boundary is inclusive.
+  f.walk(p, 10, 8); // Manhattan radius boundary is inclusive.
   assert.equal(f.act(p, 'start_activity', { activity_id: 'watch_pond' }).status, 'applied');
   const activity = f.observe(p).self.activity;
   assert.equal(f.act(p, 'start_activity', { activity_id: 'relax' }).error.code, 'ACTIVITY_BUSY');
@@ -94,7 +92,7 @@ test('开始活动校验地点、活动 ID 和参数，失败不会替换现有�
 });
 
 test('活动动作原 ID 重试不会重复开始、完成或发放分数', t => {
-  const f = fixture(t), p = f.make(); f.walk(p, 19, 12);
+  const f = fixture(t), p = f.make(); f.walk(p, 9, 20);
   const args = f.request(p, 'start_activity', { activity_id: 'solo_game' });
   const started = f.world.callTool(p.auth, 'act', args);
   assert.deepEqual(f.world.callTool(p.auth, 'act', args), started);
@@ -110,7 +108,7 @@ test('活动动作原 ID 重试不会重复开始、完成或发放分数', t =>
 });
 
 test('心算题真实校验答案：格式无效不结束，错误与超时均不得分', t => {
-  const f = fixture(t), p = f.make(); f.walk(p, 19, 12);
+  const f = fixture(t), p = f.make(); f.walk(p, 9, 20);
   const started = f.act(p, 'start_activity', { activity_id: 'solo_game' });
   for (const answer of ['12', 1.5, null, Number.MAX_SAFE_INTEGER + 1]) {
     assert.equal(f.act(p, 'finish_activity', { answer }).status, 'rejected');
@@ -128,7 +126,7 @@ test('移动、主动结束、暂停、召回、离线和到期都会取消活�
   for (const stop of ['move', 'finish_activity', 'pause', 'recall', 'offline', 'expired']) await t.test(stop, t => {
     const f = fixture(t), p = f.make('原来的 AI', stop === 'expired' ? 0.5 : 15);
     assert.equal(f.act(p, 'start_activity', { activity_id: 'relax' }).status, 'applied');
-    if (stop === 'move') f.act(p, 'move', { x: 10, y: 7 });
+    if (stop === 'move') f.act(p, 'move', { x: 24, y: 16 });
     else if (stop === 'finish_activity') f.act(p, 'finish_activity');
     else if (stop === 'offline') f.advance(45000);
     else if (stop === 'expired') f.advance(30000);
@@ -156,7 +154,7 @@ test('报名接龙后不能再开始独处活动；已开始的活动在接龙�
 });
 
 test('活动公开投影只暴露题面和公开结果，不泄露答案、私有字段或取消原因', t => {
-  const f = fixture(t), p = f.make(); f.walk(p, 19, 12);
+  const f = fixture(t), p = f.make(); f.walk(p, 9, 20);
   f.act(p, 'start_activity', { activity_id: 'solo_game' });
   const a = f.world.agent(p.agent.agent_id);
   a.activity.private = 'PRIVATE_ACTIVITY'; a.activity.task.answer = 'PRIVATE_TASK_ANSWER';

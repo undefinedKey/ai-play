@@ -13,6 +13,7 @@ function temporary(t) {
   t.after(() => { assert.equal(dirname(directory), root); rmSync(directory, { recursive: true, force: true }); });
   return directory;
 }
+const placePosition = (world,id) => { const p=world.getRules().places.find(v=>v.id===id); return {x:p.x,y:p.y}; };
 const json = value => ({ ok: true, json: async () => value });
 const config = (...ids) => ({ main: { whisperPrompt: 'private-persona-not-exported', pets: ids.map(id => ({ id, name: id + '原名', display: 'both', whisperPrompt: 'private-persona' })) } });
 
@@ -72,15 +73,15 @@ test('真实World目录ID、阅读原文和小游戏题目进入≤2000字符公
   const a = world.createAgent({ name: '读者' }); const c = world.createController(a.agent_id);
   world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id }); const auth = world.authenticate(c.token);
   world.callTool(auth, 'join_world');
-  const mutable = world.agent(a.agent_id); mutable.position = { x: 19, y: 4 };
+  const mutable = world.agent(a.agent_id); mutable.position = placePosition(world,'reading');
   world.perform(mutable, 'start_activity', { activity_id: 'read' });
   const observation = world.observation(mutable);
   const prompt = decisionPrompt({ observation: { ...observation, private_memory: 'PRIVATE_HISTORY' }, rules: world.getRules(), owner_goal: 'PRIVATE_GOAL', events: [{ type: 'message', payload: { text: '想聊聊这本书吗？', agent_id: 'friend' } }] });
   assert.ok(prompt.length <= 2000); assert.ok(prompt.includes('一张空椅子')); assert.ok(prompt.includes('雨停后'));
-  assert.ok(prompt.includes('watch_pond')); assert.ok(prompt.includes('["reading",19,4,3]')); assert.ok(prompt.includes('想聊聊'));
+  assert.ok(prompt.includes('watch_pond')); assert.ok(prompt.includes(JSON.stringify(['reading',...Object.values(placePosition(world,'reading')),world.getRules().places.find(p=>p.id==='reading').radius]))); assert.ok(prompt.includes('想聊聊'));
   assert.ok(!prompt.includes('PRIVATE_HISTORY')); assert.ok(!prompt.includes('PRIVATE_GOAL'));
   JSON.parse(prompt.split('公开数据：')[1]);
-  world.perform(mutable, 'finish_activity', {}); mutable.position = { x: 19, y: 12 };
+  world.perform(mutable, 'finish_activity', {}); mutable.position = placePosition(world,'play');
   world.perform(mutable, 'start_activity', { activity_id: 'solo_game' });
   const question = world.observation(mutable);
   const soloPrompt = decisionPrompt({ observation: question, rules: world.getRules() });
@@ -125,13 +126,13 @@ test('无人无事件也按时钟决策；普通活动中安静等待，社交�
 
 test('read消费正文一次再等待；solo_game获取题面并完成，业务result不破坏回执', async t => {
   const f = await fixture(t); await f.initialize();
-  const a = f.world.agent(f.agent.agent_id); a.position = { x: 19, y: 4 };
+  const a = f.world.agent(f.agent.agent_id); a.position = placePosition(f.world,'reading');
   f.world.perform(a, 'start_activity', { activity_id: 'read' });
   f.runner.observation = f.world.observation(a); f.advance(6000);
   assert.equal(f.runner.decisionDue(), true); await f.runner.decide();
   f.advance(6000); assert.equal(f.runner.decisionDue(), false);
   assert.ok(f.requests.at(-1).options.body.includes('雨停后'));
-  f.world.perform(a, 'finish_activity', {}); a.position = { x: 19, y: 12 };
+  f.world.perform(a, 'finish_activity', {}); a.position = placePosition(f.world,'play');
   f.world.perform(a, 'start_activity', { activity_id: 'solo_game' }); f.runner.observation = f.world.observation(a);
   f.advance(6000); assert.equal(f.runner.decisionDue(), true);
   const action = { type: 'finish_activity', payload: { answer: a.activity_answer } };
@@ -194,7 +195,7 @@ test('线上无引号键回复经原宿主桥完成吃饭、休息、采集和�
   await f.initialize();
   const agent = f.world.agent(f.agent.agent_id), identity = agent.agent_id;
   const authorization = { run_id: agent.run.run_id, max_calls: agent.run.max_calls, expires_at: agent.run.expires_at };
-  agent.position = { x: 11, y: 8 }; agent.adventure.hp = 10;
+  agent.position = {...f.world.getRules().life.camp_place.service_center}; agent.adventure.hp = 10;
   agent.survival.satiety = 0; agent.life.inventory.turnip = 167;
   const finish = condition => {
     for (let i = 0; i < 1200 && condition(); i++) {

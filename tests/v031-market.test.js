@@ -172,7 +172,7 @@ test('v031 incoming gifts and own posts have finite capacity; all other play rem
   r.ok({ intent: 'post', kind: 'gift', target_agent_id: q.id, give: { gold: 1 } });
   assert.equal(s.act({ intent: 'post', kind: 'gift', target_agent_id: q.id, give: { gold: 1 } }).error.code, 'MARKET_LIMIT');
   p.ok({ intent: 'wait' }, 'wait'); p.ok({ intent: 'browse', page: 0 });
-  p.ok({ x: 27, y: 18 }, 'move'); assert.ok(p.a.movement); assert.equal(f.offer(p).status, 'open');
+  p.ok({ x: 39, y: 24 }, 'move'); assert.ok(p.a.movement); assert.equal(f.offer(p).status, 'open');
   p.ok({ intent: 'cancel', ...ref(f.offer(p)) }); assert.ok(p.a.movement);
 });
 

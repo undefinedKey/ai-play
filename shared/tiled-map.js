@@ -2,6 +2,8 @@
 // Tiled tile objects use bottom-left alignment; sprite feet are at (64,120).
 import { RUINS_RULES } from './ruins-layout.js';
 import { COMMUNITY_VENUES } from './community.js';
+import { PLAZA_LAYOUT_VERSION, PLAZA_PROPS, PLAZA_ROADS, PLAZA_PAVING, PLAZA_SERVICES } from './plaza-layout.js';
+import { createPlazaMap } from './plaza-map.js';
 const ids = ['plaza', 'adventure', 'ruins'];
 const fail = message => { throw new Error(`Invalid Tiled world map: ${message}`); };
 function need(value, message) { if (!value) fail(message); }
@@ -68,7 +70,7 @@ export function compileTiledScene(source) {
   const portal = props.find(p => p.id === 'portal'); need(portal, 'missing portal');
   // Service furniture is rendered by its interactive overlay. Its physical
   // footprint is authored once in the portable venue contract, not a second prop.
-  const serviceFootprints = COMMUNITY_VENUES.filter(v => v.scene_id === meta.scene_id).flatMap(v => v.footprint);
+  const serviceFootprints = [...COMMUNITY_VENUES.filter(v => v.scene_id === meta.scene_id).flatMap(v => v.footprint),...(meta.scene_id==='plaza'?[...PLAZA_SERVICES.market.footprint,...PLAZA_SERVICES.adventure.footprint,...PLAZA_SERVICES.journey.footprint]:[])];
   const blocked = [...new Map([...props.flatMap(p => p.footprint), ...serviceFootprints].map(p => [`${p.x},${p.y}`, p])).values()];
   const blockedKeys = new Set(blocked.map(p => `${p.x},${p.y}`));
   need(!blockedKeys.has(`${portal.position.x},${portal.position.y}`), 'blocked portal');
@@ -80,7 +82,10 @@ export function compileTiledScene(source) {
     for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) pending.push({x:p.x+dx,y:p.y+dy});
   }
   need(visited.size === source.width * source.height - blocked.length, 'isolated walkable cells');
-  return { id: meta.scene_id, name: meta.scene_name, map: {width:source.width,height:source.height}, portal: {position:portal.position,to_scene_id:meta.destination_scene}, blocked, props };
+  if(meta.scene_id==='plaza') need(JSON.stringify(source)===JSON.stringify(createPlazaMap()),'plaza must match generated portable layout');
+  return { id: meta.scene_id, name: meta.scene_name, map: {width:source.width,height:source.height}, portal: {position:portal.position,to_scene_id:meta.destination_scene}, blocked,
+    props:meta.scene_id==='plaza'?structuredClone(PLAZA_PROPS):props,
+    ...(meta.scene_id==='plaza'?{layout_version:PLAZA_LAYOUT_VERSION,roads:structuredClone(PLAZA_ROADS),paving:structuredClone(PLAZA_PAVING)}:{}) };
 }
 export function compileWorldMaps(sources) {
   need(Array.isArray(sources) && sources.length === ids.length, 'three scenes required');

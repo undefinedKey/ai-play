@@ -1,3 +1,6 @@
+import {findPath} from '../server/spatial.js';
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position,HOME_ENTRY=PLAZA_SERVICES.home.interaction_position;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, unlinkSync, rmdirSync, existsSync } from 'node:fs';
@@ -17,7 +20,7 @@ function fixture(t, count = 3, options = {}) {
     const created = world.createAgent({ name: `家园旅人${n}`, owner_id: `owner${n}` }), id = created.agent_id, c = world.createController(id);
     world.ownerControl(id, 'start', { controller_id: c.controller_id, duration_minutes: 30, max_calls: 100 });
     const auth = world.authenticate(c.token); world.callTool(auth, 'join_world');
-    Object.assign(world.agent(id).life.inventory, { wood: 100, ore: 100, grass: 100, pine_cone: 4 }); world.agent(id).position = { x: 11, y: 8 };
+    Object.assign(world.agent(id).life.inventory, { wood: 100, ore: 100, grass: 100, pine_cone: 4 }); world.agent(id).position = { ...CAMP };
     return { id, auth, c, get a() { return world.agent(id); }, get home() { return world.state.homes[`home_${id}`]; },
       observe() { const a = world.agent(id); return world.callTool(auth, 'observe', { run_id: a.run.run_id, session_epoch: a.session_epoch }); },
       action(payload, type = 'home') { const o = this.observe(); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); },
@@ -26,7 +29,7 @@ function fixture(t, count = 3, options = {}) {
   });
   const tick = (ms, heartbeat = true) => { now += ms; if (heartbeat) for (const p of players) if (p.a.status === 'active') p.a.last_contact_at = now; world.tick(); };
   const build = p => p.ok({ intent: 'build', name: `${p.a.name}的小家` });
-  const enter = (p, h = p.home) => { p.ok({ intent: 'visit', home_id: h.home_id }); tick(3000); assert.equal(p.a.home_presence?.home_id, h.home_id); };
+  const enter = (p, h = p.home) => { p.ok({ intent: 'visit', home_id: h.home_id }); tick((p.a.movement?.ends_at||now)-now+100); assert.equal(p.a.home_presence?.home_id, h.home_id); };
   const invite = (host, guest, accept = true) => { host.ok({ intent: 'invite', target_agent_id: guest.id }); const i = guest.observe().homes.invitations.at(-1); guest.ok({ intent: 'respond', invitation_id: i.invitation_id, accept }); return i; };
   const craft = (p, kind) => { p.ok({ intent: 'craft', kind }); return p.home.furniture.at(-1).instance_id; };
   return { world, players, tick, build, enter, invite, craft, now: () => now };
@@ -50,13 +53,13 @@ test('v025 voluntary homes preserve identity and costs; escrow is conserved and 
 test('v025 finite exterior/indoor walking is physical, stale pre-entry action is rejected', t => {
   const f = fixture(t, 1), [p] = f.players; f.build(p); const before = { ...p.a.position };
   p.ok({ intent: 'visit', home_id: p.home.home_id }); const old = p.observe(); assert.deepEqual(p.a.position, before); assert.equal(p.a.home_presence, undefined);
-  f.tick(100); assert.ok(p.a.position.x < before.x && p.a.position.x > 9); assert.equal(p.a.home_presence, undefined);
-  f.tick(2000); assert.deepEqual(p.a.position, { x: 9, y: 8 }); assert.deepEqual(p.a.home_presence.position, HOME_RULES.door);
+  f.tick(100); assert.ok(p.a.position.y < before.y && p.a.position.y > HOME_ENTRY.y); assert.equal(p.a.home_presence, undefined);
+  f.tick(p.a.movement.ends_at-f.now()+100); assert.deepEqual(p.a.position, { ...HOME_ENTRY }); assert.deepEqual(p.a.home_presence.position, HOME_RULES.door);
   assert.throws(() => f.world.callTool(p.auth, 'act', { run_id: old.run_id, session_epoch: old.session_epoch, action_id: old.next_action_id, type: 'move', payload: { x: 8, y: 8 } }), e => e.code === 'STALE_ACTION');
   p.ok({ intent: 'move', x: 5, y: 4 }); assert.equal(p.a.home_presence.position.y, 7); f.tick(100); assert.ok(p.a.home_presence.position.y < 7 && p.a.home_presence.position.y > 4);
-  assert.deepEqual(p.a.position, { x: 9, y: 8 }); const projected = spectatorSnapshot(f.world).agents[0].home_presence;
+  assert.deepEqual(p.a.position, { ...HOME_ENTRY }); const projected = spectatorSnapshot(f.world).agents[0].home_presence;
   assert.equal(projected.movement.version, 2); assert.equal(projected.movement.speed, f.world.getRules().movement.modes.walk.speed); assert.equal(projected.position_at, f.now());
-  f.tick(2000); assert.deepEqual(p.a.home_presence.position, { x: 5, y: 4 }); p.ok({ intent: 'leave' }); assert.equal(p.a.home_presence, null); assert.deepEqual(p.a.position, { x: 9, y: 8 });
+  f.tick(2000); assert.deepEqual(p.a.home_presence.position, { x: 5, y: 4 }); p.ok({ intent: 'leave' }); assert.equal(p.a.home_presence, null); assert.deepEqual(p.a.position, { ...HOME_ENTRY });
 });
 
 test('v025 furniture blocks movement, overlaps, reserved doors, occupants and disconnected floor', t => {
@@ -72,7 +75,7 @@ test('v025 furniture blocks movement, overlaps, reserved doors, occupants and di
 });
 
 test('v025 two homes and outdoors isolate proximity, speech and all exterior world actions', t => {
-  const f = fixture(t), [p, q, outdoor] = f.players; f.build(p); f.build(q); f.enter(p); f.enter(q); outdoor.a.position = { x: 9, y: 8 };
+  const f = fixture(t), [p, q, outdoor] = f.players; f.build(p); f.build(q); f.enter(p); f.enter(q); outdoor.a.position = { ...HOME_ENTRY };
   assert.deepEqual(p.observe().nearby_agents, []); assert.deepEqual(q.observe().nearby_agents, []); assert.deepEqual(outdoor.observe().nearby_agents, []);
   const cursor = String(f.world.state.sequence); p.ok({ channel: 'nearby', text: '房间内独白' }, 'say');
   for (const peer of [q, outdoor]) assert.equal(f.world.callTool(peer.auth, 'get_events', { run_id: peer.a.run.run_id, session_epoch: peer.a.session_epoch, cursor }).events.filter(e => e.type === 'message').length, 0);
@@ -114,7 +117,7 @@ test('v025 a guest cannot alter another home and malformed actions roll back ass
 });
 
 test('v025 home movement costs energy, indoor light prevents darkness but hunger and original slow rest remain', t => {
-  const f = fixture(t, 1), [p] = f.players; f.build(p); f.enter(p); p.a.fatigue.energy = 50; p.a.fatigue.updated_at = f.now();
+  const f = fixture(t, 1), [p] = f.players; f.build(p); f.enter(p); p.a.fatigue.energy = 50; p.a.fatigue.updated_at = f.now(); p.a.fatigue.recover_after = f.now();
   f.world.state.day_cycle.epoch_at = f.now() - 360000; const satiety = p.a.survival.satiety, hp = p.a.adventure.hp;
   assert.equal(p.observe().self.survival.light.kind, 'indoor'); f.tick(10000); assert.equal(p.a.adventure.hp, hp); assert.ok(p.a.survival.satiety < satiety); assert.equal(p.a.fatigue.energy, 53);
   p.ok({ intent: 'move', x: 5, y: 4 }); const energy = p.a.fatigue.energy; f.tick(100); assert.ok(p.a.fatigue.energy < energy);
@@ -190,13 +193,15 @@ test('v025 outdoor cook cannot award an indoor or home-bound supplier; leaving h
   const agreement = structuredClone(f.world.state.cooperations[proposal.cooperation_id]); supplier.ok({ intent: 'visit', home_id: supplier.home.home_id });
   const before = () => structuredClone({ supplier: supplier.a.life.inventory, cook: cook.a.life.inventory, energy: cook.a.fatigue.energy, escrow: f.world.state.cooperations[proposal.cooperation_id].escrow });
   for (const entered of [false, true]) {
-    if (entered) f.tick(3000);
+    if (entered) f.tick(supplier.a.movement.ends_at-f.now()+100);
     const balances = before(); assert.equal(cook.action({ intent: 'cook', ...params }, 'cooperation').error.code, 'NOT_AT_CAMP'); assert.deepEqual(before(), balances);
     assert.ok(!cooperationOpportunities(f.world, cook.a).some(o => o.action.payload.intent === 'cook'));
     assert.throws(() => campAvailable(f.world, supplier.a, code => { throw new Error(code); }), /HOME_BUSY/);
     assert.deepEqual(f.world.state.cooperations[proposal.cooperation_id], agreement, 'visiting never withdraws, confirms, renews or performs the existing agreement');
   }
-  supplier.ok({ intent: 'leave' }); cook.ok({ intent: 'cook', ...params }, 'cooperation');
+  supplier.ok({ intent: 'leave' }); assert.equal(cook.action({ intent: 'cook', ...params }, 'cooperation').error.code, 'NOT_AT_CAMP');
+  while(supplier.a.position.x!==CAMP.x||supplier.a.position.y!==CAMP.y){const path=findPath('plaza',supplier.a.position,CAMP),next=path[Math.min(3,path.length-1)];supplier.ok({x:next.x,y:next.y},'move');f.tick(supplier.a.movement.ends_at-f.now());}
+  cook.ok({ intent: 'cook', ...params }, 'cooperation');
   assert.equal(supplier.a.life.inventory.turnip_soup, 1); assert.equal(cook.a.life.inventory.turnip_soup, 1); assert.equal(f.world.state.cooperations[proposal.cooperation_id].status, 'completed');
 });
 
@@ -230,7 +235,7 @@ test('v025 restart keeps the exact house, escrow, character and inventory but re
   t.after(() => { world.close(); for (const suffix of ['', '-wal', '-shm']) if (existsSync(dbPath + suffix)) unlinkSync(dbPath + suffix); rmdirSync(folder); });
   const a = world.createAgent({ name: '原来的我' }), id = a.agent_id, c = world.createController(id); world.ownerControl(id, 'start', { controller_id: c.controller_id, duration_minutes: 20, max_calls: 100 }); const auth = world.authenticate(c.token); world.callTool(auth, 'join_world');
   const act = p => { const a = world.agent(id), r = world.callTool(auth, 'act', { run_id: a.run.run_id, session_epoch: a.session_epoch, action_id: a.next_action_id, type: 'home', payload: p }); assert.equal(r.status, 'applied', JSON.stringify(r)); };
-  world.agent(id).position = { x: 11, y: 8 }; Object.assign(world.agent(id).life.inventory, { wood: 20, grass: 5, ore: 3 }); act({ intent: 'build' }); act({ intent: 'visit', home_id: `home_${id}` }); now += 3000; world.tick(); act({ intent: 'craft', kind: 'display_shelf' }); const home = world.state.homes[`home_${id}`]; act({ intent: 'place', instance_id: home.furniture[0].instance_id, x: 0, y: 0 }); act({ intent: 'display', instance_id: home.furniture[0].instance_id, item_id: 'ore' }); act({ intent: 'message', text: '重启后也要保留' });
+  world.agent(id).position = { ...CAMP }; Object.assign(world.agent(id).life.inventory, { wood: 20, grass: 5, ore: 3 }); act({ intent: 'build' }); act({ intent: 'visit', home_id: `home_${id}` }); now = world.agent(id).movement.ends_at + 100; world.tick(); act({ intent: 'craft', kind: 'display_shelf' }); const home = world.state.homes[`home_${id}`]; act({ intent: 'place', instance_id: home.furniture[0].instance_id, x: 0, y: 0 }); act({ intent: 'display', instance_id: home.furniture[0].instance_id, item_id: 'ore' }); act({ intent: 'message', text: '重启后也要保留' });
   const saved = structuredClone({ home, appearance: world.agent(id).appearance, inventory: world.agent(id).life.inventory, run: world.agent(id).run }); world.close(); now += 1000; world = new World({ dbPath, now: () => now });
-  assert.deepEqual(world.state.homes[`home_${id}`], saved.home); assert.deepEqual(world.agent(id).appearance, saved.appearance); assert.deepEqual(world.agent(id).life.inventory, saved.inventory); assert.deepEqual(world.agent(id).run, saved.run); assert.equal(world.agent(id).home_presence, null); assert.equal(world.agent(id).home_travel, null); assert.deepEqual(world.state.home_invitations, {}); assert.deepEqual(world.agent(id).position, { x: 9, y: 8 });
+  assert.deepEqual(world.state.homes[`home_${id}`], saved.home); assert.deepEqual(world.agent(id).appearance, saved.appearance); assert.deepEqual(world.agent(id).life.inventory, saved.inventory); assert.deepEqual(world.agent(id).run, saved.run); assert.equal(world.agent(id).home_presence, null); assert.equal(world.agent(id).home_travel, null); assert.deepEqual(world.state.home_invitations, {}); assert.deepEqual(world.agent(id).position, { ...HOME_ENTRY });
 });

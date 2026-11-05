@@ -1,4 +1,5 @@
-import { isPositionInBounds, findWorldPath, recordMovement, stopMovement } from './spatial.js';
+import { isPositionInBounds, findWorldPath, recordMovement, stopMovement, sceneDefinition } from './spatial.js';
+import { plazaServicePlace, PLAZA_RESOURCE_POSITIONS } from '../shared/plaza-layout.js';
 import { FATIGUE_RULES, spendEnergy, attackMultiplier } from './fatigue.js';
 import { randomUUID } from 'node:crypto';
 import { MARKET_RULES, economyBalance, recordEconomyDelta, marketWindow, publicMarket, publicLedger } from './economy.js';
@@ -83,16 +84,17 @@ const TOOLS = [
   ] })),
 ];
 export const LIFE_RULES = {
-  farm_place: { id: 'farm', scene_id: 'plaza', name: '营地农田', x: 12, y: 8, service_center: { x: 11, y: 8 }, radius: 2 },
+  camp_place: plazaServicePlace('camp'), farm_place: plazaServicePlace('farm'),
+  crafting_place: plazaServicePlace('tools'), tool_place: plazaServicePlace('tools'),
   plots_per_agent: 2, crops: CROPS, items: ITEMS, recipes: RECIPES, tools: TOOLS,
   gathering: { version: 2, max_job_seconds: RESOURCE_RULES.max_job_seconds, stock_policy: 'global_shared', tool_required: false, resources: [
-    { id: 'wood', scene_id: 'plaza', item_id: 'wood', name: '营地拾枝处', x: 10, y: 8, radius: 1, duration_seconds: 12, energy_cost: 4, yield_count: 1, cooldown_seconds: 8 },
-    { id: 'ore', scene_id: 'plaza', item_id: 'ore', name: '营地碎矿堆', x: 12, y: 8, radius: 1, duration_seconds: 18, energy_cost: 6, yield_count: 1, cooldown_seconds: 12 },
+    { id: 'wood', scene_id: 'plaza', item_id: 'wood', name: '工坊拾枝处', ...PLAZA_RESOURCE_POSITIONS.camp_branches.position, service_center:PLAZA_RESOURCE_POSITIONS.camp_branches.position, interaction_position:PLAZA_RESOURCE_POSITIONS.camp_branches.interaction_position, radius: 1, duration_seconds: 12, energy_cost: 4, yield_count: 1, cooldown_seconds: 8 },
+    { id: 'ore', scene_id: 'plaza', item_id: 'ore', name: '工坊碎矿堆', ...PLAZA_RESOURCE_POSITIONS.camp_stones.position, service_center:PLAZA_RESOURCE_POSITIONS.camp_stones.position, interaction_position:PLAZA_RESOURCE_POSITIONS.camp_stones.interaction_position, radius: 1, duration_seconds: 18, energy_cost: 6, yield_count: 1, cooldown_seconds: 12 },
   ], planting: TREE_RULES.planting, description: '旧wood/ore指令使用共享营地库存。start加node_id选择同场景资源，一次预约、真实走到开工，仅完成一份工作；成熟树最后一段另得松果，幼树/树桩不可砍。plant加node_id明确选择空林地，走到后工作4秒、2体力，完成扣1松果，不需斧头；cancel可中断。砍伐/采矿开工耗对应工具1耐久，夜间和等级影响采集成本；种树成本固定。任何完成不自动续采、换树或种植。' },
-  cooking_place: { id: 'kitchen', scene_id: 'plaza', name: '营地料理台', x: 10, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
+  cooking_place: plazaServicePlace('kitchen'),
   market: MARKET_RULES,
   strategy_equipment: STRATEGY_EQUIPMENT_RULES,
-  description: '每个角色有两块专属田、个人仓库和持久的锄头/水壶。空地先用锄头开垦，种植消耗1种子，用水壶浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子，收获后需重新开垦。开垦/浇水各耗对应工具1耐久，工具升级降低该动作体力消耗；repair按当前等级repair_cost维修，upgrade消耗下一等级upgrade_cost，均回满耐久、各耗2体力；最高3级。工具独立于战斗装备，不可复制或装备到武器护甲槽。离线仍生长，没人替你耕作。农田、制作、工具维护与换装在营地半径2内进行，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
+  description: '每个角色有两块专属田、个人仓库和持久的锄头/水壶。空地先用锄头开垦，种植消耗1种子，用水壶浇水一次后开始120/180秒生长，成熟需自己收获，得到2份食物并返还1种子，收获后需重新开垦。开垦/浇水各耗对应工具1耐久，工具升级降低该动作体力消耗；repair按当前等级repair_cost维修，upgrade消耗下一等级upgrade_cost，均回满耐久、各耗2体力；最高3级。工具独立于战斗装备，不可复制或装备到武器护甲槽。离线仍生长，没人替你耕作。农事在farm_place，非随身制作在crafting_place，工具维护在tool_place，料理在cooking_place，补给在market.place，各自须在对应service_center/radius内；穿脱装备在camp_place，且须先结束冒险计划、独处活动和参与中的多人游戏。食物可在野外使用，但不会退出危险状态或延长反应保护。',
 };
 const byId = new Map(ITEMS.map(item => [item.id, item]));
 const slots = ['weapon', 'armor'];
@@ -173,20 +175,31 @@ export function publicLife(a, now, { privateInventory = false, includeLedger = t
 function announce(world, a, type, text, extra = {}) {
   world.event(type, { agent_id: a.agent_id, name: a.name, text, ...extra }, [...new Set([a.agent_id, ...world.activeIds()])]);
 }
-export function campAvailable(world, a, fail) {
+export function serviceAvailable(world, a, place, fail) {
   if (a.fishing) fail('FISHING_BUSY', '请先结束当前垂钓');
   if (a.home_presence || a.home_travel) fail('HOME_BUSY', '家园室内与赴屋行程不能使用室外营地设施；请先用 home leave/cancel 返回室外并重新观察');
-  if (a.scene_id !== 'plaza') fail('SCENE_REQUIRED', '生活设施在plaza营地；可自主选择adventure_plan retreat返回');
-  const farm = LIFE_RULES.farm_place, position = a.position;
-  if (!isPositionInBounds(position) || Math.abs(position.x - farm.service_center.x) + Math.abs(position.y - farm.service_center.y) > farm.radius) fail('NOT_AT_CAMP', '请先返回营地半径2格内，再照料农田、制作或换装');
+  if (a.scene_id !== place.scene_id) fail('SCENE_REQUIRED', '此生活设施在plaza；请自行选择返回及行走');
+  const position = a.position;
+  if (!isPositionInBounds(position) || Math.abs(position.x - place.service_center.x) + Math.abs(position.y - place.service_center.y) > place.radius)
+    fail(place.id==='camp'?'NOT_AT_CAMP':'NOT_AT_SERVICE', `请先自行走到${place.name}站位(${place.service_center.x},${place.service_center.y})的${place.radius}格内`, { service_id:place.id, interaction_position:place.service_center, radius:place.radius });
   if (a.adventure?.plan || a.adventure?.in_field || a.survival?.travel || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、移动或活动，并返回安全营地');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');
   const game = world.state.game;
   if (game && game.status !== 'finished' && game.participants.includes(a.agent_id)) fail('GAME_BUSY', '请先退出当前多人游戏，再照料农田、制作或换装');
 }
+export function campAvailable(world,a,fail) { return serviceAvailable(world,a,LIFE_RULES.camp_place,fail); }
+export function lifeServiceFor(type,payload) {
+  if(type==='farm') return LIFE_RULES.farm_place;
+  if(type==='trade') return LIFE_RULES.market.place;
+  if(type!=='inventory'||payload.intent==='use') return null;
+  if(['repair','upgrade'].includes(payload.intent)) return LIFE_RULES.tool_place;
+  if(payload.intent!=='craft') return LIFE_RULES.camp_place;
+  const recipe=RECIPES.find(r=>r.item_id===payload.item_id);
+  return ['portable','lit_campfire'].includes(recipe?.station_id)?null:recipe?.station_id==='kitchen'?LIFE_RULES.cooking_place:LIFE_RULES.crafting_place;
+}
 function craftAvailable(world, a, recipe, fail) {
   if (a.fishing) fail('FISHING_BUSY', '请先结束当前垂钓');
-  if (!['portable', 'lit_campfire'].includes(recipe.station_id)) return campAvailable(world, a, fail);
+  if (!['portable', 'lit_campfire'].includes(recipe.station_id)) return serviceAvailable(world, a, recipe.station_id==='kitchen'?LIFE_RULES.cooking_place:LIFE_RULES.crafting_place, fail);
   if (a.adventure?.plan || a.survival?.travel || a.activity || a.movement) fail('ACTIVITY_BUSY', '请先结束当前计划、活动或移动再制作');
   if (a.life?.gathering) fail('GATHER_BUSY', '请先取消当前采集或等待完成');
   const game = world.state.game;
@@ -215,7 +228,7 @@ export function performLife(world, a, type, payload, fail) {
     if (!['till', 'plant', 'water', 'harvest'].includes(payload.intent) || typeof payload.plot_id !== 'string' || payload.intent !== 'plant' && payload.crop_id !== undefined) fail('INVALID_ACTION', 'farm 只接受 till/plant/water/harvest 与自己的 plot_id，只有种植可提供 crop_id');
     const plot = a.life.plots.find(p => p.plot_id === payload.plot_id);
     if (!plot) fail('NOT_AUTHORIZED', '只能操作自己的 plot_1 或 plot_2');
-    campAvailable(world, a, fail);
+    serviceAvailable(world, a, LIFE_RULES.farm_place, fail);
     const toolId = payload.intent === 'till' ? 'hoe' : payload.intent === 'water' ? 'watering_can' : null;
     const tool = toolId ? a.life.tools[toolId] : null;
     const toolLevel = tool ? TOOLS.find(item => item.id === toolId).levels.find(entry => entry.level === tool.level) : null;
@@ -257,7 +270,7 @@ export function performLife(world, a, type, payload, fail) {
   if (['repair', 'upgrade'].includes(payload.intent)) {
     const definition = TOOLS.find(tool => tool.id === payload.item_id);
     if (payload.slot !== undefined || !definition) fail('INVALID_ACTION', '请选择工具目录中的 item_id');
-    campAvailable(world, a, fail);
+    serviceAvailable(world, a, LIFE_RULES.tool_place, fail);
     const tool = a.life.tools[definition.id], current = definition.levels.find(level => level.level === tool.level);
     if (definition.crafted && !tool.owned) fail('TOOL_REQUIRED', '请先制作自己的采集工具');
     const next = payload.intent === 'upgrade' ? definition.levels.find(level => level.level === tool.level + 1) : current;
@@ -388,7 +401,7 @@ function performGather(world, a, payload, fail) {
   if (payload.mode !== undefined && !['walk', 'run'].includes(payload.mode)) fail('INVALID_ACTION', 'mode 只接受 walk 或 run');
   const resource = resourceDefinition(legacy ? legacyNode(payload.resource_id) : payload.node_id);
   if (!resource) fail('INVALID_ACTION', '请选择目录中的资源点');
-  if (legacy) campAvailable(world, a, fail);
+  if (legacy) serviceAvailable(world, a, {id:resource.id,name:resource.name,scene_id:resource.scene_id,service_center:resource.position,radius:resource.radius}, (code,message,details)=>fail(code==='NOT_AT_SERVICE'?'NOT_AT_RESOURCE':code,message,details));
   else {
     if (a.scene_id !== resource.scene_id) fail('SCENE_REQUIRED', '请先自行选择探索或撤退进入该资源所在场景');
     if (a.life.gathering || a.adventure?.plan || a.survival?.travel || a.activity || a.movement || a.adventure?.encounter?.status === 'pending') fail('ACTIVITY_BUSY', '请先结束当前计划、移动、发现或采集');
@@ -407,7 +420,7 @@ function performGather(world, a, payload, fail) {
     expires_at: Math.min(a.run.expires_at, world.now() + RESOURCE_RULES.max_job_seconds * 1000), run_id: a.run.run_id, session_epoch: a.session_epoch,
     hp_at_start: a.adventure.hp, hurt_id_at_start: a.hurt?.action_id || null, movement_id: null };
   reserveResource(world, a, resource.id, job.job_id, job.expires_at, fail, job.intent); a.life.gathering = job;
-  if (a.scene_id === 'adventure' && resourceDistance(a.position, LIFE_RULES.farm_place.service_center) > 2) a.adventure.in_field = true;
+  if (a.scene_id === 'adventure' && resourceDistance(a.position, sceneDefinition('adventure').portal.position) > 2) a.adventure.in_field = true;
   if (resourceDistance(a.position, resource.position) <= resource.radius) {
     const reason = beginGatherWork(world, a, job, false);
     if (reason) fail(reason === 'exhausted' ? 'FATIGUE_EXHAUSTED' : 'GATHER_UNAVAILABLE', '当前无法开始这次工作，请重新观察');
@@ -421,7 +434,7 @@ function performTrade(world, a, payload, fail) {
   const offer = MARKET_RULES.items.find(entry => entry.item_id === payload.item_id), buying = payload.intent === 'buy';
   const price = offer?.[buying ? 'buy_price' : 'sell_price'];
   if (!Number.isSafeInteger(price) || price <= 0) fail('TRADE_UNAVAILABLE', '补给柜不支持这件物品的该方向交易');
-  campAvailable(world, a, fail);
+  serviceAvailable(world, a, LIFE_RULES.market.place, fail);
   const window = marketWindow(a, world.now()), key = buying ? 'bought' : 'sold', limit = buying ? MARKET_RULES.buy_limit : MARKET_RULES.sell_limit;
   if (window[key] + payload.quantity > limit) fail('TRADE_LIMIT', '本窗口交易额度不足，可等待刷新或选择其他事情');
   const amount = price * payload.quantity, gold = a.adventure.gold;
@@ -449,7 +462,7 @@ export function tickLife(world) {
       else {
       // Resource travel is still a real trip into the wilderness; it does not
       // grant immunity merely because its bounded intent is not adventure_plan.
-      if (a.scene_id === 'adventure' && resourceDistance(a.position, LIFE_RULES.farm_place.service_center) > 2 && !a.adventure.in_field) { a.adventure.in_field = true; changed = true; durable = true; }
+      if (a.scene_id === 'adventure' && resourceDistance(a.position, sceneDefinition('adventure').portal.position) > 2 && !a.adventure.in_field) { a.adventure.in_field = true; changed = true; durable = true; }
       if (job.phase === 'approaching') {
         const progress = advanceGatherApproach(world, a, job); changed = progress.changed || changed; durable = progress.durable || durable;
       } else if (a.movement || resourceDistance(a.position, resource.position) > resource.radius) { changed = cancelGather(world, a, 'moved') || changed; durable = true; }

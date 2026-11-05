@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { PlazaRunner, parseModelAction, enqueueEvents } from '../runner/runner.js';
@@ -96,7 +97,7 @@ test('环境变化和接近开工不唤醒模型，仅本人/队友终态按原�
 });
 
 for (const mode of ['model', 'dsh-pet']) test(`${mode}原AI一次选择节点后真实走路采集，只有一次产出且身份预算期限不变`, async t => {
-  const f = observed(t), { world, a, c } = f; a.position = { x: 11, y: 8 };
+  const f = observed(t), { world, a, c } = f; a.position = lifePosition(world, 'camp_place');
   const auth = world.authenticate(c.token), calls = [], prompts = [];
   let selected = action('gather', { intent: 'start', node_id: 'orchard_berries', mode: 'walk' });
   const client = { listTools: async () => ({ tools: Object.keys(toolDefinitions).map(name => ({ name })) }), close: async () => {},

@@ -91,7 +91,7 @@ test('v032 every landmark is rendered at its shared physical position and assets
     assert.equal(packet.x, (venue.position.x + .5) * 32); assert.equal(packet.y, (venue.position.y + .5) * 32);
     assert.ok(art.animations.idle.frames[0].w * packet.scale <= 116);
     assert.equal(art.render_style,'q-pixel');
-    assert.match(art.image,/q_services\.png$/);
+    assert.match(art.image,/q_(?:plaza_)?services\.png$/);
     const png=readFileSync(new URL(`../public${art.image}`,import.meta.url));
     assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
     const frame=art.animations.idle.frames[0];

@@ -16,6 +16,7 @@ import {MapCamera,DetailSection} from './Observer.jsx';
 import {chooseObserver,nearbySlots,presenceLabel,publicName,recordTime} from './observer-state.js';
 import { mapDimensions, projectMapPoint } from './map-projection.js';
 import { mergeSpectatorDelta } from './spectator-frame.js';
+import PlazaLandmarks from './PlazaLandmarks.jsx';
 import { HomeEntrance } from './HomeView.jsx';
 import { Warehouse, RuntimeDiagnostics } from './FarmPanel.jsx';
 import { ArrowDownLeft, ArrowRight, Check, ChevronDown, Clock3, Copy, ExternalLink, Flag, Leaf, Link2, LoaderCircle, LogOut, MessageCircle, Pause, Play, Plus, Radio, RefreshCw, Send, Settings2, ShieldCheck, Sparkles, Sprout, UserPlus, Users, Volume2, Wifi, WifiOff, X } from 'lucide-react';
@@ -152,7 +153,7 @@ function PlazaMap({ world, agents, events, selected, onSelect, grid, now, hasMin
   return <div className="map-scene-frame"><MapCamera status={!present.length&&<div className="scene-empty" role="status">此刻广场无人 · 可以看看林地，或等待 AI 回来</div>} speech={{events,agents:present,selected,now,live,sceneId:'plaza'}}><div className="map-viewport pixel-map" data-testid="plaza-map" style={{aspectRatio:`${map.width} / ${map.height}`}}>
     <PhaserWorld sceneId="plaza" live={live} cycle={world.day_cycle} survival={world.survival}>
     <PixelScene sceneId="plaza" grid={grid} map={map} live={live} label="生活广场，池岸、书屋、游戏角与东侧远征入口"/>
-    <SceneProps sceneId="plaza" map={map}/>
+    <SceneProps sceneId="plaza" map={map}/><PlazaLandmarks world={world} map={map}/>
     <CampLandmarks catalog={world.life||world.rules?.life} map={map} hideResources={!!world.resources}/>
     <HomeEntrance world={world} map={map} onClick={onHomeEntrance}/>
     <PeerMarketLandmark world={world} map={map}/>

@@ -59,7 +59,7 @@ test('v033 bypass uses a longer actual branch, preserves monsters, and ends with
   p.ok({ intent: 'travel', node_id: 'camp', route: 'bypass' }); const path = p.a.movement.path;
   assert.ok(path.some(p => p.x === 18 && p.y === 18)); assert.ok(path.some(p => p.x === 35 && p.y === 18)); assert.ok(!path.some(p => p.x === 18 && p.y === 16)); assert.ok(publicMovement(p.a, f.world));
   f.arrive(p); assert.deepEqual(p.a.position, { x: 43, y: 16 }); assert.equal(p.a.journey_job, null); assert.deepEqual(p.a.life.inventory, inventory); assert.deepEqual(f.world.state.journey.monsters.map(m => m.hp), hp);
-  p.ok({ intent: 'leave', route: 'bypass' }); f.arrive(p); assert.equal(p.a.scene_id, 'plaza'); assert.deepEqual(p.a.position, { x: 22, y: 8 });
+  p.ok({ intent: 'leave', route: 'bypass' }); f.arrive(p); assert.equal(p.a.scene_id, 'plaza'); assert.deepEqual(p.a.position, { x: 46, y: 20 });
 });
 
 test('v033 bypass after stopping combat withdraws to its near branch instead of walking through the enemy', t => {

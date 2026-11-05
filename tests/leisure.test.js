@@ -88,7 +88,7 @@ test('旧存档硬冷却不再阻止邀请接受或自主重复游戏', t => {
 test('真实独处经历最多保存六条，取消不记，独处不会清空同游戏连玩次数', t => {
   const f = fixture(t), [a] = f.people;
   f.start(); f.complete();
-  f.world.agent(a.id).position = { x: 19, y: 12 };
+  f.world.agent(a.id).position = { x: 9, y: 20 };
   for (let i = 0; i < 8; i++) {
     const activity = f.act(a, 'start_activity', { activity_id: 'sequence' }).activity;
     const numbers = activity.task.prompt.match(/\d+/g).map(Number);

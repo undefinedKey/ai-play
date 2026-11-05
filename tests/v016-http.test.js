@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -38,7 +39,7 @@ async function fixture(t, accounts = false) {
     const act = async (type, payload) => call('act', await request(type, payload));
     const applied = async (type, payload) => { const result = await act(type, payload); assert.equal(result.status, 'applied', JSON.stringify(result)); return result; };
     const p = { id: a.agent_id, get raw() { return app.world.agent(a.agent_id); }, client, call, observe, request, act, applied, session, token: controller.token };
-    p.raw.position = { x: 11, y: 8 }; actors.push(p); return p;
+    p.raw.position = {...PLAZA_SERVICES.camp.interaction_position}; actors.push(p); return p;
   };
   const advance = async ms => { const end = now + ms; while (now < end) { now = Math.min(now + 1000, end); app.world.tick(); for (const p of actors) if (p.raw.status === 'active') await p.observe(); } };
   const publicWorld = async () => (await api('/api/public/world')).body;
@@ -118,7 +119,7 @@ test('v0.16 HTTP/MCP: slow solo answers and three explicit nearby treasure colle
     const end=p.raw.activity.ends_at; await litWait(60000);
     assert.equal(p.raw.activity.ends_at,end); await p.applied('finish_activity',{answer});
   }
-  p.raw.position={x:11,y:8}; await p.applied('start_activity',{activity_id:'treasure_hunt'});
+  p.raw.position={...PLAZA_SERVICES.camp.interaction_position}; await p.applied('start_activity',{activity_id:'treasure_hunt'});
   const deadline=p.raw.activity.ends_at;
   for(let n=0;n<3;n++) {
     let a=(await p.observe()).self, target=a.activity.target;

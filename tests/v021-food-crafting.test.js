@@ -1,3 +1,4 @@
+import {PLAZA_RESOURCE_POSITIONS} from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
@@ -79,7 +80,7 @@ test('v021 fire cooking requires an actual lit same-scene nearby fire and never 
 });
 
 test('v021 portable crafting cannot overlap a live resource job and unknown recipe costs stay private', t => {
-  const f = fixture(t, { inventory: { grass: 2 }, position: { x: 11, y: 8 } });
+  const f = fixture(t, { inventory: { grass: 2 }, position: PLAZA_RESOURCE_POSITIONS.camp_branches.interaction_position });
   ok(f.act('gather', { intent: 'start', node_id: 'camp_branches' }));
   const stock = structuredClone(f.raw().life.inventory), energy = f.raw().fatigue.energy;
   assert.equal(f.act('inventory', { intent: 'craft', item_id: 'torch' }).error.code, 'GATHER_BUSY');

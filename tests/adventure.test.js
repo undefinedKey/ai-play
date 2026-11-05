@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -22,6 +23,7 @@ function fixture(t, options = {}) {
     world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: minutes, goal: 'PRIVATE_GOAL' });
     const auth = world.authenticate(controller.token), o = world.callTool(auth, 'join_world');
     world.agent(agent.agent_id).scene_id = scene_id;
+    if(scene_id==='adventure') world.agent(agent.agent_id).position = {x:9,y:7};
     const p = { agent, controller, auth, session: { run_id: o.run_id, session_epoch: o.session_epoch } }; people.push(p); return p;
   };
   const observe = p => world.callTool(p.auth, 'observe', p.session);
@@ -48,7 +50,7 @@ test('冒险目录和公开成长可发现；新角色没有自动计划或默�
   assert.equal(o.self.adventure.hp, 40); assert.equal(o.self.bio, '保留原来的身份');
   f.advance(20000); assert.equal(f.fighter(p).adventure.plan, null);
   o.adventure.monsters[0].hp = 999; rules.adventure.zones[0].x = 999;
-  assert.equal(f.observe(p).adventure.monsters[0].hp, 18); assert.equal(f.world.getRules().adventure.zones[0].x, 11);
+  assert.equal(f.observe(p).adventure.monsters[0].hp, 18); assert.equal(f.world.getRules().adventure.zones[0].x, PLAZA_SERVICES.camp.interaction_position.x);
 });
 
 test('无旁观者仍按有限探索计划移动，抵达后不会自动挑选下一项', t => {
@@ -56,10 +58,10 @@ test('无旁观者仍按有限探索计划移动，抵达后不会自动挑选�
   assert.equal(f.plan(p, 'explore', { zone_id: 'camp' }).status, 'applied');
   assert.deepEqual(f.fighter(p).position, initial);
   f.advance(2000); assert.notDeepEqual(f.fighter(p).position, initial);
-  f.advance(18000); assert.deepEqual(f.fighter(p).position, { x: 11, y: 8 });
+  f.advance(38000); assert.deepEqual(f.fighter(p).position, { ...PLAZA_SERVICES.camp.interaction_position });
   assert.equal(f.fighter(p).adventure.plan, null); assert.equal(f.fighter(p).adventure.last_result.kind, 'completed');
   const completed = f.world.state.events.filter(e => e.type === 'adventure_finished').length;
-  f.advance(20000); assert.deepEqual(f.fighter(p).position, { x: 11, y: 8 });
+  f.advance(20000); assert.deepEqual(f.fighter(p).position, { ...PLAZA_SERVICES.camp.interaction_position });
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_finished').length, completed);
 });
 
@@ -106,11 +108,11 @@ test('低血量先停在原地等待新决策，主动继续挑战仍可战败�
   const f = fixture(t), p = f.make();
   f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(30000);
   const a = f.fighter(p); assert.equal(a.adventure.last_result.kind, 'needs_decision'); assert.equal(a.adventure.hp, 8);
-  assert.equal(a.adventure.plan, null); assert.notDeepEqual(a.position, { x: 11, y: 8 });
+  assert.equal(a.adventure.plan, null); assert.notDeepEqual(a.position, { ...PLAZA_SERVICES.camp.interaction_position });
   const position = { ...a.position }; f.advance(10000); assert.equal(a.adventure.hp, 8); assert.deepEqual(a.position, position);
   assert.equal(f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }).status, 'applied'); f.advance(3000);
   assert.equal(a.adventure.last_result.kind, 'defeated'); assert.equal(a.adventure.hp, 10);
-  assert.deepEqual(a.position, { x: 11, y: 8 }); assert.equal(a.adventure.plan, null);
+  assert.deepEqual(a.position, { ...PLAZA_SERVICES.camp.interaction_position }); assert.equal(a.adventure.plan, null);
   assert.equal(f.world.state.events.filter(e => e.type === 'adventure_danger').length, 1);
   f.plan(p, 'rest'); f.advance(10000); assert.equal(a.adventure.hp, 40); assert.equal(a.adventure.plan, null);
 });
@@ -120,7 +122,7 @@ test('撤退和手动停止立即终止攻击，战斗不会因旧贡献继续�
   const a = f.fighter(p), hp = a.adventure.hp;
   const attacks = f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length;
   f.plan(p, 'retreat'); f.advance(30000);
-  assert.ok(a.adventure.hp <= hp); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length, attacks); assert.deepEqual(a.position, { x: 11, y: 8 }); assert.equal(a.adventure.plan, null);
+  assert.ok(a.adventure.hp <= hp); assert.equal(f.world.state.events.filter(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent').length, attacks); assert.deepEqual(a.position, { ...PLAZA_SERVICES.camp.interaction_position }); assert.equal(a.adventure.plan, null);
   f.plan(p, 'explore', { zone_id: 'forest' }); f.advance(1000);
   f.plan(p, 'stop'); const pos = { ...a.position }; f.advance(10000); assert.deepEqual(a.position, pos);
 });
@@ -246,7 +248,7 @@ test('危险决策节点及战败即时落盘，低血量不会在等待模型�
   f.advance(5000); assert.equal(f.fighter(p).adventure.hp, 8);
   f.plan(p, 'hunt', { monster_id: 'ruins_guardian' }); f.advance(10000);
   saved = JSON.parse(f.world.db.prepare('SELECT payload FROM world_state WHERE id=1').get().payload).agents[p.agent.agent_id];
-  assert.equal(saved.adventure.last_result.kind, 'defeated'); assert.equal(saved.adventure.hp, 10); assert.deepEqual(saved.position, { x: 11, y: 8 });
+  assert.equal(saved.adventure.last_result.kind, 'defeated'); assert.equal(saved.adventure.hp, 10); assert.deepEqual(saved.position, { ...PLAZA_SERVICES.camp.interaction_position });
 });
 
 test('空场怪物仍按世界时钟复活，房间暂停期间不推进且恢复不补算多轮', t => {

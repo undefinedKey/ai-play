@@ -9,7 +9,7 @@ async function fixture(t) { const f = await createHomesFixture({ frontend: false
 // Explicit fixture starting condition, not a gameplay rescue. All choices and
 // settlement thereafter pass through the actual HTTP/MCP service and clock.
 function emptyAtCamp(f, p) {
-  p.raw.position = { x: 11, y: 8 }; p.raw.position_at = f.now();
+  p.raw.position = { ...f.app.world.getRules().life.camp_place.service_center }; p.raw.position_at = f.now();
   p.raw.life.inventory = {}; p.raw.adventure.gold = 0; p.raw.fatigue.energy = 0;
   Object.assign(p.raw.survival, { satiety: 0, starvation_seconds: 0, hunger_hits: 0,
     darkness_seconds: 0, dark_hits: 0, protected_until: 0, last_at: f.now() });
@@ -17,7 +17,7 @@ function emptyAtCamp(f, p) {
 
 test('v029 HTTP/MCP food prices apply equally to separate owners; buying and eating are separate explicit actions', async t => {
   const f = await fixture(t), p = await f.actor('谨慎的原 AI'), q = await f.actor('随性的原 AI');
-  for (const a of [p, q]) { emptyAtCamp(f, a); a.raw.adventure.gold = 17; }
+  for (const a of [p, q]) { emptyAtCamp(f, a); a.raw.position = { ...f.app.world.getRules().life.market.place.service_center }; a.raw.adventure.gold = 17; }
   const identities = [p, q].map(a => structuredClone({ appearance: a.raw.appearance, goal: a.raw.goal, run: a.raw.run, bio: a.raw.bio }));
   const observations = await Promise.all([p.observe(), q.observe()]);
   assert.deepEqual(observations[0].life.market.items, observations[1].life.market.items);
@@ -59,7 +59,7 @@ for (const night of [false, true]) test(`v029 HTTP/MCP alone ${night ? 'at night
   assert.equal(node.energy_cost, 0); assert.equal(node.tool_id, null); assert.equal(node.duration_seconds, 6); assert.equal(node.stock, 1);
   assert.equal(p.raw.survival.protected_until, 0);
   const started = await p.applied('gather', pick);
-  assert.equal(p.raw.life.gathering.phase, 'approaching'); assert.deepEqual(p.raw.position, { x: 11, y: 8 });
+  assert.equal(p.raw.life.gathering.phase, 'approaching'); assert.deepEqual(p.raw.position, before.self.position);
   await f.until(() => p.raw.life.gathering?.phase === 'working', 'walking reaches the authored interaction tile', 3000);
   const job = structuredClone(p.raw.life.gathering);
   assert.equal(job.energy_cost, 0); assert.equal(job.ends_at - job.work_started_at, night ? 7500 : 6000);

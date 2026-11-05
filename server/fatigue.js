@@ -2,17 +2,18 @@ import { homeLightUntil, HOME_RULES } from './homes.js';
 import { isPositionInBounds } from './spatial.js';
 import { BASE_ATTACK_ENERGY, BASE_MOVE_ENERGY, combatStats } from './combat.js';
 import { samplePath, pathLength } from '../shared/motion.js';
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 
 export const FATIGUE_RULES = {
   max_energy: 100, tired_at: 25, rearm_at: 40, hunt_min_energy: 12, tired_attack_multiplier: 0.75,
   costs: { attack: BASE_ATTACK_ENERGY, move_per_tile: BASE_MOVE_ENERGY, till: 3, plant: 2, water: 1, harvest: 2, craft: 2, repair: 2, upgrade: 2, gather: 1, exploration: 1 },
   tool_energy: 'till和water实际体力消耗按life.tools对应工具当前等级的energy_cost；costs中的3和1为基础一级值。维修与升级各消耗2。',
-  recovery: { scene_id: 'plaza', idle_per_second: 0.3, rest_per_second: 2, camp_center: { x: 11, y: 8 }, camp_radius: 2 },
+  recovery: { scene_id: 'plaza', idle_per_second: 0.3, rest_per_second: 2, camp_center: PLAZA_SERVICES.camp.interaction_position, camp_radius: 2 },
   description: '体力记录实际行动消耗，不代表性格或厌倦。体力不超过25时攻击变为75%；不足装备一次攻击所需体力时停止当前狩猎，重新狩猎至少需要12。步行和步行撤退始终允许；奔跑每格消耗为步行2倍，按真实走过距离扣除，耗尽时原地停止并等待AI选择，不自动改为步行。营地静止、聊天或低强度阅读每秒恢复0.3，主动休息或花园休息每秒恢复2；移动和劳作后1秒不恢复，野外不被动恢复；攻击/移动实际耗能按life.stats装备属性。离线、暂停或服务重启期间仅在营地慢恢复；不会自动开始其他活动。',
 };
 const round = value => Math.round(value * 10000) / 10000;
 const energy = a => Number.isFinite(a.fatigue?.energy) ? Math.max(0, Math.min(100, a.fatigue.energy)) : 100;
-const inCamp = a => a.scene_id === 'plaza' && isPositionInBounds(a.position) && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
+const inRecoveryArea = a => !!a.home_presence || (a.scene_id === 'plaza' && isPositionInBounds(a.position) && Math.abs(a.position.x - FATIGUE_RULES.recovery.camp_center.x) + Math.abs(a.position.y - FATIGUE_RULES.recovery.camp_center.y) <= FATIGUE_RULES.recovery.camp_radius);
 const timestamp = value => Number.isSafeInteger(value) && value >= 0;
 const exertionKinds = ['attack', 'move', 'till', 'plant', 'water', 'harvest', 'craft', 'repair', 'upgrade', 'gather', 'exploration'];
 
@@ -27,7 +28,7 @@ export function initializeFatigue(a, now, { restore = false } = {}) {
     last_at: timestamp(old.last_at) ? old.last_at : null,
     actions_count: Number.isSafeInteger(old.actions_count) && old.actions_count >= 0 ? old.actions_count : 0,
   };
-  if (restore) settle(a, now, inCamp(a) ? FATIGUE_RULES.recovery.idle_per_second : 0);
+  if (restore) settle(a, now, inRecoveryArea(a) ? FATIGUE_RULES.recovery.idle_per_second : 0);
 }
 
 export function attackMultiplier(a) { return energy(a) <= FATIGUE_RULES.tired_at ? FATIGUE_RULES.tired_attack_multiplier : 1; }
@@ -94,9 +95,9 @@ export function captureFatigueRecovery(world) {
       const progress=Math.max(previous,Math.min(pathLength(m.path),Math.max(0,cutoff-m.started_at)*m.speed/1000,previous+budget));
       const stop=samplePath(m.path,progress).position;
       const until=Math.min(now,cutoff,Math.round(m.started_at+progress/m.speed*1000));
-      return [a.agent_id,{rate:0,until,after:a.home_presence || inCamp({...a,position:stop})?idle:0}];
+      return [a.agent_id,{rate:0,until,after:a.home_presence || inRecoveryArea({...a,position:stop})?idle:0}];
     }
-    if (!inCamp(a)) return [a.agent_id, { rate: 0, until: now, after: 0 }];
+    if (!inRecoveryArea(a)) return [a.agent_id, { rate: 0, until: now, after: 0 }];
     if (!active) return [a.agent_id, { rate: idle, until: now, after: idle }];
     let until = Math.min(now, timestamp(a.run.expires_at) ? a.run.expires_at : now, timestamp(a.last_contact_at) ? a.last_contact_at + 45000 : now), rate = idle;
     const plan = a.adventure?.plan, activity = a.activity, gathering = a.life?.gathering, game = world.state.game;
@@ -107,7 +108,7 @@ export function captureFatigueRecovery(world) {
       rate = 0;
     } else if (plan) {
       until = Math.min(until, timestamp(plan.expires_at) ? plan.expires_at : now);
-      rate = plan.intent === 'rest' && a.position.x === 11 && a.position.y === 8 ? rest : 0;
+      rate = plan.intent === 'rest' && a.position.x === FATIGUE_RULES.recovery.camp_center.x && a.position.y === FATIGUE_RULES.recovery.camp_center.y ? rest : 0;
     } else if (activity) {
       until = Math.min(until, timestamp(activity.ends_at) ? activity.ends_at : now);
       rate = activity.activity_id === 'relax' ? rest : activity.activity_id === 'read' ? idle : 0;

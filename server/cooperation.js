@@ -30,7 +30,7 @@ const member = (p, id) => members(p).find(m => m.agent_id === id);
 const records = world => Object.values(world.state.cooperations || {});
 const current = (world, id) => records(world).find(p => ongoing(p) && member(p, id));
 const time = value => Number.isSafeInteger(value) && value >= 0;
-const inCamp = a => !a?.home_presence && !a?.home_travel && a?.scene_id === 'plaza' && a?.position && Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8) <= 2;
+const inCamp = a => !a?.home_presence && !a?.home_travel && a?.scene_id === 'plaza' && a?.position && Math.abs(a.position.x - LIFE_RULES.camp_place.service_center.x) + Math.abs(a.position.y - LIFE_RULES.camp_place.service_center.y) <= LIFE_RULES.camp_place.radius;
 const online = (world, a) => a?.status === 'active' && a.run?.status === 'active' && a.run.expires_at > world.now()
   && !!world.state.controllers[a.run.controller_id] && !world.state.controllers[a.run.controller_id].revoked && world.state.room.status === 'active';
 const binding = a => ({ run_id: a.run.run_id, session_epoch: a.session_epoch });

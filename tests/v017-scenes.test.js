@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -31,7 +32,7 @@ test('v017 real bidirectional gateway plan walks each path, retains deadline and
   for (let i = 0; a.scene_id === 'plaza' && i < 40; i++) {
     f.tick(); assert.equal(a.adventure.plan.expires_at, deadline);
     if (scene === a.scene_id) { assert.ok(Math.abs(a.position.x-previous.x)+Math.abs(a.position.y-previous.y)<=2, 'physical speed bound includes initial preparation'); assert.ok(isWalkable(scene, a.position)); }
-    else { assert.deepEqual(f.w.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, { x:22,y:8 }); assert.deepEqual(a.position, { x: 11, y: 8 }); }
+    else { assert.deepEqual(f.w.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, {...PLAZA_SERVICES.adventure.interaction_position}); assert.deepEqual(a.position, { x: 11, y: 8 }); }
     previous = { ...a.position }; scene = a.scene_id;
   }
   assert.equal(a.scene_id, 'adventure'); assert.deepEqual(a.run, run);
@@ -40,19 +41,19 @@ test('v017 real bidirectional gateway plan walks each path, retains deadline and
   f.until(() => a.adventure.encounter?.status === 'pending');
   ok(f.act(p, 'adventure_plan', { intent: 'retreat' }));
   const retreatDeadline = a.adventure.plan.expires_at;
-  f.until(() => a.scene_id === 'plaza'); assert.deepEqual(a.position, { x: 22, y: 8 }); assert.equal(a.adventure.plan.expires_at, retreatDeadline);
-  f.until(() => !a.adventure.plan); assert.deepEqual(a.position, { x: 11, y: 8 }); assert.deepEqual(a.run, run);
+  f.until(() => a.scene_id === 'plaza'); assert.deepEqual(a.position, {...PLAZA_SERVICES.adventure.interaction_position}); assert.equal(a.adventure.plan.expires_at, retreatDeadline);
+  f.until(() => !a.adventure.plan); assert.deepEqual(a.position, {...PLAZA_SERVICES.camp.interaction_position}); assert.deepEqual(a.run, run);
   assert.equal(f.w.state.events.filter(e => e.type === 'scene_changed').length, 2);
 });
 
 test('v017 normal move never uses portal; shortest walkable path and blocked terrain are authoritative', t => {
-  const f = fixture(t), p = f.make(), a = f.raw(p); a.position = { x: 21, y: 8 };
-  const r = ok(f.act(p, 'move', { x: 22, y: 8 })); assert.equal(a.scene_id, 'plaza'); assert.deepEqual(r.path, [{ x: 21, y: 8 }, { x: 22, y: 8 }]); f.tick(); assert.deepEqual(a.position,{x:22,y:8});
-  a.position = { x: 1, y: 2 }; const oldEnergy = a.fatigue.energy;
-  const blocked = f.act(p, 'move', { x: 2, y: 2 }); assert.equal(blocked.status, 'rejected'); assert.equal(f.raw(p).fatigue.energy, oldEnergy);
-  f.raw(p).position = { x: 8, y: 5 };
-  assert.equal(f.act(p, 'move', { x: 10, y: 5 }).status, 'rejected', 'two-tile straight line crosses well, four-step detour is over budget');
-  const around = ok(f.act(p, 'move', { x: 9, y: 6 })); assert.equal(around.path.length, 3); assert.ok(around.path.every(point => isWalkable('plaza', point)));
+  const f = fixture(t), p = f.make(), a = f.raw(p); a.position = {x:45,y:13};
+  const r = ok(f.act(p, 'move', {...PLAZA_SERVICES.adventure.interaction_position})); assert.equal(a.scene_id, 'plaza'); assert.deepEqual(r.path, [{x:45,y:13}, {...PLAZA_SERVICES.adventure.interaction_position}]); f.tick(); assert.deepEqual(a.position,{...PLAZA_SERVICES.adventure.interaction_position});
+  a.position = {x:1,y:1}; const oldEnergy = a.fatigue.energy;
+  const blocked = f.act(p, 'move', {x:2,y:1}); assert.equal(blocked.status, 'rejected'); assert.equal(f.raw(p).fatigue.energy, oldEnergy);
+  f.raw(p).position = {x:27,y:8};
+  assert.equal(f.act(p, 'move', {x:29,y:8}).status, 'rejected', 'two-tile straight line crosses the activity board, four-step detour is over budget');
+  const around = ok(f.act(p, 'move', {x:28,y:9})); assert.equal(around.path.length, 3); assert.ok(around.path.every(point => isWalkable('plaza', point)));
   for (const scene of SCENES) for (let y=0;y<16;y++) for(let x=0;x<24;x++) if(isWalkable(scene.id,{x,y})) {
     for(const c of movementOptions({x,y},scene.id).candidates) { assert.ok(c.path.length <=4); assert.deepEqual(c.path,findPath(scene.id,{x,y},c,{maxSteps:3})); }
   }
@@ -89,14 +90,14 @@ test('v017 migration uses structured pre-cleanup evidence and nearest legal cell
 
 test('v017 portal arrival never extends plan, lease or grant; deadline and pause win before a crossing', t => {
  for (const boundary of ['deadline','pause','lease','grant']) {
-  const f=fixture(t),p=f.make(),a=f.raw(p);a.position={x:22,y:8};ok(f.act(p,'adventure_plan',{intent:'explore',zone_id:'forest'}));
+  const f=fixture(t),p=f.make(),a=f.raw(p);a.position={...PLAZA_SERVICES.adventure.interaction_position};ok(f.act(p,'adventure_plan',{intent:'explore',zone_id:'forest'}));
   if(boundary==='deadline')a.adventure.plan.expires_at=f.now()+1000;
   if(boundary==='pause')f.w.ownerControl(p.id,'pause');
   if(boundary==='lease')a.last_contact_at=f.now()-44000;
   if(boundary==='grant')a.run.expires_at=f.now()+1000;
-  f.tick();assert.equal(a.scene_id,'plaza');assert.deepEqual(a.position,{x:22,y:8});assert.equal(a.adventure.plan,null);
+  f.tick();assert.equal(a.scene_id,'plaza');assert.deepEqual(a.position,{...PLAZA_SERVICES.adventure.interaction_position});assert.equal(a.adventure.plan,null);
  }
- const f=fixture(t),p=f.make(),a=f.raw(p);a.position={x:22,y:8};const req={...p.session,action_id:f.observe(p).next_action_id,type:'adventure_plan',payload:{intent:'explore',zone_id:'forest'}};
+ const f=fixture(t),p=f.make(),a=f.raw(p);a.position={...PLAZA_SERVICES.adventure.interaction_position};const req={...p.session,action_id:f.observe(p).next_action_id,type:'adventure_plan',payload:{intent:'explore',zone_id:'forest'}};
  const receipt=f.w.callTool(p.auth,'act',req);a.adventure.plan.expires_at=f.now()+2000;f.tick();assert.equal(a.scene_id,'adventure');assert.equal(a.adventure.plan.expires_at,f.now()+1000);
  assert.deepEqual(f.w.callTool(p.auth,'act',req),receipt,'already-applied original action is still idempotent after crossing');
  f.tick();assert.equal(a.adventure.plan,null);assert.deepEqual(a.position,{x:11,y:8});

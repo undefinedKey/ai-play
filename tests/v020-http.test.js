@@ -5,6 +5,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
 import { findPath, isWalkable } from '../server/spatial.js';
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
+
+const CAMP = PLAZA_SERVICES.camp.interaction_position;
+const TOOLS = PLAZA_SERVICES.tools.interaction_position;
+const KITCHEN = PLAZA_SERVICES.kitchen.interaction_position;
 
 // Scripted decisions test the real HTTP/MCP pipeline. Only the simulation clock
 // is controlled. Spawn positions, starting inventory, HP, tools, drops and all
@@ -78,7 +83,7 @@ async function gather(f, p, nodeId, mode) {
 async function returnCamp(f, p) {
   await p.applied('adventure_plan', { intent: 'retreat', mode: 'run' });
   await f.until(() => p.raw.scene_id === 'plaza' && !p.raw.adventure.plan, 'explicit return must reach camp');
-  assert.deepEqual(p.raw.position, { x: 11, y: 8 });
+  assert.deepEqual(p.raw.position, CAMP);
 }
 
 async function walkRoute(f, p, waypoints) {
@@ -99,7 +104,7 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
   const f = await fixture(t), owner = await f.member('v020_owner'), otherOwner = await f.member('v020_other');
   const p = await f.actor(owner, '原来的采集旅人'), other = await f.actor(otherOwner, '另一位原AI');
   const initial = await p.observe();
-  assert.deepEqual(initial.self.position, { x: 9, y: 7 }, 'keep the ordinary spawn, no teleport fixture');
+  assert.deepEqual(initial.self.position, { x: CAMP.x - 1, y: CAMP.y }, 'keep the ordinary spawn, no teleport fixture');
   assert.deepEqual(initial.self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 }, 'only normal first-join supplies');
   const grant = structuredClone(p.raw.run), health = await f.api('/api/health'); assert.equal(health.body.version, JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version);
   const types = (await p.client.listTools()).tools.find(tool => tool.name === 'act').inputSchema.properties.type.enum; assert.ok(types.includes('gather'));
@@ -111,10 +116,12 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
   const ledgerCount = p.raw.life.ledger.total_entries;
   assert.deepEqual(await p.call('act', request), receipt); assert.equal(held(p, 'wood'), 4); assert.equal(p.raw.life.ledger.total_entries, ledgerCount);
   await gather(f, p, 'camp_stones'); assert.equal(held(p, 'ore'), 1);
+  await walkRoute(f, p, [TOOLS]);
   const craftBefore = { wood: held(p, 'wood'), ore: held(p, 'ore'), energy: p.raw.fatigue.energy };
   await p.applied('inventory', { intent: 'craft', item_id: 'axe' });
   assert.equal(held(p, 'wood'), craftBefore.wood - 2); assert.equal(held(p, 'ore'), craftBefore.ore - 1); close(p.raw.fatigue.energy, craftBefore.energy - 2);
   assert.deepEqual(p.raw.life.tools.axe, { level: 1, durability: 12, max_durability: 12, owned: true });
+  await walkRoute(f, other, [TOOLS]);
 
   // Anonymous selection is only a GET query; it cannot move, reserve, spend or
   // renew the owner's grant. Other owners and the administrator get public tools,
@@ -139,9 +146,15 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
 
   await gather(f, p, 'east_pine'); assert.equal(p.raw.life.tools.axe.durability, 11);
   await returnCamp(f, p); await gather(f, p, 'camp_stones'); await gather(f, p, 'camp_stones');
+  await walkRoute(f, p, [TOOLS]);
   const pickBefore = { wood: held(p, 'wood'), ore: held(p, 'ore') }; await p.applied('inventory', { intent: 'craft', item_id: 'pickaxe' });
   assert.equal(held(p, 'wood'), pickBefore.wood - 2); assert.equal(held(p, 'ore'), pickBefore.ore - 2); assert.equal(p.raw.life.tools.pickaxe.durability, 12);
   await gather(f, p, 'orchard_berries'); assert.equal(held(p, 'berry'), 2); await returnCamp(f, p);
+  // The larger town makes preparation a real trip. The scripted controller
+  // explicitly replenishes energy before its chosen field expedition.
+  await p.applied('adventure_plan', { intent: 'rest' });
+  await f.until(() => !p.raw.adventure.plan, 'the selected pre-expedition rest completes');
+  assert.equal(p.raw.fatigue.energy, 100);
 
   await p.applied('adventure_plan', { intent: 'explore', zone_id: 'quarry' });
   await f.until(() => p.raw.scene_id === 'adventure' && p.raw.adventure.in_field, 'cross the real portal and leave the camp safety circle');
@@ -165,6 +178,7 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
   assert.ok(p.raw.adventure.hp > 0 && p.raw.adventure.hp < p.raw.adventure.max_hp, 'native monster caused real damage');
   assert.ok(f.app.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.agent_id === p.id && e.payload.attacker === 'monster'));
   await returnCamp(f, p);
+  await walkRoute(f, p, [KITCHEN]);
   const rationBefore = { berry: held(p, 'berry'), wood: held(p, 'wood'), energy: p.raw.fatigue.energy };
   await p.applied('inventory', { intent: 'craft', item_id: 'trail_ration' });
   assert.equal(held(p, 'berry'), rationBefore.berry - 2); assert.equal(held(p, 'wood'), rationBefore.wood - 1); close(p.raw.fatigue.energy, rationBefore.energy - 2);
@@ -175,7 +189,9 @@ test('v020 HTTP/MCP complete real resource loop, shared action receipt and owner
   const afterUse = { hp: p.raw.adventure.hp, energy: p.raw.fatigue.energy };
 
   if (held(p, 'wood') < 3) await gather(f, p, 'camp_branches');
+  await walkRoute(f, p, [TOOLS]);
   const woodBeforeSword = held(p, 'wood'); await p.applied('inventory', { intent: 'craft', item_id: 'wooden_sword' }); assert.equal(held(p, 'wood'), woodBeforeSword - 3);
+  await returnCamp(f, p);
   await p.applied('inventory', { intent: 'equip', item_id: 'wooden_sword' }); assert.equal(p.raw.life.equipment.weapon, 'wooden_sword');
   await p.applied('adventure_plan', { intent: 'explore', zone_id: 'grove', mode: 'run' });
   await f.until(() => p.raw.scene_id === 'adventure' && !p.raw.adventure.plan, 'equipped AI completes its explicitly selected grove journey');

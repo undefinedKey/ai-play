@@ -14,6 +14,7 @@ import { supportsFishing, validFishing, FISHING_GUIDANCE, fishingEventRelevant }
 import { supportsRuins, validRuins, RUINS_GUIDANCE, ruinsEventRelevant } from './ruins-context.mjs';
 import { FEATURE_ACTIONS, featureProtocol, featureGuidance, relevantFeatureEvent } from './feature-protocols.mjs';
 import { supportsJourney } from './journey-context.mjs';
+import { supportsPlazaLayout, PLAZA_GUIDANCE } from './plaza-context.mjs';
 
 const ACTIONS = new Set(['move', 'say', 'create_group', 'invite', 'respond_invite', 'leave_group', 'propose_game', 'respond_game', 'submit_word', 'submit_move', 'submit_story', 'leave_game', 'start_activity', 'finish_activity', 'adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', ...FEATURE_ACTIONS, 'wait']);
 const CONTROL_ERRORS = new Set(['STALE_SESSION', 'RUN_EXPIRED', 'ROOM_PAUSED', 'ROOM_FULL', 'NOT_AUTHORIZED', 'CONTROLLER_BUSY', 'NOT_IN_WORLD']);
@@ -901,6 +902,7 @@ export class PlazaRunner extends EventEmitter {
         ...(action.type === 'community' ? { requested: Object.fromEntries(['intent','event_id','venue_id','seat_id','activity','page'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(action.type === 'journey' ? { requested: Object.fromEntries(['intent','node_id','monster_id','mode','duration_seconds','route'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(['wardrobe','aquarium'].includes(action.type) ? { requested: Object.fromEntries(['intent','page','style_id','garment_id','color_id','slot','hairstyle','instance_id','fish_id','item_id','decoration_id'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
+        ...(['inventory','trade','farm'].includes(action.type) ? { requested: Object.fromEntries(['intent','item_id','slot','plot_id','crop_id','quantity'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         ...(action.type === 'ruins' ? { requested: Object.fromEntries(['intent','object_id','direction','mode'].filter(key=>action.payload?.[key]!==undefined).map(key=>[key,action.payload[key]])) } : {}),
         message: typeof result.error?.message === 'string' ? result.error.message.slice(0, 150) : undefined,
         retry_at: this.now() + Math.max(0, Number(result.error?.retry_after_ms) || 0), repeat_count: repeated ? Math.min(3, previous.repeat_count + 1) : 1 };
@@ -998,7 +1000,7 @@ export class PlazaRunner extends EventEmitter {
       const modelActions = [...ACTIONS].filter(action => (!journeyActive || journeyActions.has(action)) &&
         (action === 'home' ? supportsHomes(this.rules) : action === 'fish' ? supportsFishing(this.rules) : action === 'ruins' ? supportsRuins(this.rules) :
           featureProtocol(action) ? featureProtocol(action).supports(this.rules) : this.rules?.allowed_actions?.includes(action) ?? !['adventure_plan', 'adventure_event', 'personal_goal', 'cooperation', 'farm', 'inventory', 'gather', 'trade', 'survival', 'home'].includes(action)));
-      const sceneMotionGuidance = journeyActive ? '当前是本人选择的横版旅程或实际入场行程；路线用journey，勿用旧adventure_plan或自由move。只按当前观察行动；旅程job执行中只可stop、等待、聊天、明确吃本人食物、控制火把和目标/已有合作管理；取消或完成不代表下一步授权。' : MOVEMENT_GUIDANCE;
+      const sceneMotionGuidance = (supportsPlazaLayout(this.rules)?PLAZA_GUIDANCE+'\n':'') + (journeyActive ? '当前是本人选择的横版旅程或实际入场行程；路线用journey，勿用旧adventure_plan或自由move。只按当前观察行动；旅程job执行中只可stop、等待、聊天、明确吃本人食物、控制火把和目标/已有合作管理；取消或完成不代表下一步授权。' : MOVEMENT_GUIDANCE);
       await onRequest();
       const response = await this.fetchImpl(`${baseUrl}/chat/completions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.model.apiKey}` },
@@ -1078,8 +1080,12 @@ export class PlazaRunner extends EventEmitter {
       return act('say', { channel: 'nearby', text: `${friend.name}，很高兴认识你！我愿意一起组队玩接龙。` });
     }
     if (!others.length) {
-      const dx = Math.sign(11 - self.position.x); const dy = Math.sign(8 - self.position.y);
-      if (dx || dy) return act('move', { x: self.position.x + dx * Math.min(2, Math.abs(11 - self.position.x)), y: self.position.y + dy });
+      const camp = this.rules.life?.camp_place?.service_center || (observation.places || this.rules.places || []).find(place => place.id === 'garden');
+      if (camp && (!self.scene_id || self.scene_id === 'plaza')) {
+        const distance = p => Math.abs(camp.x - p.x) + Math.abs(camp.y - p.y);
+        const step = movementContext(observation, this.rules)?.candidates.filter(p => distance(p) < distance(self.position)).sort((a,b) => distance(a)-distance(b))[0];
+        if (step) return act('move', { x: step.x, y: step.y });
+      }
     }
     return act('wait');
   }

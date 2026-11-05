@@ -7,7 +7,7 @@ test.beforeEach(async () => { f = await createHomesFixture({ starterItems: { woo
 test.afterEach(async () => { await f.close(); });
 
 async function house(actor, name, furnish = false) {
-  await actor.act('move', { x: 10, y: 8 }); await f.until(() => !actor.raw.movement);
+  await actor.act('adventure_plan', { intent: 'retreat' }); await f.until(() => !actor.raw.adventure.plan);
   await actor.act('home', { intent: 'build', name });
   const id = `home_${actor.id}`;
   await actor.act('home', { intent: 'visit', home_id: id }); await f.until(() => actor.raw.home_presence?.home_id === id);

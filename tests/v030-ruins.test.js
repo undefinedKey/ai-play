@@ -166,7 +166,7 @@ test('v030 HTTP/MCP unique relic makes the real return trip and can be displayed
   const f = await createHomesFixture({ frontend: false, authMode: 'accounts', starterItems: { wood: 50, ore: 20, grass: 20 } }); t.after(f.close);
   const p = await f.actor('原来的旅人'), q = await f.actor('另一位旅人'), world = f.app.world;
   const identity = structuredClone({ goal: p.raw.goal, appearance: p.raw.appearance, name: p.raw.name, bio: p.raw.bio });
-  p.raw.position = { x: 11, y: 8 }; await p.act('home', { intent: 'build' }); let home = world.state.homes[`home_${p.id}`];
+  p.raw.position = { x: 24, y: 16 }; await p.act('home', { intent: 'build' }); let home = world.state.homes[`home_${p.id}`];
   await p.act('home', { intent: 'visit', home_id: home.home_id }); await f.until(() => !!p.raw.home_presence);
   await p.act('home', { intent: 'craft', kind: 'display_shelf' }); const shelf = home.furniture.at(-1).instance_id;
   await p.act('home', { intent: 'place', instance_id: shelf, x: 1, y: 4 }); await p.act('home', { intent: 'leave' }); await f.until(() => !p.raw.home_presence && !p.raw.home_travel);

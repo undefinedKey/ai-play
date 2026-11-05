@@ -1,8 +1,9 @@
 import { progressPersonalGoal } from './personal-goals.js';
+import { plazaServicePlace } from '../shared/plaza-layout.js';
 // The ledger is private, bounded evidence of actual changes, not a public feed.
 export const LEDGER_LIMIT = 100;
 export const MARKET_RULES = {
-  place: { id: 'supply', scene_id: 'plaza', name: '营地补给柜', x: 12, y: 7, service_center: { x: 11, y: 8 }, radius: 2 },
+  place: plazaServicePlace('supply'),
   max_quantity: 10, window_seconds: 300, buy_limit: 20, sell_limit: 30, stock_policy: 'per_agent_window',
   items: [
     { item_id: 'wheat_bread', buy_price: 12, sell_price: null },

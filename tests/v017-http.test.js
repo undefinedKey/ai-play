@@ -1,3 +1,5 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
+import { findPath } from '../server/spatial.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -37,7 +39,7 @@ test('v0.17 real HTTP/MCP: viewers do not move residents; portal journeys isolat
     for (const key of ['run', 'goal', 'scene_migration', 'scene_stale_actions', 'next_action_id']) assert.equal(visible[key], undefined);
   }
   assert.equal((await a.act('adventure_plan', { intent: 'explore', zone_id: 'forest' })).status, 'applied');
-  const journeyStarted = now, walkingSpeed = 2;
+  const journeyStarted = now, walkingSpeed = 2; const approachPath=findPath('plaza',a.raw.position,PLAZA_SERVICES.adventure.interaction_position);
   let late, crossed = false, distanceWalked = 0;
   for (let i = 0; i < 25; i++) {
     const old = structuredClone(a.raw.position), oldScene = a.raw.scene_id, previousTime = now;
@@ -50,17 +52,16 @@ test('v0.17 real HTTP/MCP: viewers do not move residents; portal journeys isolat
     // restricted to one tile per test tick. Account for the final approach
     // to the portal too, without counting the destination-scene spawn jump.
     assert.ok(stepDistance <= walkingSpeed * (now - previousTime) / 1000 + 1e-8, 'travel respects physical walking speed');
-    assert.equal(traveledTo.y, 8, 'the entire approach stays on the walkable entrance corridor');
-    assert.ok(traveledTo.x >= old.x && traveledTo.x <= 22, 'the approach moves toward the entrance without passing it');
+    assert.ok(approachPath.some((p,i)=>{const q=approachPath[i+1]||p;return p.x===q.x?traveledTo.x===p.x&&traveledTo.y>=Math.min(p.y,q.y)&&traveledTo.y<=Math.max(p.y,q.y):traveledTo.y===p.y&&traveledTo.x>=Math.min(p.x,q.x)&&traveledTo.x<=Math.max(p.x,q.x);}), 'every actual approach position lies on the authoritative physical route');
     distanceWalked += stepDistance;
     if (a.raw.scene_id !== oldScene) {
-      assert.equal(oldScene, 'plaza'); assert.deepEqual(app.world.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, { x: 22, y: 8 });
+      assert.equal(oldScene, 'plaza'); assert.deepEqual(app.world.state.events.findLast(e=>e.type==='scene_changed').payload.from_position, {...PLAZA_SERVICES.adventure.interaction_position});
       assert.equal(a.raw.scene_id, 'adventure'); assert.deepEqual(a.raw.position, { x: 11, y: 8 });
       crossed = true; break;
     }
   }
   assert.ok(crossed && late, 'entrance is reached by real steps');
-  assert.equal(distanceWalked, 11, 'the full distance to the entrance is walked');
+  assert.ok(Math.abs(distanceWalked-(approachPath.length-1))<1e-8, 'the full distance to the entrance is walked');
   assert.ok(now - journeyStarted >= distanceWalked / walkingSpeed * 1000, 'crossing cannot occur before physically reaching the entrance');
   assert.equal((await a.call('act', late)).error.code, 'STALE_ACTION');
   assert.equal(a.raw.scene_id, 'adventure');
@@ -73,10 +74,10 @@ test('v0.17 real HTTP/MCP: viewers do not move residents; portal journeys isolat
   assert.equal((await a.act('say', { channel: 'group', text: '从林地联系广场的队友', group_id: group.group_id })).status, 'applied');
   assert.equal((await a.act('farm', { intent: 'till', plot_id: 'plot_1' })).error.code, 'SCENE_REQUIRED');
   assert.equal((await a.act('adventure_plan', { intent: 'retreat' })).status, 'applied');
-  await tick(); assert.equal(a.raw.scene_id, 'plaza'); assert.deepEqual(a.raw.position, { x: 22, y: 8 });
+  await tick(); assert.equal(a.raw.scene_id, 'plaza'); assert.deepEqual(a.raw.position, {...PLAZA_SERVICES.adventure.interaction_position});
   for (let i = 0; i < 20 && a.raw.adventure.plan; i++) await tick();
-  assert.equal(a.raw.adventure.plan, null); assert.deepEqual(a.raw.position, { x: 11, y: 8 });
-  assert.equal((await a.act('farm', { intent: 'till', plot_id: 'plot_1' })).status, 'applied');
+  assert.equal(a.raw.adventure.plan, null); assert.deepEqual(a.raw.position, {...PLAZA_SERVICES.camp.interaction_position});
+  assert.equal((await a.act('farm', { intent: 'till', plot_id: 'plot_1' })).error.code, 'NOT_AT_SERVICE');
   assert.deepEqual(a.raw.run, originalGrant, 'travel cannot expand authorization, deadline or call budget');
   const transitions = app.world.state.events.filter(e => e.type === 'scene_changed' && e.payload.agent_id === a.id);
   assert.equal(transitions.length, 2);

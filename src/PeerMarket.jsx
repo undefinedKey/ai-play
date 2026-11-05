@@ -13,7 +13,7 @@ export function PeerMarketLandmark({ world, map }) {
   if (!place?.position || place.scene_id !== 'plaza') return null;
   const open = selection.selected === 'peer_market', count = marketOffers(market).length;
   return <button type="button" className={`peer-market-landmark ${open ? 'selected' : ''}`} style={{ ...projectMapPoint(place.position, map), zIndex: 100 + place.position.y * 10 }} data-testid="peer-market-landmark" data-scene-id="plaza" aria-label={`查看${place.name}公告，${count} 份等待回应，只读`} aria-expanded={open} aria-controls="peer-market-board" onClick={() => selection.select(open ? null : 'peer_market')}>
-    <RenderSpace position={place.position} depth={100 + place.position.y * 10} anchor={[48, 77.4]}><span className="peer-market-art"><PixelSprite definition={marketArtwork}/></span></RenderSpace>
+    <RenderSpace position={place.position} depth={100 + place.position.y * 10} anchor={[marketArtwork.anchor.x, marketArtwork.anchor.y]}><span className="peer-market-art"><PixelSprite definition={marketArtwork}/></span></RenderSpace>
     <span className="peer-market-sign">集市公告{count > 0 && <b>{count}</b>}</span>
   </button>;
 }

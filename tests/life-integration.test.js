@@ -1,3 +1,4 @@
+import { LIFE_RULES } from '../server/life.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -17,7 +18,7 @@ function role(world, name = '生活测试', owner_id = 'alice') {
 function fixture(t) {
   let now = 1000000;
   const w = new World({ actionIntervalMs: 0, now: () => now }); t.after(() => w.close());
-  const r = role(w); r.a.position = { x: 11, y: 8 };
+  const r = role(w); r.a.position = {...LIFE_RULES.farm_place.service_center};
   return { w, r, advance: ms => { now += ms; } };
 }
 const observe = (w, r) => w.callTool(r.auth, 'observe', r.session);
@@ -57,7 +58,7 @@ test('当前推荐动作在营地、野外、成熟农田与寻宝场景都能�
   check();
   r.a.adventure.hp = 20; r.a.life.inventory.turnip = 2; check();
   r.a.position = { x: 4, y: 11 }; r.a.adventure.in_field = true; check();
-  r.a.position = { x: 11, y: 8 }; r.a.adventure.in_field = false;
+  r.a.position = {...LIFE_RULES.farm_place.service_center}; r.a.adventure.in_field = false;
   for (const payload of [{ intent: 'till', plot_id: 'plot_1' }, { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }, { intent: 'water', plot_id: 'plot_1' }]) {
     const o = observe(w, r);
     assert.equal(w.callTool(r.auth, 'act', { ...r.session, action_id: o.next_action_id, type: 'farm', payload }).status, 'applied');
@@ -66,13 +67,14 @@ test('当前推荐动作在营地、野外、成熟农田与寻宝场景都能�
   r.a.life.inventory.turnip = Number.MAX_SAFE_INTEGER;
   assert.equal(observe(w, r).opportunities.some(x => x.action.payload.intent === 'harvest'), false);
   check();
+  r.a.position={...LIFE_RULES.camp_place.service_center};
   const o = observe(w, r);
   assert.equal(w.callTool(r.auth, 'act', { ...r.session, action_id: o.next_action_id, type: 'start_activity', payload: { activity_id: 'treasure_hunt' } }).status, 'applied');
   check();
 });
 
 test('仓库仅本人MCP与主人可读，旁观及别人的账号只能看田地和装备', t => {
-  const { w, r } = fixture(t); const other = role(w, '其他主人角色', 'bob');
+  const { w, r } = fixture(t); const other = role(w, '其他主人角色', 'bob'); other.a.position={...r.a.position};
   r.a.life.inventory.ore = 719;
   r.a.diagnostics.runtime_version = '0.9.0'; r.a.diagnostics.last_decision_type = 'wait';
   assert.equal(observe(w, r).self.life.inventory.ore, 719);
@@ -104,7 +106,7 @@ test('接入端诊断保留版本、能力和真实动作回执，不把状态�
 test('真实MCP传输可发现农具并执行开垦/种植/制作/穿戴', async t => {
   const app = await createApp({ dbPath: ':memory:', frontend: false });
   const { server, url } = await app.start(0);
-  const r = role(app.world); r.a.position = { x: 11, y: 8 }; app.world.actionIntervalMs = 0;
+  const r = role(app.world); r.a.position = {...LIFE_RULES.farm_place.service_center}; app.world.actionIntervalMs = 0;
   const client = new Client({ name: 'life-test', version: '1.0.0' });
   t.after(async () => { await client.close(); await app.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${r.controller.token}` } } }));
@@ -115,12 +117,15 @@ test('真实MCP传输可发现农具并执行开垦/种植/制作/穿戴', async
   const commands = [
     ['farm', { intent: 'till', plot_id: 'plot_1' }],
     ['farm', { intent: 'plant', crop_id: 'turnip', plot_id: 'plot_1' }], ['farm', { intent: 'water', plot_id: 'plot_1' }],
-    ['inventory', { intent: 'craft', item_id: 'wooden_sword' }], ['inventory', { intent: 'equip', item_id: 'wooden_sword' }],
+    ['inventory', { intent: 'craft', item_id: 'wooden_sword' }],
   ];
   for (const [type, payload] of commands) {
     const o = await call('observe', r.session);
     assert.equal((await call('act', { ...r.session, action_id: o.next_action_id, type, payload })).status, 'applied');
   }
+  r.a.position = {...LIFE_RULES.camp_place.service_center};
+  const equipmentObservation = await call('observe', r.session);
+  assert.equal((await call('act', {...r.session,action_id:equipmentObservation.next_action_id,type:'inventory',payload:{intent:'equip',item_id:'wooden_sword'}})).status,'applied');
   const self = (await call('observe', r.session)).self;
   assert.equal(self.life.stats.attack, 8); assert.equal(self.life.plots[0].tilled, true);
   assert.equal(self.life.tools.hoe.durability, 19); assert.equal(self.life.tools.watering_can.durability, 19);

@@ -20,7 +20,7 @@ function fixture(t, options = {}) {
     const a = world.createAgent({ name, owner_id }), controller = world.createController(a.agent_id);
     world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 15 });
     const auth = world.authenticate(controller.token), joined = world.callTool(auth, 'join_world');
-    world.agent(a.agent_id).position = { x: 11, y: 8 };
+    world.agent(a.agent_id).position = { ...LIFE_RULES.farm_place.service_center };
     return { id: a.agent_id, auth, controller, session: { run_id: joined.run_id, session_epoch: joined.session_epoch } };
   };
   const raw = p => world.agent(p.id);
@@ -148,10 +148,10 @@ test('开垦和维护只允许营地空闲，野外/活动/多人游戏拒绝且
     assert.equal(f.farm(p, 'till').error.code, code); assert.equal(f.inventory(p, 'repair', 'hoe').error.code, code);
     assert.deepEqual(snapshot(f.raw(p)), before);
   };
-  f.raw(p).position = { x: 14, y: 8 }; rejected('NOT_AT_CAMP'); f.raw(p).position = { x: 11, y: 8 };
+  f.raw(p).position = { x: 14, y: 8 }; rejected('NOT_AT_SERVICE'); f.raw(p).position = { ...LIFE_RULES.farm_place.service_center };
   applied(f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' })); rejected('ACTIVITY_BUSY');
-  applied(f.act(p, 'adventure_plan', { intent: 'stop' })); applied(f.act(p, 'start_activity', { activity_id: 'relax' })); rejected('ACTIVITY_BUSY');
-  applied(f.act(p, 'finish_activity', {})); const group = applied(f.act(p, 'create_group', {})).group_id;
+  applied(f.act(p, 'adventure_plan', { intent: 'stop' })); f.raw(p).position = {...LIFE_RULES.camp_place.service_center}; applied(f.act(p, 'start_activity', { activity_id: 'relax' })); rejected('NOT_AT_SERVICE');
+  applied(f.act(p, 'finish_activity', {})); f.raw(p).position={...LIFE_RULES.farm_place.service_center}; const group = applied(f.act(p, 'create_group', {})).group_id;
   applied(f.act(p, 'propose_game', { group_id: group })); rejected('GAME_BUSY');
 });
 
@@ -205,7 +205,7 @@ test('真实HTTP MCP支持开垦和升级，公开响应与动作回执均返回
   const app = await createApp({ dbPath: ':memory:', frontend: false, demo: false }); app.world.actionIntervalMs = 0;
   const clock = Date.now(); app.world.now = () => clock;
   const { server, url } = await app.start(0), a = app.world.createAgent({ name: '农具 MCP' }), c = app.world.createController(a.agent_id);
-  app.world.ownerControl(a.agent_id, 'start'); app.world.agent(a.agent_id).position = { x: 11, y: 8 }; app.world.agent(a.agent_id).life.inventory.ore = 2;
+  app.world.ownerControl(a.agent_id, 'start'); app.world.agent(a.agent_id).position = { ...LIFE_RULES.farm_place.service_center }; app.world.agent(a.agent_id).life.inventory.ore = 2;
   const client = new Client({ name: 'farm-tools-test', version: '0.11.0' });
   t.after(async () => { await client.close(); await app.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${c.token}` } } }));

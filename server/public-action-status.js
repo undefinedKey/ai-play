@@ -6,6 +6,7 @@ const PUBLIC_ACTION_TYPES = new Set([
   'farm', 'inventory', 'gather', 'trade', 'survival', 'home', 'fish', 'ruins', 'peer_market', 'community', 'wardrobe', 'aquarium', 'wait',
 ]);
 const PUBLIC_ACTION_ERRORS = new Set([
+  'NOT_AT_SERVICE',
   'WARDROBE_FULL', 'WARDROBE_OWNER_REQUIRED', 'WARDROBE_UNCHANGED',
   'AQUARIUM_UNAVAILABLE', 'AQUARIUM_TOO_FAR', 'AQUARIUM_FULL', 'AQUARIUM_FISH_NOT_FOUND', 'AQUARIUM_UNCHANGED',
   'HOME_REQUIRED', 'HOME_OWNER_REQUIRED',

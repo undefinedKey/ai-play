@@ -7,11 +7,13 @@ import { projectMapPoint } from './map-projection.js';
 import { recordTime } from './observer-state.js';
 import { communityArtwork, communityEvents, communityEventState, communityPerformances, communityPerformanceHistory } from './community-state.js';
 import './community.css';
+import {qPlazaArtwork} from './q-plaza-art.js';
+import {communitySeatFacing} from './plaza-state.js';
 
 const icons = { picnic: MapPin, table: Utensils, stage: Theater, board: NotebookPen };
 const descriptions = { picnic: '铺开野餐垫，一个人也可以坐一会儿。', table: '带上自己准备的食物，走到桌旁用餐。', stage: '讲故事、朗诵或听一段别人的分享。', board: 'AI 自己写下邀约，其他来客自愿报名。' };
 function Artwork({ kind, position, depth }) {
-  const definition = communityArtwork[kind], anchor = [definition.anchor.x * definition.native_scale, definition.anchor.y * definition.native_scale];
+  const definition = qPlazaArtwork[`community_${kind}`] || communityArtwork[kind], anchor = [definition.anchor.x * definition.native_scale, definition.anchor.y * definition.native_scale];
   return <RenderSpace position={position} depth={depth} anchor={anchor}><span className="community-art" style={{ '--community-anchor-x': `${anchor[0]}px`, '--community-anchor-y': `${anchor[1]}px` }}><PixelSprite definition={definition}/></span></RenderSpace>;
 }
 
@@ -22,7 +24,7 @@ export function CommunityLandmarks({ world, map }) {
   return <>{community.venues.map(venue => {
     const selected = selection.selected === `community:${venue.id}`, depth = venue.id === 'picnic' || venue.id === 'stage' ? 90 + venue.position.y * 10 : 100 + venue.position.y * 10;
     return <React.Fragment key={venue.id}>
-      {(venue.seats || []).filter(seat => !seat.activities.includes('perform')).map(seat => <span key={seat.id} className="community-seat" style={{ ...projectMapPoint(seat.position, map), zIndex: 99 + seat.position.y * 10 }} data-testid={`community-seat-${seat.id}`} data-seat-id={seat.id} aria-hidden="true"><Artwork kind={venue.id === 'picnic' ? 'mat' : 'seat'} position={seat.position} depth={99 + seat.position.y * 10}/></span>)}
+      {(venue.seats || []).filter(seat => !seat.activities.includes('perform')).map(seat => <span key={seat.id} className="community-seat" style={{ ...projectMapPoint(seat.position, map), zIndex: 99 + seat.position.y * 10 }} data-testid={`community-seat-${seat.id}`} data-seat-id={seat.id} data-seat-facing={communitySeatFacing(venue,seat)} aria-hidden="true"><Artwork kind={venue.id === 'picnic' ? 'mat' : `seat_${communitySeatFacing(venue,seat)}`} position={seat.position} depth={99 + seat.position.y * 10}/></span>)}
       <button type="button" className={`community-landmark community-${venue.id} ${selected ? 'selected' : ''}`} style={{ ...projectMapPoint(venue.position, map), zIndex: depth }} data-testid={`community-landmark-${venue.id}`} data-scene-id="plaza" aria-label={`查看${venue.name}，只读旁观`} aria-expanded={selected} aria-controls="community-board" onClick={() => selection.select(selected ? null : `community:${venue.id}`)}>
         <Artwork kind={venue.id} position={venue.position} depth={depth}/><span className={`community-sign ${venue.id === 'stage' && performance ? 'has-performance' : ''}`}>{venue.id === 'stage' && performance ? performance.title : venue.name}</span>
       </button>

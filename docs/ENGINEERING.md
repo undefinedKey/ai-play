@@ -6,6 +6,12 @@
 
 原生像素绘制源位于 `art/q-world` 与 `src/q-actor-art.js`，通过 `npm run art:build` 生成当前世界图集、锚点和 SHA-256 清单。小屋使用 `src/home-pixel-drawing.js` 的整数像素几何。美术源与运行协议分开，发布流程检查素材副本、实际布局与原存档，不在服务器运行图片生成服务。
 
+## 广场布局契约
+
+`skills/ai-plaza/scripts/plaza-layout.mjs` 是公共设施、道路、占地、资源与站位的唯一编写来源，`shared/plaza-layout.js` 重导出给服务与浏览器。`scripts/build-plaza-map.mjs` 将其生成 Tiled 地图，地图校验必须拒绝生成文件与契约偏离。各生活动作只验证其实际设施，不能把拒绝动作改成自动移动或消费。
+
+`server/plaza-layout.js` 在旧存档初始化时记录布局变化；`deploy/verify-scenes.mjs` 独立计算合法点与最近修复点，验证迁移时间、原点、取消的路线和对应事件。资源与火塘保留稳定 ID 和持久内容，仅公共位置按新定义投影。禁止用测试自动移动包装器掩盖服务站位错误，测试旅行需显式调用实际 MCP 动作。
+
 ## 当前分工
 
 | 层 | 负责 | 不负责 |

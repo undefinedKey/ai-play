@@ -1,3 +1,5 @@
+import {walkFixture} from '../helpers/walk-fixture.js';
+import {PLAZA_SERVICES} from '../../shared/plaza-layout.js';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createHomesFixture } from '../helpers/homes-fixture.js';
@@ -54,6 +56,7 @@ test('v033 actual encounter combat gathering and camp rest use the same identity
   actor.raw.survival.satiety = 35; f.app.world.commit();
   await actor.act('adventure_plan', { intent: 'retreat' });
   await f.until(() => !actor.raw.adventure.plan);
+  await walkFixture(actor,PLAZA_SERVICES.tools.interaction_position,f.until);
   await actor.act('inventory', { intent: 'craft', item_id: 'axe' });
   const sprite = actor.raw.appearance.sprite_id;
   await enter(actor);

@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {WorldRenderContext} from './world-render-context.jsx';
 import {usePixelManifest} from './PixelWorld.jsx';
+import {plazaPropArtwork} from './plaza-state.js';
 import {sceneDefinition,WORLD_MAP} from '../shared/world-layout.js';
 import {sameRenderPacket} from './render-packet.js';
 import {NightLighting} from './Survival.jsx';
@@ -22,7 +23,7 @@ export default function PhaserWorld({sceneId,live,children,cycle,survival}) {
   useEffect(()=>{
     if(!assets)return;
     let cancelled=false,instance;
-    setStatus('loading');setImportFailed(false);setPartial(sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!assets.props?.[prop.kind]));
+    setStatus('loading');setImportFailed(false);setPartial(sceneDefinition(sceneId)?.props.some(prop=>prop.kind!=='pond'&&!plazaPropArtwork(assets,sceneId,prop)));
     // Phaser stays outside the initial React bundle and owns only the visible main map.
     requestRenderer().then(module=>{
       if(cancelled)return;

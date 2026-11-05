@@ -50,5 +50,5 @@ test('v033 observed near resources, explicit eating and finite camp rest form a 
   await f.advance(1000);assert.equal(p.raw.life.inventory.roasted_berry,1,'cooking never grants consent to eat');
   const energy=p.raw.fatigue.energy;await p.act('journey',{intent:'rest',duration_seconds:15});assert.equal(p.raw.journey_job.phase,'resting');await f.advance(15100);assert.equal(p.raw.journey_job,null);assert.ok(p.raw.fatigue.energy>energy);
   const rested=p.raw.fatigue.energy;await f.advance(5000);assert.equal(p.raw.journey_job,null);assert.equal(p.raw.fatigue.energy,rested,'completed explicit rest does not silently renew');
-  await p.act('journey',{intent:'leave',route:'bypass'});await f.until(()=>p.raw.scene_id==='plaza');assert.deepEqual(p.raw.position,{x:22,y:8});assert.equal(p.raw.goal,p.goal);
+  await p.act('journey',{intent:'leave',route:'bypass'});await f.until(()=>p.raw.scene_id==='plaza');assert.deepEqual(p.raw.position,{x:46,y:20});assert.equal(p.raw.goal,p.goal);
 });

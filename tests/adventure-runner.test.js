@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -182,7 +183,7 @@ test('探索遭遇主动锁定唤醒原AI，原AI可选择撤退，未下hunt不
   assert.equal(f.a.adventure.plan.intent, 'retreat'); assert.equal(f.runner.checkpoint.calls_used, 2);
   for (let step = 0; step < 40 && f.a.adventure.plan; step++) f.tick();
   assert.equal(f.a.adventure.in_field, false);
-  assert.equal(f.a.scene_id, 'plaza'); assert.deepEqual(f.a.position, { x: 11, y: 8 });
+  assert.equal(f.a.scene_id, 'plaza'); assert.deepEqual(f.a.position, lifePosition(f.world, 'camp_place'));
   assert.equal(f.world.state.events.some(e => e.type === 'adventure_combat' && e.payload.attacker === 'agent'), false);
 });
 

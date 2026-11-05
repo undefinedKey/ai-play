@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES,PLAZA_RESOURCE_POSITIONS} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position,TOOLS=PLAZA_SERVICES.tools.interaction_position,BRANCH=PLAZA_RESOURCE_POSITIONS.camp_branches.interaction_position;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -24,7 +26,7 @@ function fixture(t, persistent = false) {
     world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id, duration_minutes: 60, max_calls: 10000 });
     const auth = world.authenticate(c.token), seen = world.callTool(auth, 'join_world');
     const p = { id: a.agent_id, auth, session: { run_id: seen.run_id, session_epoch: seen.session_epoch } }; actors.push(p);
-    raw(p).position = { x: 11, y: 8 }; raw(p).position_at = now;
+    raw(p).position = { ...BRANCH }; raw(p).position_at = now;
     return p;
   };
   const request = (p, type, payload) => ({ ...p.session, action_id: observe(p).next_action_id, type, payload });
@@ -37,6 +39,7 @@ function fixture(t, persistent = false) {
 }
 const applied = r => { assert.equal(r.status, 'applied', JSON.stringify(r.error)); return r; };
 const gather = (f, p, node_id, mode) => applied(f.act(p, 'gather', { intent: 'start', node_id, ...(mode ? { mode } : {}) }));
+const walk=(f,p,target)=>{for(let i=0;i<60&&(f.raw(p).position.x!==target.x||f.raw(p).position.y!==target.y);i++){const path=findPath(f.raw(p).scene_id,f.raw(p).position,target);assert.ok(path?.length>1);const next=path[Math.min(3,path.length-1)];applied(f.act(p,'move',{x:next.x,y:next.y}));f.until(()=>!f.raw(p).movement);}assert.deepEqual(f.raw(p).position,target);};
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} != ${b}`);
 
 test('v020 shared authored nodes are reachable and public data excludes private reservations', t => {
@@ -56,8 +59,8 @@ test('v020 shared authored nodes are reachable and public data excludes private 
 
 test('v020 real bootstrap → crafted axe → travel/work → berries → ration supplies the same AI', t => {
   const f = fixture(t), p = f.make(), a = f.raw(p);
-  applied(f.act(p, 'gather', { intent: 'start', resource_id: 'ore' })); f.advance(18000);
-  assert.equal(a.life.inventory.ore, 1);
+  applied(f.act(p, 'gather', { intent: 'start', node_id: 'camp_stones' })); f.until(()=>!a.life.gathering);
+  assert.equal(a.life.inventory.ore, 1); walk(f,p,TOOLS);
   applied(f.act(p, 'inventory', { intent: 'craft', item_id: 'axe' })); assert.equal(a.life.tools.axe.durability, 12);
   const energy = a.fatigue.energy, start = { ...a.position }, stock = f.world.state.resources.nodes.east_pine.stock;
   gather(f, p, 'east_pine'); assert.equal(a.life.gathering.phase, 'approaching'); assert.deepEqual(a.position, start); assert.equal(a.fatigue.energy, energy);
@@ -68,7 +71,7 @@ test('v020 real bootstrap → crafted axe → travel/work → berries → ration
   f.advance(100); assert.equal(a.life.gathering, null); assert.equal(a.life.inventory.wood, wood + 3); assert.equal(f.world.state.resources.nodes.east_pine.stock, stock - 1);
   assert.equal(a.life.ledger.entries.filter(e => e.source_id === work.job_id).length, 1);
   gather(f, p, 'orchard_berries'); f.until(() => !a.life.gathering); assert.equal(a.life.inventory.berry, 2);
-  applied(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.until(() => !a.adventure.plan); assert.deepEqual(a.position, { x: 11, y: 8 });
+  applied(f.act(p, 'adventure_plan', { intent: 'retreat' })); f.until(() => !a.adventure.plan); assert.deepEqual(a.position, CAMP); walk(f,p,PLAZA_SERVICES.kitchen.interaction_position);
   applied(f.act(p, 'inventory', { intent: 'craft', item_id: 'trail_ration' })); assert.equal(a.life.inventory.berry, 0);
   a.adventure.hp = 20; a.fatigue.energy = 30;
   applied(f.act(p, 'inventory', { intent: 'use', item_id: 'trail_ration' })); assert.equal(a.adventure.hp, 32); assert.equal(a.fatigue.energy, 48); assert.equal(a.life.inventory.trail_ration, 0);
@@ -110,7 +113,7 @@ test('v020 cancel, pause, run expiry and host lease stop approach without remote
 });
 
 test('v020 tooling is owned, durable and repairable; invalid actions and duplicate crafts do not create tools', t => {
-  const f = fixture(t), p = f.make(); let a = f.raw(p);
+  const f = fixture(t), p = f.make(); walk(f,p,TOOLS); let a = f.raw(p);
   assert.equal(f.act(p, 'gather', { intent: 'start', node_id: 'east_pine' }).error.code, 'TOOL_REQUIRED');
   assert.equal(f.act(p, 'inventory', { intent: 'repair', item_id: 'axe' }).error.code, 'TOOL_REQUIRED');
   a = f.raw(p);
@@ -164,7 +167,7 @@ test('v020 manual redirection cancels only the old resource path; active work ca
   const stopped = { ...a.position }, target = f.observe(p).movement.candidates[0];
   applied(f.act(p, 'move', { x: target.x, y: target.y })); assert.equal(a.life.gathering, null);
   assert.equal(f.world.state.resources.nodes.east_pine.reservation, null); assert.ok(a.movement); f.advance(2000); assert.notDeepEqual(a.position, stopped);
-  a.position = { x: 11, y: 8 }; a.movement = null; gather(f, p, 'camp_branches');
+  a.position = { ...BRANCH }; a.movement = null; gather(f, p, 'camp_branches');
   const wood = a.life.inventory.wood; a.position = { x: 20, y: 20 }; f.advance(12000);
   assert.equal(a.life.inventory.wood, wood); assert.equal(a.life.gathering, null); assert.equal(f.world.state.resources.nodes.camp_branches.stock, 3);
 });
@@ -173,7 +176,7 @@ test('v020 job TTL is independent from owner grant, frees the node and never ext
   const f = fixture(t), p = f.make(), a = f.raw(p); f.tools(p);
   const grant = a.run.expires_at; gather(f, p, 'east_pine'); f.advance(100);
   a.life.gathering.expires_at = f.now() + 250; f.world.state.resources.nodes.east_pine.reservation.expires_at = a.life.gathering.expires_at;
-  f.jump(1000); assert.equal(a.life.gathering, null); assert.equal(a.movement, null); close(a.position.x, 11.7);
+  f.jump(1000); assert.equal(a.life.gathering, null); assert.equal(a.movement, null); close(Math.abs(a.position.x-BRANCH.x)+Math.abs(a.position.y-BRANCH.y), .7);
   assert.equal(a.run.expires_at, grant); assert.equal(a.status, 'active'); assert.equal(a.adventure.plan, null);
   assert.equal(f.world.state.events.filter(e => e.type === 'life_gather_cancelled').at(-1).payload.reason, 'expired');
 });

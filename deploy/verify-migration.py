@@ -335,6 +335,8 @@ def compare_states(old, new, project_root=None, require_history=False, require_s
             text=True, encoding='utf-8', timeout=60)
         assert result.returncode == 0, 'scene location preservation/migration verification failed'
         assert json.loads(result.stdout).get('scene_locations_preserved') is True
+        if 'plaza_layout_version' in new:
+            assert json.loads(result.stdout).get('plaza_layout_verified') is True, 'authored plaza layout proof required'
     if 'resources' in new or 'day_cycle' in new:
         if project_root is None:
             assert '__file__' in globals(), 'explicit application root required for embedded migration verification'
@@ -387,6 +389,10 @@ def verify(path, root=Path('/')):
             assert hashlib.sha256(old_env).digest() == hashlib.sha256((root / 'etc/ai-plaza/server.env').read_bytes()).digest()
         old = read_database(Path(directory) / 'world.sqlite')
     new = read_database(root / 'var/lib/ai-plaza/world.sqlite')
+    deployed_version = json.loads((root / 'opt/ai-plaza/package.json').read_text())['version']
+    assert re.fullmatch(r'\d+\.\d+\.\d+', deployed_version), 'deployed semantic version required'
+    if tuple(map(int, deployed_version.split('.'))) >= (0, 36, 0):
+        assert new.get('plaza_layout_version') == 'plaza-036-v1', 'deployed authored plaza layout required'
     compare_states(old, new, project_root=root / 'opt/ai-plaza', require_history=True, require_scenes=True)
     return {'agents': len(old['agents']), 'life_inventory_plots_tools_equipment_preserved': True,
         'appearance_growth_preserved': True, 'grants_and_budgets_preserved': True, 'controller_credentials_preserved': True,
@@ -399,6 +405,7 @@ def verify(path, root=Path('/')):
         'community_terms_membership_jobs_preserved': True,
         'public_history_preserved': True,
         'scene_locations_preserved': True,
+        'plaza_layout_positions_and_records_preserved': new.get('plaza_layout_version') == 'plaza-036-v1',
         'survival_state_preserved': True,
         'sqlite_integrity': 'ok', 'backup': str(path)}
 

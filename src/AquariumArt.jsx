@@ -20,7 +20,7 @@ export default function AquariumArt({ item, rotation = 0, live = false, preview 
   const { fish, decorations } = publicAquarium(item), geometry = aquariumGeometry(rotation), { water } = geometry;
   return <svg viewBox={`0 0 ${geometry.width} ${geometry.height}`} shapeRendering="crispEdges" aria-hidden="true"
     className="home-furniture-art furniture-aquarium" data-testid={`aquarium-${preview?'preview':'art'}-${item?.instance_id || 'unplaced'}`}
-    data-art-release="0.35.0" data-art-kind="aquarium" data-art-rotation={geometry.rotation} data-art-layer="base"
+    data-art-release="0.36.0" data-art-kind="aquarium" data-art-rotation={geometry.rotation} data-art-layer="base"
     data-fish-count={fish.length} data-decoration-count={decorations.length} data-playing={playing}>
     <Rects drawing={homeFurniturePixels('aquarium', rotation)}/>
     <defs><clipPath id={clip}><rect {...water}/></clipPath></defs>

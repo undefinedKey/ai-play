@@ -1,0 +1,29 @@
+/* Labels belong to the observer layer; none is an instruction to a resident. */
+.plaza-landmarks{position:absolute;inset:0;pointer-events:none}
+.plaza-district{position:absolute;transform:translate(-50%,-100%);font-size:calc(13px / var(--camera-zoom,1));letter-spacing:.12em;line-height:1.5;white-space:nowrap;color:#355c48;background:#f5edcdda;padding:calc(3px / var(--camera-zoom,1)) calc(9px / var(--camera-zoom,1));border:1px solid #a5b784;border-radius:2px;box-shadow:0 1px 0 #405f3e24;pointer-events:none;z-index:420}
+.world-camera.focused .plaza-district{display:none}
+.plaza-facility{position:absolute;width:calc(152px * var(--world-scale,1));height:calc(104px * var(--world-scale,1));transform:translate(-50%,-100%);pointer-events:auto;cursor:help;border:0;background:none;outline-offset:3px}
+.plaza-facility-name{position:absolute;left:50%;bottom:calc(130px * var(--world-scale,1));transform:translateX(-50%);font-size:calc(11px / var(--camera-zoom,1));line-height:1.4;white-space:nowrap;color:#38513c;background:#fff8e3ee;border:1px solid #a5b784;border-radius:2px;padding:calc(3px / var(--camera-zoom,1)) calc(6px / var(--camera-zoom,1));opacity:0;pointer-events:none}
+.plaza-facility-name small{display:none;font-size:calc(10px / var(--camera-zoom,1));color:#56664a;margin-top:3px}
+.world-camera.focused .plaza-facility-name,.plaza-facility:is(:hover,:focus-visible) .plaza-facility-name{opacity:1}
+.plaza-facility:is(:hover,:focus-visible) .plaza-facility-name small{display:block}
+.plaza-facility:focus-visible{outline:2px solid #4b7155}
+.facility-adventure,.facility-journey{width:calc(94px * var(--world-scale,1));height:calc(112px * var(--world-scale,1))}
+.facility-play{width:calc(96px * var(--world-scale,1));height:calc(70px * var(--world-scale,1))}
+.plaza-journey-art{position:absolute;pointer-events:none;transform:translate(calc(-1 * var(--plaza-anchor-x) * var(--world-scale,1)),calc(-1 * var(--plaza-anchor-y) * var(--world-scale,1)));--pixel-scale:var(--world-scale,1)}
+.renderer-ready .plaza-journey-art{visibility:hidden}
+[data-testid=plaza-map] .scene-prop{width:auto;height:auto;pointer-events:none}
+[data-testid=plaza-map] .scene-portal-label{display:none}
+[data-testid=plaza-map] .home-world-entrance{width:calc(42px * var(--world-scale,1));height:calc(42px * var(--world-scale,1));min-width:22px;min-height:22px;transform:translate(-50%,-100%);background:none;border:0;padding:0;outline-offset:3px}
+[data-testid=plaza-map] .home-world-entrance>svg{display:none}
+[data-testid=plaza-map] .home-world-entrance>span{position:absolute;top:auto;bottom:calc(184px * var(--world-scale,1));left:50%;transform:translateX(-50%);font-size:calc(11px / var(--camera-zoom,1));padding:calc(3px / var(--camera-zoom,1)) calc(6px / var(--camera-zoom,1));white-space:nowrap;background:#fff8e3ee;color:#38513c;border:1px solid #a5b784;border-radius:2px;opacity:0;pointer-events:none}
+.world-camera.focused [data-testid=plaza-map] .home-world-entrance>span,[data-testid=plaza-map] .home-world-entrance:is(:hover,:focus-visible)>span{opacity:1}
+[data-testid=plaza-map] .camp-landmark.landmark-kitchen,[data-testid=plaza-map] .camp-landmark.landmark-supply{pointer-events:none;visibility:hidden}
+[data-testid=plaza-map] .peer-market-landmark{width:calc(166px * var(--world-scale,1));height:calc(130px * var(--world-scale,1))}
+[data-testid=plaza-map] .peer-market-art>.pixel-sprite{left:calc(-88px * var(--world-scale,1))!important;top:calc(-132px * var(--world-scale,1))!important}
+[data-testid=plaza-map] .peer-market-sign,[data-testid=plaza-map] .community-board .community-sign{opacity:0;pointer-events:none}
+.world-camera.focused [data-testid=plaza-map] .peer-market-sign,.world-camera.focused [data-testid=plaza-map] .community-board .community-sign,[data-testid=plaza-map] .peer-market-landmark:is(:hover,:focus-visible,.selected) .peer-market-sign,[data-testid=plaza-map] .community-board:is(:hover,:focus-visible,.selected) .community-sign{opacity:1}
+[data-testid=plaza-map] .fishing-spot svg{width:calc(18px * var(--world-scale,1));height:calc(23px * var(--world-scale,1))}
+@media(max-width:600px){.plaza-district{font-size:10px;padding:2px 5px;letter-spacing:.02em}.district-leisure,.district-lawn{display:none}}
+
+.facility-adventure .plaza-facility-name,.facility-journey .plaza-facility-name{bottom:calc(162px * var(--world-scale,1))}

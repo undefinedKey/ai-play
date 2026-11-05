@@ -66,6 +66,7 @@ async function fixture(t, choose) {
   });
   async function resident(pet) {
     const agent = app.world.createAgent({ name: pet === 'alpha' ? '原 Alpha' : '原 Beta', bio: '原宿主管理身份' });
+    app.world.agent(agent.agent_id).position = { ...app.world.getRules().life.camp_place.service_center };
     const controller = app.world.createController(agent.agent_id);
     app.world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 15, max_calls: 30, goal: 'PRIVATE_OWNER_GOAL' });
     const statePath = join(folder, pet + '.json');
@@ -86,10 +87,13 @@ async function fixture(t, choose) {
 }
 
 test('常驻桥经真实 HTTP/MCP：无观众、无人发言也主动开始活动，结束后继续行动', async t => {
+  let chosenMove;
   const f = await fixture(t, (_record, requests) => requests.length === 1
     ? { type: 'start_activity', payload: { activity_id: 'relax' } }
-    : { type: 'move', payload: { x: 10, y: 7 } });
+    : { type: 'move', payload: chosenMove });
   const { agent, bridge } = await f.resident('alpha');
+  const candidate = f.app.world.observation(f.app.world.agent(agent.agent_id)).movement.candidates[0];
+  chosenMove = { x: candidate.x, y: candidate.y };
   f.startClock();
   await until(() => f.app.world.agent(agent.agent_id).activity, '原 AI 未在无人触发时开始独处活动');
   const end = f.app.world.agent(agent.agent_id).activity.ends_at;

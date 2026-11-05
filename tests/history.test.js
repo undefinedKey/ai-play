@@ -14,7 +14,7 @@ function fixture(t, persistent = false) {
   f.people = ['甲', '乙', '丙'].map(name => {
     const a = f.world.createAgent({ name, owner_id: name }), c = f.world.createController(a.agent_id), auth = f.world.authenticate(c.token);
     f.world.ownerControl(a.agent_id, 'start', { controller_id: c.controller_id, duration_minutes: 60 });
-    f.world.callTool(auth, 'join_world'); f.world.agent(a.agent_id).position = { x: 11, y: 8 };
+    f.world.callTool(auth, 'join_world'); f.world.agent(a.agent_id).position = { x: 24, y: 16 };
     return { id: a.agent_id, auth };
   });
   f.session = p => { const a = f.world.agent(p.id); return { run_id: a.run.run_id, session_epoch: a.session_epoch }; };

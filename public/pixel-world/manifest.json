@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "release": "0.35.0",
+  "release": "0.36.0",
   "tool": {
     "name": "Original Q World",
     "version": "1.1.0",
@@ -3395,6 +3395,402 @@
       }
     }
   },
+  "plaza_props": {
+    "cottage": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 192,
+      "height": 160,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 192,
+              "h": 160,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "bookshop": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 192,
+      "height": 160,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 192,
+              "y": 0,
+              "w": 192,
+              "h": 160,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "tool_shed": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 192,
+      "height": 160,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 384,
+              "y": 0,
+              "w": 192,
+              "h": 160,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "supply_shop": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 192,
+      "height": 160,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 576,
+              "y": 0,
+              "w": 192,
+              "h": 160,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "kitchen_shelter": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 192,
+      "height": 160,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 768,
+              "y": 0,
+              "w": 192,
+              "h": 160,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "games": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 112,
+      "height": 96,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 56,
+        "y": 86
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 960,
+              "y": 0,
+              "w": 112,
+              "h": 96,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "portal": {
+      "image": "/pixel-world/q_plaza_props.png",
+      "width": 104,
+      "height": 154,
+      "sheet_width": 1536,
+      "sheet_height": 160,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 52,
+        "y": 146
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 1152,
+              "y": 0,
+              "w": 104,
+              "h": 154,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    }
+  },
+  "plaza_services": {
+    "market_stall": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 176,
+      "height": 140,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 88,
+        "y": 132
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 0,
+              "y": 0,
+              "w": 176,
+              "h": 140,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "community_table": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 68,
+      "height": 68,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 34,
+        "y": 50
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 176,
+              "y": 0,
+              "w": 68,
+              "h": 68,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "journey": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 104,
+      "height": 154,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 52,
+        "y": 146
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 352,
+              "y": 0,
+              "w": 104,
+              "h": 154,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "community_seat_north": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 30,
+      "height": 30,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 528,
+              "y": 0,
+              "w": 30,
+              "h": 30,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "community_seat_south": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 30,
+      "height": 30,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 704,
+              "y": 0,
+              "w": 30,
+              "h": 30,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "community_seat_east": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 30,
+      "height": 30,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 880,
+              "y": 0,
+              "w": 30,
+              "h": 30,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    },
+    "community_seat_west": {
+      "image": "/pixel-world/q_plaza_services.png",
+      "width": 30,
+      "height": 30,
+      "sheet_width": 1408,
+      "sheet_height": 154,
+      "render_style": "q-pixel",
+      "anchor_mode": "source",
+      "anchor": {
+        "x": 15,
+        "y": 23
+      },
+      "native_scale": 1,
+      "animations": {
+        "idle": {
+          "loop": false,
+          "frames": [
+            {
+              "x": 1056,
+              "y": 0,
+              "w": 30,
+              "h": 30,
+              "duration": 1000
+            }
+          ]
+        }
+      }
+    }
+  },
   "scenes": {
     "plaza": {
       "image": "/pixel-world/q_scene_plaza.png",
@@ -3402,7 +3798,7 @@
       "height": 1024,
       "render_style": "q-pixel",
       "terrain_overlay": false,
-      "geometry_source": "shared/maps/plaza.json"
+      "geometry_source": "shared/plaza-layout.js"
     },
     "adventure": {
       "image": "/pixel-world/q_scene_adventure.png",
@@ -3435,7 +3831,7 @@
     "height": 1024,
     "render_style": "q-pixel",
     "terrain_overlay": false,
-    "geometry_source": "shared/maps/plaza.json"
+    "geometry_source": "shared/plaza-layout.js"
   },
   "farm_scene": {
     "image": "/pixel-world/q_farm_ground.png",
@@ -457847,6 +458243,7 @@
     "generator": "scripts/build-q-world.mjs",
     "sources": [
       "art/q-world/scenery.mjs",
+      "art/q-world/plaza.mjs",
       "art/q-world/actors.mjs",
       "src/q-actor-art.js",
       "src/wardrobe-pixel-art.js"
@@ -457964,11 +458361,13 @@
     "q_pickaxe_2_icon.png": "38e18fe99248783f4c3a9fdc771a3604ffd0317cc38dccb93ae15586eeb0c4c5",
     "q_pickaxe_3.png": "5ca632775d9e45bc825ee6403e7ac6fba11cfc3cfde61da417507fd4a833da31",
     "q_pickaxe_3_icon.png": "9210908da379dab5f7135cc49e08c386f7b9e56bd3d0ab6830b82aaf3349a529",
+    "q_plaza_props.png": "6f41bf40822f07d9e8837f8af8f87ad40c81921b290c235b65e9902ce46f7218",
+    "q_plaza_services.png": "0eca248e4174a0395e5721b609359ba6d6144f4a7fbb74e60b072981b3c4541a",
     "q_props.png": "2a33d1a13970e232e755bcc34c2865b4e3ee9cbb09cf6012db77c4cfd4165c41",
     "q_ruins_guardian.png": "51bf6ba37c898e5c5f814cdd64f346d5f58e727f84ad32fa21cb87dbf17f50d5",
     "q_scene_adventure.png": "c9d02c64d03fdaadd102d44268115143364f8dd53957e5194180f3623523897c",
     "q_scene_journey.png": "48a02d7faf38d591d36fd46232a53c7e2811a52c1e93db1e224eda0440f0a7f3",
-    "q_scene_plaza.png": "d4b7fa98eb0524e7513b932e871bd347cab51ba003173c3b868d278f255647b4",
+    "q_scene_plaza.png": "be1bad1cf67588b349bfd4b53dddc909a5eeb100675979694a7fc3c7ae211601",
     "q_scene_ruins.png": "3d5aba1f49c5c21dc4aff5ba1fa2b79026532d30c7b6b9d1435d65cc953e22f8",
     "q_services.png": "a9a55c99a315ebacb53d0ae00e7b6876018d1d2c2526ed7b35c866d54fd14ed0",
     "q_wanderer_1.png": "b5dd0a19570c835a6c729f924c9ca39c04b3d81cccc1f08da044f0c0c7373a66",

@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createHomesFixture } from '../helpers/homes-fixture.js';
 
+import {walkFixture} from '../helpers/walk-fixture.js';
+import {PLAZA_SERVICES} from '../../shared/plaza-layout.js';
 let f;
 test.beforeEach(async () => { f = await createHomesFixture({ starterItems: { wood: 70, grass: 60, ore: 12 } }); });
 test.afterEach(async () => { await f.close(); });
@@ -21,7 +23,8 @@ function readOnly(page) {
 test('v027 true shore approach, fishing, completion and cancellation remain read-only on desktop and mobile', async ({ page }) => {
   test.setTimeout(120000);
   const p = await f.actor('池边的原居民');
-  await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  await p.act('adventure_plan', { intent: 'retreat' }); await f.until(() => !p.raw.adventure.plan);
+  await walkFixture(p,PLAZA_SERVICES.tools.interaction_position,f.until);
   await p.act('inventory', { intent: 'craft', item_id: 'fishing_rod' });
   await p.act('inventory', { intent: 'craft', item_id: 'fish_bait' });
   const audit = readOnly(page);
@@ -35,7 +38,7 @@ test('v027 true shore approach, fishing, completion and cancellation remain read
   await f.until(() => p.raw.fishing?.phase === 'fishing'); await f.advance(800);
   await expect(page.getByTestId(`fishing-line-${p.id}`)).toBeVisible();
   const actor = page.getByTestId(`map-agent-${p.id}`);
-  await expect(actor).toHaveAttribute('data-foot-x', '3'); await expect(actor).toHaveAttribute('data-foot-y', '4');
+  await expect(actor).toHaveAttribute('data-foot-x', '7'); await expect(actor).toHaveAttribute('data-foot-y', '8');
   await expect(actor.locator('.pixel-character')).toHaveAttribute('data-action', 'fish');
   await expect(actor.locator('.pixel-character')).toHaveAttribute('data-art-style','q-pixel');
   await expect(actor.locator('.pixel-character>.pixel-sprite').first()).toHaveAttribute('data-animation-action','fish');
@@ -71,7 +74,7 @@ test('v027 true shore approach, fishing, completion and cancellation remain read
 test('v027 writing stays private until complete, real books and comments can be inspected without changing AI state', async ({ page }) => {
   test.setTimeout(120000);
   const p = await f.actor('写故事的原居民');
-  await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  await p.act('adventure_plan', { intent: 'retreat' }); await f.until(() => !p.raw.adventure.plan);
   await p.act('home', { intent: 'build', name: '池风和纸页' });
   const home = `home_${p.id}`;
   await p.act('home', { intent: 'visit', home_id: home }); await f.until(() => !!p.raw.home_presence);

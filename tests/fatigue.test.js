@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -19,7 +20,7 @@ function fixture(t, options = {}) {
     world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 30 });
     const auth = world.authenticate(controller.token), o = world.callTool(auth, 'join_world');
     const p = { id: agent.agent_id, auth, controller, session: { run_id: o.run_id, session_epoch: o.session_epoch } };
-    world.agent(p.id).position = { x: 11, y: 8 }; people.push(p); return p;
+    world.agent(p.id).position = { ...PLAZA_SERVICES.camp.interaction_position }; people.push(p); return p;
   };
   const raw = p => world.agent(p.id);
   const observe = p => world.callTool(p.auth, 'observe', p.session);
@@ -80,7 +81,7 @@ test('不足一次攻击时终止狩猎且不会自动重启；重新狩猎门�
   assert.equal(f.observe(p).opportunities.some(o => o.action.payload.intent === 'hunt'), false);
   assert.equal(f.act(p, 'move', { x: 18, y: 7 }).status, 'applied'); assert.equal(f.raw(p).fatigue.energy, 0);
   assert.equal(f.act(p, 'adventure_plan', { intent: 'retreat' }).status, 'applied');
-  for(let i=0;i<90 && f.raw(p).adventure.plan;i++) f.advance(1000); assert.deepEqual(f.raw(p).position, { x: 11, y: 8 }); assert.equal(f.raw(p).adventure.plan, null);
+  for(let i=0;i<90 && f.raw(p).adventure.plan;i++) f.advance(1000); assert.deepEqual(f.raw(p).position, { ...PLAZA_SERVICES.camp.interaction_position }); assert.equal(f.raw(p).adventure.plan, null);
   assert.ok(f.raw(p).fatigue.energy < 3, '撤退不会自动开始快速休息');
 });
 
@@ -99,10 +100,10 @@ test('营地静止和聊天慢恢复，relax快恢复，野外与同一行动秒
   f.advance(10000); assert.equal(f.raw(p).fatigue.energy, 43);
   f.act(p, 'say', { text: '在营地聊会儿', channel: 'nearby' }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 43.3);
   f.act(p, 'start_activity', { activity_id: 'relax' }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 45.3);
-  f.act(p, 'move', { x: 12, y: 8 }); const afterMove = f.raw(p).fatigue.energy;
+  f.act(p, 'move', {x:25,y:16}); const afterMove = f.raw(p).fatigue.energy;
   f.advance(1000); assert.equal(f.raw(p).fatigue.energy, afterMove-.15);
   f.advance(1000); assert.ok(Math.abs(f.raw(p).fatigue.energy - afterMove) < 1e-8, 'movement ends at 500ms, recovery resumes at 1500ms');
-  f.act(p, 'move', { x: 15, y: 8 }); const field = f.raw(p).fatigue.energy;
+  f.act(p, 'move', {x:28,y:16}); const field = f.raw(p).fatigue.energy;
   f.advance(20000); assert.equal(f.raw(p).fatigue.energy, Math.round((field-.45)*10000)/10000);
 });
 
@@ -148,7 +149,7 @@ test('疲劳公开投影只保留合法事实值，异常嵌套字段不能泄�
 });
 
 test('农事和制作按成功动作扣体力，幂等重放与拒绝请求不重复扣除', t => {
-  const f = fixture(t), p = f.make();
+  const f = fixture(t), p = f.make(); f.raw(p).position={...PLAZA_SERVICES.farm.interaction_position};
   assert.equal(f.act(p, 'farm', { intent: 'till', plot_id: 'plot_1' }).status, 'applied');
   const req = f.request(p, 'farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' });
   const result = f.world.callTool(p.auth, 'act', req); assert.equal(result.status, 'applied');
@@ -169,8 +170,8 @@ test('农事和制作按成功动作扣体力，幂等重放与拒绝请求不�
 
 test('真实步行按格扣体力，原地或非法移动不扣除，角色之间完全独立', t => {
   const f = fixture(t), p = f.make(), other = f.make('同伴');
-  f.act(p, 'move', { x: 13, y: 8 }); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 99.7);
-  f.act(p, 'move', { x: 13, y: 8 }); assert.equal(f.raw(p).fatigue.energy, 99.7);
+  f.act(p, 'move', {x:26,y:16}); f.advance(1000); assert.equal(f.raw(p).fatigue.energy, 99.7);
+  f.act(p, 'move', {x:26,y:16}); assert.equal(f.raw(p).fatigue.energy, 99.7);
   assert.equal(f.act(p, 'move', { x: 100, y: 8 }).status, 'rejected'); assert.equal(f.raw(p).fatigue.energy, 99.7);
   assert.equal(f.raw(other).fatigue.energy, 100);
   f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' }); f.advance(1000);
@@ -179,12 +180,12 @@ test('真实步行按格扣体力，原地或非法移动不扣除，角色之�
 
 test('疲劳提醒只有恢复40后才重新触发，不会在阈值附近反复唤醒', t => {
   const f = fixture(t), p = f.make(); f.battle(p, 28); f.advance(1000);
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { ...PLAZA_SERVICES.camp.interaction_position }; f.raw(p).adventure.in_field = false;
   f.act(p, 'adventure_plan', { intent: 'rest' }); f.advance(3000);
   assert.ok(f.raw(p).fatigue.energy > 25 && f.raw(p).fatigue.energy < 40);
   f.act(p, 'adventure_plan', { intent: 'stop' }); f.battle(p, 28); f.advance(1000);
   assert.equal(f.world.state.events.filter(e => e.type === 'fatigue_tired').length, 1);
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { ...PLAZA_SERVICES.camp.interaction_position }; f.raw(p).adventure.in_field = false;
   f.act(p, 'adventure_plan', { intent: 'rest' }); f.advance(10000); assert.ok(f.raw(p).fatigue.energy >= 40);
   f.act(p, 'adventure_plan', { intent: 'stop' }); f.battle(p, 28); f.advance(1000);
   assert.equal(f.world.state.events.filter(e => e.type === 'fatigue_tired').length, 2);
@@ -204,7 +205,7 @@ test('持久化重启按已存时间只结算营地慢恢复，不重置体力�
   try {
     w = new World({ dbPath, now: () => now }); const a = w.createAgent({ name: '营地角色' }), b = w.createAgent({ name: '野外角色' });
     const camp = w.agent(a.agent_id), field = w.agent(b.agent_id);
-    camp.position = { x: 11, y: 8 }; camp.fatigue.energy = 10; camp.adventure.plan = { intent: 'rest', zone_id: 'camp', expires_at: now + 90000 };
+    camp.position = { ...PLAZA_SERVICES.camp.interaction_position }; camp.fatigue.energy = 10; camp.adventure.plan = { intent: 'rest', zone_id: 'camp', expires_at: now + 90000 };
     field.position = { x: 1, y: 1 }; field.fatigue.energy = 10;
     w.close(); w = null; now += 10000;
     w = new World({ dbPath, now: () => now }); assert.equal(w.agent(a.agent_id).fatigue.energy, 13); assert.equal(w.agent(b.agent_id).fatigue.energy, 10);
@@ -221,7 +222,7 @@ test('耗尽也能吃食物和换装，但食物不恢复体力或解除野外�
   a.scene_id = 'adventure'; a.position = { x: 1, y: 1 }; a.adventure.hp = 20; a.adventure.in_field = true; a.adventure.decision_until = f.now() + 30000;
   assert.equal(f.act(p, 'inventory', { intent: 'use', item_id: 'turnip' }).status, 'applied');
   assert.equal(a.fatigue.energy, 0); assert.equal(a.adventure.hp, 32); assert.equal(a.adventure.in_field, true); assert.equal(a.adventure.decision_until, f.now() + 30000);
-  a.scene_id = 'plaza'; a.position = { x: 11, y: 8 }; a.adventure.in_field = false; a.life.inventory.wooden_sword = 1;
+  a.scene_id = 'plaza'; a.position = { ...PLAZA_SERVICES.camp.interaction_position }; a.adventure.in_field = false; a.life.inventory.wooden_sword = 1;
   assert.equal(f.act(p, 'inventory', { intent: 'equip', item_id: 'wooden_sword' }).status, 'applied'); assert.equal(a.fatigue.energy, 0);
 });
 
@@ -267,10 +268,11 @@ test('真实HTTP MCP统一执行疲劳门槛，旁观公开体力与形象但不
   await client.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { Authorization: `Bearer ${controller.token}` } } }));
   const call = async (name, args = {}) => { const r = await client.callTool({ name, arguments: args }); return r.structuredContent || JSON.parse(r.content[0].text); };
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
-  const a = app.world.agent(created.agent_id); a.scene_id = 'plaza'; a.position = { x: 11, y: 8 }; a.fatigue.energy = 0;
+  const a = app.world.agent(created.agent_id); a.scene_id = 'plaza'; a.position = { ...PLAZA_SERVICES.camp.interaction_position }; a.fatigue.energy = 0;
   assert.equal((await call('get_rules')).fatigue.hunt_min_energy, 12);
   let next = joined.next_action_id;
   for (const [type, payload] of [['adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }], ['farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }]]) {
+    app.world.agent(created.agent_id).position = {...PLAZA_SERVICES.farm.interaction_position};
     const result = await call('act', { ...session, action_id: next, type, payload });
     assert.equal(result.error.code, 'FATIGUE_EXHAUSTED'); next = result.next_action_id;
   }

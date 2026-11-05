@@ -1,4 +1,5 @@
 import { COMMUNITY_VENUES, COMMUNITY_STATUSES } from '../shared/community.js';
+import { qPlazaArtwork } from './q-plaza-art.js';
 import { qServiceArtwork } from './q-service-art.js';
 
 const names = { open: '等待开始', active: '活动进行中', ended: '已结束', cancelled: '已取消', expired: '已到期', interrupted: '已中止' };
@@ -43,4 +44,4 @@ export function communityPerformanceHistory(world) {
   }).slice(0, 3).map(event => ({ ...event.payload, completed: true, completed_at: event.occurred_at }));
 }
 
-export const communityArtwork = Object.freeze(Object.fromEntries(['picnic','table','stage','board','seat','mat'].map(kind=>[kind,qServiceArtwork[`community_${kind}`]])));
+export const communityArtwork = Object.freeze(Object.fromEntries(['picnic','table','stage','board','seat','mat'].map(kind=>[kind,qPlazaArtwork[`community_${kind}`]||qServiceArtwork[`community_${kind}`]])));

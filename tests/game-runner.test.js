@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { plazaPlacePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -106,7 +107,7 @@ test('寻宝沿真实目标多步走动/采集，不睡过空闲60秒且不能�
     }
     return { type: 'move', payload: steps.at(-1) };
   });
-  f.a.position = { x: 11, y: 8 }; f.world.perform(f.a, 'start_activity', { activity_id: 'treasure_hunt' }); f.refresh();
+  f.a.position = plazaPlacePosition(f.world, 'garden'); f.world.perform(f.a, 'start_activity', { activity_id: 'treasure_hunt' }); f.refresh();
   let steps = 0;
   while (f.a.activity && steps++ < 46) {
     f.advance(5000); assert.equal(f.runner.decisionDue(), true);
@@ -120,10 +121,10 @@ test('寻宝沿真实目标多步走动/采集，不睡过空闲60秒且不能�
 
 test('谜题等待后10秒重看；原普通休息仍不会不断叫醒', async t => {
   const f = await fixture(t);
-  f.a.position = { x: 19, y: 4 }; f.world.perform(f.a, 'start_activity', { activity_id: 'riddle' }); f.refresh();
+  f.a.position = plazaPlacePosition(f.world, 'reading'); f.world.perform(f.a, 'start_activity', { activity_id: 'riddle' }); f.refresh();
   await f.decision(); f.advance(5000); assert.equal(f.runner.decisionDue(), false);
   f.advance(5000); assert.equal(f.runner.decisionDue(), true);
-  f.world.perform(f.a, 'finish_activity', {}); f.a.position = { x: 11, y: 8 };
+  f.world.perform(f.a, 'finish_activity', {}); f.a.position = plazaPlacePosition(f.world, 'garden');
   f.world.perform(f.a, 'start_activity', { activity_id: 'relax' }); f.refresh();
   assert.equal(f.runner.decisionDue(), false);
 });
@@ -181,7 +182,7 @@ test('故事轮次与200字末段完整进入受限提示，六段真实续写�
     f.refresh();
   }
   assert.equal(f.world.state.game.status, 'finished'); assert.equal(f.world.state.game.segments.length, 6);
-  f.a.position = { x: 19, y: 4 }; f.world.perform(f.a, 'start_activity', { activity_id: 'riddle' });
+  f.a.position = plazaPlacePosition(f.world, 'reading'); f.world.perform(f.a, 'start_activity', { activity_id: 'riddle' });
   const next = decode(decisionPrompt({ observation: f.world.observation(f.a), rules: f.world.getRules(), ownerGoal: '主'.repeat(300), events: f.runner.checkpoint.queue }));
   assert.equal(next.task.prompt, f.a.activity.task.prompt); assert.equal(next.game.status, 'finished');
 });

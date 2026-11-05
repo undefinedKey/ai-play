@@ -1,4 +1,5 @@
 // Portable authoritative contract: hosts and the world share the same choices.
+import { PLAZA_SERVICES } from './plaza-layout.mjs';
 export const JOURNEY_NODES = Object.freeze([
   { id: 'entry', name: '村口', position: { x: 2, y: 16 } },
   { id: 'path', name: '林间小径', position: { x: 12, y: 16 } },
@@ -12,8 +13,8 @@ export const JOURNEY_MONSTERS = Object.freeze([
 export const JOURNEY_GEOMETRY = Object.freeze({
   width: 48, height: 32, ground_y: 16, from_x: 2, to_x: 44,
   detours: [{ from_x: 15, to_x: 21, y: 18 }, { from_x: 32, to_x: 38, y: 18 }],
-  entrance: { scene_id: 'plaza', position: { x: 22, y: 8 } },
-  return_position: { x: 22, y: 8 },
+  entrance: { scene_id: 'plaza', position: PLAZA_SERVICES.journey.interaction_position },
+  return_position: PLAZA_SERVICES.journey.interaction_position,
 });
 export const JOURNEY_RULES = Object.freeze({
   version: 1, scene_id: 'journey', view: 'sideview', map: JOURNEY_GEOMETRY, nodes: JOURNEY_NODES, monsters: JOURNEY_MONSTERS,
@@ -21,7 +22,7 @@ export const JOURNEY_RULES = Object.freeze({
   encounter_distance: 3, monster_attack_range: 3, monster_respawn_seconds: 120,
   traversal_policy: '只在接受本次有限行程时检查活怪；途中重生不追击或追溯取消已获准通过的路段，下次选择路线时重新检查。',
   resource_ids: ['journey_pine', 'journey_ore', 'journey_berries'], camp_site_id: 'journey_camp',
-  description: '横版森林是一处真实共享场景。enter从广场实际步行到(22,8)入口后进入村口；travel只前往指定节点，direct在活怪3格前结束本次行程并报告遭遇，bypass是本人明确选择沿y18支路绕行，怪物不在世界追逐。hunt仅挑战一只明确怪物，90秒内执行攻击；怪物只对实际交战者反击。被打到四分之一血以下或体力不足会停止本次战斗；无自动吃药、撤退或下一场。rest须已在营地(43,16)，有饱食且满足实际光照才恢复，15至60秒后停止；夜晚可自行建火/点火或使用火把。采集沿用gather，食物沿用inventory use，取得食物不等于吃下。leave按本人所选路线返回村口后出场，stop只停止本人本次行程。所有同行者须各自选择行动，旁观镜头不改变位置。',
+  description: '横版森林是一处真实共享场景。enter从广场实际步行到map.entrance所列入口后进入村口；travel只前往指定节点，direct在活怪3格前结束本次行程并报告遭遇，bypass是本人明确选择沿y18支路绕行，怪物不在世界追逐。hunt仅挑战一只明确怪物，90秒内执行攻击；怪物只对实际交战者反击。被打到四分之一血以下或体力不足会停止本次战斗；无自动吃药、撤退或下一场。rest须已在营地(43,16)，有饱食且满足实际光照才恢复，15至60秒后停止；夜晚可自行建火/点火或使用火把。采集沿用gather，食物沿用inventory use，取得食物不等于吃下。leave按本人所选路线返回村口后出场，stop只停止本人本次行程。所有同行者须各自选择行动，旁观镜头不改变位置。',
 });
 const obj = p => p && typeof p === 'object' && !Array.isArray(p);
 const exact = (p, keys) => Object.keys(p).every(k => keys.includes(k));

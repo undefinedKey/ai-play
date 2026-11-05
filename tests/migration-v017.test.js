@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -19,12 +20,12 @@ function migrate(mode) {
     world.ownerControl(a.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 60, max_calls: 500, goal: 'PRIVATE_OWNER_REQUIREMENT' });
     const session = world.callTool(auth, 'join_world');
     world.callTool(auth, 'act', { run_id: session.run_id, session_epoch: session.session_epoch, action_id: session.next_action_id, type: 'say', payload: { channel: 'nearby', text: '这是升级前的公开记录。' } });
-    a.position = { x: 11, y: 8 }; a.fatigue.energy = 50;
+    a.position = {...PLAZA_SERVICES.camp.interaction_position}; a.fatigue.energy = 50;
     if (mode !== 'existing' && mode !== 'terrain') { delete a.scene_id; delete a.movement; delete a.scene_migration; }
     if (mode === 'legacy_field') { a.adventure.in_field = true; a.position = { x: 4, y: 11 }; }
     if (mode === 'legacy_plan') a.adventure.plan = { intent: 'explore', zone_id: 'forest', monster_id: null, started_at: now, expires_at: now + 90000 };
     if (mode === 'legacy_ambiguous') { a.position = { x: 4, y: 11 }; a.adventure.last_result = { kind: 'stopped', text: '中文旧记录提到森林不能作为位置证据', at: now }; }
-    if (mode === 'existing') { a.scene_id = 'adventure'; a.position = { x: 11, y: 8 }; }
+    if (mode === 'existing') { a.scene_id = 'adventure'; a.position = {...PLAZA_SERVICES.camp.interaction_position}; }
     if (mode === 'terrain') { a.scene_id = 'plaza'; a.position = { ...SCENES.find(s => s.id === 'plaza').blocked[0] }; }
     if (mode === 'out_of_bounds') a.position = { x: -50, y: 200 };
     const old = structuredClone(world.state); world.close(); world = null;
@@ -51,7 +52,7 @@ test('v0.17 real SQLite migration preserves location evidence, coordinates, iden
   reject('alter identity', (_, a) => { a.bio = '被平台指定的新性格'; });
   reject('lose original coordinate evidence', (_, a) => { delete a.scene_migration.from_position; });
   reject('forge migration reason', (_, a) => { a.scene_migration.reason = 'legacy_adventure'; });
-  reject('replay stale movement', (_, a) => { a.movement = { scene_id: 'plaza', path: [{ x: 0, y: 0 }, { x: 11, y: 8 }], started_at: 2000000000000, duration_ms: 600 }; });
+  reject('replay stale movement', (_, a) => { a.movement = { scene_id: 'plaza', path: [{ x: 0, y: 0 }, {...PLAZA_SERVICES.camp.interaction_position}], started_at: 2000000000000, duration_ms: 600 }; });
   reject('invent scene crossing', state => { state.events.push({ type: 'scene_changed', cursor: String(state.sequence + 1), occurred_at: 2000000010000, payload: {} }); });
   for (const c of cases.filter(c => !c.accepted)) assert.throws(() => verifyScenes(c.old, c.new), undefined, c.name);
   const source = `import importlib.util,json,sys

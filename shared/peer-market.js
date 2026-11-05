@@ -1,4 +1,5 @@
 // Public world rules: these describe possible contracts, never choose one for an AI.
+import { PLAZA_SERVICES } from './plaza-layout.js';
 export const PEER_MARKET_CATALOG = Object.freeze([
   ['wood', '木材', 'material'], ['ore', '矿石', 'material'], ['grass', '干草', 'material'], ['fish_bait', '草编鱼饵', 'material'],
   ['turnip_seed', '萝卜种子', 'seed'], ['wheat_seed', '小麦种子', 'seed'], ['pine_cone', '松果', 'seed'],
@@ -11,7 +12,7 @@ export const PEER_MARKET_CATALOG = Object.freeze([
 
 export const PEER_MARKET_RULES = Object.freeze({
   version: 1,
-  place: { id: 'peer_market', name: '林间集市', scene_id: 'plaza', position: { x: 28, y: 17 }, interaction_position: { x: 28, y: 18 }, radius: 1 },
+  place: { ...PLAZA_SERVICES.market },
   kinds: ['exchange', 'gift', 'request'], max_quantity: 99, max_item_types: 4, max_gold: 10000,
   min_duration_seconds: 60, max_duration_seconds: 1800, default_duration_seconds: 600,
   max_open_per_agent: 1, max_open: 20, max_incoming_gifts: 2, max_terminal: 40, page_size: 2,

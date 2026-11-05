@@ -6,9 +6,10 @@ import { spendEnergy, publicFatigue } from './fatigue.js';
 import { economyBalance, recordEconomyDelta } from './economy.js';
 import { AQUARIUM_RULES } from '../skills/ai-plaza/scripts/lifestyle-contract.mjs';
 import { emptyAquarium, publicAquarium } from './lifestyle-state.js';
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 
 export const HOME_RULES = Object.freeze({
-  version: 1, use_version: 1, books_version: 1, books: { max_books: 8, title_chars: 40, text_chars: 800, write_seconds: 45, cost: { wood: 1, grass: 1 }, max_comments: 10, comment_chars: 200, comment_seconds: 10 }, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', x: 9, y: 8 },
+  version: 1, use_version: 1, books_version: 1, books: { max_books: 8, title_chars: 40, text_chars: 800, write_seconds: 45, cost: { wood: 1, grass: 1 }, max_comments: 10, comment_chars: 200, comment_seconds: 10 }, map: { width: 10, height: 8 }, door: { x: 5, y: 7 }, entrance: { scene_id: 'plaza', ...PLAZA_SERVICES.home.interaction_position },
   build_cost: { wood: 6, grass: 2 }, max_furniture: 16, max_displays: 4, max_guests: 2,
   visit_seconds: 120, invitation_seconds: 600, invitation_cooldown_seconds: 60, max_pending_invitations: 2,
   message_seconds: 10, max_messages: 20, max_move: 3, souvenir_items: ['wood', 'ore', 'pine_cone', ...RUINS_ITEMS.filter(i => i.kind === 'relic').map(i => i.id)],
@@ -96,7 +97,7 @@ function queueUse(world, a, home, furniture, position, path, extra) {
 export function initializeHomes(world, { restore = false } = {}) {
   world.state.homes ??= {}; world.state.home_invitations ??= {};
   for (const a of Object.values(world.state.agents)) {
-    if (a.home_presence) { a.scene_id = 'plaza'; a.position = { x: 9, y: 8 }; a.position_at = world.now(); a.movement = null; }
+    if (a.home_presence) { a.position_at = world.now(); a.movement = null; }
     a.home_presence = null; a.home_travel = null;
   }
   if (restore) world.state.home_invitations = {};
@@ -320,7 +321,7 @@ function leaveHome(world, a, reason) {
   const presence = a.home_presence; if (!presence) return false;
   cancelHomeUse(world, a, reason);
   const ids = recipients(world, presence.home_id);
-  a.home_presence = null; a.home_travel = null; a.scene_id = 'plaza'; a.position = { x: 9, y: 8 }; a.position_at = world.now(); stopMovement(a, world.now()); freshAction(a);
+  a.home_presence = null; a.home_travel = null; a.scene_id = 'plaza'; a.position = { ...PLAZA_SERVICES.home.interaction_position }; a.position_at = world.now(); stopMovement(a, world.now()); freshAction(a);
   const ownerId = world.state.homes[presence.home_id]?.owner_agent_id, audience = [...new Set([...ids, a.agent_id, ...(ownerId ? [ownerId] : [])])];
   world.event('home_left', { agent_id: a.agent_id, home_id: presence.home_id, owner_agent_id: ownerId, recipient_agent_ids: audience, reason, text: `${a.name}离开了小屋` }, audience); return true;
 }
@@ -338,7 +339,7 @@ function enterHome(world, a, home) {
   const candidates = Array.from({ length: 80 }, (_, i) => ({ x: i % 10, y: Math.floor(i / 10) })).sort((p, q) => distance(p, HOME_RULES.door) - distance(q, HOME_RULES.door));
   const position = candidates.find(p => !occupied.has(key(p)) && roomPath(home, HOME_RULES.door, p, { blocked }));
   if (!position) return false;
-  a.home_travel = null; stopMovement(a, world.now()); a.position = { x: 9, y: 8 }; a.position_at = world.now();
+  a.home_travel = null; stopMovement(a, world.now()); a.position = { ...PLAZA_SERVICES.home.interaction_position }; a.position_at = world.now();
   a.home_presence = { home_id: home.home_id, scene_id: 'home', position: { ...position }, position_at: world.now(), facing: 'north', movement: null, entered_at: world.now(), run_id: a.run.run_id, session_epoch: a.session_epoch };
   freshAction(a); announce(world, a, home, 'home_entered', `${a.name}走进了「${home.name}」`); return true;
 }

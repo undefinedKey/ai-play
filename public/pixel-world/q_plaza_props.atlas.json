@@ -1,0 +1,105 @@
+{
+  "frames": {
+    "cottage_idle_0": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 192,
+        "h": 160
+      },
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "duration": 1000
+    },
+    "bookshop_idle_0": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 192,
+        "h": 160
+      },
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "duration": 1000
+    },
+    "tool_shed_idle_0": {
+      "frame": {
+        "x": 384,
+        "y": 0,
+        "w": 192,
+        "h": 160
+      },
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "duration": 1000
+    },
+    "supply_shop_idle_0": {
+      "frame": {
+        "x": 576,
+        "y": 0,
+        "w": 192,
+        "h": 160
+      },
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "duration": 1000
+    },
+    "kitchen_shelter_idle_0": {
+      "frame": {
+        "x": 768,
+        "y": 0,
+        "w": 192,
+        "h": 160
+      },
+      "anchor": {
+        "x": 96,
+        "y": 150
+      },
+      "duration": 1000
+    },
+    "games_idle_0": {
+      "frame": {
+        "x": 960,
+        "y": 0,
+        "w": 112,
+        "h": 96
+      },
+      "anchor": {
+        "x": 56,
+        "y": 86
+      },
+      "duration": 1000
+    },
+    "portal_idle_0": {
+      "frame": {
+        "x": 1152,
+        "y": 0,
+        "w": 104,
+        "h": 154
+      },
+      "anchor": {
+        "x": 52,
+        "y": 146
+      },
+      "duration": 1000
+    }
+  },
+  "meta": {
+    "image": "q_plaza_props.png",
+    "size": {
+      "w": 1536,
+      "h": 160
+    },
+    "render_style": "q-pixel",
+    "generator": "art/q-world/scenery.mjs",
+    "license": "project-original"
+  }
+}

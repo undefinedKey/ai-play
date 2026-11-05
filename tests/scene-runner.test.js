@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../skills/ai-plaza/scripts/plaza-layout.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
@@ -44,7 +45,7 @@ test('当前位置取scene而非战斗暴露，规则数组和旧对象兼容，
   assert.equal(inAdventureScene({ scene_id: 'plaza', adventure: { in_field: true } }), false);
   assert.equal(inAdventureScene({ adventure: { in_field: true } }), true);
   const o = { self: { scene_id: 'plaza' } }, actual = sceneContext(o, rules);
-  assert.deepEqual(actual.portal.position, { x: 22, y: 8 }); assert.equal(actual.portal.to_scene_id, 'adventure');
+  assert.deepEqual(actual.portal.position, PLAZA_SERVICES.adventure.interaction_position); assert.equal(actual.portal.to_scene_id, 'adventure');
   assert.deepEqual(sceneContext(o, { scenes: Object.fromEntries(rules.scenes.map(s => [s.id, s])) }), actual);
   assert.equal(sceneContext({ self: {} }, rules), undefined);
 });

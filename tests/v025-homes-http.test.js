@@ -10,12 +10,12 @@ test('v025 real HTTP/MCP: owned house assets, consent, physical visiting, public
   assert.equal(first.homes.own_home, null); assert.deepEqual(f.app.world.state.homes, {});
   assert.ok((await p.client.listTools()).tools.find(x => x.name === 'act').inputSchema.properties.type.enum.includes('home'));
   const baseline = [p, q, r].map(a => ({ id: a.id, run_id: a.raw.run.run_id, max_calls: a.raw.run.max_calls, expires_at: a.raw.run.expires_at, appearance: structuredClone(a.raw.appearance) }));
-  await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  await p.act('move', { x: 23, y: 16 }); await f.until(() => !p.raw.movement);
   const built = await p.applied('home', { intent: 'build', name: '松果与旅途' }), homeId = `home_${p.id}`;
   assert.equal(p.raw.life.inventory.wood, 34); assert.equal(p.raw.life.inventory.grass, 18);
   assert.deepEqual(await p.send(built.req), built.receipt); assert.equal(p.raw.life.inventory.wood, 34);
   await p.act('home', { intent: 'visit', home_id: homeId }); await f.until(() => !!p.raw.home_presence);
-  assert.deepEqual(p.raw.position, { x: 9, y: 8 }); assert.equal(p.raw.home_presence.home_id, homeId);
+  assert.deepEqual(p.raw.position, { x: 24, y: 6 }); assert.equal(p.raw.home_presence.home_id, homeId);
   for (const [kind, x, y] of [['display_shelf', 1, 1], ['table', 5, 2], ['chair', 7, 3], ['rug', 2, 4]]) {
     await p.act('home', { intent: 'craft', kind });
     const item = (await p.observe()).homes.own_home.storage.find(i => i.kind === kind);
@@ -47,7 +47,7 @@ test('v025 real HTTP/MCP: owned house assets, consent, physical visiting, public
     assert.equal(result.body.home_invitations, undefined);
   }
   assert.equal(JSON.stringify([p.raw.position, p.raw.home_presence, q.raw.position, q.raw.home_presence, f.app.world.state.homes]), readBaseline);
-  await q.act('home', { intent: 'leave' }); assert.equal(q.raw.home_presence ?? null, null); assert.deepEqual(q.raw.position, { x: 9, y: 8 });
+  await q.act('home', { intent: 'leave' }); assert.equal(q.raw.home_presence ?? null, null); assert.deepEqual(q.raw.position, { x: 24, y: 6 });
   const display = (await p.observe()).homes.own_home.displays[0];
   const withdrawn = await p.applied('home', { intent: 'withdraw', display_id: display.display_id });
   assert.equal(p.raw.life.inventory.pine_cone, 2); assert.deepEqual(await p.send(withdrawn.req), withdrawn.receipt); assert.equal(p.raw.life.inventory.pine_cone, 2);

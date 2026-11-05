@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -27,7 +28,7 @@ async function fixture(t, mode = 'dsh-pet') {
     } });
   runner.running = true; runner.abort = new AbortController();
   await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-  const a = world.agent(record.agent_id); a.position = { x: 11, y: 8 };
+  const a = world.agent(record.agent_id); a.position = lifePosition(world, 'tool_place');
   const refresh = () => { runner.observation = world.observation(world.agent(record.agent_id)); runner.observedAt = now; };
   const advance = ms => { while (ms > 0) { const step = Math.min(ms, 5000); now += step; ms -= step; world.callTool(auth, 'observe', runner.session()); world.tick(); } refresh(); };
   const decide = async next => { answer = next; advance(6000); await runner.decide(); };

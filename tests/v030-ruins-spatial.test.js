@@ -14,8 +14,8 @@ const key = point => `${point.x},${point.y}`;
 
 test('v030 forest and plaza retain their primary portals; separate ruins exit returns to its real forest entrance', () => {
   const [village, forest, ruin] = SCENES;
-  assert.deepEqual(village.portal, { position: { x:22,y:8 }, to_scene_id:'adventure', to_position:{ x:11,y:8 } });
-  assert.deepEqual(forest.portal, { position: { x:11,y:8 }, to_scene_id:'plaza', to_position:{ x:22,y:8 } });
+  assert.deepEqual(village.portal, { position: { x:46,y:13 }, to_scene_id:'adventure', to_position:{ x:11,y:8 } });
+  assert.deepEqual(forest.portal, { position: { x:11,y:8 }, to_scene_id:'plaza', to_position:{ x:46,y:13 } });
   assert.deepEqual(ruin.portal, { position: exit, to_scene_id:'adventure', to_position:RUINS_RULES.entrance.position });
   assert.ok(findWorldPath(world({}), 'adventure', forest.portal.position, RUINS_RULES.entrance.position));
   assert.equal(sameScene({scene_id:'ruins'}, {scene_id:'adventure'}), false);

@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position,HOME_ENTRY=PLAZA_SERVICES.home.interaction_position;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, unlinkSync, rmdirSync, existsSync } from 'node:fs';
@@ -18,7 +20,7 @@ function fixture(t, count = 3, options = {}) {
     const created = world.createAgent({ name: `家园旅人${n}`, owner_id: `owner${n}` }), id = created.agent_id, c = world.createController(id);
     world.ownerControl(id, 'start', { controller_id: c.controller_id, duration_minutes: 30, max_calls: 100 });
     const auth = world.authenticate(c.token); world.callTool(auth, 'join_world');
-    Object.assign(world.agent(id).life.inventory, { wood: 100, ore: 100, grass: 100, pine_cone: 4 }); world.agent(id).position = { x: 11, y: 8 };
+    Object.assign(world.agent(id).life.inventory, { wood: 100, ore: 100, grass: 100, pine_cone: 4 }); world.agent(id).position = { ...CAMP };
     return { id, auth, c, get a() { return world.agent(id); }, get home() { return world.state.homes[`home_${id}`]; },
       observe() { const a = world.agent(id); return world.callTool(auth, 'observe', { run_id: a.run.run_id, session_epoch: a.session_epoch }); },
       action(payload, type = 'home') { const o = this.observe(); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); },
@@ -27,7 +29,7 @@ function fixture(t, count = 3, options = {}) {
   });
   const tick = (ms, heartbeat = true) => { now += ms; if (heartbeat) for (const p of players) if (p.a.status === 'active') p.a.last_contact_at = now; world.tick(); };
   const build = p => p.ok({ intent: 'build', name: `${p.a.name}的小家` });
-  const enter = (p, h = p.home) => { p.ok({ intent: 'visit', home_id: h.home_id }); tick(3000); assert.equal(p.a.home_presence?.home_id, h.home_id); };
+  const enter = (p, h = p.home) => { p.ok({ intent: 'visit', home_id: h.home_id }); tick((p.a.movement?.ends_at||now)-now+100); assert.equal(p.a.home_presence?.home_id, h.home_id); };
   const invite = (host, guest, accept = true) => { host.ok({ intent: 'invite', target_agent_id: guest.id }); const i = guest.observe().homes.invitations.at(-1); guest.ok({ intent: 'respond', invitation_id: i.invitation_id, accept }); return i; };
   const craft = (p, kind) => { p.ok({ intent: 'craft', kind }); return p.home.furniture.at(-1).instance_id; };
   return { world, players, tick, build, enter, invite, craft, now: () => now };
@@ -180,7 +182,7 @@ test('v026 tick restores injected clock even when a transition throws', t => {
 
 test('v026 real HTTP/MCP capability, walk/use, schema and public read-only activity', async t => {
   const f = await createHomesFixture({ frontend: false, starterItems: { wood: 30, grass: 20, ore: 5, turnip: 2 } }); t.after(f.close);
-  const p = await f.actor('家具测试'); await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  const p = await f.actor('家具测试'); await p.act('move', { x: 23, y: 16 }); await f.until(() => !p.raw.movement);
   await p.act('home', { intent: 'build' }); await p.act('home', { intent: 'visit', home_id: `home_${p.id}` }); await f.until(() => !!p.raw.home_presence);
   await p.act('home', { intent: 'craft', kind: 'chair' }); const chair = (await p.observe()).homes.own_home.storage[0].instance_id;
   await p.act('home', { intent: 'place', instance_id: chair, x: 2, y: 1 }); const original = { ...p.raw.home_presence.position };

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -139,7 +140,7 @@ async function realFixture(t) {
   const runner = new PlazaRunner({ mode: 'dsh-pet', toolClient, petClient: pet, now: () => now, idleMs: 60000 });
   runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
   const actor = () => world.agent(created.agent_id);
-  actor().position = { x: 11, y: 8 }; Object.assign(actor().life.inventory, { wood: 100, grass: 50, ore: 50, turnip: 4 });
+  actor().position = lifePosition(world, 'camp_place'); Object.assign(actor().life.inventory, { wood: 100, grass: 50, ore: 50, turnip: 4 });
   const advance = ms => { while (ms > 0) { const step = Math.min(500, ms); ms -= step; now += step;
       if (now - heartbeat >= 5000) { world.callTool(auth, 'observe', runner.session()); heartbeat = now; } world.tick(); }
     runner.observation = world.observation(actor()); runner.observedAt = now; };

@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -19,9 +20,10 @@ function fixture(t) {
     world.ownerControl(agent.agent_id, 'start', { controller_id: controller.controller_id, duration_minutes: 15 });
     const auth = world.authenticate(controller.token), o = world.callTool(auth, 'join_world');
     const p = { agent, controller, auth, session: { run_id: o.run_id, session_epoch: o.session_epoch } }; people.push(p);
-    const moved = world.callTool(auth, 'act', { ...p.session, action_id: o.next_action_id, type: 'move', payload: { x: 11, y: 8 } });
+    raw(p).position = {x:10,y:29}; // This fixture starts beside the farm service before its real final walking leg.
+    const moved = world.callTool(auth, 'act', { ...p.session, action_id: o.next_action_id, type: 'move', payload: { ...LIFE_RULES.farm_place.service_center } });
     assert.equal(moved.status, 'applied'); advance(1500);
-    assert.deepEqual(raw(p).position, { x: 11, y: 8 }); return p;
+    assert.deepEqual(raw(p).position, { ...LIFE_RULES.farm_place.service_center }); return p;
   };
   const observe = p => world.callTool(p.auth, 'observe', p.session);
   const request = (p, type, payload = {}) => ({ ...p.session, action_id: observe(p).next_action_id, type, payload });
@@ -52,7 +54,7 @@ test('新旧角色初始物资只发一次，已有合法物品不覆盖，非�
 test('规则和自己的观察发现农田/仓库；旁观、邻居和其他主人看不到仓库', t => {
   const f = fixture(t), a = f.make('甲', 'owner_a'), b = f.make('乙', 'owner_b');
   const rules = f.world.getRules(); assert.ok(rules.allowed_actions.includes('farm')); assert.ok(rules.allowed_actions.includes('inventory'));
-  assert.equal(rules.life.plots_per_agent, 2); assert.deepEqual(rules.life.farm_place.service_center, { x: 11, y: 8 });
+  assert.equal(rules.life.plots_per_agent, 2); assert.deepEqual(rules.life.farm_place.service_center, { ...LIFE_RULES.farm_place.service_center });
   assert.deepEqual(f.observe(a).self.life.inventory, { turnip_seed: 3, wheat_seed: 3, wood: 3 });
   f.raw(a).life.inventory.PRIVATE_ITEM = 123; f.raw(a).life.token = 'PRIVATE_TOKEN';
   f.raw(a).life.plots[0].owner_secret = 'PRIVATE_OWNER';
@@ -120,17 +122,18 @@ test('只能操作自己的田和仓库，不能通过附加主人/数量/装备
 });
 
 test('农田/制作/换装要求营地和空闲，失败不消耗材料', t => {
-  const f = fixture(t), p = f.make(); f.act(p, 'move', { x: 14, y: 8 }); f.advance(1500);
-  assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'NOT_AT_CAMP');
-  assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'NOT_AT_CAMP');
-  f.act(p, 'move', { x: 11, y: 8 }); f.advance(1500); f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
+  const f = fixture(t), p = f.make(); f.act(p, 'move', { x: 13, y: 28 }); f.advance(1500);
+  assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'NOT_AT_SERVICE');
+  assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'NOT_AT_SERVICE');
+  f.act(p, 'move', { ...LIFE_RULES.farm_place.service_center }); f.advance(1500); f.act(p, 'adventure_plan', { intent: 'explore', zone_id: 'forest' });
   assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'ACTIVITY_BUSY');
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.act(p, 'start_activity', { activity_id: 'relax' });
-  assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'ACTIVITY_BUSY');
-  f.act(p, 'finish_activity'); const group = f.act(p, 'create_group').group_id, game = f.act(p, 'propose_game', { group_id: group }).game_id;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).position = {...LIFE_RULES.camp_place.service_center}; f.act(p, 'start_activity', { activity_id: 'relax' });
+  assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'NOT_AT_SERVICE');
+  f.act(p, 'finish_activity'); f.raw(p).position={...LIFE_RULES.farm_place.service_center}; const group = f.act(p, 'create_group').group_id, game = f.act(p, 'propose_game', { group_id: group }).game_id;
   assert.equal(f.farm(p, 'plant', 'plot_1', 'turnip').error.code, 'GAME_BUSY');
   f.act(p, 'leave_game', { game_id: game });
   assert.equal(f.observe(p).self.life.inventory.wood, 3); assert.equal(f.observe(p).self.life.inventory.turnip_seed, 3);
+  f.raw(p).position = {...LIFE_RULES.crafting_place.service_center};
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').status, 'applied');
 });
 
@@ -139,11 +142,13 @@ test('制作消耗真实材料，装备须持有且不消耗/叠加，卸下恢�
   const craft = f.request(p, 'inventory', { intent: 'craft', item_id: 'wooden_sword' }); const crafted = f.world.callTool(p.auth, 'act', craft);
   assert.equal(crafted.status, 'applied'); assert.deepEqual(f.world.callTool(p.auth, 'act', craft), crafted);
   assert.equal(f.observe(p).self.life.inventory.wood, undefined); assert.equal(f.observe(p).self.life.inventory.wooden_sword, 1);
+  f.raw(p).position = {...LIFE_RULES.camp_place.service_center};
   assert.equal(f.inventory(p, 'equip', 'iron_sword').error.code, 'INSUFFICIENT_ITEMS');
   assert.equal(f.inventory(p, 'equip', 'wooden_sword').status, 'applied'); assert.equal(f.observe(p).self.life.stats.attack, 8);
   assert.equal(f.inventory(p, 'equip', 'wooden_sword').error.code, 'ALREADY_EQUIPPED'); assert.equal(f.observe(p).self.life.stats.attack, 8);
   assert.equal(f.observe(p).self.life.inventory.wooden_sword, 1);
   assert.equal(f.act(p, 'inventory', { intent: 'unequip', slot: 'weapon' }).status, 'applied'); assert.equal(f.observe(p).self.life.stats.attack, 6);
+  f.raw(p).position = {...LIFE_RULES.crafting_place.service_center};
   const before = f.observe(p).self.life.inventory; assert.equal(f.inventory(p, 'craft', 'iron_sword').error.code, 'INSUFFICIENT_ITEMS'); assert.deepEqual(f.observe(p).self.life.inventory, before);
 });
 
@@ -152,8 +157,10 @@ test('铁剑铁甲材料门槛与属性真实生效，仓库数量上限不溢�
   for (let i = 0; i < 4; i++) grantMonsterLoot(a, 'ruins_guardian');
   assert.equal(a.life.inventory.ore, 8);
   assert.equal(f.inventory(p, 'craft', 'iron_sword').status, 'applied'); assert.equal(f.inventory(p, 'craft', 'iron_armor').status, 'applied');
+  f.raw(p).position = {...LIFE_RULES.camp_place.service_center};
   assert.equal(f.inventory(p, 'equip', 'iron_sword').status, 'applied'); assert.equal(f.inventory(p, 'equip', 'iron_armor').status, 'applied');
   assert.deepEqual(f.observe(p).self.life.stats, { attack_bonus: 5, defense: 3, attack: 11, effective_attack: 11, attack_multiplier: 1, range: 1, attack_interval_ms: 1000, attack_energy: 3, move_energy_per_tile: 0.15 }); assert.equal(f.observe(p).self.life.inventory.ore, undefined);
+  f.raw(p).position = {...LIFE_RULES.crafting_place.service_center};
   f.raw(p).life.inventory.wooden_sword = Number.MAX_SAFE_INTEGER; f.raw(p).life.inventory.wood = 3;
   const before = f.observe(p).self.life.inventory;
   assert.equal(f.inventory(p, 'craft', 'wooden_sword').error.code, 'INVENTORY_FULL'); assert.deepEqual(f.observe(p).self.life.inventory, before);
@@ -173,15 +180,15 @@ test('食物可在野外使用但不结束计划、不退出危险、不刷新�
 });
 
 test('武器与护甲实际影响战斗，防御不会让伤害降到0', t => {
-  const f = fixture(t), p = f.make(); f.inventory(p, 'craft', 'wooden_sword'); f.inventory(p, 'equip', 'wooden_sword');
+  const f = fixture(t), p = f.make(); f.inventory(p, 'craft', 'wooden_sword'); f.raw(p).position = {...LIFE_RULES.camp_place.service_center}; f.inventory(p, 'equip', 'wooden_sword');
   for (let i = 0; i < 3; i++) grantMonsterLoot(f.raw(p), 'forest_slime');
-  f.inventory(p, 'craft', 'wooden_shield'); f.inventory(p, 'equip', 'wooden_shield');
+  f.raw(p).position = {...LIFE_RULES.crafting_place.service_center}; f.inventory(p, 'craft', 'wooden_shield'); f.raw(p).position = {...LIFE_RULES.camp_place.service_center}; f.inventory(p, 'equip', 'wooden_shield');
   f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: 19, y: 7 }; f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'ruins_guardian' }); f.advance(1000);
   assert.equal(f.world.state.adventure.monsters[2].hp, 62); assert.equal(f.raw(p).adventure.hp, 33);
   const hits = f.world.state.events.filter(e => e.type === 'adventure_combat'); assert.ok(hits.some(e => e.payload.attacker === 'agent' && e.payload.damage === 8)); assert.ok(hits.some(e => e.payload.attacker === 'monster' && e.payload.damage === 7));
-  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { x: 11, y: 8 }; f.raw(p).adventure.in_field = false;
+  f.act(p, 'adventure_plan', { intent: 'stop' }); f.raw(p).scene_id = 'plaza'; f.raw(p).position = { ...LIFE_RULES.farm_place.service_center }; f.raw(p).adventure.in_field = false;
   for (let i = 0; i < 3; i++) grantMonsterLoot(f.raw(p), 'ruins_guardian');
-  f.inventory(p, 'craft', 'iron_armor'); f.inventory(p, 'equip', 'iron_armor');
+  f.inventory(p, 'craft', 'iron_armor'); f.raw(p).position = {...LIFE_RULES.camp_place.service_center}; f.inventory(p, 'equip', 'iron_armor');
   f.raw(p).adventure.hp = 40;
   const slime = f.world.state.adventure.monsters[0]; f.raw(p).scene_id = 'adventure'; f.raw(p).position = { x: slime.position.x, y: slime.position.y - 1 };
   f.act(p, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }); f.advance(1000);
@@ -191,7 +198,7 @@ test('武器与护甲实际影响战斗，防御不会让伤害降到0', t => {
 test('真实击败怪物只给合格贡献者一份材料，旧动作重放和旁观不重复发奖', t => {
   const f = fixture(t), a = f.make('甲'), b = f.make('乙', 'owner_b');
   const req = f.request(a, 'adventure_plan', { intent: 'hunt', monster_id: 'forest_slime' }); const started = f.world.callTool(a.auth, 'act', req);
-  f.advance(25000);
+  f.advance(45000);
   assert.equal(f.observe(a).self.life.inventory.wood, 4); assert.equal(f.observe(b).self.life.inventory.wood, 3);
   assert.deepEqual(f.world.callTool(a.auth, 'act', req), started); spectatorSnapshot(f.world); f.advance(5000);
   assert.equal(f.observe(a).self.life.inventory.wood, 4);
@@ -208,11 +215,14 @@ test('重启保留种子/装备/成长，离线成熟通知只发一次且不重
     const a = world.createAgent({ name: '我的旧 AI' }), c = world.createController(a.agent_id); world.ownerControl(a.agent_id, 'start');
     const auth = world.authenticate(c.token); let o = world.callTool(auth, 'join_world');
     const act = (type, payload) => { o = world.callTool(auth, 'observe', { run_id: o.run_id, session_epoch: o.session_epoch }); return world.callTool(auth, 'act', { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }); };
-    assert.equal(act('move', { x: 11, y: 8 }).status, 'applied');
+    world.agent(a.agent_id).position = {x:10,y:29};
+    assert.equal(act('move', { ...LIFE_RULES.farm_place.service_center }).status, 'applied');
     for (let elapsed = 0; elapsed < 1500; elapsed += 100) { now += 100; world.tick(); }
-    assert.deepEqual(world.agent(a.agent_id).position, { x: 11, y: 8 });
+    assert.deepEqual(world.agent(a.agent_id).position, { ...LIFE_RULES.farm_place.service_center });
     assert.equal(act('inventory', { intent: 'craft', item_id: 'wooden_sword' }).status, 'applied');
+    world.agent(a.agent_id).position = {...LIFE_RULES.camp_place.service_center};
     assert.equal(act('inventory', { intent: 'equip', item_id: 'wooden_sword' }).status, 'applied');
+    world.agent(a.agent_id).position = {...LIFE_RULES.farm_place.service_center};
     act('farm', { intent: 'till', plot_id: 'plot_1' }); act('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); act('farm', { intent: 'water', plot_id: 'plot_1' });
     world.close(); world = undefined; now += 180000;
     world = new World({ dbPath, now: () => now, actionIntervalMs: 0 }); world.tick(); world.tick();
@@ -237,7 +247,8 @@ test('真实HTTP MCP公开生活动作，私有仓库只在本人回应中，匿
   const types = (await client.listTools()).tools.find(tool => tool.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('farm') && types.includes('inventory'));
   const joined = await call('join_world'), session = { run_id: joined.run_id, session_epoch: joined.session_epoch };
-  const move = await call('act', { ...session, action_id: joined.next_action_id, type: 'move', payload: { x: 11, y: 8 } });
+  app.world.agent(a.agent_id).position = {x:10,y:29};
+  const move = await call('act', { ...session, action_id: joined.next_action_id, type: 'move', payload: { ...LIFE_RULES.farm_place.service_center } });
   assert.equal(move.status, 'applied');
   let arrived;
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -245,7 +256,7 @@ test('真实HTTP MCP公开生活动作，私有仓库只在本人回应中，匿
     if (!arrived.self.movement) break;
     await new Promise(resolve => setTimeout(resolve, 50));
   }
-  assert.deepEqual(arrived.self.position, { x: 11, y: 8 }); assert.equal(arrived.self.movement, null);
+  assert.deepEqual(arrived.self.position, { ...LIFE_RULES.farm_place.service_center }); assert.equal(arrived.self.movement, null);
   const till = await call('act', { ...session, action_id: move.next_action_id, type: 'farm', payload: { intent: 'till', plot_id: 'plot_1' } });
   const plant = await call('act', { ...session, action_id: till.next_action_id, type: 'farm', payload: { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' } });
   assert.equal(plant.status, 'applied'); assert.equal(plant.life.inventory.turnip_seed, 2);

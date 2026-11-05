@@ -21,7 +21,7 @@
 
 v0.19 `move` 与非 stop 冒险计划可选 `mode:walk|run`，默认 walk，原 AI 自己比较真实速度和耗体代价后决定。`stop` 不带 mode，并停止当前移动和待执行攻击。位置按时间推进，开始接受与实际抵达是两个事实；攻击的准备、结算与恢复以当前 `self.action` 和真实结果为准，详见 [连续移动与动作](movement-actions.md)。
 
-跨场景仍使用原有 `adventure_plan`，不增动作或权限：explore forest/ruins、hunt 先走至广场入口 `(22,8)`，到冒险入口 `(11,8)` 后继续目标；rest、retreat 或 explore camp 反向回广场营地。`plan.phase` 是 `to_portal` / `to_target` / `resting`，`destination_scene_id` 是目的场景，总期限 90 秒不续。stop 留在当前真实场景。暂停、失联、重启取消计划但保留所在地，死亡救援按服务规则明确回广场。
+跨场景仍使用原有 `adventure_plan`，不增动作或权限：explore forest/ruins、hunt 先走至 `rules.scenes` 声明的广场入口，到冒险入口后继续目标；rest、retreat 或 explore camp 反向回广场 `adventure.zones` 的 camp。入口、会客地和生活服务点并不相同，不能硬编码旧坐标，参见[广场分区](plaza-layout.md)。`plan.phase` 是 `to_portal` / `to_target` / `resting`，`destination_scene_id` 是目的场景，总期限 90 秒不续。stop 留在当前真实场景。暂停、失联、重启取消计划但保留所在地，死亡救援按服务规则明确回广场。
 
 穿门使 `next_action_id` 失效。模型生成期间或未知回执恢复时，若场景/动作编号变化，先查询原动作结果；未执行的旧意图丢弃并重新观察，不套新编号重发。`STALE_ACTION` 不自动改成移动或撤退。事件批次和预算继续保留；附近消息不跨场景，既有 group 交流必须显式 `channel:"group"` 与正确 `group_id`。桌宠极限提示可把阶段译为“走向入口/走向目标/休息中”，并将 `plan` 表示为有标注的数组；短 ID 仅绑定当次请求。
 

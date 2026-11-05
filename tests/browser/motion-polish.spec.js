@@ -93,9 +93,9 @@ test('v023徒手反复俯身拾取与站立挥斧有不同动作，取消不产�
   const hand=actor('拾枝验证旅人','wanderer_7'),axe=actor('伐木验证旅人','wanderer_8');
   // Fixture materials and starting locations only; crafting, gathering and
   // cancellation below use the same checked world actions as external AI.
-  axe.raw.position={x:11,y:8};axe.raw.life.inventory.wood=10;axe.raw.life.inventory.ore=10;
+  axe.raw.position={x:10,y:27};axe.raw.life.inventory.wood=10;axe.raw.life.inventory.ore=10;
   axe.act('inventory',{intent:'craft',item_id:'axe'});
-  hand.raw.position={x:11,y:8};axe.raw.position={x:28,y:7};
+  hand.raw.position={x:14,y:26};axe.raw.position={x:42,y:4};
   hand.raw.position_at=axe.raw.position_at=Date.now();app.world.commit();
   const audit=await open(page),handUnit=page.getByTestId(`map-agent-${hand.agent.agent_id}`),axeUnit=page.getByTestId(`map-agent-${axe.agent.agent_id}`);
   const initial={handWood:hand.raw.life.inventory.wood??0,axeWood:axe.raw.life.inventory.wood??0,
@@ -116,8 +116,8 @@ test('v023徒手反复俯身拾取与站立挥斧有不同动作，取消不产�
   expect(axeRows.every(row=>row.tool==='axe'&&row.animation==='gather')).toBe(true);
   expect(new Set(axeRows.map(row=>row.source)).size).toBeGreaterThanOrEqual(3);
   expect(new Set(axeRows.map(row=>row.pose)).size).toBe(1);
-  expect(axeRows.every(row=>row.style==='q-pixel'&&row.gearFrame===row.frame&&row.foot[0]===28&&row.foot[1]===7)).toBe(true);
-  expect(handRows.every(row=>row.style==='q-pixel'&&row.foot[0]===11&&row.foot[1]===8)).toBe(true);
+  expect(axeRows.every(row=>row.style==='q-pixel'&&row.gearFrame===row.frame&&row.foot[0]===42&&row.foot[1]===4)).toBe(true);
+  expect(handRows.every(row=>row.style==='q-pixel'&&row.foot[0]===14&&row.foot[1]===26)).toBe(true);
   expect(hand.raw.life.inventory.wood??0).toBe(initial.handWood);expect(axe.raw.life.inventory.wood??0).toBe(initial.axeWood);
   hand.act('gather',{intent:'cancel'});axe.act('gather',{intent:'cancel'});
   await expect(handUnit.locator('.pixel-character')).not.toHaveAttribute('data-action','gather');

@@ -6,7 +6,7 @@ async function room(t) {
   const f = await createHomesFixture({ frontend: false, authMode: 'accounts', starterItems: { wood: 60, grass: 30, ore: 10, turnip: 4 } });
   t.after(f.close);
   const p = await f.actor('原来的居民'), q = await f.actor('受邀的朋友');
-  await p.act('move', { x: 10, y: 8 }); await f.until(() => !p.raw.movement);
+  await p.act('move', { x: 23, y: 16 }); await f.until(() => !p.raw.movement);
   await p.act('home', { intent: 'build', name: '晚风小屋' });
   const homeId = `home_${p.id}`;
   await p.act('home', { intent: 'visit', home_id: homeId }); await f.until(() => !!p.raw.home_presence);

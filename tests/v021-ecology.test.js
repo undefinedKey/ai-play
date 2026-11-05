@@ -33,6 +33,7 @@ function fixture(t, persistent = false) {
   return { get world() { return world; }, raw, make, observe, request, act, advance, until, now: () => now,
     jump(ms) { now += ms; world.tick(); }, restart(ms = 0) { world.close(); now += ms; world = new World({ dbPath, now: () => now, actionIntervalMs: 0 }); } };
 }
+const EAST=RESOURCE_NODES.find(n=>n.id==='east_pine'),SOUTH=RESOURCE_NODES.find(n=>n.id==='south_pine'),PLANT=RESOURCE_NODES.find(n=>n.id==='planting_plaza');
 const ok = result => { assert.equal(result.status, 'applied', JSON.stringify(result.error)); return result; };
 const harvest = (f, p, node_id) => { ok(f.act(p, { intent: 'start', node_id })); f.until(() => !f.raw(p).life.gathering); };
 const node = (f, id) => f.world.state.resources.nodes[id];
@@ -46,7 +47,7 @@ test('v021 forest sites and grass are bounded, reachable, unique, and keep all t
   assert.equal(new Set(RESOURCE_NODES.map(n => n.id)).size, RESOURCE_NODES.length);
   assert.equal(new Set(RESOURCE_NODES.map(n => `${n.scene_id}:${n.position.x},${n.position.y}`)).size, RESOURCE_NODES.length);
   for (const def of RESOURCE_NODES) { assert.ok(isWalkable(def.scene_id, def.interaction_position), def.id); assert.ok(findPath(def.scene_id, sceneDefinition(def.scene_id).portal.position, def.interaction_position), def.id); }
-  for (const [id, scene_id, position] of [['east_pine', 'plaza', { x: 29, y: 7 }], ['south_pine', 'plaza', { x: 30, y: 21 }], ['wild_pine', 'adventure', { x: 29, y: 12 }]]) {
+  for (const [id, scene_id, position] of [['east_pine', 'plaza', EAST.position], ['south_pine', 'plaza', SOUTH.position], ['wild_pine', 'adventure', { x: 29, y: 12 }]]) {
     const def = RESOURCE_NODES.find(n => n.id === id); assert.equal(def.scene_id, scene_id); assert.deepEqual(def.position, position);
   }
   assert.equal(f.world.getRules().resources.version, 2); assert.equal(f.world.getRules().resources.trees.planting.seed_item_id, 'pine_cone');
@@ -67,7 +68,7 @@ test('v021 migration retains partially harvested trees and non-tree stock clocks
 });
 
 test('v021 finite chops yield wood once, only the final chop drops a cone and a mature tree never replenishes missing segments', t => {
-  const f = fixture(t), p = f.make({ x: 28, y: 7 }, { axe: 1 }), initial = f.raw(p).life.inventory.wood;
+  const f = fixture(t), p = f.make({ ...EAST.interaction_position }, { axe: 1 }), initial = f.raw(p).life.inventory.wood;
   harvest(f, p, 'east_pine'); assert.equal(node(f, 'east_pine').stock, 2); assert.equal(f.raw(p).life.inventory.pine_cone || 0, 0);
   f.advance(120000); assert.equal(node(f, 'east_pine').stock, 2); assert.equal(node(f, 'east_pine').regrow_at, null);
   harvest(f, p, 'east_pine'); assert.equal(node(f, 'east_pine').stock, 1); assert.equal(f.raw(p).life.inventory.pine_cone || 0, 0);
@@ -129,7 +130,7 @@ test('v021 cancelling or losing authorization during planting frees reservation 
 });
 
 test('v021 malformed planting, missing seeds, immature trees and cone-overflow cannot spend tools or create products', t => {
-  const f = fixture(t), p = f.make({ x: 28, y: 7 }, { axe: 1 });
+  const f = fixture(t), p = f.make({ ...EAST.interaction_position }, { axe: 1 });
   for (const payload of [{ intent: 'plant', resource_id: 'wood' }, { intent: 'plant', node_id: 'planting_plaza', resource_id: 'wood' }, { intent: 'plant', node_id: 'planting_plaza', x: 18 }, { intent: 'cancel', node_id: 'planting_plaza' }]) assert.equal(f.act(p, payload).error.code, 'INVALID_ACTION');
   assert.equal(f.act(p, { intent: 'plant', node_id: 'planting_plaza' }).error.code, 'INSUFFICIENT_ITEMS');
   f.raw(p).life.inventory.pine_cone = Number.MAX_SAFE_INTEGER; node(f, 'east_pine').stock = 1;
@@ -152,7 +153,7 @@ test('v021 restart stops planting and preserves original identity, seeds and sta
 });
 
 test('v021 planted sapling timestamps survive a real SQLite restart and offline growth never grants another seed or harvest', t => {
-  const f = fixture(t, true), p = f.make({ x: 17, y: 17 }, { pine_cone: 1 });
+  const f = fixture(t, true), p = f.make({ ...PLANT.interaction_position }, { pine_cone: 1 });
   ok(f.act(p, { intent: 'plant', node_id: 'planting_plaza' })); f.advance(4000);
   const planted = structuredClone(node(f, 'planting_plaza').ecology), identity = structuredClone(f.raw(p).appearance), inventory = structuredClone(f.raw(p).life.inventory);
   assert.equal(planted.stage, 'sapling'); f.world.ownerControl(p.id, 'pause');
@@ -166,7 +167,7 @@ test('v021 planted sapling timestamps survive a real SQLite restart and offline 
 });
 
 test('v021 final-chop overflow discovered during work keeps tree and every item unchanged without refunding spent tool wear', t => {
-  const f = fixture(t), p = f.make({ x: 28, y: 7 }, { axe: 1 }); node(f, 'east_pine').stock = 1;
+  const f = fixture(t), p = f.make({ ...EAST.interaction_position }, { axe: 1 }); node(f, 'east_pine').stock = 1;
   ok(f.act(p, { intent: 'start', node_id: 'east_pine' }));
   const wood = f.raw(p).life.inventory.wood;
   // Boundary fixture: another inventory source has filled the secondary reward slot.
@@ -179,7 +180,7 @@ test('v021 final-chop overflow discovered during work keeps tree and every item 
 });
 
 test('v021 a cancelled planting keeps its seed and spent work energy; missing seed at completion cannot create a tree', t => {
-  const f = fixture(t), p = f.make({ x: 17, y: 17 }, { pine_cone: 1 });
+  const f = fixture(t), p = f.make({ ...PLANT.interaction_position }, { pine_cone: 1 });
   const before = f.raw(p).fatigue.energy; ok(f.act(p, { intent: 'plant', node_id: 'planting_plaza' }));
   assert.equal(f.raw(p).life.gathering.phase, 'working'); assert.equal(f.raw(p).fatigue.energy, before - 2);
   f.advance(1000); ok(f.act(p, { intent: 'cancel' }));
@@ -193,7 +194,7 @@ test('v021 a cancelled planting keeps its seed and spent work energy; missing se
 });
 
 test('v021 a planting reservation survives the natural germination boundary without double growth or seed duplication', t => {
-  const f = fixture(t), p = f.make({ x: 28, y: 7 }, { pine_cone: 1 });
+  const f = fixture(t), p = f.make({ ...EAST.interaction_position }, { pine_cone: 1 });
   const target = node(f, 'east_pine'); target.stock = 0;
   target.ecology = { stage: 'empty', stage_started_at: f.now() - 299000, next_at: f.now() + 1000, generation: 2, origin: 'wild' };
   target.regrow_at = f.now() + 601000;

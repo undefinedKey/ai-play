@@ -1,3 +1,4 @@
+import { PLAZA_SERVICES } from '../shared/plaza-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -94,14 +95,14 @@ test('v019 permission expiry and host lease end stop physical movement at the cu
 });
 test('v019 delayed movement settles fatigue at its actual cutoff then only idle-recovers in camp',t=>{
   for(const boundary of ['run','lease','arrival','run_exhaustion']) {
-    const f=fixture(t),p=f.make(),a=f.raw(p);a.fatigue.energy=boundary==='run_exhaustion'?.105:50;
-    f.act(p,'move',{x:12,y:8,...(boundary==='run_exhaustion'?{mode:'run'}:{})});
+    const f=fixture(t),p=f.make(),a=f.raw(p);a.position={...PLAZA_SERVICES.camp.interaction_position};a.fatigue.energy=boundary==='run_exhaustion'?.105:50;
+    f.act(p,'move',{x:25,y:16,...(boundary==='run_exhaustion'?{mode:'run'}:{})});
     if(boundary==='run')a.run.expires_at=f.now()+250;
     if(boundary==='lease')a.last_contact_at=f.now()-44750;
     f.jump(10000);
     const expected=boundary==='arrival'?52.4:boundary==='run_exhaustion'?2.67:52.55;
     close(a.fatigue.energy,expected);assert.equal(a.movement,null);
-    close(a.position.x,boundary==='arrival'?12:boundary==='run_exhaustion'?11.35:11.5);
+    close(a.position.x,boundary==='arrival'?25:boundary==='run_exhaustion'?24.35:24.5);
     f.world.tick();close(a.fatigue.energy,expected);
   }
 });
@@ -123,7 +124,7 @@ test('v019 monster motion metadata and plan mode use a scalar public whitelist',
   assert.doesNotMatch(JSON.stringify(snapshot),/PRIVATE_MONSTER_METADATA|never public/);
 });
 test('v019 no spectators still advances patrols and an authorized plan; no replacement goal',t=>{
-  const f=fixture(t),p=f.make();assert.equal(f.world.listenerCount('change'),0);const initial={...f.raw(p).position};
+  const f=fixture(t),p=f.make();assert.equal(f.world.listenerCount('change'),0);f.raw(p).position={...PLAZA_SERVICES.camp.interaction_position};const initial={...f.raw(p).position};
   f.act(p,'adventure_plan',{intent:'explore',zone_id:'camp',mode:'run'});f.advance(1000);
   assert.deepEqual(f.raw(p).position,initial);assert.equal(f.raw(p).adventure.plan,null);
   const m=f.world.state.adventure.monsters[0],home={...m.position};f.advance(2000);assert.notDeepEqual(m.position,home);assert.equal(Object.keys(f.world.state.agents).length,1);

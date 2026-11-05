@@ -29,16 +29,17 @@ function fixture(t,count=2) {
 test('v032 portable rules match actual food, reachable sparse seats and physical body collision',()=>{
   assert.deepEqual([...COMMUNITY_FOOD_IDS].sort(),LIFE_RULES.items.filter(i=>i.kind==='food').map(i=>i.id).sort());
   for(const v of COMMUNITY_RULES.venues){assert.ok(isWalkable('plaza',v.interaction_position));assert.ok(findWorldPath(null,'plaza',{x:11,y:8},v.interaction_position));for(const s of v.seats)assert.ok(isWalkable('plaza',s.position));for(const p of v.footprint)assert.equal(isWalkable('plaza',p),false);}
-  assert.equal(findWorldPath(null,'plaza',{x:17,y:16},{x:19,y:16}).length,5,'path must go around the table');
+  const table=COMMUNITY_RULES.venues.find(v=>v.id==='table').position;
+  assert.equal(findWorldPath(null,'plaza',{x:table.x-1,y:table.y},{x:table.x+1,y:table.y}).length,5,'path must go around the actual table');
 });
 
-test('v032 new table and board preserve legacy resident position and permit only an outward escape',()=>{
+test('public furniture bodies require an explicit terrain repair and cannot be entered from a legal station',()=>{
   for(const v of COMMUNITY_RULES.venues)for(const position of v.footprint){
-    const a={scene_id:'plaza',position:{...position}};initializeScene(a,1000);assert.deepEqual(a.position,position);assert.equal(a.scene_migration,undefined);
+    const a={scene_id:'plaza',position:{...position}};initializeScene(a,1000);assert.notDeepEqual(a.position,position);assert.ok(isWalkable('plaza',a.position));assert.equal(a.scene_migration.reason,'terrain_repair');assert.deepEqual(a.scene_migration.from_position,position);
     const route=findWorldPath(null,'plaza',a.position,v.interaction_position);assert.ok(route);assert.ok(route.slice(1).every(p=>isWalkable('plaza',p)));
     recordMovement(a,route,1000);assert.ok(publicMovement(a));assert.equal(findWorldPath(null,'plaza',v.interaction_position,position),null);
   }
-  const fractional={scene_id:'plaza',position:{x:18,y:16.5}};initializeScene(fractional,1000);assert.deepEqual(fractional.position,{x:18,y:16.5});assert.ok(findWorldPath(null,'plaza',fractional.position,{x:18,y:17}));
+  const fractional={scene_id:'plaza',position:{x:24,y:16.5}};initializeScene(fractional,1000);assert.deepEqual(fractional.position,{x:24,y:16.5});assert.ok(findWorldPath(null,'plaza',fractional.position,{x:24,y:17}));
 });
 
 test('v032 strict shared contract rejects invented fields, forged seats, missing food and hidden performance fields',()=>{

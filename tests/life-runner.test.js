@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { World } from '../server/world.js';
@@ -110,7 +111,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}入场立即有决策机�
 test('真实开垦、种植、浇水、成熟唤醒、收获和食用均由原AI的动作完成', async t => {
   let answer = action('farm', { intent: 'till', plot_id: 'plot_1' });
   const f = await fixture(t, { choose: () => answer });
-  f.a.position = { x: 11, y: 8 }; f.refresh();
+  f.a.position = lifePosition(f.world, 'farm_place'); f.refresh();
   await f.decide();
   assert.equal(f.a.life.plots[0].tilled, true);
   answer = action('farm', { intent: 'plant', plot_id: 'plot_1', crop_id: 'turnip' }); await f.decide();
@@ -138,13 +139,13 @@ test('真实开垦、种植、浇水、成熟唤醒、收获和食用均由原AI
 test('桌宠可直接选择服务提供的制作/装备机会，穿戴改变真实属性而非本地模拟', async t => {
   let intent = 'craft';
   const f = await fixture(t, { choose: data => data.opportunities.find(o => o.action.type === 'inventory' && o.action.payload.intent === intent)?.action || action('wait') });
-  f.a.position = { x: 11, y: 8 };
+  f.a.position = lifePosition(f.world, 'crafting_place');
   // Already-growing fields keep this scenario focused on equipment candidates.
   for (const plot of f.a.life.plots) Object.assign(plot, { tilled: true, crop_id: 'turnip', planted_at: f.runner.now(), watered_at: f.runner.now(), ready_at: f.runner.now() + 60000 });
   f.refresh();
   await f.decide();
   assert.equal(f.a.life.inventory.wooden_sword, 1);
-  intent = 'equip'; await f.decide();
+  f.a.position = lifePosition(f.world, 'camp_place'); f.refresh(); intent = 'equip'; await f.decide();
   assert.equal(f.a.life.equipment.weapon, 'wooden_sword');
   assert.equal(f.runner.observation.self.life.stats.attack, 8);
   assert.equal(f.runner.checkpoint.calls_used, 2);

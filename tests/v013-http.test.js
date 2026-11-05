@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { createApp } from '../server/index.js';
 import { initializeEconomy } from '../server/economy.js';
+import { findPath } from '../server/spatial.js';
 
 // Real HTTP and MCP, injected game clock. No production records or model calls.
 test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can gather, repair, farm, cook and trade without leaking accounts', async t => {
@@ -33,7 +34,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
     const observe = () => call('observe', session);
     const request = async (type, payload) => ({ ...session, type, payload, action_id: (await observe()).next_action_id });
     const act = async (type, payload) => call('act', await request(type, payload));
-    app.world.agent(a.agent_id).position = { x: 11, y: 8 };
+    app.world.agent(a.agent_id).position = { ...app.world.getRules().life.camp_place.service_center };
     return { id: a.agent_id, client, call, observe, request, act };
   };
   const p = await actor('和平旅人'), raw = app.world.agent(p.id);
@@ -45,7 +46,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   // owner has an existing, finite firepit and a saved stock of wood. Only that
   // neighbour receives fixture supplies and explicitly fuels it through MCP.
   const keeper = await actor('邻居火塘看守'), keeperRaw = app.world.agent(keeper.id);
-  keeperRaw.position = { x: 13, y: 11 };
+  keeperRaw.position = { ...app.world.getRules().survival.sites.find(site => site.id === 'plaza_hearth').interaction_position };
   keeperRaw.life.inventory = { wood: 30 };
   delete keeperRaw.life.ledger; initializeEconomy(keeperRaw, now);
   const fireId = 'legacy_economy_pit';
@@ -60,7 +61,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
     const receipt = await keeper.act('survival', { intent: 'fuel', fire_id: fireId, item_id: 'wood', quantity });
     assert.equal(receipt.status, 'applied', JSON.stringify(receipt.error));
     const after = await keeper.observe(), fueled = after.survival.fires.find(f => f.fire_id === fireId);
-    assert.equal(after.self.life.inventory.wood, woodBefore - quantity);
+    assert.equal(after.self.life.inventory.wood || 0, woodBefore - quantity);
     assert.equal(fueled.fuel_seconds, fire.fuel_seconds + quantity * 60);
     assert.ok(fueled.fuel_seconds <= fueled.max_fuel_seconds);
     fuelUsed += quantity;
@@ -76,6 +77,16 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   const applied = async (type, payload) => {
     const r = await p.act(type, payload); assert.equal(r.status, 'applied', JSON.stringify(r.error)); return r;
   };
+  // Explicit choices by this test controller, never an auto-routing action wrapper.
+  const walk = async target => {
+    for (let i = 0; i < 60; i++) {
+      const position = (await p.observe()).self.position;
+      if (position.x === target.x && position.y === target.y) return;
+      const path = findPath('plaza', position, target); assert.ok(path?.length > 1);
+      const next = path[Math.min(3, path.length - 1)]; await applied('move', { x: next.x, y: next.y }); await advance(2000);
+    }
+    assert.fail('explicit service trip must finish within bounded moves');
+  };
   const types = (await p.client.listTools()).tools.find(t => t.name === 'act').inputSchema.properties.type.enum;
   assert.ok(types.includes('gather') && types.includes('trade'));
   const rules = await p.call('get_rules');
@@ -83,16 +94,22 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   assert.deepEqual(rules.life.gathering.resources.map(r => r.id), ['wood', 'ore']);
   const health = await (await fetch(`${url}/api/health`)).json();
   for (const cap of ['gathering', 'cooking', 'trading']) assert.equal(health.capabilities[cap], true);
+  const camp = rules.life.camp_place.service_center, branches = rules.resources.nodes.find(n => n.id === 'camp_branches').interaction_position;
+  await walk(branches);
   assert.equal((await p.act('gather', { intent: 'start', resource_id: 'wood' })).error.code, 'FATIGUE_EXHAUSTED');
   await applied('adventure_plan', { intent: 'rest' }); await advance(60000);
   if ((await p.observe()).self.adventure.plan) await applied('adventure_plan', { intent: 'stop' });
+  await walk(branches);
   for (let i = 0; i < 5; i++) {
     const before = await p.observe();
     await advance(Math.max(0, (before.self.life.gather_ready_at?.wood || 0) - now));
     const node = (await p.observe()).resources.nodes.find(node => node.id === 'camp_branches');
     if (node.stock === 0) {
       assert.ok(node.regrow_at > now, '耗尽的共享木枝必须给出未来再生时间');
-      await advance(node.regrow_at - now);
+      await walk(camp); await applied('adventure_plan', { intent: 'rest' });
+      await advance(Math.max(0, node.regrow_at - now));
+      if ((await p.observe()).self.adventure.plan) await applied('adventure_plan', { intent: 'stop' });
+      await walk(branches);
       assert.ok((await p.observe()).resources.nodes.find(node => node.id === 'camp_branches').stock > 0);
     }
     const req = await p.request('gather', { intent: 'start', resource_id: 'wood' });
@@ -103,6 +120,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
     assert.equal((await p.observe()).self.life.inventory.wood, i + 1);
     assert.equal((await p.observe()).self.life.gathering, null);
   }
+  await walk(rules.life.market.place.service_center);
   const sell = await p.request('trade', { intent: 'sell', item_id: 'wood', quantity: 3 });
   const receipt = await p.call('act', sell); assert.equal(receipt.status, 'applied');
   assert.deepEqual(await p.call('act', sell), receipt);
@@ -110,16 +128,26 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   await applied('trade', { intent: 'buy', item_id: 'turnip_seed', quantity: 1 });
   await applied('trade', { intent: 'buy', item_id: 'wheat_seed', quantity: 1 });
   assert.equal((await p.observe()).self.adventure.gold, 0);
+  await walk(rules.life.tool_place.service_center);
   for (const tool of ['hoe', 'watering_can']) await applied('inventory', { intent: 'repair', item_id: tool });
+  await walk(rules.life.farm_place.service_center);
   for (const [plot_id, crop_id] of [['plot_1', 'turnip'], ['plot_2', 'wheat']]) {
     await applied('farm', { intent: 'till', plot_id });
     await applied('farm', { intent: 'plant', plot_id, crop_id });
     await applied('farm', { intent: 'water', plot_id });
   }
+  await walk(rules.resources.nodes.find(n => n.id === 'camp_stones').interaction_position);
   await applied('gather', { intent: 'start', resource_id: 'ore' });
-  await advance(180000);
+  await advance((await p.observe()).self.life.gathering.ends_at - now);
+  await walk(camp); await applied('adventure_plan', { intent: 'rest' }); await advance(180000);
+  // This penniless visitor chooses daylight travel instead of receiving a torch.
+  for (let i = 0; i < 10 && (await p.observe()).day_cycle.phase !== 'day'; i++) await advance(60000);
+  assert.equal((await p.observe()).day_cycle.phase, 'day');
+  if ((await p.observe()).self.adventure.plan) await applied('adventure_plan', { intent: 'stop' });
   assert.equal((await p.observe()).self.life.inventory.ore, 1);
+  await walk(rules.life.farm_place.service_center);
   for (const plot_id of ['plot_1', 'plot_2']) await applied('farm', { intent: 'harvest', plot_id });
+  await walk(rules.life.cooking_place.service_center);
   await applied('inventory', { intent: 'craft', item_id: 'turnip_soup' });
   await applied('inventory', { intent: 'craft', item_id: 'wheat_bread' });
   const foodState = (await p.observe()).self, beforeFood = foodState.fatigue.energy;
@@ -134,6 +162,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   assert.equal(soup.status, 'applied', JSON.stringify(soup.error));
   assert.equal((await p.observe()).self.life.inventory.turnip_soup || 0, 0);
   assert.equal((await p.observe()).self.survival.satiety, Math.min(100, beforeSoup.survival.satiety + 35));
+  await walk(rules.life.market.place.service_center);
   await applied('trade', { intent: 'sell', item_id: 'ore', quantity: 1 });
   await applied('trade', { intent: 'buy', item_id: 'turnip_seed', quantity: 1 });
   const end = (await p.observe()).self;
@@ -145,6 +174,7 @@ test('v0.13 HTTP: zero-resource pacifist with a neighbour-maintained fire can ga
   assert.equal((await keeper.observe()).self.life.inventory.wood || 0, 30 - fuelUsed);
   assert.equal(app.world.state.events.some(e => e.type === 'survival_damage' && e.payload.agent_id === p.id), false,
     'the economic test runs under a real neighbouring fire, with no night or starvation interruptions');
+  await walk(camp);
   const other = await actor('其他主人旅人');
   const neighbour = (await other.observe()).nearby_agents.find(a => a.agent_id === p.id);
   assert.ok(neighbour);

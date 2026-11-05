@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { DshPetClient, decisionPrompt, prepareDecisionPrompt, expandDecisionReferences } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
 import { cooperationContext, cooperationPrompt, cooperationStamp, supportsCooperation } from '../skills/ai-plaza/scripts/cooperation.mjs';
@@ -217,7 +218,7 @@ async function realRunners(t, mode = 'dsh-pet', count = 2) {
       fetchImpl: async (_, options) => { const messages = JSON.parse(options.body).messages; peer.contexts.push({ text: messages[0].content, data: JSON.parse(messages[1].content) });
         return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(peer.answer) } }] }) }; } });
     runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-    peer.runner = runner; peer.agent = () => world.agent(peer.id); peer.agent().position = { x: 11, y: 8 }; peers.push(peer);
+    peer.runner = runner; peer.agent = () => world.agent(peer.id); peer.agent().position = lifePosition(world, 'camp_place'); peers.push(peer);
   }
   const advance = ms => { while (ms > 0) { const step = Math.min(ms, 1000); now += step; ms -= step; for (const p of peers) world.callTool(p.auth, 'observe', p.runner.session()); world.tick(); } };
   const decide = async (peer, answer, elapsed = 6000) => { peer.answer = answer; advance(elapsed); await peer.runner.decide(); assert.ok(!peer.runner.lastError, peer.runner.lastError); };

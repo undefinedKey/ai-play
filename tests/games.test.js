@@ -63,7 +63,7 @@ test('目录公开玩法、MCP动作和答题类型，答案不在任何角色�
   assert.deepEqual(rules.games.map(game => game.id), ['word_chain', 'rock_paper_scissors', 'story_chain']);
   for (const id of ['riddle', 'sequence', 'treasure_hunt']) assert.ok(rules.activities.some(activity => activity.id === id));
   for (const type of ['submit_move', 'submit_story']) assert.equal(toolDefinitions.act.schema.type.parse(type), type);
-  f.go(p, { x: 19, y: 4 });
+  f.go(p, { x: 9, y: 14 });
   assert.equal(f.act(p, 'start_activity', { activity_id: 'riddle' }).activity.task.answer_type, 'string');
   const answer = f.world.agent(p.id).activity_answer[0];
   for (const snapshot of [f.observe(p), f.world.publicSnapshot(), f.world.ownerSnapshot(), f.world.snapshotFor(p.owner), spectatorSnapshot(f.world)]) {
@@ -77,14 +77,14 @@ test('目录公开玩法、MCP动作和答题类型，答案不在任何角色�
 });
 
 test('数列是真实题面和真实计分，移动取消，超时不补答案', t => {
-  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 19, y: 12 });
+  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 9, y: 20 });
   const activity = f.act(p, 'start_activity', { activity_id: 'sequence' }).activity;
   const values = activity.task.prompt.match(/\d+/g).map(Number);
   assert.equal(values.length, 4);
   assert.equal(f.act(p, 'finish_activity', { answer: values[3] + values[1] - values[0] }).result.score, 1);
   f.act(p, 'start_activity', { activity_id: 'sequence' });
   assert.equal(f.act(p, 'finish_activity', { answer: '3' }).error.code, 'INVALID_ACTION');
-  f.act(p, 'move', { x: 18, y: 12 }); assert.equal(f.observe(p).self.activity, null);
+  f.act(p, 'move', { x: 8, y: 20 }); assert.equal(f.observe(p).self.activity, null);
   assert.equal(f.act(p, 'start_activity', { activity_id: 'sequence' }).error.code, 'MOVEMENT_BUSY');
   for (let elapsed = 0; elapsed < 500; elapsed += 100) f.advance(100);
   assert.equal(f.act(p, 'start_activity', { activity_id: 'sequence' }).status, 'applied'); f.advance(150000);
@@ -94,7 +94,7 @@ test('数列是真实题面和真实计分，移动取消，超时不补答案',
 
 test('地图寻宝按真实坐标依次收集三件，移动继续、重试不重复收集', t => {
   const f = fixture(t, 1), p = f.people[0];
-  f.go(p, { x: 11, y: 8 });
+  f.go(p, { x: 24, y: 16 });
   let activity = f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).activity;
   assert.equal(f.act(p, 'finish_activity').error.code, 'INVALID_ACTION');
   for (let index = 0; index < 3; index++) {
@@ -110,9 +110,9 @@ test('地图寻宝按真实坐标依次收集三件，移动继续、重试不�
 });
 
 test('寻宝限时保留实际分数，暂停立即清除活动', t => {
-  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 11, y: 8 });
+  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 24, y: 16 });
   const activity = f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).activity;
-  f.go(p, activity.target); f.act(p, 'finish_activity'); f.go(p, { x: 11, y: 8 });
+  f.go(p, activity.target); f.act(p, 'finish_activity'); f.go(p, { x: 24, y: 16 });
   // Controlled timing fixture: an actual finite firepit covers camp throughout
   // the intervening night. It burns normally; this test isolates timeout score.
   const now = f.world.now();
@@ -122,12 +122,12 @@ test('寻宝限时保留实际分数，暂停立即清除活动', t => {
   const result = f.world.state.events.filter(event => event.type === 'activity_finished').at(-1).payload.result;
   assert.deepEqual({ score: result.score, max_score: result.max_score }, { score: 1, max_score: 3 });
   assert.equal(f.world.state.events.some(event => event.type === 'survival_damage' && event.payload.agent_id === p.id), false);
-  f.go(p, { x: 11, y: 8 }); f.act(p, 'start_activity', { activity_id: 'treasure_hunt' });
+  f.go(p, { x: 24, y: 16 }); f.act(p, 'start_activity', { activity_id: 'treasure_hunt' });
   f.world.ownerControl(p.id, 'pause'); assert.equal(f.world.agent(p.id).activity, null);
 });
 
 test('夜晚暗处的真实伤害中断寻宝，记录环境原因而不伪造超时成绩', t => {
-  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 11, y: 8 });
+  const f = fixture(t, 1), p = f.people[0]; f.go(p, { x: 24, y: 16 });
   assert.equal(f.act(p, 'start_activity', { activity_id: 'treasure_hunt' }).status, 'applied');
   f.advance(460000);
   assert.equal(f.observe(p).self.activity, null);

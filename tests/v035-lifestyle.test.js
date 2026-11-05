@@ -18,7 +18,7 @@ function fixture(t, count = 2, options = {}) {
     world.ownerControl(id, 'start', { controller_id: controller.controller_id, duration_minutes: 60, max_calls: 1000 });
     const auth = world.authenticate(controller.token); world.callTool(auth, 'join_world');
     Object.assign(world.agent(id).life.inventory, { wood: 500, ore: 500, grass: 500, berry: 20, moon_herb: 20, turnip: 20, pond_fish: 10, silver_fish: 10 });
-    world.agent(id).position = { x: 11, y: 8 };
+    world.agent(id).position = { x: 24, y: 16 };
     return { id, controller, auth, get a() { return world.agent(id); }, get home() { return world.state.homes[`home_${id}`]; },
       observe() { return world.callTool(auth, 'observe', { run_id: this.a.run.run_id, session_epoch: this.a.session_epoch }); },
       input(type, payload) { const o = this.observe(); return { run_id: o.run_id, session_epoch: o.session_epoch, action_id: o.next_action_id, type, payload }; },
@@ -28,7 +28,7 @@ function fixture(t, count = 2, options = {}) {
   });
   const tick = ms => { now += ms; for (const p of players) if (p.a.status === 'active') p.a.last_contact_at = now; world.tick(); };
   const build = p => p.ok('home', { intent: 'build', name: `${p.a.name}的小屋` });
-  const enter = (p, home = p.home) => { p.ok('home', { intent: 'visit', home_id: home.home_id }); tick(3000); assert.equal(p.a.home_presence?.home_id, home.home_id); };
+  const enter = (p, home = p.home) => { p.ok('home', { intent: 'visit', home_id: home.home_id }); for(let i=0;i<1200&&!p.a.home_presence;i++)tick(100); assert.equal(p.a.home_presence?.home_id, home.home_id); };
   const tank = (p, x = 1, y = 1, rotation = 0) => { p.ok('home', { intent: 'craft', kind: 'aquarium' }); const id = p.home.furniture.at(-1).instance_id; p.ok('home', { intent: 'place', instance_id: id, x, y, rotation }); return id; };
   const approach = (p, id) => { p.ok('aquarium', { intent: 'approach', instance_id: id }); tick(10000); assert.equal(p.a.home_presence?.movement, null); };
   return { world, players, tick, build, enter, tank, approach, now: () => now, close };
@@ -70,7 +70,7 @@ test('v035 wardrobe uses real materials, persistent instances and independent vi
 test('v035 wardrobe rejects unsafe location and depleted resources; paging and max24 remain authoritative', t => {
   const f = fixture(t, 1), [p] = f.players;
   p.a.position = { x: 20, y: 20 }; assert.equal(p.observe().wardrobe.can_change, false); assert.equal(p.act('wardrobe', { intent: 'craft', style_id: 'linen_shirt' }).error.code, 'NOT_AT_CAMP');
-  p.a.position = { x: 11, y: 8 }; p.a.life.inventory.grass = 0;
+  p.a.position = { x: 24, y: 16 }; p.a.life.inventory.grass = 0;
   assert.equal(p.act('wardrobe', { intent: 'craft', style_id: 'linen_shirt' }).error.code, 'INSUFFICIENT_ITEMS'); assert.equal(p.a.wardrobe.items.length, 0);
   p.a.life.inventory.grass = 100;
   for (let i = 0; i < 24; i++) p.ok('wardrobe', { intent: 'craft', style_id: 'linen_shirt' });
@@ -187,7 +187,7 @@ test('v035 busy travel, furniture use and pause cannot perform remote aquarium o
   p.ok('home', { intent: 'visit', home_id: p.home.home_id });
   assert.equal(p.act('wardrobe', { intent: 'hairstyle', style_id: 'short' }).error.code, 'HOME_BUSY');
   assert.equal(p.act('aquarium', { intent: 'approach', instance_id: 'furniture_missing' }).error.code, 'HOME_REQUIRED');
-  f.tick(3000); const tank = f.tank(p);
+  for(let i=0;i<1200&&!p.a.home_presence;i++)f.tick(100); assert.ok(p.a.home_presence); const tank = f.tank(p);
   p.ok('home', { intent: 'craft', kind: 'chair' }); const chair = p.home.furniture.at(-1).instance_id;
   p.ok('home', { intent: 'place', instance_id: chair, x: 7, y: 3 }); p.ok('home', { intent: 'use', instance_id: chair, activity: 'sit' });
   assert.equal(p.observe().wardrobe.can_change, false); assert.equal(p.observe().aquarium.opportunities.length, 0);

@@ -1,3 +1,5 @@
+import {PLAZA_SERVICES} from '../shared/plaza-layout.js';
+const CAMP=PLAZA_SERVICES.camp.interaction_position;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
@@ -10,7 +12,7 @@ for (const initialEnergy of [0.01, 0.3]) test(`资源奔跑体力${initialEnergy
   const auth = world.authenticate(controller.token);
   world.callTool(auth, 'join_world', {});
   const a = world.agent(record.agent_id), session = { run_id: a.run.run_id, session_epoch: a.session_epoch };
-  a.position = { x: 11, y: 8 }; a.fatigue.energy = initialEnergy; a.fatigue.updated_at = now; a.fatigue.recover_after = now;
+  a.position = { ...CAMP }; a.fatigue.energy = initialEnergy; a.fatigue.updated_at = now; a.fatigue.recover_after = now;
   const stock = world.state.resources.nodes.orchard_berries.stock;
   const result = world.callTool(auth, 'act', { ...session, action_id: a.next_action_id, type: 'gather', payload: { intent: 'start', node_id: 'orchard_berries', mode: 'run' } });
   assert.equal(result.status, 'applied'); assert.equal(a.life.gathering.phase, 'approaching'); assert.equal(a.movement.mode, 'run');
@@ -22,7 +24,7 @@ for (const initialEnergy of [0.01, 0.3]) test(`资源奔跑体力${initialEnergy
   assert.ok(a.fatigue.energy > 0, '本测试实际包含耗尽后营地被动回体，不能靠禁止恢复绕过边界');
   assert.equal(a.life.gathering, null); assert.equal(a.movement, null); assert.equal(a.adventure.plan, null);
   assert.equal(world.state.resources.nodes.orchard_berries.reservation, null);
-  const distance = Math.abs(a.position.x - 11) + Math.abs(a.position.y - 8);
+  const distance = Math.abs(a.position.x - CAMP.x) + Math.abs(a.position.y - CAMP.y);
   assert.ok(distance > 0 && Math.abs(distance - initialEnergy / 0.3) < 1e-7, '只结算原体力预算内的真实路程，不能借恢复再续下一段');
   const stopped = { ...a.position };
   assert.equal(world.state.events.filter(e => e.type === 'life_gather_cancelled' && e.payload.agent_id === a.agent_id && e.payload.reason === 'exhausted').length, 1);

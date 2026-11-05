@@ -18,8 +18,8 @@ export function HomeEntrance({ world, map, onClick }) {
   const entrance = world.home_rules?.entrance;
   if (!entrance || !onClick) return null;
   return <button className="home-world-entrance" style={{ ...projectMapPoint(entrance, map), zIndex: 95 + entrance.y * 10 }} onClick={onClick}
-    data-testid="home-world-entrance" aria-label={`旁观家园入口，广场坐标 ${entrance.x}, ${entrance.y}`} title="查看小屋 · 只切换旁观画面">
-    <HomeSignArt/><span>小屋入口</span>
+    data-testid="home-world-entrance" data-service-id="home" data-interaction-x={entrance.x} data-interaction-y={entrance.y} aria-label={`旁观家园入口，广场坐标 ${entrance.x}, ${entrance.y}`} title="查看小屋 · 只切换旁观画面">
+    <span>住宅巷入口 · 查看小屋</span>
   </button>;
 }
 

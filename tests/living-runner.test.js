@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { lifePosition, marketPosition, resourcePosition } from './helpers/plaza-services.js';
 import assert from 'node:assert/strict';
 import { World } from '../server/world.js';
 import { toolDefinitions } from '../server/mcp.js';
@@ -22,7 +23,7 @@ async function fixture(t, mode = 'dsh-pet') {
     fetchImpl: async (_, options) => { const messages = JSON.parse(options.body).messages; systems.push(messages[0].content); contexts.push(JSON.parse(messages[1].content));
       return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(answer) } }] }) }; } });
   runner.running = true; runner.abort = new AbortController(); await runner.initialize(); await runner.activate(world.callTool(auth, 'get_control_state'));
-  const a = () => world.agent(record.agent_id); a().position = { x: 11, y: 8 };
+  const a = () => world.agent(record.agent_id); a().position = lifePosition(world, 'camp_place');
   const refresh = () => { runner.observation = world.observation(a()); runner.observedAt = now; };
   const advance = ms => { while (ms > 0) { const step = Math.min(ms, 5000); now += step; ms -= step; world.callTool(auth, 'observe', runner.session()); world.tick(); } refresh(); };
   const decide = async next => { answer = next; advance(6000); await runner.decide(); };
@@ -51,11 +52,13 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}原AI从零补给自行选
   f.a.life.tools.hoe.durability = 0; f.a.life.tools.watering_can.durability = 0; f.refresh();
   await f.decide(action('wait'));
   assert.equal(f.a.life.gathering, null); assert.equal(f.calls.filter(c => c.name === 'act').length, 0);
+  f.a.position = resourcePosition(f.world, 'camp_branches'); f.refresh();
   await f.decide(action('gather', { intent: 'start', resource_id: 'wood' }));
   assert.equal(f.a.life.gathering.resource_id, 'wood'); assert.equal(f.a.life.inventory.wood || 0, 0);
   f.advance(13000); assert.equal(f.a.life.gathering, null); assert.equal(f.a.life.inventory.wood, 1);
   const modelCalls = f.runner.checkpoint.calls_used; f.advance(22000);
   assert.equal(f.runner.checkpoint.calls_used, modelCalls); assert.equal(f.a.life.inventory.wood, 1, '一次采集不会自动重复');
+  f.a.position = marketPosition(f.world); f.refresh();
   await f.decide(action('trade', { intent: 'sell', item_id: 'wood', quantity: 1 }));
   assert.equal(f.a.adventure.gold, 1); assert.equal(f.a.life.inventory.wood || 0, 0);
   await f.decide(action('trade', { intent: 'buy', item_id: 'turnip_seed', quantity: 1 }));
@@ -66,7 +69,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}原AI从零补给自行选
 });
 
 for (const mode of ['dsh-pet', 'model']) test(`${mode}料理制作和食用由本人选择，满血低体力仍能看见面包，不发送整本流水`, async t => {
-  const f = await fixture(t, mode); Object.assign(f.a.life.inventory, { turnip: 2, wheat: 2 }); f.a.fatigue.energy = 10;
+  const f = await fixture(t, mode); Object.assign(f.a.life.inventory, { turnip: 2, wheat: 2 }); f.a.fatigue.energy = 10; f.a.position = lifePosition(f.world, 'cooking_place');
   f.refresh();
   await f.decide(action('inventory', { intent: 'craft', item_id: 'turnip_soup' }));
   assert.equal(f.a.life.inventory.turnip_soup, 1);
@@ -84,7 +87,7 @@ for (const mode of ['dsh-pet', 'model']) test(`${mode}料理制作和食用由�
 });
 
 test('有限采集不逐步思考，可由原AI选择取消；本人/队友完成唤醒且陌生人不入队', async t => {
-  const f = await fixture(t); await f.decide(action('gather', { intent: 'start', resource_id: 'ore' }));
+  const f = await fixture(t); f.a.position = resourcePosition(f.world, 'camp_stones'); f.refresh(); await f.decide(action('gather', { intent: 'start', resource_id: 'ore' }));
   f.advance(5000); assert.equal(f.runner.decisionDue(), false);
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.equal(data.gathering[0], 'camp_stones'); assert.equal(data.gathering[1], 'working'); assert.match(prompt, /gather\{intent:cancel\}/);
@@ -94,15 +97,18 @@ test('有限采集不逐步思考，可由原AI选择取消；本人/队友完�
   assert.deepEqual(state.queue.map(e => e.event_id), ['self-life_gather_finished', 'friend-life_gather_finished']);
 });
 
-test('资源、料理、价格与私人额度进入营地短提示，旧服务不宣称新增能力', async t => {
-  const f = await fixture(t); Object.assign(f.a.life.inventory, { turnip: 2, wheat: 2 }); f.a.adventure.gold = 20; f.refresh();
+test('资源、料理、价格与私人额度进入各自服务点短提示，旧服务不宣称新增能力', async t => {
+  const f = await fixture(t); Object.assign(f.a.life.inventory, { turnip: 2, wheat: 2 }); f.a.adventure.gold = 20; f.a.position = marketPosition(f.world); f.refresh();
   const prompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), data = decode(prompt);
   assert.ok(prompt.length <= 2000); assert.equal(data.supply.gold, 20);
-  assert.match(prompt, /camp_branches|camp_stones|orchard_berries/); assert.match(prompt, /库存/); assert.equal(data.supply.gather, undefined, '新服务提供共享节点，不复述旧个人采集目录');
-  assert.ok(data.supply.cook.some(row => row[0] === 'wheat_bread' && row[3] === 24));
-  assert.ok(data.supply.cook.every(row => row[4] === 2));
+  assert.match(prompt, /camp_branches|camp_stones|orchard_berries/); assert.equal(data.life.inventory.turnip, 2); assert.equal(data.supply.gather, undefined, '新服务提供共享节点，不复述旧个人采集目录');
   assert.ok(data.supply.prices.some(row => row[0] === 'turnip' && row[1] === 5 && row[2] === 2));
   assert.deepEqual(data.supply.quota.slice(0, 2), [20, 30]); assert.equal(data.supply.max_quantity, 10);
+  f.a.position = lifePosition(f.world, 'cooking_place'); f.refresh();
+  const kitchenPrompt = decisionPrompt({ observation: f.runner.observation, rules: f.runner.rules }), kitchen = decode(kitchenPrompt);
+  assert.ok(kitchenPrompt.length <= 2000);
+  assert.ok(kitchen.supply.cook.some(row => row[0] === 'wheat_bread' && row[3] === 24));
+  assert.ok(kitchen.supply.cook.every(row => row[4] === 2));
   const old = structuredClone(f.runner.rules); delete old.life.gathering; delete old.life.market; old.life.recipes = old.life.recipes.filter(recipe => recipe.kind !== 'cooking');
   old.allowed_actions = old.allowed_actions.filter(type => !['gather', 'trade'].includes(type)); f.runner.rules = old;
   assert.ok(!f.runner.capabilities().some(cap => ['gathering', 'cooking', 'trading'].includes(cap)));
@@ -110,7 +116,7 @@ test('资源、料理、价格与私人额度进入营地短提示，旧服务�
 });
 
 test('长目标、消息和移动回执下正在采集仍保留取消入口、体力和食物', async t => {
-  const f = await fixture(t); await f.decide(action('gather', { intent: 'start', resource_id: 'ore' }));
+  const f = await fixture(t); f.a.position = resourcePosition(f.world, 'camp_stones'); f.refresh(); await f.decide(action('gather', { intent: 'start', resource_id: 'ore' }));
   f.a.life.inventory.wheat_bread = 1; f.a.fatigue.energy = 1; f.refresh();
   const ownerGoal = '🐾'.repeat(300), message = '🌱'.repeat(200);
   const feedback = { type: 'move', status: 'applied', code: 'MOVE_ADJUSTED', requested: { x: 999, y: -999 }, applied: { x: 11, y: 8 } };
@@ -123,7 +129,7 @@ test('长目标、消息和移动回执下正在采集仍保留取消入口、�
 });
 
 for (const mode of ['dsh-pet', 'model']) test(`${mode}真实金币不足回执供原AI重新决定，不代买也不重复失败交易`, async t => {
-  const f = await fixture(t, mode); f.a.adventure.gold = 0;
+  const f = await fixture(t, mode); f.a.adventure.gold = 0; f.a.position = marketPosition(f.world); f.refresh();
   await f.decide(action('trade', { intent: 'buy', item_id: 'ore', quantity: 1 }));
   assert.equal(f.runner.checkpoint.last_action_feedback.code, 'INSUFFICIENT_GOLD');
   assert.equal(f.a.life.inventory.ore || 0, 0);

@@ -7,6 +7,7 @@ import { PEER_MARKET_RULES, PEER_MARKET_STATUSES } from '../shared/peer-market.j
 import { COMMUNITY_RULES, COMMUNITY_STATUSES } from '../shared/community.js';
 import { JOURNEY_RULES, JOURNEY_NODES, JOURNEY_MONSTERS } from '../shared/journey.js';
 import { WARDROBE_RULES, AQUARIUM_RULES, AQUARIUM_INTENTS, validWardrobe, validAquarium } from '../skills/ai-plaza/scripts/lifestyle-contract.mjs';
+import { PLAZA_LAYOUT, PLAZA_SERVICES, plazaServicePlace } from '../shared/plaza-layout.js';
 
 const version = process.argv[2];
 const base = process.env.PLAZA_CHECK_URL || 'http://127.0.0.1:3000';
@@ -21,6 +22,12 @@ assert.equal(health.version, version);
 assert.equal(health.mode, 'accounts');
 for (const capability of ['adventure', 'monster_ai', 'monster_patrol', 'movement_candidates', 'farming', 'farm_tools', 'inventory', 'equipment', 'opportunities', 'fatigue', 'persistent_appearance', 'pixel_world', 'runtime_health', 'recovery', 'reliable_events', 'gathering', 'cooking', 'trading', 'exploration_events', 'strategic_equipment', 'personal_goals']) assert.equal(health.capabilities[capability], true, capability);
 const world = await (await response('/api/public/world')).json();
+assert.deepEqual(world.plaza_layout, PLAZA_LAYOUT);
+for (const [key,id] of Object.entries({camp_place:'camp',farm_place:'farm',crafting_place:'tools',tool_place:'tools',cooking_place:'kitchen'}))
+  assert.deepEqual(world.life[key],plazaServicePlace(id),`actual ${id} service is the authored facility`);
+assert.deepEqual(world.life.market.place,plazaServicePlace('supply'));
+assert.deepEqual(world.home_rules.entrance,{scene_id:'plaza',...PLAZA_SERVICES.home.interaction_position});
+for(const facility of PLAZA_LAYOUT.facilities) assert.ok(isWalkable('plaza',facility.interaction_position),facility.id+' actual station is walkable');
 assert.equal(health.capabilities.wardrobe, true);
 assert.equal(health.capabilities.aquarium, true);
 assert.equal(world.home_rules.max_furniture, 16);
@@ -203,6 +210,8 @@ for (const site of CAMP_SITES) { assert.ok(isWalkable(site.scene_id, site.positi
 assert.ok(['day', 'dusk', 'night', 'dawn'].includes(world.day_cycle.phase));
 assert.equal(world.day_cycle.cycle_seconds, 600);
 for (const node of world.resources.nodes) {
+  const authored=RESOURCE_NODES.find(n=>n.id===node.id);
+  for(const field of ['scene_id','position','interaction_position']) assert.deepEqual(node[field],authored[field],`${node.id} ${field} matches authored world`);
   assert.ok(node.stock >= 0 && node.stock <= node.max_stock);
   assert.ok(isWalkable(node.scene_id, node.interaction_position));
   if (node.kind === 'tree') {
@@ -218,7 +227,7 @@ for (const [id, price] of [['wheat_bread', 12], ['turnip', 5]]) {
 const fallenFruit = world.resources.nodes.find(node => node.id === 'camp_fallen_berries');
 assert.ok(fallenFruit);
 assert.equal(fallenFruit.scene_id, 'plaza');
-assert.deepEqual(fallenFruit.interaction_position, { x: 10, y: 9 });
+assert.deepEqual(fallenFruit.interaction_position, RESOURCE_NODES.find(n=>n.id==='camp_fallen_berries').interaction_position);
 assert.equal(fallenFruit.energy_cost, 0); assert.equal(fallenFruit.tool_id, null);
 assert.equal(fallenFruit.duration_seconds, 6); assert.equal(fallenFruit.max_stock, 1);
 assert.equal(fallenFruit.regrow_seconds, 120); assert.equal(fallenFruit.yield_count, 1);
@@ -277,7 +286,7 @@ for (const agent of world.agents) {
     assert.equal(agent.life.gathering.run_id, undefined);
     assert.equal(agent.life.gathering.session_epoch, undefined);
   }
-  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run', 'scene_migration', 'scene_stale_actions', 'next_action_id']) assert.equal(agent[field], undefined, field);
+  for (const field of ['owner_id', 'budget', 'goal', 'controllers', 'token', 'diagnostics', 'run', 'scene_migration', 'plaza_layout_migration', 'scene_stale_actions', 'next_action_id']) assert.equal(agent[field], undefined, field);
   assert.ok(['active', 'paused', 'offline', 'never_joined', 'unknown'].includes(agent.presence.state));
   assert.ok([true, false, null].includes(agent.presence.has_joined));
   for (const field of ['first_joined_at', 'last_seen_at', 'last_departed_at']) assert.ok(agent.presence[field] === null || Number.isSafeInteger(agent.presence[field]));

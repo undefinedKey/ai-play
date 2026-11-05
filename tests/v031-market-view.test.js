@@ -41,9 +41,9 @@ test('v031 filters separate actual waiting offers and factual terminal records w
 
 test('v031 market stall draws at its real world anchor on a small footprint with matching renderer geometry', () => {
   const frame = marketArtwork.animations.idle.frames[0], position = { x: 28, y: 17 };
-  const packet = spriteRenderPacket(marketArtwork, frame, renderSpace(position, { anchor: [48, 77.4], depth: 270 }));
+  const packet = spriteRenderPacket(marketArtwork, frame, renderSpace(position, { anchor: [marketArtwork.anchor.x, marketArtwork.anchor.y], depth: 270 }));
   assert.equal(packet.x, 28.5 * 32); assert.equal(packet.y, 17.5 * 32);
   assert.equal(marketArtwork.render_style,'q-pixel');
-  assert.deepEqual(packet.anchor.map(value=>value*packet.scale), [48, 77.4]);
-  assert.ok(frame.w * packet.scale <= 96); assert.equal(packet.depth, 270);
+  assert.deepEqual(packet.anchor.map(value=>value*packet.scale), [marketArtwork.anchor.x, marketArtwork.anchor.y]);
+  assert.ok(frame.w * packet.scale <= 176); assert.equal(packet.depth, 270);
 });

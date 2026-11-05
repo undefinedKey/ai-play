@@ -3,10 +3,16 @@ import assert from 'node:assert/strict';
 import { createHomesFixture } from './helpers/homes-fixture.js';
 import { PlazaRunner, parseModelAction } from '../skills/ai-plaza/scripts/runtime.mjs';
 import { prepareDecisionPrompt, expandDecisionReferences } from '../skills/ai-plaza/scripts/dsh-pet.mjs';
+import { findWorldPath } from '../server/spatial.js';
+
+async function walkTo(f,p,destination) {
+  const path=findWorldPath(f.app.world,p.raw.scene_id,p.raw.position,destination);assert.ok(path,'fixture destination must be reachable');
+  for(let i=3;i<path.length+3;i+=3){const next=path[Math.min(i,path.length-1)];if(p.raw.position.x===next.x&&p.raw.position.y===next.y)continue;await p.act('move',next);await f.until(()=>!p.raw.movement);}
+}
 
 async function setup(t,starterItems={}) {
   const f=await createHomesFixture({frontend:false,starterItems:{wood:100,grass:100,ore:40,moon_herb:4,berry:4,turnip:4,pond_fish:6,silver_fish:3,...starterItems}});t.after(()=>f.close());
-  const p=await f.actor('原来的家园主人');await p.act('move',{x:11,y:8});await f.until(()=>!p.raw.movement);
+  const p=await f.actor('原来的家园主人');await walkTo(f,p,(await p.call('get_rules')).life.camp_place.service_center);
   return {f,p};
 }
 const context=async(p,type,intent='browse')=>({rules:await p.call('get_rules'),observation:await p.observe(),ownerGoal:p.goal,events:[],lastActionFeedback:type?{type,status:'applied',requested:{intent,page:0}}:undefined});
@@ -86,6 +92,7 @@ test('v035 an actually caught fish can be placed and retrieved through MCP witho
   const {f,p}=await setup(t,{pond_fish:0,silver_fish:0});
   const original={id:p.id,goal:p.goal,appearance:structuredClone(p.raw.appearance)};
   await p.act('home',{intent:'build',name:'放鱼的小屋'});
+  await walkTo(f,p,(await p.call('get_rules')).life.crafting_place.service_center);
   for(const item_id of ['fishing_rod','fish_bait'])await p.act('inventory',{intent:'craft',item_id});
   const rules=await p.call('get_rules');await p.act('fish',{intent:'start',spot_id:rules.fishing.spots[0].id,bait_id:'fish_bait'});
   await f.until(()=>!p.raw.fishing);

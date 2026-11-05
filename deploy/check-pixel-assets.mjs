@@ -1,3 +1,5 @@
+import {plazaPropArtwork,plazaPropIds} from '../src/plaza-state.js';
+import {PLAZA_LAYOUT_VERSION} from '../shared/plaza-layout.js';
 import { RUINS_RULES } from '../shared/ruins-layout.js';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -145,6 +147,9 @@ for(const directory of ['public','dist']){
   for(const id of ['wood','ore','kitchen','supply'])assert.ok(manifest.landmarks[id]);
   for(const id of ['supply_cache','wild_garden','spring'])assert.equal(manifest.discoveries[id].animations.resolved.loop,false);
   assert.ok(manifest.farm_scene?.image);
+  for(const id of plazaPropIds)assert.ok(manifest.plaza_props[id]?.animations.idle.frames.length,`plaza_props.${id}`);
+  for(const id of ['market_stall','journey','community_table',...['north','south','east','west'].map(f=>'community_seat_'+f)])assert.ok(manifest.plaza_services[id],`plaza_services.${id}`);
+  assert.equal(SCENES.find(s=>s.id==='plaza').layout_version,PLAZA_LAYOUT_VERSION);
   for(const id of ['turnip','wheat'])for(const stage of ['untilled','tilled','seeded','growing','ready'])assert.ok(manifest.crops[id].animations[stage]?.frames.length,`${id}.${stage}`);
   for(const id of ['campfire','campfire_ashes'])assert.ok(manifest.effects[id]?.animations.idle.frames.length,id);
   assert.notDeepEqual(manifest.effects.campfire.animations.idle.frames,manifest.effects.campfire_ashes.animations.idle.frames);
@@ -157,7 +162,7 @@ for(const directory of ['public','dist']){
     assert.deepEqual(scene.portal.to_position,scene.id === 'ruins' ? RUINS_RULES.entrance.position : other.portal.position);
     for(const prop of scene.props){
       if(prop.kind!=='pond'){
-        const sprite=manifest.props[prop.kind];assert.ok(sprite,prop.kind);
+        const sprite=plazaPropArtwork(manifest,scene.id,prop);assert.ok(sprite,prop.kind);
         const frame=sprite.animations.idle.frames[0],image=texture(frame.image||sprite.image),anchor=frame.anchor||sprite.anchor;
         const matches=Object.values(image.atlas.frames).filter(entry=>rectKey(entry.frame)===rectKey(frame));
         assert.ok(matches.some(entry=>entry.anchor.x===anchor.x&&entry.anchor.y===anchor.y),`${prop.kind}: contact anchor differs from authored source`);
